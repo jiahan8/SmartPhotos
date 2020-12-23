@@ -29,6 +29,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run unit tests
+        #
         run: ./gradlew test --stacktrace
 
   instrumented_test:
@@ -46,6 +47,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api-level }}
+          #
           script: ./gradlew connectedCheck --stacktrace
 
   apk_upload:
@@ -65,7 +67,9 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build apk
+        #
         run: ./gradlew assemble --stacktrace
+
       - name: Upload debug apk
         uses: actions/upload-artifact@v1
         with:
@@ -77,6 +81,10 @@ jobs:
         with:
           name: app-release apk
           path: app/build/outputs/apk/release/app-release-unsigned.apk
+
+      - name: Build android test apk
+        #
+        run: ./gradlew assembleAndroidTest --stacktrace
 
       - name: Upload android test apk
         uses: actions/upload-artifact@v1
