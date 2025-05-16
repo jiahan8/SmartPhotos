@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -39,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -61,10 +64,8 @@ fun SearchScreen(
     val state = rememberPullToRefreshState()
     val coroutineScope = rememberCoroutineScope()
 
-    // Properly collect photos as state
     val photos by viewModel.photos.collectAsState(initial = emptyList())
 
-    // Add search functionality
     var searchText by rememberSaveable { mutableStateOf("") }
     val filteredPhotos = remember(photos, searchText) {
         if (searchText.isEmpty()) {
@@ -79,8 +80,7 @@ fun SearchScreen(
     val onRefresh: () -> Unit = {
         coroutineScope.launch {
             isRefreshing = true
-            // Consider adding a refresh function in viewModel instead
-            delay(500) // Simulating refresh
+            delay(500)
             isRefreshing = false
         }
     }
@@ -112,7 +112,11 @@ fun SearchScreen(
         }
     ) { innerPadding ->
         PullToRefreshBox(
-            modifier = Modifier.padding(innerPadding),
+            modifier = Modifier.padding(
+                top = innerPadding.calculateTopPadding(),
+                start = innerPadding.calculateStartPadding(LayoutDirection.Ltr),
+                end = innerPadding.calculateEndPadding(LayoutDirection.Ltr)
+            ),
             state = state,
             isRefreshing = isRefreshing,
             onRefresh = onRefresh,
@@ -149,7 +153,7 @@ private fun PhotoItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(start = 16.dp, end = 16.dp, bottom = 24.dp)
             .clickable(true) {
                 navController.navigate(
                     Screen.ImagePreview.createRoute(
@@ -160,7 +164,7 @@ private fun PhotoItem(
                 )
             },
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Column {
             Box {

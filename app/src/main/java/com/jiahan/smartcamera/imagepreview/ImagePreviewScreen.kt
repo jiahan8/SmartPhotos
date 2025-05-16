@@ -3,6 +3,7 @@ package com.jiahan.smartcamera.imagepreview
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -75,14 +76,14 @@ fun ImagePreviewScreen(
                             contentDescription = "Back"
                         )
                     }
-                }
+                },
+                windowInsets = WindowInsets(0.dp),
             )
         }
     ) { padding ->
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+                .fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
             AsyncImage(
@@ -99,7 +100,7 @@ fun ImagePreviewScreen(
                     IconButton(
                         onClick = { showSheet = true },
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(52.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Info,
@@ -113,12 +114,12 @@ fun ImagePreviewScreen(
                             coroutineScope.launch {
                                 if (!isImageSaved) {
                                     viewModel.saveImage(imageUri, detectedText)
-                                    viewModel.isImageSaved(imageUri) // Refresh the state
+                                    viewModel.isImageSaved(imageUri)
                                 }
                             }
                         },
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(52.dp)
                     ) {
                         Icon(
                             imageVector =

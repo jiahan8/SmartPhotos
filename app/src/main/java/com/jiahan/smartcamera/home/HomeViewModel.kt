@@ -29,7 +29,6 @@ class HomeViewModel @Inject constructor(
         try {
             context.contentResolver.openInputStream(imageUri)?.use { stream ->
                 folderRef.putStream(stream).await()
-                _uploading.value = true
             } ?: error("Failed to open image stream")
         } catch (e: Exception) {
             e

@@ -1,6 +1,7 @@
 package com.jiahan.smartcamera.data.repository
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
 import com.jiahan.smartcamera.database.dao.PhotoDao
 import com.jiahan.smartcamera.database.data.DatabasePhoto
@@ -31,29 +32,30 @@ class SearchRepository @Inject constructor(
         photoDao.insertPhotos(databasePhoto)
     }
 
-//    // Save bitmap image to storage and reference to Room
-//    suspend fun saveImage(bitmap: Bitmap, title: String? = null): Long {
-//        return withContext(Dispatchers.IO) {
-//            // Create a unique filename
-//            val filename = "IMG_${UUID.randomUUID()}.jpg"
-//            val file = File(imagesDir, filename)
-//
-//            // Save the bitmap to file
-//            FileOutputStream(file).use { out ->
-//                bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
-//                out.flush()
-//            }
-//
-//            // Create and insert the database entry
-//            val imageEntity = ImageEntity(
-//                imagePath = file.absolutePath,
-//                title = title,
-//                uploadDate = System.currentTimeMillis()
-//            )
-//
-//            photoDao.insertPhotos(imageEntity)
-//        }
-//    }
+    // Save bitmap image to storage and reference to Room
+    suspend fun saveImage(bitmap: Bitmap, title: String) {
+        return withContext(Dispatchers.IO) {
+            // Create a unique filename
+            val filename = "IMG_${UUID.randomUUID()}.jpg"
+            val file = File(imagesDir, filename)
+
+            // Save the bitmap to file
+            FileOutputStream(file).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+                out.flush()
+            }
+
+            // Create and insert the database entry
+            val imageEntity = DatabasePhoto(
+                path = file.absolutePath,
+                originalName = "",
+                title = title,
+                saveDate = System.currentTimeMillis()
+            )
+
+            photoDao.insertPhotos(imageEntity)
+        }
+    }
 
     // Save image from URI (like from gallery picker)
     suspend fun saveImageFromUri(uri: Uri, title: String) {

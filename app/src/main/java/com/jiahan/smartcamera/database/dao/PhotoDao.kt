@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface PhotoDao {
 
-    @Query("select * from photos")
+    @Query("select * from photos order by save_date desc")
     fun getPhotos(): Flow<List<DatabasePhoto>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
