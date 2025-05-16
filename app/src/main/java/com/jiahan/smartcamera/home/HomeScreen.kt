@@ -20,6 +20,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.Screen
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,7 +36,13 @@ fun HomeScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         uri?.let {
-            navController.navigate("preview?uri=${Uri.encode(it.toString())}")
+            navController.navigate(
+                Screen.ImagePreview.createRoute(
+                    imageUri = Uri.encode(it.toString()),
+                    text = "",
+                    detectImage = true
+                )
+            )
             coroutineScope.launch {
                 viewModel.uploadImageToFirebase(context, it)
             }

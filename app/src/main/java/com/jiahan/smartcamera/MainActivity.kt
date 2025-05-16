@@ -19,7 +19,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.core.net.toUri
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -85,19 +84,25 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.padding(innerPadding)
                         ) {
                             composable(Screen.Home.route) { HomeScreen(navController) }
-                            composable(Screen.Search.route) { SearchScreen() }
+                            composable(Screen.Search.route) { SearchScreen(navController) }
                             composable(
-                                route = "preview?uri={uri}",
-                                arguments = listOf(navArgument("uri") { type = NavType.StringType })
+                                route = Screen.ImagePreview.route,
+                                arguments = listOf(
+                                    navArgument(Screen.ImagePreview.URI_ARG) {
+                                        type = NavType.StringType
+                                    },
+                                    navArgument(Screen.ImagePreview.TEXT_ARG) {
+                                        type = NavType.StringType
+                                    },
+                                    navArgument(Screen.ImagePreview.DETECT_IMAGE_ARG) {
+                                        type = NavType.BoolType
+                                        defaultValue = false
+                                    }
+                                )
                             ) { backStackEntry ->
-                                val uriStr = backStackEntry.arguments?.getString("uri")
-                                uriStr?.let {
-                                    val imageUri = it.toUri()
-                                    ImagePreviewScreen(
-                                        navController = navController,
-                                        imageUri = imageUri
-                                    )
-                                }
+                                ImagePreviewScreen(
+                                    navController = navController
+                                )
                             }
                         }
                     }
@@ -114,4 +119,15 @@ sealed class Screen(
 ) {
     object Home : Screen("home", "Home", Icons.Default.Home)
     object Search : Screen("search", "Search", Icons.Default.Search)
+    object ImagePreview : Screen(
+        "imagepreview?uri={uri}&text={text}&detectimage={detectimage}",
+        "Image Preview",
+        Icons.Default.Search
+    ) {
+        const val URI_ARG = "uri"
+        const val TEXT_ARG = "text"
+        const val DETECT_IMAGE_ARG = "detectimage"
+        fun createRoute(imageUri: String, text: String, detectImage: Boolean = false) =
+            "imagepreview?uri=$imageUri&text=$text&detectimage=$detectImage"
+    }
 }

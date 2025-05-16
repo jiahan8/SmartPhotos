@@ -1,8 +1,8 @@
 package com.jiahan.smartcamera.imagepreview
 
-import android.net.Uri
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -11,6 +11,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -26,6 +28,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,25 +37,31 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
-import com.jiahan.smartcamera.home.HomeViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImagePreviewScreen(
     navController: NavHostController,
-    viewModel: HomeViewModel = hiltViewModel(),
-    imageUri: Uri
+    viewModel: ImagePreviewViewModel = hiltViewModel()
 ) {
+    val imageUri = viewModel.imageUri
+    val shouldDetectImage = viewModel.shouldDetectImage
+
     val context = LocalContext.current
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showSheet by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
 
     val detectedText by viewModel.detectedText.collectAsState()
     val fabVisible = detectedText.isNotBlank()
+    val isImageSaved by viewModel.isImageSaved.collectAsState()
 
     LaunchedEffect(imageUri) {
-        viewModel.detectLabelsAndJapaneseText(context, imageUri)
+        if (shouldDetectImage)
+            viewModel.detectLabelsAndJapaneseText(context, imageUri)
+        viewModel.isImageSaved(imageUri)
     }
 
     Scaffold(
@@ -82,17 +91,44 @@ fun ImagePreviewScreen(
                 modifier = Modifier.fillMaxSize(),
             )
 
-            if (fabVisible) {
-                IconButton(
-                    onClick = { showSheet = true },
-                    modifier = Modifier
-                        .size(24.dp)
-                        .align(Alignment.BottomEnd)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = "Info"
-                    )
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+            ) {
+                if (fabVisible) {
+                    IconButton(
+                        onClick = { showSheet = true },
+                        modifier = Modifier
+                            .size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "Info"
+                        )
+                    }
+                }
+                if (shouldDetectImage) {
+                    IconButton(
+                        onClick = {
+                            coroutineScope.launch {
+                                if (!isImageSaved) {
+                                    viewModel.saveImage(imageUri, detectedText)
+                                    viewModel.isImageSaved(imageUri) // Refresh the state
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector =
+                                if (isImageSaved)
+                                    Icons.Default.Favorite
+                                else
+                                    Icons.Default.FavoriteBorder,
+                            contentDescription = if (isImageSaved) "Saved" else "Save"
+                        )
+                    }
                 }
             }
         }
