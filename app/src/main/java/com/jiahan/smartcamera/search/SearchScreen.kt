@@ -64,18 +64,8 @@ fun SearchScreen(
     val state = rememberPullToRefreshState()
     val coroutineScope = rememberCoroutineScope()
 
-    val photos by viewModel.photos.collectAsState(initial = emptyList())
-
     var searchText by rememberSaveable { mutableStateOf("") }
-    val filteredPhotos = remember(photos, searchText) {
-        if (searchText.isEmpty()) {
-            photos
-        } else {
-            photos.filter { photo ->
-                photo.title.contains(searchText, ignoreCase = true) == true
-            }
-        }
-    }
+    val filteredPhotos by viewModel.searchPhotos(searchText).collectAsState(initial = emptyList())
 
     val onRefresh: () -> Unit = {
         coroutineScope.launch {
@@ -102,7 +92,7 @@ fun SearchScreen(
                         modifier = Modifier.size(20.dp)
                     )
                 },
-                placeholder = { Text(text = "Search by title") },
+                placeholder = { Text(text = "Search photos") },
                 colors = TextFieldDefaults.colors(
                     cursorColor = Color.Gray,
                     unfocusedIndicatorColor = Color.Transparent,

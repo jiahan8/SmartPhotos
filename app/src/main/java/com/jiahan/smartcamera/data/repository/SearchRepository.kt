@@ -99,4 +99,6 @@ class SearchRepository @Inject constructor(
         return photoDao.getPhotoByPath(path) != null
     }
 
+    fun searchPhotos(query: String): Flow<List<DatabasePhoto>> =
+        photoDao.searchPhotos(query)
 }

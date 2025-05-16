@@ -27,11 +27,13 @@ class HomeViewModel @Inject constructor(
             storage.reference.child("${remoteConfigRepository.getStorageFolderName()}/${UUID.randomUUID()}.jpg")
         _uploading.value = true
         try {
-            context.contentResolver.openInputStream(imageUri)?.use { stream ->
-                folderRef.putStream(stream).await()
-            } ?: error("Failed to open image stream")
+            // Create a ByteArray from the InputStream instead of using the stream directly
+            val inputStream = context.contentResolver.openInputStream(imageUri)
+                ?: throw IllegalStateException("Failed to open image stream")
+            val bytes = inputStream.use { it.readBytes() }
+            folderRef.putBytes(bytes).await()
         } catch (e: Exception) {
-            e
+            e.printStackTrace()
         } finally {
             _uploading.value = false
         }

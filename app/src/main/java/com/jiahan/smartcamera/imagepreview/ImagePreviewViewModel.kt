@@ -62,7 +62,7 @@ class ImagePreviewViewModel @Inject constructor(
             val textResult = textDeferred.await()
 
             val labelText = labelResult.getOrNull()?.joinToString("\n") {
-                "Label: ${it.text}, Confidence: ${"%.2f".format(it.confidence)}, Index: ${it.index}"
+                "Label: ${it.text}, Confidence: ${"%.2f".format(it.confidence)}"
             } ?: "Image labeling failed: ${labelResult.exceptionOrNull()?.localizedMessage}"
 
             val visionText = textResult.getOrNull()?.text

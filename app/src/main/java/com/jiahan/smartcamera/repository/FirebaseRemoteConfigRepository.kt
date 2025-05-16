@@ -31,7 +31,7 @@ class FirebaseRemoteConfigRepository @Inject constructor() : RemoteConfigReposit
         return try {
             remoteConfig.fetchAndActivate().await()
         } catch (e: Exception) {
-            e
+            e.printStackTrace()
             false
         }
     }
