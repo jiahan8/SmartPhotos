@@ -46,6 +46,12 @@ class ImagePreviewViewModel @Inject constructor(
         )
 
         coroutineScope {
+            val descriptionDeferred = async {
+                runCatching {
+                    generateDescription(image)
+                }
+            }
+
             val labelDeferred = async {
                 runCatching {
                     labeler.process(inputImage).await()
@@ -58,8 +64,12 @@ class ImagePreviewViewModel @Inject constructor(
                 }
             }
 
+            val descriptionResult = descriptionDeferred.await()
             val labelResult = labelDeferred.await()
             val textResult = textDeferred.await()
+
+            val description =
+                descriptionResult.getOrNull()?.takeIf { it.isNotEmpty() }?.let { "$it\n\n" } ?: ""
 
             val labelText = labelResult.getOrNull()?.joinToString("\n") {
                 "Label: ${it.text}, Confidence: ${"%.2f".format(it.confidence)}"
@@ -68,7 +78,7 @@ class ImagePreviewViewModel @Inject constructor(
             val visionText = textResult.getOrNull()?.text
                 ?: "Text recognition failed: ${textResult.exceptionOrNull()?.localizedMessage}"
 
-            _detectedText.value = "$labelText\n\n$visionText"
+            _detectedText.value = "$description$labelText\n\n$visionText"
         }
     }
 
@@ -80,5 +90,13 @@ class ImagePreviewViewModel @Inject constructor(
         val result = searchRepository.isImageExists(imageUri.toString())
         _isImageSaved.value = result
         return result
+    }
+
+    suspend fun generateDescription(imageUri: Uri) =
+        searchRepository.prepareAndStartImageDescription(imageUri)
+
+    override fun onCleared() {
+        super.onCleared()
+        searchRepository.closeImageDescriber()
     }
 }

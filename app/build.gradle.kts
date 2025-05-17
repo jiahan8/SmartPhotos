@@ -87,7 +87,6 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
 
     implementation(libs.androidx.hilt.navigation.compose)
-//    implementation(libs.androidx.hilt.compiler)
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)
 
@@ -99,4 +98,7 @@ dependencies {
     ksp(libs.room.runtime)
     ksp(libs.room.compiler)
     implementation(libs.room.ktx)
+
+    implementation(libs.genai.image.description)
+    implementation(libs.kotlinx.coroutines.guava)
 }
