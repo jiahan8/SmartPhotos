@@ -68,7 +68,7 @@ fun ImagePreviewScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Image Preview") },
+                title = { Text("Photo") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(

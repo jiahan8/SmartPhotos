@@ -31,7 +31,7 @@ class ImagePreviewViewModel @Inject constructor(
     private val text: String =
         Uri.decode(savedStateHandle.getStateFlow(Screen.ImagePreview.TEXT_ARG, "").value)
     val shouldDetectImage =
-        savedStateHandle.getStateFlow(Screen.ImagePreview.DETECT_IMAGE_ARG, false).value
+        savedStateHandle.getStateFlow(Screen.ImagePreview.DETECT_ARG, false).value
 
     private val _detectedText = MutableStateFlow(text)
     val detectedText: StateFlow<String> = _detectedText

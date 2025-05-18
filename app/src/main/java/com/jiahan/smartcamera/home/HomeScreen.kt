@@ -48,7 +48,7 @@ fun HomeScreen(
                 Screen.ImagePreview.createRoute(
                     imageUri = Uri.encode(it.toString()),
                     text = "",
-                    detectImage = true
+                    detect = true
                 )
             )
             coroutineScope.launch {

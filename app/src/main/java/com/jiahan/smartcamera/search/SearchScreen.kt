@@ -149,7 +149,7 @@ private fun PhotoItem(
                     Screen.ImagePreview.createRoute(
                         imageUri = Uri.encode(photo.path),
                         text = Uri.encode(photo.title),
-                        detectImage = false
+                        detect = false
                     )
                 )
             },

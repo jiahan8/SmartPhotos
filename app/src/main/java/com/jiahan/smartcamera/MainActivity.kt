@@ -25,6 +25,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
+import com.jiahan.smartcamera.Screen.ImagePreview.DETECT_ARG
+import com.jiahan.smartcamera.Screen.ImagePreview.TEXT_ARG
+import com.jiahan.smartcamera.Screen.ImagePreview.URI_ARG
 import com.jiahan.smartcamera.home.HomeScreen
 import com.jiahan.smartcamera.imagepreview.ImagePreviewScreen
 import com.jiahan.smartcamera.search.SearchScreen
@@ -83,20 +87,39 @@ class MainActivity : ComponentActivity() {
                             startDestination = Screen.Home.route,
                             modifier = Modifier.padding(innerPadding)
                         ) {
-                            composable(Screen.Home.route) { HomeScreen(navController) }
-                            composable(Screen.Search.route) { SearchScreen(navController) }
+                            composable(Screen.Home.route) {
+                                HomeScreen(
+                                    navController = navController
+                                )
+                            }
+                            composable(
+                                route = Screen.Search.route,
+                                deepLinks = listOf(
+                                    navDeepLink {
+                                        uriPattern = SEARCH_DEEP_LINK_URI_PATTERN
+                                    }
+                                )
+                            ) {
+                                SearchScreen(
+                                    navController = navController
+                                )
+                            }
                             composable(
                                 route = Screen.ImagePreview.route,
                                 arguments = listOf(
-                                    navArgument(Screen.ImagePreview.URI_ARG) {
+                                    navArgument(URI_ARG) {
                                         type = NavType.StringType
                                     },
-                                    navArgument(Screen.ImagePreview.TEXT_ARG) {
+                                    navArgument(TEXT_ARG) {
                                         type = NavType.StringType
                                     },
-                                    navArgument(Screen.ImagePreview.DETECT_IMAGE_ARG) {
+                                    navArgument(DETECT_ARG) {
                                         type = NavType.BoolType
-                                        defaultValue = false
+                                    }
+                                ),
+                                deepLinks = listOf(
+                                    navDeepLink {
+                                        uriPattern = IMAGE_DEEP_LINK_URI_PATTERN
                                     }
                                 )
                             ) { backStackEntry ->
@@ -112,6 +135,10 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+private const val SEARCH_DEEP_LINK_URI_PATTERN = "live://jiahan8.github.io/search"
+private const val IMAGE_DEEP_LINK_URI_PATTERN =
+    "live://jiahan8.github.io/image?uri={$URI_ARG}&text={$TEXT_ARG}&detect={$DETECT_ARG}"
+
 sealed class Screen(
     val route: String,
     val title: String,
@@ -120,14 +147,14 @@ sealed class Screen(
     object Home : Screen("home", "Home", Icons.Default.Home)
     object Search : Screen("search", "Search", Icons.Default.Search)
     object ImagePreview : Screen(
-        "imagepreview?uri={uri}&text={text}&detectimage={detectimage}",
-        "Image Preview",
-        Icons.Default.Search
+        route = "image?uri={uri}&text={text}&detect={detect}",
+        title = "Photo",
+        icon = Icons.Default.Search
     ) {
         const val URI_ARG = "uri"
         const val TEXT_ARG = "text"
-        const val DETECT_IMAGE_ARG = "detectimage"
-        fun createRoute(imageUri: String, text: String, detectImage: Boolean = false) =
-            "imagepreview?uri=$imageUri&text=$text&detectimage=$detectImage"
+        const val DETECT_ARG = "detect"
+        fun createRoute(imageUri: String, text: String, detect: Boolean = false) =
+            "image?uri=$imageUri&text=$text&detect=$detect"
     }
 }
