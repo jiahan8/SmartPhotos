@@ -12,16 +12,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -67,8 +68,13 @@ fun ImagePreviewScreen(
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Photo") },
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "Photo",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
@@ -103,7 +109,7 @@ fun ImagePreviewScreen(
                             .size(52.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Info,
+                            imageVector = Icons.Rounded.Info,
                             contentDescription = "Info"
                         )
                     }
@@ -124,9 +130,9 @@ fun ImagePreviewScreen(
                         Icon(
                             imageVector =
                                 if (isImageSaved)
-                                    Icons.Default.Favorite
+                                    Icons.Rounded.Favorite
                                 else
-                                    Icons.Default.FavoriteBorder,
+                                    Icons.Rounded.FavoriteBorder,
                             contentDescription = if (isImageSaved) "Saved" else "Save"
                         )
                     }

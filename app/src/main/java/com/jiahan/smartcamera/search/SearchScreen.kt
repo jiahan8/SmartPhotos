@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
@@ -83,13 +84,15 @@ fun SearchScreen(
                 modifier = Modifier
                     .padding(horizontal = 16.dp, vertical = 12.dp)
                     .fillMaxWidth(),
-                shape = RoundedCornerShape(size = 12.dp),
+                shape = CircleShape,
                 singleLine = true,
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Rounded.Search,
                         contentDescription = "Search",
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .size(20.dp)
                     )
                 },
                 placeholder = { Text(text = "Search photos") },
@@ -188,7 +191,7 @@ private fun PhotoItem(
 
             Text(
                 text = photo.title,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(16.dp),
                 maxLines = 10
             )

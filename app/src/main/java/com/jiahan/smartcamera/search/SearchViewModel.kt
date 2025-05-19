@@ -23,6 +23,7 @@ class SearchViewModel @Inject constructor(
             searchRepository.photos
         } else {
             analyticsRepository.logSearchEvent(query)
+            analyticsRepository.logSearchCustomEvent(query)
             searchRepository.searchPhotos(query)
         }
 }

@@ -4,11 +4,17 @@ import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -17,8 +23,11 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -34,6 +43,7 @@ import com.jiahan.smartcamera.imagepreview.ImagePreviewScreen
 import com.jiahan.smartcamera.search.SearchScreen
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import dagger.hilt.android.AndroidEntryPoint
+import androidx.compose.runtime.getValue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -55,13 +65,19 @@ class MainActivity : ComponentActivity() {
                 ) {
                     Scaffold(
                         bottomBar = {
-                            NavigationBar {
+                            NavigationBar(
+                                modifier = Modifier.height(64.dp),
+                                windowInsets = WindowInsets(0.dp),
+                            ) {
                                 val currentDestination =
                                     navController.currentBackStackEntryAsState().value?.destination
                                 items.forEach { screen ->
+                                    val selected = currentDestination?.route == screen.route
+
                                     NavigationBarItem(
                                         icon = {
-                                            Icon(
+                                            AnimatedIcon(
+                                                selected = selected,
                                                 imageVector = screen.icon,
                                                 contentDescription = screen.title
                                             )
@@ -144,12 +160,12 @@ sealed class Screen(
     val title: String,
     val icon: ImageVector
 ) {
-    object Home : Screen("home", "Home", Icons.Default.Home)
-    object Search : Screen("search", "Search", Icons.Default.Search)
+    object Home : Screen("home", "Home", Icons.Rounded.Home)
+    object Search : Screen("search", "Search", Icons.Rounded.Search)
     object ImagePreview : Screen(
         route = "image?uri={uri}&text={text}&detect={detect}",
         title = "Photo",
-        icon = Icons.Default.Search
+        icon = Icons.Rounded.Search
     ) {
         const val URI_ARG = "uri"
         const val TEXT_ARG = "text"
@@ -157,4 +173,37 @@ sealed class Screen(
         fun createRoute(imageUri: String, text: String, detect: Boolean = false) =
             "image?uri=$imageUri&text=$text&detect=$detect"
     }
+}
+
+@Composable
+fun AnimatedIcon(
+    selected: Boolean,
+    imageVector: ImageVector,
+    contentDescription: String
+) {
+    val transition = updateTransition(targetState = selected, label = "IconTransition")
+    val scale by transition.animateFloat(
+        label = "IconScale",
+        transitionSpec = {
+            if (targetState) {
+                spring(dampingRatio = 0.2f, stiffness = 100f)
+            } else {
+                tween(durationMillis = 300)
+            }
+        }
+    ) { isSelected ->
+        if (isSelected) 1.2f else 1f
+    }
+
+    val color = if (selected)
+        MaterialTheme.colorScheme.primary
+    else
+        MaterialTheme.colorScheme.onSurfaceVariant
+
+    Icon(
+        imageVector = imageVector,
+        contentDescription = contentDescription,
+        modifier = Modifier.scale(scale),
+        tint = color
+    )
 }

@@ -10,19 +10,23 @@ import javax.inject.Singleton
 @Singleton
 class FirebaseRemoteConfigRepository @Inject constructor() : RemoteConfigRepository {
     private val remoteConfig = Firebase.remoteConfig
-    private val storageUrlKey = "firebase_storage_url"
-    private val storageFolderNameKey = "firebase_storage_folder_name"
+
+    companion object {
+        private const val STORAGE_URL_KEY = "firebase_storage_url"
+        private const val STORAGE_FOLDER_NAME_KEY = "firebase_storage_folder_name"
+        private const val FETCH_INTERVAL_RELEASE = 3600L
+    }
 
     init {
         val configSettings = remoteConfigSettings {
-            minimumFetchIntervalInSeconds = 3600 // for release
+            minimumFetchIntervalInSeconds = FETCH_INTERVAL_RELEASE // for release
         }
 
         remoteConfig.setConfigSettingsAsync(configSettings)
         remoteConfig.setDefaultsAsync(
             mapOf(
-                storageUrlKey to "default_value",
-                storageFolderNameKey to "default_value"
+                STORAGE_URL_KEY to "default_value",
+                STORAGE_FOLDER_NAME_KEY to "default_value"
             )
         )
     }
@@ -36,7 +40,7 @@ class FirebaseRemoteConfigRepository @Inject constructor() : RemoteConfigReposit
         }
     }
 
-    override fun getStorageUrl(): String = remoteConfig.getString(storageUrlKey)
+    override fun getStorageUrl(): String = remoteConfig.getString(STORAGE_URL_KEY)
 
-    override fun getStorageFolderName(): String = remoteConfig.getString(storageFolderNameKey)
+    override fun getStorageFolderName(): String = remoteConfig.getString(STORAGE_FOLDER_NAME_KEY)
 }
