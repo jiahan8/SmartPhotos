@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -24,6 +26,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -40,23 +44,31 @@ import com.jiahan.smartcamera.Screen.ImagePreview.TEXT_ARG
 import com.jiahan.smartcamera.Screen.ImagePreview.URI_ARG
 import com.jiahan.smartcamera.home.HomeScreen
 import com.jiahan.smartcamera.imagepreview.ImagePreviewScreen
+import com.jiahan.smartcamera.profile.ProfileScreen
 import com.jiahan.smartcamera.search.SearchScreen
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import dagger.hilt.android.AndroidEntryPoint
-import androidx.compose.runtime.getValue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    private val viewModel: MainViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            SmartCameraTheme {
+            val isDarkTheme by viewModel.isDarkTheme.collectAsState()
+
+            SmartCameraTheme(
+                darkTheme = isDarkTheme
+            ) {
                 val navController = rememberNavController()
                 val items = listOf(
                     Screen.Home,
-                    Screen.Search
+                    Screen.Search,
+                    Screen.Profile
                 )
 
                 Surface(
@@ -143,6 +155,9 @@ class MainActivity : ComponentActivity() {
                                     navController = navController
                                 )
                             }
+                            composable(Screen.Profile.route) {
+                                ProfileScreen()
+                            }
                         }
                     }
                 }
@@ -173,6 +188,8 @@ sealed class Screen(
         fun createRoute(imageUri: String, text: String, detect: Boolean = false) =
             "image?uri=$imageUri&text=$text&detect=$detect"
     }
+
+    object Profile : Screen("profile", "Profile", Icons.Rounded.Person)
 }
 
 @Composable

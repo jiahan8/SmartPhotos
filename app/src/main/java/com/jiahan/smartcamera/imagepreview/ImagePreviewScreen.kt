@@ -35,11 +35,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
+import com.jiahan.smartcamera.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,7 +73,7 @@ fun ImagePreviewScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Photo",
+                        text = stringResource(R.string.photo),
                         style = MaterialTheme.typography.titleMedium,
                     )
                 },

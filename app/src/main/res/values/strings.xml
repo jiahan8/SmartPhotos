@@ -1,5 +1,9 @@
 <resources>
     <string name="app_name">Smart Photos</string>
+    <string name="photo">Photo</string>
+    <string name="search_photos">Search photos</string>
+    <string name="profile">Profile</string>
+    <string name="dark_theme">Dark Theme</string>
 
     // Deep linking
     <string name="host">jiahan8.github.io</string>

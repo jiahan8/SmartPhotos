@@ -42,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -54,6 +55,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.jiahan.smartcamera.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,7 +84,7 @@ fun SearchScreen(
                 value = searchText,
                 onValueChange = { text -> searchText = text },
                 modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
                     .fillMaxWidth(),
                 shape = CircleShape,
                 singleLine = true,
@@ -95,7 +97,7 @@ fun SearchScreen(
                             .size(20.dp)
                     )
                 },
-                placeholder = { Text(text = "Search photos") },
+                placeholder = { Text(text = stringResource(R.string.search_photos)) },
                 colors = TextFieldDefaults.colors(
                     cursorColor = Color.Gray,
                     unfocusedIndicatorColor = Color.Transparent,
@@ -128,7 +130,23 @@ fun SearchScreen(
                 ) {
                     items(filteredPhotos.size) { index ->
                         val photo = filteredPhotos[index]
-                        PhotoItem(photo = photo, navController = navController)
+                        PhotoItem(
+                            photo = photo,
+                            onCardClick = {
+                                navController.navigate(
+                                    Screen.ImagePreview.createRoute(
+                                        imageUri = Uri.encode(photo.path),
+                                        text = Uri.encode(photo.title),
+                                        detect = false
+                                    )
+                                )
+                            },
+                            onCloseButtonClick = {
+                                coroutineScope.launch {
+                                    viewModel.deleteImage(photo.id)
+                                }
+                            }
+                        )
                     }
                 }
             }
@@ -139,22 +157,15 @@ fun SearchScreen(
 @Composable
 private fun PhotoItem(
     photo: DatabasePhoto,
-    viewmodel: SearchViewModel = hiltViewModel(),
-    navController: NavHostController
+    onCardClick: () -> Unit,
+    onCloseButtonClick: () -> Unit
 ) {
-    val coroutineScope = rememberCoroutineScope()
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 16.dp, end = 16.dp, bottom = 24.dp)
             .clickable(true) {
-                navController.navigate(
-                    Screen.ImagePreview.createRoute(
-                        imageUri = Uri.encode(photo.path),
-                        text = Uri.encode(photo.title),
-                        detect = false
-                    )
-                )
+                onCardClick()
             },
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
@@ -172,9 +183,7 @@ private fun PhotoItem(
 
                 IconButton(
                     onClick = {
-                        coroutineScope.launch {
-                            viewmodel.deleteImage(photo.id)
-                        }
+                        onCloseButtonClick()
                     },
                     modifier = Modifier
                         .align(Alignment.TopEnd)
