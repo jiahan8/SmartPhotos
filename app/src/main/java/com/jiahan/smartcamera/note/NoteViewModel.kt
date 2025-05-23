@@ -1,21 +1,21 @@
 package com.jiahan.smartcamera.note
 
 import androidx.lifecycle.ViewModel
-import com.jiahan.smartcamera.data.repository.NotesRepository
+import com.jiahan.smartcamera.data.repository.NoteRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 @HiltViewModel
 class NoteViewModel @Inject constructor(
-    private val notesRepository: NotesRepository,
+    private val noteRepository: NoteRepository,
 ) : ViewModel() {
 
-    suspend fun getNotes() = notesRepository.getNotes()
+    suspend fun getNotes() = noteRepository.getNotes()
 
     suspend fun searchNotes(query: String) =
         if (query.isEmpty()) {
             getNotes()
         } else {
-            notesRepository.searchNotes(query)
+            noteRepository.searchNotes(query)
         }
 }

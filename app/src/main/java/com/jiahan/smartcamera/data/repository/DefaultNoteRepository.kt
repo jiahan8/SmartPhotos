@@ -6,7 +6,7 @@ import com.jiahan.smartcamera.database.data.DatabaseNote
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
-class NotesRepository @Inject constructor() : NoteRepository {
+class DefaultNoteRepository @Inject constructor() : NoteRepository {
     private val firestore = Firebase.firestore
 
     override suspend fun getNotes(): List<DatabaseNote> {

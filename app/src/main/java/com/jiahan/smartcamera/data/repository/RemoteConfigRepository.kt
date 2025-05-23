@@ -1,4 +1,4 @@
-package com.jiahan.smartcamera.repository
+package com.jiahan.smartcamera.data.repository
 
 interface RemoteConfigRepository {
     suspend fun fetchAndActivateConfig(): Boolean

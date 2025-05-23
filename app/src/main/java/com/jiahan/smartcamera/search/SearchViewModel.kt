@@ -2,7 +2,7 @@ package com.jiahan.smartcamera.search
 
 import androidx.lifecycle.ViewModel
 import com.jiahan.smartcamera.data.repository.SearchRepository
-import com.jiahan.smartcamera.repository.AnalyticsRepository
+import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 

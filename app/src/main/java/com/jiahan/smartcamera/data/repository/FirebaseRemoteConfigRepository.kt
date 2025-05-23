@@ -1,4 +1,4 @@
-package com.jiahan.smartcamera.repository
+package com.jiahan.smartcamera.data.repository
 
 import com.google.firebase.Firebase
 import com.google.firebase.remoteconfig.remoteConfig

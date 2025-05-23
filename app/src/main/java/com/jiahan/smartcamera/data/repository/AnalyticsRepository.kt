@@ -1,4 +1,4 @@
-package com.jiahan.smartcamera.repository
+package com.jiahan.smartcamera.data.repository
 
 interface AnalyticsRepository {
     fun logSearchEvent(value: String)

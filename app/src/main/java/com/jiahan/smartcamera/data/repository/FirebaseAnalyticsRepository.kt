@@ -1,4 +1,4 @@
-package com.jiahan.smartcamera.repository
+package com.jiahan.smartcamera.data.repository
 
 import android.os.Bundle
 import com.google.firebase.Firebase
