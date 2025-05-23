@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Create
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Search
@@ -44,6 +45,7 @@ import com.jiahan.smartcamera.Screen.ImagePreview.TEXT_ARG
 import com.jiahan.smartcamera.Screen.ImagePreview.URI_ARG
 import com.jiahan.smartcamera.home.HomeScreen
 import com.jiahan.smartcamera.imagepreview.ImagePreviewScreen
+import com.jiahan.smartcamera.note.NoteScreen
 import com.jiahan.smartcamera.profile.ProfileScreen
 import com.jiahan.smartcamera.search.SearchScreen
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
@@ -67,6 +69,7 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val items = listOf(
                     Screen.Home,
+                    Screen.Note,
                     Screen.Search,
                     Screen.Profile
                 )
@@ -158,6 +161,13 @@ class MainActivity : ComponentActivity() {
                             composable(Screen.Profile.route) {
                                 ProfileScreen()
                             }
+                            composable(
+                                route = Screen.Note.route
+                            ) {
+                                NoteScreen(
+                                    navController = navController
+                                )
+                            }
                         }
                     }
                 }
@@ -176,6 +186,7 @@ sealed class Screen(
     val icon: ImageVector
 ) {
     object Home : Screen("home", "Home", Icons.Rounded.Home)
+    object Note : Screen("note", "Note", Icons.Rounded.Create)
     object Search : Screen("search", "Search", Icons.Rounded.Search)
     object ImagePreview : Screen(
         route = "image?uri={uri}&text={text}&detect={detect}",

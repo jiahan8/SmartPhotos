@@ -2,6 +2,7 @@
     <string name="app_name">Smart Photos</string>
     <string name="photo">Photo</string>
     <string name="search_photos">Search photos</string>
+    <string name="search_notes">Search notes</string>
     <string name="profile">Profile</string>
     <string name="dark_theme">Dark Theme</string>
 

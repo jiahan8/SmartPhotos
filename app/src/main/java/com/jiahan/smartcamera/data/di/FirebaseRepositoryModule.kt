@@ -1,11 +1,9 @@
 package com.jiahan.smartcamera.data.di
 
-import com.jiahan.smartcamera.datastore.ProfileRepository
-import com.jiahan.smartcamera.datastore.UserDataRepository
-import com.jiahan.smartcamera.repository.FirebaseAnalyticsRepository
 import com.jiahan.smartcamera.repository.AnalyticsRepository
-import com.jiahan.smartcamera.repository.RemoteConfigRepository
+import com.jiahan.smartcamera.repository.FirebaseAnalyticsRepository
 import com.jiahan.smartcamera.repository.FirebaseRemoteConfigRepository
+import com.jiahan.smartcamera.repository.RemoteConfigRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -27,9 +25,4 @@ abstract class FirebaseRepositoryModule {
     abstract fun bindFirebaseAnalyticsRepository(
         firebaseAnalyticsRepository: FirebaseAnalyticsRepository
     ): AnalyticsRepository
-
-    @Binds
-    abstract fun bindsUserDataRepository(
-        profileRepository: ProfileRepository
-    ): UserDataRepository
 }

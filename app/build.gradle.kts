@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.google.services)
     alias(libs.plugins.parcelize)
+    alias(libs.plugins.crashlytics)
 }
 
 android {
@@ -86,6 +87,7 @@ dependencies {
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 
+    // Hilt
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)
@@ -94,14 +96,20 @@ dependencies {
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.storage)
     implementation(libs.firebase.config)
+    implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.messaging)
+    implementation(libs.firebase.firestore)
 
+    // Room
     ksp(libs.room.runtime)
     ksp(libs.room.compiler)
     implementation(libs.room.ktx)
 
+    // GenAI
     implementation(libs.genai.image.description)
     implementation(libs.kotlinx.coroutines.guava)
 
+    // DataStore
     implementation(libs.datastore.preferences)
     implementation(libs.datastore.preferences.core)
 }
