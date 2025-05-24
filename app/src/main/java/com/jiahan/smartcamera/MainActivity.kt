@@ -15,10 +15,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Create
+import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -43,6 +43,7 @@ import androidx.navigation.navDeepLink
 import com.jiahan.smartcamera.Screen.ImagePreview.DETECT_ARG
 import com.jiahan.smartcamera.Screen.ImagePreview.TEXT_ARG
 import com.jiahan.smartcamera.Screen.ImagePreview.URI_ARG
+import com.jiahan.smartcamera.favorite.FavoriteScreen
 import com.jiahan.smartcamera.home.HomeScreen
 import com.jiahan.smartcamera.imagepreview.ImagePreviewScreen
 import com.jiahan.smartcamera.note.NoteScreen
@@ -51,7 +52,6 @@ import com.jiahan.smartcamera.search.SearchScreen
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import dagger.hilt.android.AndroidEntryPoint
 
-@OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -69,8 +69,9 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val items = listOf(
                     Screen.Home,
+//                    Screen.Search,
                     Screen.Note,
-                    Screen.Search,
+                    Screen.Favorite,
                     Screen.Profile
                 )
 
@@ -119,9 +120,7 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.padding(innerPadding)
                         ) {
                             composable(Screen.Home.route) {
-                                HomeScreen(
-                                    navController = navController
-                                )
+                                HomeScreen()
                             }
                             composable(
                                 route = Screen.Search.route,
@@ -158,15 +157,18 @@ class MainActivity : ComponentActivity() {
                                     navController = navController
                                 )
                             }
-                            composable(Screen.Profile.route) {
-                                ProfileScreen()
-                            }
-                            composable(
-                                route = Screen.Note.route
-                            ) {
+                            composable(route = Screen.Note.route) {
                                 NoteScreen(
                                     navController = navController
                                 )
+                            }
+                            composable(route = Screen.Favorite.route) {
+                                FavoriteScreen(
+                                    navController = navController
+                                )
+                            }
+                            composable(route = Screen.Profile.route) {
+                                ProfileScreen()
                             }
                         }
                     }
@@ -186,8 +188,9 @@ sealed class Screen(
     val icon: ImageVector
 ) {
     object Home : Screen("home", "Home", Icons.Rounded.Home)
-    object Note : Screen("note", "Note", Icons.Rounded.Create)
     object Search : Screen("search", "Search", Icons.Rounded.Search)
+    object Note : Screen("note", "Note", Icons.Rounded.Create)
+    object Favorite : Screen("favorite", "Favorite", Icons.Rounded.FavoriteBorder)
     object ImagePreview : Screen(
         route = "image?uri={uri}&text={text}&detect={detect}",
         title = "Photo",

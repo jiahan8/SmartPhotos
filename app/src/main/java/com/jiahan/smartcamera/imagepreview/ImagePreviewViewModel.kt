@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.core.net.toUri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.label.ImageLabeling
 import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
@@ -14,9 +15,9 @@ import com.jiahan.smartcamera.Screen
 import com.jiahan.smartcamera.data.repository.SearchRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
@@ -38,14 +39,14 @@ class ImagePreviewViewModel @Inject constructor(
     private val _isImageSaved = MutableStateFlow(false)
     val isImageSaved: StateFlow<Boolean> = _isImageSaved
 
-    suspend fun detectLabelsAndJapaneseText(context: Context, image: Uri) {
+    fun detectLabelsAndJapaneseText(context: Context, image: Uri) {
         val inputImage = InputImage.fromFilePath(context, image)
         val labeler = ImageLabeling.getClient(ImageLabelerOptions.DEFAULT_OPTIONS)
         val japaneseRecognizer = TextRecognition.getClient(
             JapaneseTextRecognizerOptions.Builder().build()
         )
 
-        coroutineScope {
+        viewModelScope.launch {
             val descriptionDeferred = async {
                 runCatching {
                     generateDescription(image)
@@ -82,8 +83,11 @@ class ImagePreviewViewModel @Inject constructor(
         }
     }
 
-    suspend fun saveImage(imageUri: Uri, title: String) {
-        searchRepository.saveImageFromUri(imageUri, title)
+    fun saveImage(imageUri: Uri, title: String) {
+        viewModelScope.launch {
+            searchRepository.saveImageFromUri(imageUri, title)
+            isImageSaved(imageUri)
+        }
     }
 
     suspend fun isImageSaved(imageUri: Uri): Boolean {

@@ -15,4 +15,5 @@ data class DatabaseNote(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     @ColumnInfo(name = "text") val text: String,
     @ColumnInfo(name = "created") val createdDate: Long,
+    @ColumnInfo(name = "document_path") val documentPath: String? = null
 ) : Parcelable

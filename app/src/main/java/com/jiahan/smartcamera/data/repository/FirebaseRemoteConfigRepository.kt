@@ -31,13 +31,8 @@ class FirebaseRemoteConfigRepository @Inject constructor() : RemoteConfigReposit
         )
     }
 
-    override suspend fun fetchAndActivateConfig(): Boolean {
-        return try {
-            remoteConfig.fetchAndActivate().await()
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
-        }
+    override suspend fun fetchAndActivateConfig() {
+        remoteConfig.fetchAndActivate().await()
     }
 
     override fun getStorageUrl(): String = remoteConfig.getString(STORAGE_URL_KEY)

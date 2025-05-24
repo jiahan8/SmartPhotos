@@ -30,7 +30,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,7 +39,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
-import kotlinx.coroutines.launch
 import com.jiahan.smartcamera.R
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,7 +54,6 @@ fun ImagePreviewScreen(
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showSheet by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
-    val coroutineScope = rememberCoroutineScope()
 
     val detectedText by viewModel.detectedText.collectAsState()
     val fabVisible = detectedText.isNotBlank()
@@ -119,11 +116,8 @@ fun ImagePreviewScreen(
                 if (shouldDetectImage) {
                     IconButton(
                         onClick = {
-                            coroutineScope.launch {
-                                if (!isImageSaved) {
-                                    viewModel.saveImage(imageUri, detectedText)
-                                    viewModel.isImageSaved(imageUri)
-                                }
+                            if (!isImageSaved) {
+                                viewModel.saveImage(imageUri, detectedText)
                             }
                         },
                         modifier = Modifier

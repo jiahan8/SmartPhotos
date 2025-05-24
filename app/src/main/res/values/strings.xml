@@ -4,7 +4,14 @@
     <string name="search_photos">Search photos</string>
     <string name="search_notes">Search notes</string>
     <string name="profile">Profile</string>
+    <string name="whats_new">What\'s new?</string>
+    <string name="post">Post</string>
+    <string name="no_notes_found">No notes found</string>
+    <string name="no_photos_found">No photos found</string>
+    <string name="post_success">Post uploaded successfully!</string>
+    <string name="post_fail">Failed to upload post.</string>
     <string name="dark_theme">Dark Theme</string>
+    <string name="log_out">Log out</string>
 
     // Deep linking
     <string name="host">jiahan8.github.io</string>

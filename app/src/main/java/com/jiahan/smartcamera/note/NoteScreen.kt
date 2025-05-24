@@ -1,137 +1,259 @@
 package com.jiahan.smartcamera.note
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.Divider
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavHostController
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.database.data.DatabaseNote
-import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoteScreen(
-    navController: NavHostController,
+    navController: NavController,
     viewModel: NoteViewModel = hiltViewModel()
 ) {
-    var isRefreshing by remember { mutableStateOf(false) }
-    val state = rememberPullToRefreshState()
-    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
-    var searchText by rememberSaveable { mutableStateOf("") }
-    var filteredNotes by remember { mutableStateOf<List<DatabaseNote>>(emptyList()) }
+    val postText by viewModel.postText.collectAsState()
+    val photoUri by viewModel.photoUri.collectAsState()
+    val videoUri by viewModel.videoUri.collectAsState()
+    val isUploading by viewModel.uploading.collectAsState()
+    val uploadSuccess by viewModel.uploadSuccess.collectAsState()
+    val uploadError by viewModel.uploadError.collectAsState()
+    val postTextError by viewModel.postTextError.collectAsState()
+    val buttonEnabled by viewModel.postButtonEnabled.collectAsState()
 
-    val onRefresh: () -> Unit = {
-        coroutineScope.launch {
-            isRefreshing = true
-            filteredNotes = viewModel.searchNotes(query = searchText)
-            isRefreshing = false
+    val postSuccessMessage = stringResource(R.string.post_success)
+    val postFailMessage = stringResource(R.string.post_fail)
+
+    LaunchedEffect(uploadSuccess) {
+        if (uploadSuccess) {
+            keyboardController?.hide()
+            snackbarHostState.showSnackbar(postSuccessMessage, duration = SnackbarDuration.Short)
+            viewModel.resetUploadSuccess()
+            viewModel.resetUploading()
+            navController.popBackStack()
         }
     }
 
-    LaunchedEffect(searchText) {
-        filteredNotes = viewModel.searchNotes(query = searchText)
+    LaunchedEffect(uploadError) {
+        if (uploadError) {
+            keyboardController?.hide()
+            snackbarHostState.showSnackbar(postFailMessage, duration = SnackbarDuration.Short)
+            viewModel.resetUploadError()
+        }
+    }
+
+    val libraryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uriList ->
+        uriList.forEach { uri ->
+            viewModel.uploadImageToFirebase(context, uri)
+        }
+    }
+
+    val pictureLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            photoUri?.let { uri ->
+                viewModel.uploadImageToFirebase(context, uri)
+            }
+        }
+    }
+
+    val videoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CaptureVideo()
+    ) { success ->
+        if (success) {
+            videoUri?.let { uri ->
+                viewModel.uploadImageToFirebase(context, uri)
+            }
+        }
     }
 
     Scaffold(
         topBar = {
-            TextField(
-                value = searchText,
-                onValueChange = { text -> searchText = text },
-                modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .fillMaxWidth(),
-                shape = CircleShape,
-                singleLine = true,
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Rounded.Search,
-                        contentDescription = "Search",
-                        modifier = Modifier
-                            .padding(start = 8.dp)
-                            .size(20.dp)
+            TopAppBar(
+                title = {
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.titleMedium,
                     )
                 },
-                placeholder = { Text(text = stringResource(R.string.search_notes)) },
-                colors = TextFieldDefaults.colors(
-                    cursorColor = Color.Gray,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                )
+                windowInsets = WindowInsets(0.dp),
             )
-        }
-    ) { innerPadding ->
-        PullToRefreshBox(
-            modifier = Modifier.padding(
-                top = innerPadding.calculateTopPadding(),
-                start = innerPadding.calculateStartPadding(LayoutDirection.Ltr),
-                end = innerPadding.calculateEndPadding(LayoutDirection.Ltr)
-            ),
-            state = state,
-            isRefreshing = isRefreshing,
-            onRefresh = onRefresh,
+        },
+        snackbarHost = { CustomSnackbarHost(snackbarHostState) }
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    top = padding.calculateTopPadding(),
+                    start = padding.calculateStartPadding(LayoutDirection.Ltr),
+                    end = padding.calculateEndPadding(LayoutDirection.Ltr)
+                )
         ) {
-            if (filteredNotes.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp)
+            ) {
+                AsyncImage(
+                    model = R.drawable.home_image,
+                    contentDescription = "Profile picture",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                )
+
+                Column(
+                    modifier = Modifier.padding(start = 16.dp)
                 ) {
-                    Text("No notes found")
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 8.dp)
-                ) {
-                    items(filteredNotes.size) { index ->
-                        val note = filteredNotes[index]
-                        NoteItem(
-                            note = note
+                    Text(
+                        text = "jiahan",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        maxLines = 1
+                    )
+
+                    BasicTextField(
+                        value = postText,
+                        onValueChange = { text -> viewModel.updatePostText(text) },
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            color = MaterialTheme.colorScheme.onSurface
+                        ),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        maxLines = 20,
+                        modifier = Modifier
+                            .padding(top = 8.dp, bottom = 8.dp)
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
+                        enabled = !isUploading
+                    )
+
+                    postTextError?.let { error ->
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
                         )
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.photo_library_24px),
+                            contentDescription = "Choose photos",
+                            modifier = Modifier
+                                .clickable(enabled = !isUploading) {
+                                    libraryLauncher.launch(arrayOf("image/*", "video/*"))
+                                },
+                            tint = if (isUploading) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            else MaterialTheme.colorScheme.onSurface
+                        )
+
+                        Icon(
+                            painter = painterResource(R.drawable.photo_camera_24px),
+                            contentDescription = "Take Photo",
+                            modifier = Modifier
+                                .padding(start = 16.dp)
+                                .clickable(enabled = !isUploading) {
+                                    val uri = viewModel.createImageUri(context)
+                                    viewModel.updatePhotoUri(uri)
+                                    photoUri?.let { uri ->
+                                        pictureLauncher.launch(uri)
+                                    }
+                                },
+                            tint = if (isUploading) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            else MaterialTheme.colorScheme.onSurface
+                        )
+
+                        Icon(
+                            painter = painterResource(R.drawable.smart_display_24px),
+                            contentDescription = "Take Video",
+                            modifier = Modifier
+                                .padding(start = 16.dp)
+                                .clickable(enabled = !isUploading) {
+                                    val uri = viewModel.createImageUri(context)
+                                    viewModel.updateVideoUri(uri)
+                                    videoUri?.let { uri ->
+                                        videoLauncher.launch(uri)
+                                    }
+                                },
+                            tint = if (isUploading) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            else MaterialTheme.colorScheme.onSurface
+                        )
+
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        TextButton(
+                            onClick = {
+                                if (postTextError == null) {
+                                    viewModel.uploadPost(postText.trim())
+                                }
+                            },
+                            enabled = buttonEnabled
+                        ) {
+                            Text(text = stringResource(R.string.post))
+                        }
+                    }
+
+                    LaunchedEffect(Unit) {
+                        focusRequester.requestFocus()
                     }
                 }
             }
@@ -140,59 +262,19 @@ fun NoteScreen(
 }
 
 @Composable
-private fun NoteItem(
-    note: DatabaseNote
+fun CustomSnackbarHost(
+    snackbarHostState: SnackbarHostState
 ) {
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp)
-        ) {
-            AsyncImage(
-                model = R.drawable.home_image,
-                contentDescription = "Profile picture",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape),
+    SnackbarHost(
+        hostState = snackbarHostState,
+        snackbar = { snackbarData ->
+            Snackbar(
+                snackbarData = snackbarData,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                actionColor = MaterialTheme.colorScheme.secondary,
+                shape = MaterialTheme.shapes.medium
             )
-
-            Column(
-                modifier = Modifier.padding(start = 16.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "jiahan",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        maxLines = 1,
-                    )
-
-                    Text(
-                        text = formatDate(note.createdDate),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 8.dp)
-                    )
-                }
-
-                Text(
-                    text = note.text,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 10
-                )
-            }
         }
-        HorizontalDivider(
-            modifier = Modifier.padding(horizontal = 8.dp),
-            thickness = 0.5.dp,
-            color = MaterialTheme.colorScheme.outlineVariant
-        )
-    }
-}
-
-private fun formatDate(timestamp: Long): String {
-    return SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()).format(Date(timestamp))
+    )
 }

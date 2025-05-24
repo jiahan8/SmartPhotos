@@ -6,4 +6,5 @@ interface NoteRepository {
     suspend fun getNotes(): List<DatabaseNote>
     suspend fun saveNote(databaseNote: DatabaseNote)
     suspend fun searchNotes(query: String): List<DatabaseNote>
+    suspend fun deleteNote(documentPath: String)
 }

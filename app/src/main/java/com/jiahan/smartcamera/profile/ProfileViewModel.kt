@@ -7,6 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -22,7 +23,9 @@ class ProfileViewModel @Inject constructor(
             initialValue = false
         )
 
-    suspend fun updateIsDarkTheme(isDarkTheme: Boolean) {
-        profileRepository.updateIsDarkTheme(isDarkTheme)
+    fun updateIsDarkTheme(isDarkTheme: Boolean) {
+        viewModelScope.launch {
+            profileRepository.updateIsDarkTheme(isDarkTheme)
+        }
     }
 }

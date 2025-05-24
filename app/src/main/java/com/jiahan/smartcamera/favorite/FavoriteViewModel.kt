@@ -1,4 +1,4 @@
-package com.jiahan.smartcamera.search
+package com.jiahan.smartcamera.favorite
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -9,7 +9,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class SearchViewModel @Inject constructor(
+class FavoriteViewModel @Inject constructor(
     private val searchRepository: SearchRepository,
     private val analyticsRepository: AnalyticsRepository
 ) : ViewModel() {

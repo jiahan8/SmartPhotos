@@ -1,42 +1,74 @@
 package com.jiahan.smartcamera.home
 
-import android.content.Context
-import android.net.Uri
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
-import com.google.firebase.ktx.Firebase
-import com.google.firebase.storage.ktx.storage
-import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
+import androidx.lifecycle.viewModelScope
+import com.jiahan.smartcamera.data.repository.NoteRepository
+import com.jiahan.smartcamera.database.data.DatabaseNote
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.tasks.await
-import java.util.UUID
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val remoteConfigRepository: RemoteConfigRepository
+    private val noteRepository: NoteRepository,
 ) : ViewModel() {
 
-    private val _uploading = mutableStateOf(false)
+    private val _notes = MutableStateFlow<List<DatabaseNote>>(emptyList())
+    val notes: StateFlow<List<DatabaseNote>> = _notes
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery = _searchQuery.asStateFlow()
+    private val _isRefreshing = MutableStateFlow(false)
+    val refreshing = _isRefreshing.asStateFlow()
 
-    suspend fun uploadImageToFirebase(context: Context, imageUri: Uri) {
+    init {
+        viewModelScope.launch {
+            fetchNotes()
+        }
+    }
+
+    suspend fun fetchNotes() {
         try {
-            remoteConfigRepository.fetchAndActivateConfig()
-            val storage =
-                Firebase.storage(remoteConfigRepository.getStorageUrl())
-            val folderRef =
-                storage.reference.child("${remoteConfigRepository.getStorageFolderName()}/${UUID.randomUUID()}.jpg")
-            _uploading.value = true
-
-            // Create a ByteArray from the InputStream instead of using the stream directly
-            val inputStream = context.contentResolver.openInputStream(imageUri)
-                ?: throw IllegalStateException("Failed to open image stream")
-            val bytes = inputStream.use { it.readBytes() }
-            folderRef.putBytes(bytes).await()
+            _notes.value = noteRepository.getNotes()
         } catch (e: Exception) {
             e.printStackTrace()
-        } finally {
-            _uploading.value = false
         }
+    }
+
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
+        performSearch()
+    }
+
+    private fun performSearch() {
+        viewModelScope.launch {
+            try {
+                val query = _searchQuery.value
+                _notes.value = if (query.isEmpty()) {
+                    noteRepository.getNotes()
+                } else {
+                    noteRepository.searchNotes(query)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun deleteNote(documentPath: String) {
+        viewModelScope.launch {
+            try {
+                noteRepository.deleteNote(documentPath)
+                fetchNotes()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun setRefreshing(refreshing: Boolean) {
+        _isRefreshing.value = refreshing
     }
 }

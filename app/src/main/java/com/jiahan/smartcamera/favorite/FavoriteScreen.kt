@@ -1,4 +1,4 @@
-package com.jiahan.smartcamera.search
+package com.jiahan.smartcamera.favorite
 
 import android.net.Uri
 import androidx.compose.foundation.clickable
@@ -57,9 +57,9 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SearchScreen(
+fun FavoriteScreen(
     navController: NavHostController,
-    viewModel: SearchViewModel = hiltViewModel()
+    viewModel: FavoriteViewModel = hiltViewModel()
 ) {
     var isRefreshing by remember { mutableStateOf(false) }
     val state = rememberPullToRefreshState()

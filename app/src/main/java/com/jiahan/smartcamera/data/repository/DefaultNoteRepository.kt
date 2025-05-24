@@ -10,17 +10,13 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
     private val firestore = Firebase.firestore
 
     override suspend fun getNotes(): List<DatabaseNote> {
-        try {
-            val snapshot = firestore.collection("note").get().await()
-            return snapshot.documents.map { document ->
-                DatabaseNote(
-                    text = document.data?.get("text")?.toString() ?: "",
-                    createdDate = document.getDate("created")?.time ?: System.currentTimeMillis()
-                )
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return emptyList()
+        val snapshot = firestore.collection("note").get().await()
+        return snapshot.documents.map { document ->
+            DatabaseNote(
+                text = document.data?.get("text")?.toString() ?: "",
+                createdDate = document.getDate("created")?.time ?: System.currentTimeMillis(),
+                documentPath = document.id
+            )
         }
     }
 
@@ -31,23 +27,23 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
     }
 
     override suspend fun searchNotes(query: String): List<DatabaseNote> {
-        try {
-            val snapshot = firestore.collection("note").get().await()
-            return snapshot.documents
-                .filter { document ->
-                    val text = document.data?.get("text")?.toString() ?: ""
-                    text.contains(query, ignoreCase = true)
-                }
-                .map { document ->
-                    DatabaseNote(
-                        text = document.data?.get("text")?.toString() ?: "",
-                        createdDate = document.getDate("created")?.time
-                            ?: System.currentTimeMillis()
-                    )
-                }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return emptyList()
-        }
+        val snapshot = firestore.collection("note").get().await()
+        return snapshot.documents
+            .filter { document ->
+                val text = document.data?.get("text")?.toString() ?: ""
+                text.contains(query, ignoreCase = true)
+            }
+            .map { document ->
+                DatabaseNote(
+                    text = document.data?.get("text")?.toString() ?: "",
+                    createdDate = document.getDate("created")?.time
+                        ?: System.currentTimeMillis(),
+                    documentPath = document.id
+                )
+            }
+    }
+
+    override suspend fun deleteNote(documentPath: String) {
+        firestore.collection("note").document(documentPath).delete().await()
     }
 }
