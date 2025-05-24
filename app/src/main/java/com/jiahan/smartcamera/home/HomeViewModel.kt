@@ -3,7 +3,7 @@ package com.jiahan.smartcamera.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.data.repository.NoteRepository
-import com.jiahan.smartcamera.database.data.DatabaseNote
+import com.jiahan.smartcamera.domain.HomeNote
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,8 +16,8 @@ class HomeViewModel @Inject constructor(
     private val noteRepository: NoteRepository,
 ) : ViewModel() {
 
-    private val _notes = MutableStateFlow<List<DatabaseNote>>(emptyList())
-    val notes: StateFlow<List<DatabaseNote>> = _notes
+    private val _notes = MutableStateFlow<List<HomeNote>>(emptyList())
+    val notes: StateFlow<List<HomeNote>> = _notes
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
     private val _isRefreshing = MutableStateFlow(false)

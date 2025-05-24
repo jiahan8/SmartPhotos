@@ -43,8 +43,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.database.data.DatabaseNote
-import com.jiahan.smartcamera.util.Utils.formatDateTime
+import com.jiahan.smartcamera.domain.HomeNote
+import com.jiahan.smartcamera.util.Util.formatDateTime
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -170,7 +170,7 @@ fun HomeScreen(
 
 @Composable
 private fun HomeItem(
-    note: DatabaseNote,
+    note: HomeNote,
     onDeleteClick: () -> Unit
 ) {
     Column {
@@ -201,7 +201,7 @@ private fun HomeItem(
                     )
 
                     Text(
-                        text = formatDateTime(note.createdDate),
+                        text = note.createdDate?.time?.let { (formatDateTime(it)) } ?: "",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 8.dp)
@@ -222,8 +222,7 @@ private fun HomeItem(
 
                 Text(
                     text = note.text,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 10
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
         }

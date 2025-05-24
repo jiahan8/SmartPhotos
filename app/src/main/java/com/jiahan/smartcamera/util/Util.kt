@@ -5,7 +5,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-object Utils {
+object Util {
     // Modern approach using java.time (thread-safe, API 26+)
     fun formatDateTime(timestamp: Long): String {
         val instant = Instant.ofEpochMilli(timestamp)

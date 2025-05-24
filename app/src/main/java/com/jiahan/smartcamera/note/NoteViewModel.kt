@@ -8,9 +8,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
+import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
-import com.jiahan.smartcamera.database.data.DatabaseNote
+import com.jiahan.smartcamera.domain.HomeNote
+import com.jiahan.smartcamera.util.ResourceProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,12 +21,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
 import javax.inject.Inject
-import kotlin.text.isNotBlank
 
 @HiltViewModel
 class NoteViewModel @Inject constructor(
     private val remoteConfigRepository: RemoteConfigRepository,
-    private val noteRepository: NoteRepository
+    private val noteRepository: NoteRepository,
+    private val resourceProvider: ResourceProvider
 ) : ViewModel() {
 
     private val _uploading = MutableStateFlow(false)
@@ -87,9 +89,8 @@ class NoteViewModel @Inject constructor(
             try {
                 _uploading.value = true
                 noteRepository.saveNote(
-                    DatabaseNote(
-                        text = text,
-                        createdDate = System.currentTimeMillis()
+                    HomeNote(
+                        text = text
                     )
                 )
                 _uploadSuccess.value = true
@@ -143,7 +144,7 @@ class NoteViewModel @Inject constructor(
 
     private fun validatePostText(text: String) {
         _postTextError.value = when {
-            text.length > 200 -> "Post cannot exceed 200 characters"
+            text.length > 200 -> resourceProvider.getString(R.string.post_validation)
             else -> null
         }
     }

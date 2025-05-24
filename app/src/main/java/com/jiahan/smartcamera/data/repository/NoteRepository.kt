@@ -1,10 +1,10 @@
 package com.jiahan.smartcamera.data.repository
 
-import com.jiahan.smartcamera.database.data.DatabaseNote
+import com.jiahan.smartcamera.domain.HomeNote
 
 interface NoteRepository {
-    suspend fun getNotes(): List<DatabaseNote>
-    suspend fun saveNote(databaseNote: DatabaseNote)
-    suspend fun searchNotes(query: String): List<DatabaseNote>
+    suspend fun getNotes(): List<HomeNote>
+    suspend fun saveNote(homeNote: HomeNote)
+    suspend fun searchNotes(query: String): List<HomeNote>
     suspend fun deleteNote(documentPath: String)
 }

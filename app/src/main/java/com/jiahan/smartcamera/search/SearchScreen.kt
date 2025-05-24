@@ -51,7 +51,7 @@ import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.Screen
 import com.jiahan.smartcamera.database.data.DatabasePhoto
-import com.jiahan.smartcamera.util.Utils.formatDateTime
+import com.jiahan.smartcamera.util.Util.formatDateTime
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -202,7 +202,7 @@ private fun PhotoItem(
             )
 
             Text(
-                text = "Saved: ${formatDateTime(photo.saveDate)}",
+                text = stringResource(R.string.saved_at, formatDateTime(photo.saveDate)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
