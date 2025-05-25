@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,25 +17,24 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -56,111 +56,94 @@ fun HomeScreen(
     val coroutineScope = rememberCoroutineScope()
 
     val notes by viewModel.notes.collectAsState()
-    val searchQuery by viewModel.searchQuery.collectAsState()
+    val isInitialLoading by viewModel.isInititalLoading.collectAsState()
     val isRefreshing by viewModel.refreshing.collectAsState()
+    val isLoadingMore by viewModel.isLoadingMore.collectAsState()
 
     val onRefresh: () -> Unit = {
         coroutineScope.launch {
             viewModel.setRefreshing(true)
-            viewModel.fetchNotes()
+            viewModel.fetchNotes(initialLoading = true)
             viewModel.setRefreshing(false)
         }
     }
 
     Scaffold(
         topBar = {
-//            Column {
-//                Row(
-//                    modifier = Modifier
-//                        .fillMaxWidth()
-//                        .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
-//                ) {
-//                    AsyncImage(
-//                        model = R.drawable.home_image,
-//                        contentDescription = "Profile picture",
-//                        contentScale = ContentScale.Crop,
-//                        modifier = Modifier
-//                            .size(38.dp)
-//                            .clip(CircleShape)
-//                    )
-//
-//                    Column(
-//                        modifier = Modifier.padding(start = 16.dp)
-//                    ) {
-//                        Text(
-//                            text = "jiahan",
-//                            style = MaterialTheme.typography.bodyMedium.copy(
-//                                fontWeight = FontWeight.Bold
-//                            ),
-//                            maxLines = 1
-//                        )
-//
-//                        Text(
-//                            text = "What's new",
-//                            style = MaterialTheme.typography.bodySmall,
-//                            color = MaterialTheme.colorScheme.onSurfaceVariant
-//                        )
-//                    }
-//                }
-//            }
-            TextField(
-                value = searchQuery,
-                onValueChange = { text -> viewModel.updateSearchQuery(text) },
-                modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .fillMaxWidth(),
-                shape = CircleShape,
-                singleLine = true,
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Rounded.Search,
-                        contentDescription = "Search",
-                        modifier = Modifier
-                            .padding(start = 8.dp)
-                            .size(20.dp)
+            TopAppBar(
+                title = {
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.titleMedium,
                     )
                 },
-                placeholder = { Text(text = stringResource(R.string.search_photos)) },
-                colors = TextFieldDefaults.colors(
-                    cursorColor = Color.Gray,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                )
+                windowInsets = WindowInsets(0.dp),
             )
         }
     ) { innerPadding ->
-        PullToRefreshBox(
-            modifier = Modifier.padding(
-                top = innerPadding.calculateTopPadding(),
-                start = innerPadding.calculateStartPadding(LayoutDirection.Ltr),
-                end = innerPadding.calculateEndPadding(LayoutDirection.Ltr)
-            ),
-            state = state,
-            isRefreshing = isRefreshing,
-            onRefresh = onRefresh,
-        ) {
-            if (notes.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(stringResource(R.string.no_notes_found))
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 8.dp)
-                ) {
-                    items(notes.size) { index ->
-                        val note = notes[index]
-                        HomeItem(
-                            note = note,
-                            onDeleteClick = {
-                                note.documentPath?.let {
-                                    viewModel.deleteNote(note.documentPath)
+        if (isInitialLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else {
+            PullToRefreshBox(
+                modifier = Modifier.padding(
+                    top = innerPadding.calculateTopPadding(),
+                    start = innerPadding.calculateStartPadding(LayoutDirection.Ltr),
+                    end = innerPadding.calculateEndPadding(LayoutDirection.Ltr)
+                ),
+                state = state,
+                isRefreshing = isRefreshing,
+                onRefresh = onRefresh,
+            ) {
+                if (notes.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(stringResource(R.string.no_notes_found))
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        items(notes.size) { index ->
+                            val note = notes[index]
+                            HomeItem(
+                                note = note,
+                                onDeleteClick = {
+                                    note.documentPath?.let {
+                                        viewModel.deleteNote(note.documentPath)
+                                    }
+                                }
+                            )
+
+                            if (index >= notes.size - 1 && !isLoadingMore) {
+                                LaunchedEffect(key1 = Unit) {
+                                    viewModel.loadMoreNotes()
                                 }
                             }
-                        )
+                        }
+
+                        if (isLoadingMore) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(32.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -169,7 +152,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeItem(
+fun HomeItem(
     note: HomeNote,
     onDeleteClick: () -> Unit
 ) {
@@ -211,7 +194,7 @@ private fun HomeItem(
 
                     Icon(
                         imageVector = Icons.Rounded.Close,
-                        contentDescription = "Delete post",
+                        contentDescription = "Delete note",
                         modifier = Modifier
                             .size(12.dp)
                             .clickable {

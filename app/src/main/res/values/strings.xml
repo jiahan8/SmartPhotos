@@ -16,6 +16,9 @@
     <string name="post_fail">Failed to upload post.</string>
     <string name="post_validation">Post cannot exceed 200 characters</string>
 
+    // Search
+    <string name="no_results_found">No results found</string>
+
     // Profile
     <string name="profile">Profile</string>
     <string name="dark_theme">Dark Theme</string>

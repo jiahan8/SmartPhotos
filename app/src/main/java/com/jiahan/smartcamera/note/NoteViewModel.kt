@@ -26,6 +26,7 @@ import javax.inject.Inject
 class NoteViewModel @Inject constructor(
     private val remoteConfigRepository: RemoteConfigRepository,
     private val noteRepository: NoteRepository,
+    private val noteHandler: NoteHandler,
     private val resourceProvider: ResourceProvider
 ) : ViewModel() {
 
@@ -94,6 +95,7 @@ class NoteViewModel @Inject constructor(
                     )
                 )
                 _uploadSuccess.value = true
+                noteHandler.notifyNoteAdded()
             } catch (e: Exception) {
                 e.printStackTrace()
                 _uploading.value = false

@@ -69,7 +69,7 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val items = listOf(
                     Screen.Home,
-//                    Screen.Search,
+                    Screen.Search,
                     Screen.Note,
                     Screen.Favorite,
                     Screen.Profile
@@ -130,9 +130,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 )
                             ) {
-                                SearchScreen(
-                                    navController = navController
-                                )
+                                SearchScreen()
                             }
                             composable(
                                 route = Screen.ImagePreview.route,
