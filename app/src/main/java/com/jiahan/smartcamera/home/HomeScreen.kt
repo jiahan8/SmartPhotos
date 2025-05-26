@@ -1,6 +1,7 @@
 package com.jiahan.smartcamera.home
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,7 +17,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -24,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -35,6 +38,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -59,6 +63,7 @@ fun HomeScreen(
     val isInitialLoading by viewModel.isInititalLoading.collectAsState()
     val isRefreshing by viewModel.refreshing.collectAsState()
     val isLoadingMore by viewModel.isLoadingMore.collectAsState()
+    val noteToDelete by viewModel.noteToDelete.collectAsState()
 
     val onRefresh: () -> Unit = {
         coroutineScope.launch {
@@ -66,6 +71,31 @@ fun HomeScreen(
             viewModel.fetchNotes(initialLoading = true)
             viewModel.setRefreshing(false)
         }
+    }
+
+    noteToDelete?.let { note ->
+        AlertDialog(
+            onDismissRequest = { viewModel.setNoteToDelete(null) },
+            title = { Text(stringResource(R.string.delete_note)) },
+            text = { Text(stringResource(R.string.delete_note_desc)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        note.documentPath?.let { viewModel.deleteNote(it) }
+                        viewModel.setNoteToDelete(null)
+                    }
+                ) {
+                    Text(stringResource(R.string.delete))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { viewModel.setNoteToDelete(null) }
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -115,10 +145,13 @@ fun HomeScreen(
                             val note = notes[index]
                             HomeItem(
                                 note = note,
-                                onDeleteClick = {
+                                onDoubleTap = {
                                     note.documentPath?.let {
-                                        viewModel.deleteNote(note.documentPath)
+                                        viewModel.favoriteNote(note)
                                     }
+                                },
+                                onLongPress = {
+                                    viewModel.setNoteToDelete(note)
                                 }
                             )
 
@@ -154,13 +187,24 @@ fun HomeScreen(
 @Composable
 fun HomeItem(
     note: HomeNote,
-    onDeleteClick: () -> Unit
+    onDoubleTap: () -> Unit,
+    onLongPress: () -> Unit,
 ) {
     Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onDoubleTap = {
+                            onDoubleTap()
+                        },
+                        onLongPress = {
+                            onLongPress()
+                        }
+                    )
+                }
+                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp)
         ) {
             AsyncImage(
                 model = R.drawable.home_image,
@@ -192,15 +236,18 @@ fun HomeItem(
 
                     Spacer(modifier = Modifier.weight(1f))
 
-                    Icon(
-                        imageVector = Icons.Rounded.Close,
-                        contentDescription = "Delete note",
-                        modifier = Modifier
-                            .size(12.dp)
-                            .clickable {
-                                onDeleteClick()
-                            }
-                    )
+                    if (note.favorite) {
+                        Icon(
+                            imageVector = Icons.Rounded.Favorite,
+                            contentDescription = "Favorite",
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clickable {
+                                    onDoubleTap()
+                                },
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
 
                 Text(

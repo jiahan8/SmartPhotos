@@ -14,11 +14,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Create
-import androidx.compose.material.icons.rounded.FavoriteBorder
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.outlined.Create
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -185,14 +185,14 @@ sealed class Screen(
     val title: String,
     val icon: ImageVector
 ) {
-    object Home : Screen("home", "Home", Icons.Rounded.Home)
-    object Search : Screen("search", "Search", Icons.Rounded.Search)
-    object Note : Screen("note", "Note", Icons.Rounded.Create)
-    object Favorite : Screen("favorite", "Favorite", Icons.Rounded.FavoriteBorder)
+    object Home : Screen("home", "Home", Icons.Outlined.Home)
+    object Search : Screen("search", "Search", Icons.Outlined.Search)
+    object Note : Screen("note", "Note", Icons.Outlined.Create)
+    object Favorite : Screen("favorite", "Favorite", Icons.Outlined.FavoriteBorder)
     object ImagePreview : Screen(
         route = "image?uri={uri}&text={text}&detect={detect}",
         title = "Photo",
-        icon = Icons.Rounded.Search
+        icon = Icons.Outlined.Search
     ) {
         const val URI_ARG = "uri"
         const val TEXT_ARG = "text"
@@ -201,7 +201,7 @@ sealed class Screen(
             "image?uri=$imageUri&text=$text&detect=$detect"
     }
 
-    object Profile : Screen("profile", "Profile", Icons.Rounded.Person)
+    object Profile : Screen("profile", "Profile", Icons.Outlined.Person)
 }
 
 @Composable

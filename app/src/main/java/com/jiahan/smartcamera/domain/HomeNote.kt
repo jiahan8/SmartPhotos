@@ -8,5 +8,6 @@ import java.util.Date
 data class HomeNote(
     val text: String,
     val createdDate: Date? = null,
-    val documentPath: String? = null
+    val documentPath: String? = null,
+    val favorite: Boolean = false
 ) : Parcelable

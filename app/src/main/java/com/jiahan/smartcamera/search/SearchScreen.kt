@@ -12,11 +12,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -49,6 +51,7 @@ fun SearchScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val isRefreshing by viewModel.refreshing.collectAsState()
     val isLoadingMore by viewModel.isLoadingMore.collectAsState()
+    val noteToDelete by viewModel.noteToDelete.collectAsState()
 
     val onRefresh: () -> Unit = {
         coroutineScope.launch {
@@ -56,6 +59,31 @@ fun SearchScreen(
             viewModel.searchNotes()
             viewModel.setRefreshing(false)
         }
+    }
+
+    noteToDelete?.let { note ->
+        AlertDialog(
+            onDismissRequest = { viewModel.setNoteToDelete(null) },
+            title = { Text(stringResource(R.string.delete_note)) },
+            text = { Text(stringResource(R.string.delete_note_desc)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        note.documentPath?.let { viewModel.deleteNote(it) }
+                        viewModel.setNoteToDelete(null)
+                    }
+                ) {
+                    Text(stringResource(R.string.delete))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { viewModel.setNoteToDelete(null) }
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -120,10 +148,13 @@ fun SearchScreen(
                             val note = notes[index]
                             HomeItem(
                                 note = note,
-                                onDeleteClick = {
+                                onDoubleTap = {
                                     note.documentPath?.let {
-                                        viewModel.deleteNote(note.documentPath)
+                                        viewModel.favoriteNote(note)
                                     }
+                                },
+                                onLongPress = {
+                                    viewModel.setNoteToDelete(note)
                                 }
                             )
                         }

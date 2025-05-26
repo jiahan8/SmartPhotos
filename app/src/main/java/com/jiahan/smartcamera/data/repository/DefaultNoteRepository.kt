@@ -45,7 +45,8 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
                 HomeNote(
                     text = document.data?.get("text")?.toString() ?: "",
                     createdDate = document.getDate("created"),
-                    documentPath = document.id
+                    documentPath = document.id,
+                    favorite = document.data?.get("favorite") as Boolean
                 )
             }
         } catch (e: Exception) {
@@ -59,7 +60,8 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
             .add(
                 hashMapOf(
                     "text" to homeNote.text,
-                    "created" to FieldValue.serverTimestamp()
+                    "created" to FieldValue.serverTimestamp(),
+                    "favorite" to false
                 )
             )
             .await()
@@ -80,12 +82,22 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
                 HomeNote(
                     text = document.data?.get("text")?.toString() ?: "",
                     createdDate = document.getDate("created"),
-                    documentPath = document.id
+                    documentPath = document.id,
+                    favorite = document.data?.get("favorite") as Boolean
                 )
             }
     }
 
     override suspend fun deleteNote(documentPath: String) {
         firestore.collection("note").document(documentPath).delete().await()
+    }
+
+    override suspend fun favoriteNote(homeNote: HomeNote) {
+        homeNote.documentPath?.let { documentPath ->
+            firestore
+                .collection("note").document(documentPath)
+                .update("favorite", homeNote.favorite.not())
+                .await()
+        }
     }
 }

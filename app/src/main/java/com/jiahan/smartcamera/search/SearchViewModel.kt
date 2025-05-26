@@ -29,6 +29,8 @@ class SearchViewModel @Inject constructor(
     val refreshing = _isRefreshing.asStateFlow()
     private val _isLoadingMore = MutableStateFlow(false)
     val isLoadingMore = _isLoadingMore.asStateFlow()
+    private val _noteToDelete = MutableStateFlow<HomeNote?>(null)
+    val noteToDelete: StateFlow<HomeNote?> = _noteToDelete.asStateFlow()
 
     init {
         _notes.value = emptyList()
@@ -66,7 +68,24 @@ class SearchViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 noteRepository.deleteNote(documentPath)
-                searchNotes()
+                _notes.value = _notes.value.filter { it.documentPath != documentPath }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun favoriteNote(homeNote: HomeNote) {
+        viewModelScope.launch {
+            try {
+                noteRepository.favoriteNote(homeNote)
+                _notes.value = _notes.value.map { note ->
+                    if (homeNote.documentPath == note.documentPath) {
+                        note.copy(favorite = !note.favorite)
+                    } else {
+                        note
+                    }
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -75,5 +94,9 @@ class SearchViewModel @Inject constructor(
 
     fun setRefreshing(refreshing: Boolean) {
         _isRefreshing.value = refreshing
+    }
+
+    fun setNoteToDelete(note: HomeNote?) {
+        _noteToDelete.value = note
     }
 }
