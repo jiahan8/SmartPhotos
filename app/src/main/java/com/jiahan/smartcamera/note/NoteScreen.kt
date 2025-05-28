@@ -125,7 +125,7 @@ fun NoteScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = stringResource(R.string.app_name),
+                        text = stringResource(R.string.new_note),
                         style = MaterialTheme.typography.titleMedium,
                     )
                 },

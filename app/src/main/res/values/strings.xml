@@ -15,7 +15,7 @@
     <string name="cancel">Cancel</string>
 
     // Note
-    <string name="search_notes">Search notes</string>
+    <string name="new_note">New note</string>
     <string name="whats_new">What\'s new?</string>
     <string name="post">Post</string>
     <string name="post_success">Post uploaded successfully!</string>
@@ -23,6 +23,7 @@
     <string name="post_validation">Post cannot exceed 200 characters</string>
 
     // Search
+    <string name="search_notes">Search notes</string>
     <string name="no_results_found">No results found</string>
 
     // Profile

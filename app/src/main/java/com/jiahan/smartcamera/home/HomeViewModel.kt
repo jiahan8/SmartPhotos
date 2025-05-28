@@ -40,6 +40,22 @@ class HomeViewModel @Inject constructor(
                 fetchNotes(initialLoading = true)
             }
         }
+        viewModelScope.launch {
+            noteHandler.noteDeletedEvent.collect { documentPath ->
+                _notes.value = _notes.value.filter { it.documentPath != documentPath }
+            }
+        }
+        viewModelScope.launch {
+            noteHandler.noteFavoritedEvent.collect { updatedNote ->
+                _notes.value = _notes.value.map { note ->
+                    if (updatedNote.documentPath == note.documentPath) {
+                        updatedNote
+                    } else {
+                        note
+                    }
+                }
+            }
+        }
     }
 
     suspend fun fetchNotes(initialLoading: Boolean) {
@@ -79,6 +95,7 @@ class HomeViewModel @Inject constructor(
             try {
                 noteRepository.deleteNote(documentPath)
                 _notes.value = _notes.value.filter { it.documentPath != documentPath }
+                noteHandler.notifyNoteDeleted(documentPath)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -96,6 +113,7 @@ class HomeViewModel @Inject constructor(
                         note
                     }
                 }
+                noteHandler.notifyNoteFavorited(homeNote.copy(favorite = !homeNote.favorite))
             } catch (e: Exception) {
                 e.printStackTrace()
             }

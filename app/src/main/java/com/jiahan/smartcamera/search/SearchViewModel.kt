@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
+import com.jiahan.smartcamera.note.NoteHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,6 +18,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val noteRepository: NoteRepository,
+    private val noteHandler: NoteHandler
 ) : ViewModel() {
 
     private val _notes = MutableStateFlow<List<HomeNote>>(emptyList())
@@ -45,6 +47,22 @@ class SearchViewModel @Inject constructor(
                     }
                 }
         }
+        viewModelScope.launch {
+            noteHandler.noteDeletedEvent.collect { documentPath ->
+                _notes.value = _notes.value.filter { it.documentPath != documentPath }
+            }
+        }
+        viewModelScope.launch {
+            noteHandler.noteFavoritedEvent.collect { updatedNote ->
+                _notes.value = _notes.value.map { note ->
+                    if (updatedNote.documentPath == note.documentPath) {
+                        updatedNote
+                    } else {
+                        note
+                    }
+                }
+            }
+        }
     }
 
     fun updateSearchQuery(query: String) {
@@ -69,6 +87,7 @@ class SearchViewModel @Inject constructor(
             try {
                 noteRepository.deleteNote(documentPath)
                 _notes.value = _notes.value.filter { it.documentPath != documentPath }
+                noteHandler.notifyNoteDeleted(documentPath)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -86,6 +105,7 @@ class SearchViewModel @Inject constructor(
                         note
                     }
                 }
+                noteHandler.notifyNoteFavorited(homeNote.copy(favorite = !homeNote.favorite))
             } catch (e: Exception) {
                 e.printStackTrace()
             }
