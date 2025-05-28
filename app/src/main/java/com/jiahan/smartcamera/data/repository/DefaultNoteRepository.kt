@@ -100,4 +100,26 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
                 .await()
         }
     }
+
+    override suspend fun searchFavoritedNotes(query: String): List<HomeNote> {
+        val snapshot =
+            firestore.collection("note")
+                .whereEqualTo("favorite", true)
+                .orderBy("created", Query.Direction.DESCENDING)
+                .get()
+                .await()
+        return snapshot.documents
+            .filter { document ->
+                val text = document.data?.get("text")?.toString() ?: ""
+                text.contains(query, ignoreCase = true)
+            }
+            .map { document ->
+                HomeNote(
+                    text = document.data?.get("text")?.toString() ?: "",
+                    createdDate = document.getDate("created"),
+                    documentPath = document.id,
+                    favorite = document.data?.get("favorite") as Boolean
+                )
+            }
+    }
 }

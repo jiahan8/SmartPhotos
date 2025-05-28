@@ -8,4 +8,5 @@ interface NoteRepository {
     suspend fun searchNotes(query: String): List<HomeNote>
     suspend fun deleteNote(documentPath: String)
     suspend fun favoriteNote(homeNote: HomeNote)
+    suspend fun searchFavoritedNotes(query: String): List<HomeNote>
 }

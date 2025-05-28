@@ -26,6 +26,9 @@
     <string name="search_notes">Search notes</string>
     <string name="no_results_found">No results found</string>
 
+    // Favorite
+    <string name="search_favorites">Search favorites</string>
+
     // Profile
     <string name="profile">Profile</string>
     <string name="dark_theme">Dark Theme</string>

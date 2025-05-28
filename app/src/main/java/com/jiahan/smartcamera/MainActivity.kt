@@ -43,11 +43,11 @@ import androidx.navigation.navDeepLink
 import com.jiahan.smartcamera.Screen.ImagePreview.DETECT_ARG
 import com.jiahan.smartcamera.Screen.ImagePreview.TEXT_ARG
 import com.jiahan.smartcamera.Screen.ImagePreview.URI_ARG
-import com.jiahan.smartcamera.favorite.FavoriteScreen
 import com.jiahan.smartcamera.home.HomeScreen
 import com.jiahan.smartcamera.imagepreview.ImagePreviewScreen
 import com.jiahan.smartcamera.note.NoteScreen
 import com.jiahan.smartcamera.profile.ProfileScreen
+import com.jiahan.smartcamera.favorite.FavoriteScreen
 import com.jiahan.smartcamera.search.SearchScreen
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -161,9 +161,7 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             composable(route = Screen.Favorite.route) {
-                                FavoriteScreen(
-                                    navController = navController
-                                )
+                                FavoriteScreen()
                             }
                             composable(route = Screen.Profile.route) {
                                 ProfileScreen()
