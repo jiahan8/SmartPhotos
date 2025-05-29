@@ -21,10 +21,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -64,6 +67,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.util.Util.createVideoThumbnail
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,6 +79,7 @@ fun NoteScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val scrollState = rememberScrollState()
 
     val postText by viewModel.postText.collectAsState()
     val photoUri by viewModel.photoUri.collectAsState()
@@ -197,167 +202,210 @@ fun NoteScreen(
                     end = padding.calculateEndPadding(LayoutDirection.Ltr)
                 )
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp)
+                    .verticalScroll(scrollState)
             ) {
-                AsyncImage(
-                    model = R.drawable.home_image,
-                    contentDescription = "Profile picture",
-                    contentScale = ContentScale.Crop,
+                Row(
                     modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                )
-
-                Column(
-                    modifier = Modifier.padding(start = 16.dp)
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp)
                 ) {
-                    Text(
-                        text = "jiahan",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        maxLines = 1
-                    )
-
-                    BasicTextField(
-                        value = postText,
-                        onValueChange = { text -> viewModel.updatePostText(text) },
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(
-                            color = MaterialTheme.colorScheme.onSurface
-                        ),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                        maxLines = 20,
+                    AsyncImage(
+                        model = R.drawable.home_image,
+                        contentDescription = "Profile picture",
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .padding(top = 8.dp, bottom = 8.dp)
-                            .fillMaxWidth()
-                            .focusRequester(focusRequester),
-                        enabled = !isUploading
+                            .size(38.dp)
+                            .clip(CircleShape)
                     )
 
-                    if (uriList.isNotEmpty()) {
-                        HorizontalMultiBrowseCarousel(
-                            state = rememberCarouselState { uriList.count() },
+                    Column(
+                        modifier = Modifier.padding(start = 16.dp)
+                    ) {
+                        Text(
+                            text = "jiahan",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            maxLines = 1
+                        )
+
+                        BasicTextField(
+                            value = postText,
+                            onValueChange = { text -> viewModel.updatePostText(text) },
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                color = MaterialTheme.colorScheme.onSurface
+                            ),
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            maxLines = 20,
                             modifier = Modifier
+                                .padding(top = 8.dp, bottom = 8.dp)
                                 .fillMaxWidth()
-                                .wrapContentHeight()
-                                .padding(top = 16.dp, bottom = 16.dp),
-                            preferredItemWidth = 186.dp,
-                            itemSpacing = 8.dp,
-                        ) { i ->
-                            Box {
-                                AsyncImage(
-                                    model = uriList[i],
-                                    modifier = Modifier
-                                        .height(205.dp)
-                                        .maskClip(MaterialTheme.shapes.extraLarge),
-                                    contentDescription = "Image",
-                                    contentScale = ContentScale.Crop,
-                                    error = painterResource(R.drawable.home_image),
-                                    onError = {
-                                        it.result.throwable.printStackTrace()
-                                    }
-                                )
-                                Icon(
-                                    imageVector = Icons.Rounded.Close,
-                                    contentDescription = "Remove image",
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(8.dp)
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            MaterialTheme.colorScheme.surfaceVariant.copy(
-                                                alpha = 0.7f
-                                            )
-                                        )
-                                        .clickable {
-                                            viewModel.removeUriFromList(uriList[i])
+                                .focusRequester(focusRequester),
+                            enabled = !isUploading
+                        )
+
+                        if (uriList.isNotEmpty()) {
+                            HorizontalMultiBrowseCarousel(
+                                state = rememberCarouselState { uriList.count() },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .wrapContentHeight()
+                                    .padding(top = 16.dp, bottom = 16.dp),
+                                preferredItemWidth = 186.dp,
+                                itemSpacing = 8.dp,
+                            ) { index ->
+                                val uri = uriList[index]
+                                val isVideo = remember(uri) {
+                                    uri.toString().contains("video") ||
+                                            context.contentResolver.getType(uri)
+                                                ?.startsWith("video/") == true
+                                }
+                                Box {
+                                    val model =
+                                        if (isVideo) createVideoThumbnail(context, uri) else uri
+                                    AsyncImage(
+                                        model = model,
+                                        modifier = Modifier
+                                            .height(205.dp)
+                                            .maskClip(MaterialTheme.shapes.extraLarge),
+                                        contentDescription = "Image",
+                                        contentScale = ContentScale.Crop,
+                                        onError = {
+                                            it.result.throwable.printStackTrace()
                                         }
-                                        .padding(4.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                    )
+
+                                    if (isVideo)
+                                        Icon(
+                                            imageVector = Icons.Rounded.PlayArrow,
+                                            contentDescription = "Play video",
+                                            modifier = Modifier
+                                                .align(Alignment.Center)
+                                                .size(52.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    MaterialTheme.colorScheme.surfaceVariant.copy(
+                                                        alpha = 0.7f
+                                                    )
+                                                ),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+
+                                    Icon(
+                                        imageVector = Icons.Rounded.Close,
+                                        contentDescription = "Remove image",
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(8.dp)
+                                            .size(24.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                MaterialTheme.colorScheme.surfaceVariant.copy(
+                                                    alpha = 0.7f
+                                                )
+                                            )
+                                            .clickable {
+                                                viewModel.removeUriFromList(uriList[index])
+                                            }
+                                            .padding(4.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
-                    }
 
-                    postTextError?.let { error ->
-                        Text(
-                            text = error,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.photo_library_24px),
-                            contentDescription = "Choose photos",
-                            modifier = Modifier
-                                .clickable(enabled = !isUploading) {
-                                    libraryLauncher.launch(PickVisualMediaRequest(PickVisualMedia.ImageAndVideo))
-                                },
-                            tint = if (isUploading) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                            else MaterialTheme.colorScheme.onSurface
-                        )
-
-                        Icon(
-                            painter = painterResource(R.drawable.photo_camera_24px),
-                            contentDescription = "Take Photo",
-                            modifier = Modifier
-                                .padding(start = 16.dp)
-                                .clickable(enabled = !isUploading) {
-                                    if (hasCameraPermission) {
-                                        val uri = viewModel.createImageUri(context)
-                                        viewModel.updatePhotoUri(uri)
-                                        uri?.let { pictureLauncher.launch(it) }
-                                    } else {
-                                        photoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                                    }
-                                },
-                            tint = if (isUploading) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                            else MaterialTheme.colorScheme.onSurface
-                        )
-
-                        Icon(
-                            painter = painterResource(R.drawable.smart_display_24px),
-                            contentDescription = "Take Video",
-                            modifier = Modifier
-                                .padding(start = 16.dp)
-                                .clickable(enabled = !isUploading) {
-                                    if (hasCameraPermission) {
-                                        val uri = viewModel.createVideoUri(context)
-                                        viewModel.updateVideoUri(uri)
-                                        uri?.let { videoLauncher.launch(it) }
-                                    } else {
-                                        videoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                                    }
-                                },
-                            tint = if (isUploading) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                            else MaterialTheme.colorScheme.onSurface
-                        )
-
-                        Spacer(modifier = Modifier.weight(1f))
-
-                        TextButton(
-                            onClick = {
-                                if (postTextError == null) {
-                                    viewModel.uploadPost(postText.trim())
-                                }
-                            },
-                            enabled = buttonEnabled
-                        ) {
-                            Text(text = stringResource(R.string.post))
+                        postTextError?.let { error ->
+                            Text(
+                                text = error,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
-                    }
 
-                    LaunchedEffect(Unit) {
-                        focusRequester.requestFocus()
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.photo_library_24px),
+                                contentDescription = "Choose photos",
+                                modifier = Modifier
+                                    .clickable(enabled = !isUploading) {
+                                        libraryLauncher.launch(
+                                            PickVisualMediaRequest(
+                                                PickVisualMedia.ImageAndVideo
+                                            )
+                                        )
+                                    },
+                                tint = if (isUploading) MaterialTheme.colorScheme.onSurface.copy(
+                                    alpha = 0.38f
+                                )
+                                else MaterialTheme.colorScheme.onSurface
+                            )
+
+                            Icon(
+                                painter = painterResource(R.drawable.photo_camera_24px),
+                                contentDescription = "Take Photo",
+                                modifier = Modifier
+                                    .padding(start = 16.dp)
+                                    .clickable(enabled = !isUploading) {
+                                        if (hasCameraPermission) {
+                                            val uri = viewModel.createImageUri(context)
+                                            viewModel.updatePhotoUri(uri)
+                                            uri?.let { pictureLauncher.launch(it) }
+                                        } else {
+                                            photoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                                        }
+                                    },
+                                tint = if (isUploading) MaterialTheme.colorScheme.onSurface.copy(
+                                    alpha = 0.38f
+                                )
+                                else MaterialTheme.colorScheme.onSurface
+                            )
+
+                            Icon(
+                                painter = painterResource(R.drawable.smart_display_24px),
+                                contentDescription = "Take Video",
+                                modifier = Modifier
+                                    .padding(start = 16.dp)
+                                    .clickable(enabled = !isUploading) {
+                                        if (hasCameraPermission) {
+                                            val uri = viewModel.createVideoUri(context)
+                                            viewModel.updateVideoUri(uri)
+                                            uri?.let { videoLauncher.launch(it) }
+                                        } else {
+                                            videoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                                        }
+                                    },
+                                tint = if (isUploading) MaterialTheme.colorScheme.onSurface.copy(
+                                    alpha = 0.38f
+                                )
+                                else MaterialTheme.colorScheme.onSurface
+                            )
+
+                            Spacer(modifier = Modifier.weight(1f))
+
+                            TextButton(
+                                onClick = {
+                                    if (postTextError == null) {
+                                        viewModel.uploadPost(
+                                            text = postText.trim(),
+                                            uriList = uriList
+                                        )
+                                    }
+                                },
+                                enabled = buttonEnabled
+                            ) {
+                                Text(text = stringResource(R.string.post))
+                            }
+                        }
+
+                        LaunchedEffect(Unit) {
+                            focusRequester.requestFocus()
+                        }
                     }
                 }
             }

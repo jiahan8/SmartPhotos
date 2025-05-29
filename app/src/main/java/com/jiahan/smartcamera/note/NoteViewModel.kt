@@ -13,6 +13,10 @@ import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.util.ResourceProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
@@ -52,6 +56,7 @@ class NoteViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            remoteConfigRepository.fetchAndActivateConfig()
             combine(
                 _uploading,
                 _postText,
@@ -88,13 +93,16 @@ class NoteViewModel @Inject constructor(
         }
     }
 
-    fun uploadPost(text: String) {
+    fun uploadPost(text: String, uriList: List<Uri>) {
         viewModelScope.launch {
             try {
                 _uploading.value = true
+                val mediaUrlList = uploadMediaToFirebase(uriList)
+
                 noteRepository.saveNote(
                     HomeNote(
-                        text = text
+                        text = text,
+                        mediaUrlList = mediaUrlList
                     )
                 )
                 _uploadSuccess.value = true
@@ -105,6 +113,28 @@ class NoteViewModel @Inject constructor(
                 _uploadSuccess.value = false
                 _uploadError.value = true
             }
+        }
+    }
+
+    private suspend fun uploadMediaToFirebase(uriList: List<Uri>): List<String> {
+        return coroutineScope {
+            uriList.map { uri ->
+                async(Dispatchers.IO) {
+                    try {
+                        val storage = Firebase.storage(remoteConfigRepository.getStorageUrl())
+                        val fileName = "${UUID.randomUUID()}_${uri.lastPathSegment}"
+                        val extension = if (uri.toString().endsWith(".mp4")) ".mp4" else ".jpg"
+                        val folderRef =
+                            storage.reference.child("${remoteConfigRepository.getStorageFolderName()}/$fileName$extension")
+
+                        folderRef.putFile(uri).await()
+                        folderRef.downloadUrl.await().toString()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        null
+                    }
+                }
+            }.awaitAll().filterNotNull()
         }
     }
 

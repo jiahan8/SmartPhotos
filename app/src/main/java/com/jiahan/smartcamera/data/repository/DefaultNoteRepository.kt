@@ -46,7 +46,8 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
                     text = document.data?.get("text")?.toString(),
                     createdDate = document.getDate("created"),
                     documentPath = document.id,
-                    favorite = document.data?.get("favorite") as Boolean
+                    favorite = document.data?.get("favorite") as Boolean,
+                    mediaUrlList = (document.data?.get("mediaUrlList") as? List<*>)?.mapNotNull { it as? String }
                 )
             }
         } catch (e: Exception) {
@@ -61,7 +62,8 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
                 hashMapOf(
                     "text" to homeNote.text,
                     "created" to FieldValue.serverTimestamp(),
-                    "favorite" to false
+                    "favorite" to false,
+                    "mediaUrlList" to homeNote.mediaUrlList
                 )
             )
             .await()
@@ -83,7 +85,8 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
                     text = document.data?.get("text")?.toString(),
                     createdDate = document.getDate("created"),
                     documentPath = document.id,
-                    favorite = document.data?.get("favorite") as Boolean
+                    favorite = document.data?.get("favorite") as Boolean,
+                    mediaUrlList = (document.data?.get("mediaUrlList") as? List<*>)?.mapNotNull { it as? String }
                 )
             }
     }
@@ -118,7 +121,8 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
                     text = document.data?.get("text")?.toString(),
                     createdDate = document.getDate("created"),
                     documentPath = document.id,
-                    favorite = document.data?.get("favorite") as Boolean
+                    favorite = document.data?.get("favorite") as Boolean,
+                    mediaUrlList = (document.data?.get("mediaUrlList") as? List<*>)?.mapNotNull { it as? String }
                 )
             }
     }
