@@ -1,4 +1,4 @@
-package com.jiahan.smartcamera.imagepreview
+package com.jiahan.smartcamera.preview
 
 import android.content.Context
 import android.net.Uri

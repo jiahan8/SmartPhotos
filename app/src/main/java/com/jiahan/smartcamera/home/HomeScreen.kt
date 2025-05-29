@@ -40,7 +40,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,8 +51,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.Screen
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.util.Util.formatDateTime
 import kotlinx.coroutines.launch
@@ -61,6 +62,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    navController: NavController,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state = rememberPullToRefreshState()
@@ -159,6 +161,16 @@ fun HomeScreen(
                                 },
                                 onLongPress = {
                                     viewModel.setNoteToDelete(note)
+                                },
+                                onPhotoClick = { url ->
+                                    navController.navigate(
+                                        Screen.PhotoPreview.createRemoteRoute(url)
+                                    )
+                                },
+                                onVideoClick = { url ->
+                                    navController.navigate(
+                                        Screen.VideoPreview.createRemoteRoute(url)
+                                    )
                                 }
                             )
 
@@ -197,6 +209,8 @@ fun HomeItem(
     note: HomeNote,
     onDoubleTap: () -> Unit,
     onLongPress: () -> Unit,
+    onPhotoClick: (String) -> Unit,
+    onVideoClick: (String) -> Unit
 ) {
     Column {
         Row(
@@ -276,13 +290,18 @@ fun HomeItem(
                         itemSpacing = 8.dp,
                     ) { index ->
                         val url = urlList[index]
-                        val isVideo = remember(url) {
-                            url.contains(".mp4")
-                        }
-                        Box {
-                            val model = url
+                        val isVideo = url.contains(".mp4")
+                        Box(
+                            modifier = Modifier.clickable {
+                                if (isVideo)
+                                    onVideoClick(url)
+                                else {
+                                    onPhotoClick(url)
+                                }
+                            }
+                        ) {
                             AsyncImage(
-                                model = model,
+                                model = url,
                                 modifier = Modifier
                                     .height(205.dp)
                                     .maskClip(MaterialTheme.shapes.extraLarge),

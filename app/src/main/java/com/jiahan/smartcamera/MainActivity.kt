@@ -1,10 +1,12 @@
 package com.jiahan.smartcamera
 
 import android.annotation.SuppressLint
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -29,10 +31,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -43,11 +47,15 @@ import androidx.navigation.navDeepLink
 import com.jiahan.smartcamera.Screen.ImagePreview.DETECT_ARG
 import com.jiahan.smartcamera.Screen.ImagePreview.TEXT_ARG
 import com.jiahan.smartcamera.Screen.ImagePreview.URI_ARG
-import com.jiahan.smartcamera.home.HomeScreen
-import com.jiahan.smartcamera.imagepreview.ImagePreviewScreen
-import com.jiahan.smartcamera.note.NoteScreen
-import com.jiahan.smartcamera.profile.ProfileScreen
 import com.jiahan.smartcamera.favorite.FavoriteScreen
+import com.jiahan.smartcamera.home.HomeScreen
+import com.jiahan.smartcamera.note.NoteScreen
+import com.jiahan.smartcamera.preview.ImagePreviewScreen
+import com.jiahan.smartcamera.preview.PhotoPreviewScreen
+import com.jiahan.smartcamera.preview.PhotoSource
+import com.jiahan.smartcamera.preview.VideoPreviewScreen
+import com.jiahan.smartcamera.preview.VideoSource
+import com.jiahan.smartcamera.profile.ProfileScreen
 import com.jiahan.smartcamera.search.SearchScreen
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -74,6 +82,12 @@ class MainActivity : ComponentActivity() {
                     Screen.Favorite,
                     Screen.Profile
                 )
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentDestination = navBackStackEntry?.destination
+                val currentRoute = currentDestination?.route
+                val showBottomBar = remember(currentRoute) {
+                    currentRoute in items.map { it.route }
+                }
 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -81,35 +95,37 @@ class MainActivity : ComponentActivity() {
                 ) {
                     Scaffold(
                         bottomBar = {
-                            NavigationBar(
-                                modifier = Modifier.height(64.dp),
-                                windowInsets = WindowInsets(0.dp),
-                            ) {
-                                val currentDestination =
-                                    navController.currentBackStackEntryAsState().value?.destination
-                                items.forEach { screen ->
-                                    val selected = currentDestination?.route == screen.route
+                            AnimatedVisibility(visible = showBottomBar) {
+                                NavigationBar(
+                                    modifier = Modifier.height(64.dp),
+                                    windowInsets = WindowInsets(0.dp),
+                                ) {
+                                    items.forEach { screen ->
+                                        val selected = currentDestination?.route == screen.route
 
-                                    NavigationBarItem(
-                                        icon = {
-                                            AnimatedIcon(
-                                                selected = selected,
-                                                imageVector = screen.icon,
-                                                contentDescription = screen.title
-                                            )
-                                        },
-                                        label = { Text(screen.title) },
-                                        selected = currentDestination?.route == screen.route,
-                                        onClick = {
-                                            navController.navigate(screen.route) {
-                                                popUpTo(navController.graph.startDestinationId) {
-                                                    saveState = true
+                                        NavigationBarItem(
+                                            icon = {
+                                                screen.icon?.let { icon ->
+                                                    AnimatedIcon(
+                                                        selected = selected,
+                                                        imageVector = icon,
+                                                        contentDescription = screen.title
+                                                    )
                                                 }
-                                                launchSingleTop = true
-                                                restoreState = true
+                                            },
+                                            label = { Text(screen.title) },
+                                            selected = currentDestination?.route == screen.route,
+                                            onClick = {
+                                                navController.navigate(screen.route) {
+                                                    popUpTo(navController.graph.startDestinationId) {
+                                                        saveState = true
+                                                    }
+                                                    launchSingleTop = true
+                                                    restoreState = true
+                                                }
                                             }
-                                        }
-                                    )
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -120,7 +136,9 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.padding(innerPadding)
                         ) {
                             composable(Screen.Home.route) {
-                                HomeScreen()
+                                HomeScreen(
+                                    navController = navController
+                                )
                             }
                             composable(
                                 route = Screen.Search.route,
@@ -130,7 +148,9 @@ class MainActivity : ComponentActivity() {
                                     }
                                 )
                             ) {
-                                SearchScreen()
+                                SearchScreen(
+                                    navController = navController
+                                )
                             }
                             composable(
                                 route = Screen.ImagePreview.route,
@@ -161,7 +181,85 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             composable(route = Screen.Favorite.route) {
-                                FavoriteScreen()
+                                FavoriteScreen(
+                                    navController = navController
+                                )
+                            }
+                            composable(
+                                route = Screen.PhotoPreview.route,
+                                arguments = listOf(
+                                    navArgument(Screen.PhotoPreview.TYPE_ARG) {
+                                        type = NavType.StringType
+                                    },
+                                    navArgument(Screen.PhotoPreview.SOURCE_ARG) {
+                                        type = NavType.StringType
+                                    }
+                                )
+                            ) { backStackEntry ->
+                                val type =
+                                    backStackEntry.arguments?.getString(Screen.PhotoPreview.TYPE_ARG)
+                                val source =
+                                    backStackEntry.arguments?.getString(Screen.PhotoPreview.SOURCE_ARG)
+                                        ?.replace("%25", "%")
+
+                                if (type != null && source != null) {
+                                    val photoSource = when (type) {
+                                        Screen.PhotoPreview.TYPE_LOCAL -> PhotoSource.LocalUri(
+                                            source.toUri()
+                                        )
+
+                                        Screen.PhotoPreview.TYPE_REMOTE -> PhotoSource.RemoteUrl(
+                                            source
+                                        )
+
+                                        else -> null
+                                    }
+
+                                    photoSource?.let {
+                                        PhotoPreviewScreen(
+                                            photoSource = it,
+                                            navController = navController
+                                        )
+                                    }
+                                }
+                            }
+                            composable(
+                                route = Screen.VideoPreview.route,
+                                arguments = listOf(
+                                    navArgument(Screen.VideoPreview.TYPE_ARG) {
+                                        type = NavType.StringType
+                                    },
+                                    navArgument(Screen.VideoPreview.SOURCE_ARG) {
+                                        type = NavType.StringType
+                                    }
+                                )
+                            ) { backStackEntry ->
+                                val type =
+                                    backStackEntry.arguments?.getString(Screen.VideoPreview.TYPE_ARG)
+                                val source =
+                                    backStackEntry.arguments?.getString(Screen.VideoPreview.SOURCE_ARG)
+                                        ?.replace("%25", "%")
+
+                                if (type != null && source != null) {
+                                    val videoSource = when (type) {
+                                        Screen.VideoPreview.TYPE_LOCAL -> VideoSource.LocalUri(
+                                            source.toUri()
+                                        )
+
+                                        Screen.VideoPreview.TYPE_REMOTE -> VideoSource.RemoteUrl(
+                                            source
+                                        )
+
+                                        else -> null
+                                    }
+
+                                    videoSource?.let {
+                                        VideoPreviewScreen(
+                                            videoSource = it,
+                                            navController = navController
+                                        )
+                                    }
+                                }
                             }
                             composable(route = Screen.Profile.route) {
                                 ProfileScreen()
@@ -181,7 +279,7 @@ private const val IMAGE_DEEP_LINK_URI_PATTERN =
 sealed class Screen(
     val route: String,
     val title: String,
-    val icon: ImageVector
+    val icon: ImageVector?
 ) {
     object Home : Screen("home", "Home", Icons.Outlined.Home)
     object Search : Screen("search", "Search", Icons.Outlined.Search)
@@ -197,6 +295,28 @@ sealed class Screen(
         const val DETECT_ARG = "detect"
         fun createRoute(imageUri: String, text: String, detect: Boolean = false) =
             "image?uri=$imageUri&text=$text&detect=$detect"
+    }
+
+    object PhotoPreview : Screen("photo/{type}/{source}", "Photo", null) {
+        const val TYPE_ARG = "type"
+        const val SOURCE_ARG = "source"
+
+        const val TYPE_LOCAL = "local"
+        const val TYPE_REMOTE = "remote"
+
+        fun createLocalRoute(uri: String) = "photo/$TYPE_LOCAL/${Uri.encode(uri)}"
+        fun createRemoteRoute(url: String) = "photo/$TYPE_REMOTE/${Uri.encode(url)}"
+    }
+
+    object VideoPreview : Screen("video/{type}/{source}", "Video", null) {
+        const val TYPE_ARG = "type"
+        const val SOURCE_ARG = "source"
+
+        const val TYPE_LOCAL = "local"
+        const val TYPE_REMOTE = "remote"
+
+        fun createLocalRoute(uri: String) = "video/$TYPE_LOCAL/${Uri.encode(uri)}"
+        fun createRemoteRoute(url: String) = "video/$TYPE_REMOTE/${Uri.encode(url)}"
     }
 
     object Profile : Screen("profile", "Profile", Icons.Outlined.Person)

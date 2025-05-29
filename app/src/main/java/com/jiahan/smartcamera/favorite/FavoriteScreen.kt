@@ -34,13 +34,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.Screen
 import com.jiahan.smartcamera.home.HomeItem
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FavoriteScreen(
+    navController: NavController,
     viewModel: FavoriteViewModel = hiltViewModel()
 ) {
     val state = rememberPullToRefreshState()
@@ -155,6 +158,16 @@ fun FavoriteScreen(
                                 },
                                 onLongPress = {
                                     viewModel.setNoteToDelete(note)
+                                },
+                                onPhotoClick = { url ->
+                                    navController.navigate(
+                                        Screen.PhotoPreview.createRemoteRoute(url)
+                                    )
+                                },
+                                onVideoClick = { url ->
+                                    navController.navigate(
+                                        Screen.VideoPreview.createRemoteRoute(url)
+                                    )
                                 }
                             )
                         }

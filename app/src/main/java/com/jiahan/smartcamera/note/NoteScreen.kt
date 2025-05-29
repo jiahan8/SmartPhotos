@@ -67,6 +67,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.Screen
 import com.jiahan.smartcamera.util.Util.createVideoThumbnail
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -258,14 +259,24 @@ fun NoteScreen(
                                 itemSpacing = 8.dp,
                             ) { index ->
                                 val uri = uriList[index]
-                                val isVideo = remember(uri) {
-                                    uri.toString().contains("video") ||
-                                            context.contentResolver.getType(uri)
-                                                ?.startsWith("video/") == true
-                                }
-                                Box {
-                                    val model =
-                                        if (isVideo) createVideoThumbnail(context, uri) else uri
+                                val isVideo = uri.toString().contains("video") ||
+                                        context.contentResolver.getType(uri)
+                                            ?.startsWith("video/") == true
+                                val model =
+                                    if (isVideo) createVideoThumbnail(context, uri) else uri
+                                Box(
+                                    modifier = Modifier.clickable {
+                                        if (isVideo) {
+                                            navController.navigate(
+                                                Screen.VideoPreview.createLocalRoute(uri.toString())
+                                            )
+                                        } else {
+                                            navController.navigate(
+                                                Screen.PhotoPreview.createLocalRoute(uri.toString())
+                                            )
+                                        }
+                                    }
+                                ) {
                                     AsyncImage(
                                         model = model,
                                         modifier = Modifier
