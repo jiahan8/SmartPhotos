@@ -1,9 +1,8 @@
 package com.jiahan.smartcamera.note
 
-import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
-import android.provider.MediaStore
+import androidx.core.content.FileProvider.getUriForFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.ktx.Firebase
@@ -19,6 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.io.File
 import java.util.UUID
 import javax.inject.Inject
 
@@ -45,6 +45,8 @@ class NoteViewModel @Inject constructor(
     val photoUri = _photoUri.asStateFlow()
     private val _videoUri = MutableStateFlow<Uri?>(null)
     val videoUri = _videoUri.asStateFlow()
+    private val _uriList = MutableStateFlow<List<Uri>>(emptyList())
+    val uriList = _uriList.asStateFlow()
     private val _postButtonEnabled = MutableStateFlow(false)
     val postButtonEnabled = _postButtonEnabled.asStateFlow()
 
@@ -53,9 +55,10 @@ class NoteViewModel @Inject constructor(
             combine(
                 _uploading,
                 _postText,
+                _uriList,
                 _postTextError
-            ) { uploading, postText, postTextError ->
-                !uploading && postText.isNotBlank() && postTextError == null
+            ) { uploading, postText, uriList, postTextError ->
+                !uploading && (postText.isNotBlank() || uriList.isNotEmpty()) && postTextError == null
             }.collect {
                 _postButtonEnabled.value = it
             }
@@ -118,22 +121,48 @@ class NoteViewModel @Inject constructor(
     }
 
     fun createImageUri(context: Context): Uri? {
-        val contentValues = ContentValues().apply {
-            put(
-                MediaStore.Images.Media.DISPLAY_NAME,
-                "smartcamera_${System.currentTimeMillis()}.jpg"
-            )
-            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-        }
-        return context.contentResolver.insert(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            contentValues
+        val timeStamp = System.currentTimeMillis()
+        val storageDir = context.cacheDir
+        val imageFile = File.createTempFile(
+            "smartcamera_${timeStamp}_",
+            ".jpg",
+            storageDir
+        )
+
+        return getUriForFile(
+            context,
+            "com.jiahan.smartcamera.fileprovider",
+            imageFile
+        )
+    }
+
+    fun createVideoUri(context: Context): Uri? {
+        val timeStamp = System.currentTimeMillis()
+        val storageDir = context.cacheDir
+        val imageFile = File.createTempFile(
+            "smartcamera_${timeStamp}_",
+            ".mp4",
+            storageDir
+        )
+
+        return getUriForFile(
+            context,
+            "com.jiahan.smartcamera.fileprovider",
+            imageFile
         )
     }
 
     fun updatePostText(text: String) {
         _postText.value = text
         validatePostText(text)
+    }
+
+    fun updateUriList(uriList: List<Uri>) {
+        _uriList.value = uriList + _uriList.value
+    }
+
+    fun removeUriFromList(uri: Uri) {
+        _uriList.value = _uriList.value.filter { it != uri }
     }
 
     fun updatePhotoUri(uri: Uri?) {

@@ -43,7 +43,7 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
 
             return snapshot.documents.map { document ->
                 HomeNote(
-                    text = document.data?.get("text")?.toString() ?: "",
+                    text = document.data?.get("text")?.toString(),
                     createdDate = document.getDate("created"),
                     documentPath = document.id,
                     favorite = document.data?.get("favorite") as Boolean
@@ -75,12 +75,12 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
                 .await()
         return snapshot.documents
             .filter { document ->
-                val text = document.data?.get("text")?.toString() ?: ""
-                text.contains(query, ignoreCase = true)
+                val text = document.data?.get("text")?.toString()
+                text?.contains(query, ignoreCase = true) == true
             }
             .map { document ->
                 HomeNote(
-                    text = document.data?.get("text")?.toString() ?: "",
+                    text = document.data?.get("text")?.toString(),
                     createdDate = document.getDate("created"),
                     documentPath = document.id,
                     favorite = document.data?.get("favorite") as Boolean
@@ -110,12 +110,12 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
                 .await()
         return snapshot.documents
             .filter { document ->
-                val text = document.data?.get("text")?.toString() ?: ""
-                text.contains(query, ignoreCase = true)
+                val text = document.data?.get("text")?.toString()
+                text?.contains(query, ignoreCase = true) == true
             }
             .map { document ->
                 HomeNote(
-                    text = document.data?.get("text")?.toString() ?: "",
+                    text = document.data?.get("text")?.toString(),
                     createdDate = document.getDate("created"),
                     documentPath = document.id,
                     favorite = document.data?.get("favorite") as Boolean

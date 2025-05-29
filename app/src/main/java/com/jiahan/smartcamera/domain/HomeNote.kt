@@ -6,7 +6,7 @@ import java.util.Date
 
 @Parcelize
 data class HomeNote(
-    val text: String,
+    val text: String? = null,
     val createdDate: Date? = null,
     val documentPath: String? = null,
     val favorite: Boolean = false

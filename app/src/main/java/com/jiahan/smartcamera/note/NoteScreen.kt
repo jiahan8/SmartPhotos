@@ -1,7 +1,12 @@
 package com.jiahan.smartcamera.note
 
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,10 +17,14 @@ import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -27,11 +36,15 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
+import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +59,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -65,6 +79,7 @@ fun NoteScreen(
     val postText by viewModel.postText.collectAsState()
     val photoUri by viewModel.photoUri.collectAsState()
     val videoUri by viewModel.videoUri.collectAsState()
+    val uriList by viewModel.uriList.collectAsState()
     val isUploading by viewModel.uploading.collectAsState()
     val uploadSuccess by viewModel.uploadSuccess.collectAsState()
     val uploadError by viewModel.uploadError.collectAsState()
@@ -73,6 +88,73 @@ fun NoteScreen(
 
     val postSuccessMessage = stringResource(R.string.post_success)
     val postFailMessage = stringResource(R.string.post_fail)
+
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val libraryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia()
+    ) { uriList ->
+        viewModel.updateUriList(uriList)
+    }
+
+    val pictureLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            photoUri?.let { uri ->
+                viewModel.updateUriList(listOf(uri))
+            }
+        } else {
+            photoUri?.let { uri ->
+                context.contentResolver.delete(uri, null, null)
+                viewModel.updatePhotoUri(null)
+            }
+        }
+    }
+
+    val videoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CaptureVideo()
+    ) { success ->
+        if (success) {
+            videoUri?.let { uri ->
+                viewModel.updateUriList(listOf(uri))
+            }
+        } else {
+            videoUri?.let { uri ->
+                context.contentResolver.delete(uri, null, null)
+                viewModel.updateVideoUri(null)
+            }
+        }
+    }
+
+    val photoCameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasCameraPermission = isGranted
+        if (isGranted) {
+            val uri = viewModel.createImageUri(context)
+            viewModel.updatePhotoUri(uri)
+            uri?.let { pictureLauncher.launch(it) }
+        }
+    }
+
+    val videoCameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasCameraPermission = isGranted
+        if (isGranted) {
+            val uri = viewModel.createVideoUri(context)
+            viewModel.updateVideoUri(uri)
+            uri?.let { videoLauncher.launch(it) }
+        }
+    }
 
     LaunchedEffect(uploadSuccess) {
         if (uploadSuccess) {
@@ -89,34 +171,6 @@ fun NoteScreen(
             keyboardController?.hide()
             snackbarHostState.showSnackbar(postFailMessage, duration = SnackbarDuration.Short)
             viewModel.resetUploadError()
-        }
-    }
-
-    val libraryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenMultipleDocuments()
-    ) { uriList ->
-        uriList.forEach { uri ->
-            viewModel.uploadImageToFirebase(context, uri)
-        }
-    }
-
-    val pictureLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture()
-    ) { success ->
-        if (success) {
-            photoUri?.let { uri ->
-                viewModel.uploadImageToFirebase(context, uri)
-            }
-        }
-    }
-
-    val videoLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CaptureVideo()
-    ) { success ->
-        if (success) {
-            videoUri?.let { uri ->
-                viewModel.uploadImageToFirebase(context, uri)
-            }
         }
     }
 
@@ -183,6 +237,52 @@ fun NoteScreen(
                         enabled = !isUploading
                     )
 
+                    if (uriList.isNotEmpty()) {
+                        HorizontalMultiBrowseCarousel(
+                            state = rememberCarouselState { uriList.count() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .wrapContentHeight()
+                                .padding(top = 16.dp, bottom = 16.dp),
+                            preferredItemWidth = 186.dp,
+                            itemSpacing = 8.dp,
+                        ) { i ->
+                            Box {
+                                AsyncImage(
+                                    model = uriList[i],
+                                    modifier = Modifier
+                                        .height(205.dp)
+                                        .maskClip(MaterialTheme.shapes.extraLarge),
+                                    contentDescription = "Image",
+                                    contentScale = ContentScale.Crop,
+                                    error = painterResource(R.drawable.home_image),
+                                    onError = {
+                                        it.result.throwable.printStackTrace()
+                                    }
+                                )
+                                Icon(
+                                    imageVector = Icons.Rounded.Close,
+                                    contentDescription = "Remove image",
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(8.dp)
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            MaterialTheme.colorScheme.surfaceVariant.copy(
+                                                alpha = 0.7f
+                                            )
+                                        )
+                                        .clickable {
+                                            viewModel.removeUriFromList(uriList[i])
+                                        }
+                                        .padding(4.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
                     postTextError?.let { error ->
                         Text(
                             text = error,
@@ -200,7 +300,7 @@ fun NoteScreen(
                             contentDescription = "Choose photos",
                             modifier = Modifier
                                 .clickable(enabled = !isUploading) {
-                                    libraryLauncher.launch(arrayOf("image/*", "video/*"))
+                                    libraryLauncher.launch(PickVisualMediaRequest(PickVisualMedia.ImageAndVideo))
                                 },
                             tint = if (isUploading) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                             else MaterialTheme.colorScheme.onSurface
@@ -212,10 +312,12 @@ fun NoteScreen(
                             modifier = Modifier
                                 .padding(start = 16.dp)
                                 .clickable(enabled = !isUploading) {
-                                    val uri = viewModel.createImageUri(context)
-                                    viewModel.updatePhotoUri(uri)
-                                    photoUri?.let { uri ->
-                                        pictureLauncher.launch(uri)
+                                    if (hasCameraPermission) {
+                                        val uri = viewModel.createImageUri(context)
+                                        viewModel.updatePhotoUri(uri)
+                                        uri?.let { pictureLauncher.launch(it) }
+                                    } else {
+                                        photoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                                     }
                                 },
                             tint = if (isUploading) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
@@ -228,10 +330,12 @@ fun NoteScreen(
                             modifier = Modifier
                                 .padding(start = 16.dp)
                                 .clickable(enabled = !isUploading) {
-                                    val uri = viewModel.createImageUri(context)
-                                    viewModel.updateVideoUri(uri)
-                                    videoUri?.let { uri ->
-                                        videoLauncher.launch(uri)
+                                    if (hasCameraPermission) {
+                                        val uri = viewModel.createVideoUri(context)
+                                        viewModel.updateVideoUri(uri)
+                                        uri?.let { videoLauncher.launch(it) }
+                                    } else {
+                                        videoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                                     }
                                 },
                             tint = if (isUploading) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)

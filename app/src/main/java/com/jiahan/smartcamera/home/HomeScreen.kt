@@ -184,6 +184,7 @@ fun HomeScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeItem(
     note: HomeNote,
@@ -250,10 +251,13 @@ fun HomeItem(
                     }
                 }
 
-                Text(
-                    text = note.text,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                note.text?.let { text ->
+                    Text(
+                        text = text,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+
             }
         }
         HorizontalDivider(
