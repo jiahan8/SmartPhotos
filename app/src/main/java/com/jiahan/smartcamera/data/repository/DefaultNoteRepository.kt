@@ -63,7 +63,8 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
                     "text" to homeNote.text,
                     "created" to FieldValue.serverTimestamp(),
                     "favorite" to false,
-                    "mediaUrlList" to homeNote.mediaUrlList
+                    "mediaUrlList" to homeNote.mediaUrlList,
+                    "media_list" to homeNote.mediaList
                 )
             )
             .await()

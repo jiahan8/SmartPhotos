@@ -28,6 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -68,7 +69,6 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.Screen
-import com.jiahan.smartcamera.util.Util.createVideoThumbnail
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,7 +85,7 @@ fun NoteScreen(
     val postText by viewModel.postText.collectAsState()
     val photoUri by viewModel.photoUri.collectAsState()
     val videoUri by viewModel.videoUri.collectAsState()
-    val uriList by viewModel.uriList.collectAsState()
+    val mediaList by viewModel.mediaList.collectAsState()
     val isUploading by viewModel.uploading.collectAsState()
     val uploadSuccess by viewModel.uploadSuccess.collectAsState()
     val uploadError by viewModel.uploadError.collectAsState()
@@ -107,7 +107,7 @@ fun NoteScreen(
     val libraryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia()
     ) { uriList ->
-        viewModel.updateUriList(uriList)
+        viewModel.updateUriList(context = context, uriList = uriList)
     }
 
     val pictureLauncher = rememberLauncherForActivityResult(
@@ -115,7 +115,7 @@ fun NoteScreen(
     ) { success ->
         if (success) {
             photoUri?.let { uri ->
-                viewModel.updateUriList(listOf(uri))
+                viewModel.updateUriList(context = context, uriList = listOf(uri))
             }
         } else {
             photoUri?.let { uri ->
@@ -130,7 +130,7 @@ fun NoteScreen(
     ) { success ->
         if (success) {
             videoUri?.let { uri ->
-                viewModel.updateUriList(listOf(uri))
+                viewModel.updateUriList(context = context, uriList = listOf(uri))
             }
         } else {
             videoUri?.let { uri ->
@@ -203,6 +203,14 @@ fun NoteScreen(
                     end = padding.calculateEndPadding(LayoutDirection.Ltr)
                 )
         ) {
+            if (isUploading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -248,9 +256,9 @@ fun NoteScreen(
                             enabled = !isUploading
                         )
 
-                        if (uriList.isNotEmpty()) {
+                        if (mediaList.isNotEmpty()) {
                             HorizontalMultiBrowseCarousel(
-                                state = rememberCarouselState { uriList.count() },
+                                state = rememberCarouselState { mediaList.count() },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .wrapContentHeight()
@@ -258,27 +266,22 @@ fun NoteScreen(
                                 preferredItemWidth = 186.dp,
                                 itemSpacing = 8.dp,
                             ) { index ->
-                                val uri = uriList[index]
-                                val isVideo = uri.toString().contains("video") ||
-                                        context.contentResolver.getType(uri)
-                                            ?.startsWith("video/") == true
-                                val model =
-                                    if (isVideo) createVideoThumbnail(context, uri) else uri
+                                val noteMediaDetail = mediaList[index]
                                 Box(
                                     modifier = Modifier.clickable {
-                                        if (isVideo) {
+                                        if (noteMediaDetail.isVideo) {
                                             navController.navigate(
-                                                Screen.VideoPreview.createLocalRoute(uri.toString())
+                                                Screen.VideoPreview.createLocalRoute(noteMediaDetail.videoUri.toString())
                                             )
                                         } else {
                                             navController.navigate(
-                                                Screen.PhotoPreview.createLocalRoute(uri.toString())
+                                                Screen.PhotoPreview.createLocalRoute(noteMediaDetail.photoUri.toString())
                                             )
                                         }
                                     }
                                 ) {
                                     AsyncImage(
-                                        model = model,
+                                        model = if (noteMediaDetail.isVideo) noteMediaDetail.thumbnailBitmap else noteMediaDetail.photoUri,
                                         modifier = Modifier
                                             .height(205.dp)
                                             .maskClip(MaterialTheme.shapes.extraLarge),
@@ -289,7 +292,7 @@ fun NoteScreen(
                                         }
                                     )
 
-                                    if (isVideo)
+                                    if (noteMediaDetail.isVideo)
                                         Icon(
                                             imageVector = Icons.Rounded.PlayArrow,
                                             contentDescription = "Play video",
@@ -319,7 +322,7 @@ fun NoteScreen(
                                                 )
                                             )
                                             .clickable {
-                                                viewModel.removeUriFromList(uriList[index])
+                                                viewModel.removeUriFromList(index)
                                             }
                                             .padding(4.dp),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -404,7 +407,7 @@ fun NoteScreen(
                                     if (postTextError == null) {
                                         viewModel.uploadPost(
                                             text = postText.trim(),
-                                            uriList = uriList
+                                            mediaList = mediaList
                                         )
                                     }
                                 },

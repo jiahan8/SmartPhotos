@@ -1,17 +1,28 @@
 package com.jiahan.smartcamera.note
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.core.content.FileProvider.getUriForFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.label.ImageLabeling
+import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
+import com.jiahan.smartcamera.data.repository.SearchRepository
 import com.jiahan.smartcamera.domain.HomeNote
+import com.jiahan.smartcamera.domain.MediaDetail
+import com.jiahan.smartcamera.domain.NoteMediaDetail
 import com.jiahan.smartcamera.util.ResourceProvider
+import com.jiahan.smartcamera.util.Util.createVideoThumbnail
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -22,6 +33,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.UUID
 import javax.inject.Inject
@@ -30,6 +42,7 @@ import javax.inject.Inject
 class NoteViewModel @Inject constructor(
     private val remoteConfigRepository: RemoteConfigRepository,
     private val noteRepository: NoteRepository,
+    private val searchRepository: SearchRepository,
     private val noteHandler: NoteHandler,
     private val resourceProvider: ResourceProvider
 ) : ViewModel() {
@@ -42,6 +55,8 @@ class NoteViewModel @Inject constructor(
     val uploadError = _uploadError.asStateFlow()
     private val _postTextError = MutableStateFlow<String?>(null)
     val postTextError = _postTextError.asStateFlow()
+    private val _postButtonEnabled = MutableStateFlow(false)
+    val postButtonEnabled = _postButtonEnabled.asStateFlow()
 
     private val _postText = MutableStateFlow("")
     val postText = _postText.asStateFlow()
@@ -49,10 +64,9 @@ class NoteViewModel @Inject constructor(
     val photoUri = _photoUri.asStateFlow()
     private val _videoUri = MutableStateFlow<Uri?>(null)
     val videoUri = _videoUri.asStateFlow()
-    private val _uriList = MutableStateFlow<List<Uri>>(emptyList())
-    val uriList = _uriList.asStateFlow()
-    private val _postButtonEnabled = MutableStateFlow(false)
-    val postButtonEnabled = _postButtonEnabled.asStateFlow()
+    private val _mediaList = MutableStateFlow<List<NoteMediaDetail>>(emptyList())
+    val mediaList = _mediaList.asStateFlow()
+    private val _videoThumbnails = mutableStateMapOf<Uri, Bitmap>()
 
     init {
         viewModelScope.launch {
@@ -60,7 +74,7 @@ class NoteViewModel @Inject constructor(
             combine(
                 _uploading,
                 _postText,
-                _uriList,
+                _mediaList,
                 _postTextError
             ) { uploading, postText, uriList, postTextError ->
                 !uploading && (postText.isNotBlank() || uriList.isNotEmpty()) && postTextError == null
@@ -93,16 +107,16 @@ class NoteViewModel @Inject constructor(
         }
     }
 
-    fun uploadPost(text: String, uriList: List<Uri>) {
+    fun uploadPost(text: String, mediaList: List<NoteMediaDetail>) {
         viewModelScope.launch {
             try {
                 _uploading.value = true
-                val mediaUrlList = uploadMediaToFirebase(uriList)
+                val mediaDetailList = uploadMediaToFirebase(mediaList)
 
                 noteRepository.saveNote(
                     HomeNote(
                         text = text,
-                        mediaUrlList = mediaUrlList
+                        mediaList = mediaDetailList
                     )
                 )
                 _uploadSuccess.value = true
@@ -116,19 +130,46 @@ class NoteViewModel @Inject constructor(
         }
     }
 
-    private suspend fun uploadMediaToFirebase(uriList: List<Uri>): List<String> {
+    private suspend fun uploadMediaToFirebase(noteMediaDetailList: List<NoteMediaDetail>): List<MediaDetail> {
         return coroutineScope {
-            uriList.map { uri ->
+            noteMediaDetailList.map { noteMediaDetail ->
                 async(Dispatchers.IO) {
                     try {
                         val storage = Firebase.storage(remoteConfigRepository.getStorageUrl())
-                        val fileName = "${UUID.randomUUID()}_${uri.lastPathSegment}"
-                        val extension = if (uri.toString().endsWith(".mp4")) ".mp4" else ".jpg"
-                        val folderRef =
-                            storage.reference.child("${remoteConfigRepository.getStorageFolderName()}/$fileName$extension")
+                        val folderName = remoteConfigRepository.getStorageFolderName()
 
-                        folderRef.putFile(uri).await()
-                        folderRef.downloadUrl.await().toString()
+                        val mediaId = UUID.randomUUID().toString()
+                        val extension = if (noteMediaDetail.isVideo) ".mp4" else ".jpg"
+                        val storageRef = storage.reference.child("$folderName/$mediaId$extension")
+
+                        val mediaUri = noteMediaDetail.photoUri ?: noteMediaDetail.videoUri
+                        if (mediaUri == null) {
+                            throw IllegalStateException("No media URI available for upload")
+                        }
+
+                        storageRef.putFile(mediaUri).await()
+                        val mediaUrl = storageRef.downloadUrl.await().toString()
+
+                        val thumbnailUrl = noteMediaDetail.thumbnailBitmap?.let {
+                            val thumbnailId = UUID.randomUUID().toString()
+                            val thumbnailRef =
+                                storage.reference.child("$folderName/$thumbnailId.jpg")
+
+                            ByteArrayOutputStream().use { baos ->
+                                it.compress(Bitmap.CompressFormat.JPEG, 90, baos)
+                                thumbnailRef.putBytes(baos.toByteArray()).await()
+                            }
+
+                            thumbnailRef.downloadUrl.await().toString()
+                        }
+
+                        MediaDetail(
+                            photoUrl = if (!noteMediaDetail.isVideo) mediaUrl else null,
+                            videoUrl = if (noteMediaDetail.isVideo) mediaUrl else null,
+                            thumbnailUrl = thumbnailUrl,
+                            isVideo = noteMediaDetail.isVideo,
+                            text = noteMediaDetail.text
+                        )
                     } catch (e: Exception) {
                         e.printStackTrace()
                         null
@@ -154,7 +195,7 @@ class NoteViewModel @Inject constructor(
         val timeStamp = System.currentTimeMillis()
         val storageDir = context.cacheDir
         val imageFile = File.createTempFile(
-            "smartcamera_${timeStamp}_",
+            "smartcameraphoto_${timeStamp}",
             ".jpg",
             storageDir
         )
@@ -170,7 +211,7 @@ class NoteViewModel @Inject constructor(
         val timeStamp = System.currentTimeMillis()
         val storageDir = context.cacheDir
         val imageFile = File.createTempFile(
-            "smartcamera_${timeStamp}_",
+            "smartcameravideo_${timeStamp}",
             ".mp4",
             storageDir
         )
@@ -187,12 +228,39 @@ class NoteViewModel @Inject constructor(
         validatePostText(text)
     }
 
-    fun updateUriList(uriList: List<Uri>) {
-        _uriList.value = uriList + _uriList.value
+    fun updateUriList(context: Context, uriList: List<Uri>) {
+        viewModelScope.launch {
+            val newMediaDetailList = uriList.mapNotNull { uri ->
+                try {
+                    val isVideo = context.contentResolver.getType(uri)?.startsWith("video/") == true
+
+                    val bitmap = if (isVideo) getVideoThumbnail(context, uri) else null
+                    val detectedText =
+                        if (isVideo) null else detectLabelsAndJapaneseText(context, uri)
+
+                    NoteMediaDetail(
+                        photoUri = if (isVideo) null else uri,
+                        videoUri = if (isVideo) uri else null,
+                        thumbnailBitmap = if (isVideo) bitmap else null,
+                        isVideo = isVideo,
+                        text = detectedText
+                    )
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    null
+                }
+            }
+
+            _mediaList.value = newMediaDetailList + _mediaList.value
+        }
     }
 
-    fun removeUriFromList(uri: Uri) {
-        _uriList.value = _uriList.value.filter { it != uri }
+    fun removeUriFromList(index: Int) {
+        if (index >= 0 && index < _mediaList.value.size) {
+            val newList = _mediaList.value.toMutableList()
+            newList.removeAt(index)
+            _mediaList.value = newList
+        }
     }
 
     fun updatePhotoUri(uri: Uri?) {
@@ -207,6 +275,58 @@ class NoteViewModel @Inject constructor(
         _postTextError.value = when {
             text.length > 200 -> resourceProvider.getString(R.string.post_validation)
             else -> null
+        }
+    }
+
+    fun getVideoThumbnail(context: Context, uri: Uri): Bitmap? {
+        return _videoThumbnails.getOrPut(uri) {
+            createVideoThumbnail(context, uri) as Bitmap
+        }
+    }
+
+    suspend fun generateDescription(imageUri: Uri) =
+        searchRepository.prepareAndStartImageDescription(imageUri)
+
+    suspend fun detectLabelsAndJapaneseText(context: Context, image: Uri): String {
+        return coroutineScope {
+            val inputImage = InputImage.fromFilePath(context, image)
+            val labeler = ImageLabeling.getClient(ImageLabelerOptions.DEFAULT_OPTIONS)
+            val japaneseRecognizer = TextRecognition.getClient(
+                JapaneseTextRecognizerOptions.Builder().build()
+            )
+            val descriptionDeferred = async {
+                runCatching {
+                    generateDescription(image)
+                }
+            }
+
+            val labelDeferred = async {
+                runCatching {
+                    labeler.process(inputImage).await()
+                }
+            }
+
+            val textDeferred = async {
+                runCatching {
+                    japaneseRecognizer.process(inputImage).await()
+                }
+            }
+
+            val descriptionResult = descriptionDeferred.await()
+            val labelResult = labelDeferred.await()
+            val textResult = textDeferred.await()
+
+            val description =
+                descriptionResult.getOrNull()?.takeIf { it.isNotEmpty() }?.let { "$it\n\n" } ?: ""
+
+            val labelText = labelResult.getOrNull()?.joinToString("\n") {
+                "Label: ${it.text}, Confidence: ${"%.2f".format(it.confidence)}"
+            } ?: "Image labeling failed: ${labelResult.exceptionOrNull()?.localizedMessage}"
+
+            val visionText = textResult.getOrNull()?.text
+                ?: "Text recognition failed: ${textResult.exceptionOrNull()?.localizedMessage}"
+
+            "$description$labelText\n\n$visionText"
         }
     }
 }

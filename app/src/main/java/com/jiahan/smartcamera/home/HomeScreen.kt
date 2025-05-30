@@ -16,8 +16,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Favorite
@@ -32,8 +33,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
-import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
@@ -226,7 +225,7 @@ fun HomeItem(
                         }
                     )
                 }
-                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp)
+                .padding(start = 16.dp, end = 16.dp, top = 16.dp)
         ) {
             AsyncImage(
                 model = R.drawable.home_image,
@@ -278,62 +277,63 @@ fun HomeItem(
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
-
-                note.mediaUrlList?.let { urlList ->
-                    HorizontalMultiBrowseCarousel(
-                        state = rememberCarouselState { urlList.count() },
+            }
+        }
+        if (!note.mediaUrlList.isNullOrEmpty()) {
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                contentPadding = PaddingValues(start = 56.dp, end = 8.dp)
+            ) {
+                items(note.mediaUrlList.size) { index ->
+                    val url = note.mediaUrlList[index]
+                    val isVideo = url.contains(".mp4")
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .wrapContentHeight()
-                            .padding(top = 16.dp, bottom = 16.dp),
-                        preferredItemWidth = 186.dp,
-                        itemSpacing = 8.dp,
-                    ) { index ->
-                        val url = urlList[index]
-                        val isVideo = url.contains(".mp4")
-                        Box(
-                            modifier = Modifier.clickable {
+                            .padding(end = 8.dp)
+                            .clickable {
                                 if (isVideo)
                                     onVideoClick(url)
                                 else {
                                     onPhotoClick(url)
                                 }
                             }
-                        ) {
-                            AsyncImage(
-                                model = url,
-                                modifier = Modifier
-                                    .height(205.dp)
-                                    .maskClip(MaterialTheme.shapes.extraLarge),
-                                contentDescription = "Image",
-                                contentScale = ContentScale.Crop,
-                                onError = {
-                                    it.result.throwable.printStackTrace()
-                                }
-                            )
+                    ) {
+                        AsyncImage(
+                            model = url,
+                            modifier = Modifier
+                                .height(256.dp)
+                                .width(220.dp)
+                                .clip(MaterialTheme.shapes.medium),
+                            contentDescription = "Image",
+                            contentScale = ContentScale.Crop,
+                            onError = {
+                                it.result.throwable.printStackTrace()
+                            }
+                        )
 
-                            if (isVideo)
-                                Icon(
-                                    imageVector = Icons.Rounded.PlayArrow,
-                                    contentDescription = "Play video",
-                                    modifier = Modifier
-                                        .align(Alignment.Center)
-                                        .size(52.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            MaterialTheme.colorScheme.surfaceVariant.copy(
-                                                alpha = 0.7f
-                                            )
-                                        ),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                        }
+                        if (isVideo)
+                            Icon(
+                                imageVector = Icons.Rounded.PlayArrow,
+                                contentDescription = "Play video",
+                                modifier = Modifier
+                                    .align(Alignment.Center)
+                                    .size(52.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(
+                                            alpha = 0.7f
+                                        )
+                                    ),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                     }
                 }
             }
         }
         HorizontalDivider(
-            modifier = Modifier.padding(horizontal = 8.dp),
+            modifier = Modifier.padding(top = 16.dp, start = 8.dp, end = 8.dp),
             thickness = 0.5.dp,
             color = MaterialTheme.colorScheme.outlineVariant
         )
