@@ -279,29 +279,32 @@ fun HomeItem(
                 }
             }
         }
-        if (!note.mediaUrlList.isNullOrEmpty()) {
+        if (!note.mediaList.isNullOrEmpty()) {
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),
                 contentPadding = PaddingValues(start = 56.dp, end = 8.dp)
             ) {
-                items(note.mediaUrlList.size) { index ->
-                    val url = note.mediaUrlList[index]
-                    val isVideo = url.contains(".mp4")
+                items(note.mediaList.size) { index ->
+                    val mediaDetail = note.mediaList[index]
                     Box(
                         modifier = Modifier
                             .padding(end = 8.dp)
                             .clickable {
-                                if (isVideo)
-                                    onVideoClick(url)
+                                if (mediaDetail.isVideo)
+                                    mediaDetail.videoUrl?.let {
+                                        onVideoClick(it)
+                                    }
                                 else {
-                                    onPhotoClick(url)
+                                    mediaDetail.photoUrl?.let {
+                                        onPhotoClick(it)
+                                    }
                                 }
                             }
                     ) {
                         AsyncImage(
-                            model = url,
+                            model = if (mediaDetail.isVideo) mediaDetail.thumbnailUrl else mediaDetail.photoUrl,
                             modifier = Modifier
                                 .height(256.dp)
                                 .width(220.dp)
@@ -313,7 +316,7 @@ fun HomeItem(
                             }
                         )
 
-                        if (isVideo)
+                        if (mediaDetail.isVideo)
                             Icon(
                                 imageVector = Icons.Rounded.PlayArrow,
                                 contentDescription = "Play video",

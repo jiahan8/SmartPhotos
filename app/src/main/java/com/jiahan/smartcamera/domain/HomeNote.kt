@@ -12,7 +12,6 @@ data class HomeNote(
     val createdDate: Date? = null,
     val documentPath: String? = null,
     val favorite: Boolean = false,
-    val mediaUrlList: List<String>? = null,
     val mediaList: List<MediaDetail>? = null
 ) : Parcelable
 

@@ -66,7 +66,7 @@ class NoteViewModel @Inject constructor(
     val videoUri = _videoUri.asStateFlow()
     private val _mediaList = MutableStateFlow<List<NoteMediaDetail>>(emptyList())
     val mediaList = _mediaList.asStateFlow()
-    private val _videoThumbnails = mutableStateMapOf<Uri, Bitmap>()
+    private val _videoThumbnails = mutableStateMapOf<Uri, Bitmap?>()
 
     init {
         viewModelScope.launch {
@@ -280,7 +280,7 @@ class NoteViewModel @Inject constructor(
 
     fun getVideoThumbnail(context: Context, uri: Uri): Bitmap? {
         return _videoThumbnails.getOrPut(uri) {
-            createVideoThumbnail(context, uri) as Bitmap
+            createVideoThumbnail(context, uri)
         }
     }
 
@@ -317,16 +317,13 @@ class NoteViewModel @Inject constructor(
             val textResult = textDeferred.await()
 
             val description =
-                descriptionResult.getOrNull()?.takeIf { it.isNotEmpty() }?.let { "$it\n\n" } ?: ""
+                descriptionResult.getOrNull()?.takeIf { it.isNotEmpty() } ?: ""
 
-            val labelText = labelResult.getOrNull()?.joinToString("\n") {
-                "Label: ${it.text}, Confidence: ${"%.2f".format(it.confidence)}"
-            } ?: "Image labeling failed: ${labelResult.exceptionOrNull()?.localizedMessage}"
+            val labelText = labelResult.getOrNull()?.joinToString("\n") { it.text }
 
             val visionText = textResult.getOrNull()?.text
-                ?: "Text recognition failed: ${textResult.exceptionOrNull()?.localizedMessage}"
 
-            "$description$labelText\n\n$visionText"
+            "$description$labelText$visionText"
         }
     }
 }

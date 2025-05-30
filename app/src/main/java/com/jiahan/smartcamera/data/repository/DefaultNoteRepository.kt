@@ -6,6 +6,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.firestore
 import com.jiahan.smartcamera.domain.HomeNote
+import com.jiahan.smartcamera.domain.MediaDetail
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
@@ -46,8 +47,17 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
                     text = document.data?.get("text")?.toString(),
                     createdDate = document.getDate("created"),
                     documentPath = document.id,
-                    favorite = document.data?.get("favorite") as Boolean,
-                    mediaUrlList = (document.data?.get("mediaUrlList") as? List<*>)?.mapNotNull { it as? String }
+                    favorite = document.data?.get("favorite") as? Boolean == true,
+                    mediaList = (document.data?.get("media_list") as? List<*>)?.mapNotNull { item ->
+                        val mediaMap = item as? Map<*, *> ?: return@mapNotNull null
+                        MediaDetail(
+                            photoUrl = mediaMap["photoUrl"] as? String,
+                            videoUrl = mediaMap["videoUrl"] as? String,
+                            thumbnailUrl = mediaMap["thumbnailUrl"] as? String,
+                            isVideo = mediaMap["video"] as? Boolean == true,
+                            text = mediaMap["text"] as? String
+                        )
+                    }
                 )
             }
         } catch (e: Exception) {
@@ -63,7 +73,6 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
                     "text" to homeNote.text,
                     "created" to FieldValue.serverTimestamp(),
                     "favorite" to false,
-                    "mediaUrlList" to homeNote.mediaUrlList,
                     "media_list" to homeNote.mediaList
                 )
             )
@@ -78,8 +87,20 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
                 .await()
         return snapshot.documents
             .filter { document ->
-                val text = document.data?.get("text")?.toString()
-                text?.contains(query, ignoreCase = true) == true
+                // Check if the main note text contains the query
+                val noteText = document.data?.get("text")?.toString() ?: ""
+                val containsInNoteText = noteText.contains(query, ignoreCase = true)
+
+                // Check if any media item's text contains the query
+                val mediaList = document.data?.get("media_list") as? List<*>
+                val containsInMediaText = mediaList?.any { item ->
+                    val mediaMap = item as? Map<*, *>
+                    val mediaText = mediaMap?.get("text")?.toString() ?: ""
+                    mediaText.contains(query, ignoreCase = true)
+                } == true
+
+                // Return true if the query is found in either the note text or any media text
+                containsInNoteText || containsInMediaText
             }
             .map { document ->
                 HomeNote(
@@ -87,7 +108,16 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
                     createdDate = document.getDate("created"),
                     documentPath = document.id,
                     favorite = document.data?.get("favorite") as Boolean,
-                    mediaUrlList = (document.data?.get("mediaUrlList") as? List<*>)?.mapNotNull { it as? String }
+                    mediaList = (document.data?.get("media_list") as? List<*>)?.mapNotNull { item ->
+                        val mediaMap = item as? Map<*, *> ?: return@mapNotNull null
+                        MediaDetail(
+                            photoUrl = mediaMap["photoUrl"] as? String,
+                            videoUrl = mediaMap["videoUrl"] as? String,
+                            thumbnailUrl = mediaMap["thumbnailUrl"] as? String,
+                            isVideo = mediaMap["video"] as? Boolean == true,
+                            text = mediaMap["text"] as? String
+                        )
+                    }
                 )
             }
     }
@@ -123,7 +153,16 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
                     createdDate = document.getDate("created"),
                     documentPath = document.id,
                     favorite = document.data?.get("favorite") as Boolean,
-                    mediaUrlList = (document.data?.get("mediaUrlList") as? List<*>)?.mapNotNull { it as? String }
+                    mediaList = (document.data?.get("media_list") as? List<*>)?.mapNotNull { item ->
+                        val mediaMap = item as? Map<*, *> ?: return@mapNotNull null
+                        MediaDetail(
+                            photoUrl = mediaMap["photoUrl"] as? String,
+                            videoUrl = mediaMap["videoUrl"] as? String,
+                            thumbnailUrl = mediaMap["thumbnailUrl"] as? String,
+                            isVideo = mediaMap["video"] as? Boolean == true,
+                            text = mediaMap["text"] as? String
+                        )
+                    }
                 )
             }
     }
