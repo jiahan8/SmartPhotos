@@ -223,7 +223,7 @@ fun NoteScreen(
                 ) {
                     AsyncImage(
                         model = R.drawable.home_image,
-                        contentDescription = "Profile picture",
+                        contentDescription = "Profile Picture",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .size(38.dp)
@@ -295,7 +295,7 @@ fun NoteScreen(
                                     if (noteMediaDetail.isVideo)
                                         Icon(
                                             imageVector = Icons.Rounded.PlayArrow,
-                                            contentDescription = "Play video",
+                                            contentDescription = "Play Video",
                                             modifier = Modifier
                                                 .align(Alignment.Center)
                                                 .size(52.dp)
@@ -310,7 +310,7 @@ fun NoteScreen(
 
                                     Icon(
                                         imageVector = Icons.Rounded.Close,
-                                        contentDescription = "Remove image",
+                                        contentDescription = "Remove Image",
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)
                                             .padding(8.dp)

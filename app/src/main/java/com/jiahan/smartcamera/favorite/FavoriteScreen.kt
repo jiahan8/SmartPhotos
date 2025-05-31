@@ -147,7 +147,10 @@ fun FavoriteScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(vertical = 8.dp)
                     ) {
-                        items(notes.size) { index ->
+                        items(
+                            count = notes.size,
+                            key = { index -> notes[index].documentPath ?: index }
+                        ) { index ->
                             val note = notes[index]
                             HomeItem(
                                 note = note,

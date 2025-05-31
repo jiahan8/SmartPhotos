@@ -210,7 +210,7 @@ class NoteViewModel @Inject constructor(
     fun createVideoUri(context: Context): Uri? {
         val timeStamp = System.currentTimeMillis()
         val storageDir = context.cacheDir
-        val imageFile = File.createTempFile(
+        val videoFile = File.createTempFile(
             "smartcameravideo_${timeStamp}",
             ".mp4",
             storageDir
@@ -219,7 +219,7 @@ class NoteViewModel @Inject constructor(
         return getUriForFile(
             context,
             "com.jiahan.smartcamera.fileprovider",
-            imageFile
+            videoFile
         )
     }
 
@@ -239,7 +239,7 @@ class NoteViewModel @Inject constructor(
                         if (isVideo) null else detectLabelsAndJapaneseText(context, uri)
 
                     NoteMediaDetail(
-                        photoUri = if (isVideo) null else uri,
+                        photoUri = if (!isVideo) uri else null,
                         videoUri = if (isVideo) uri else null,
                         thumbnailBitmap = if (isVideo) bitmap else null,
                         isVideo = isVideo,

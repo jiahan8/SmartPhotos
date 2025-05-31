@@ -149,7 +149,10 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(vertical = 8.dp)
                     ) {
-                        items(notes.size) { index ->
+                        items(
+                            count = notes.size,
+                            key = { index -> notes[index].documentPath ?: index }
+                        ) { index ->
                             val note = notes[index]
                             HomeItem(
                                 note = note,
@@ -229,7 +232,7 @@ fun HomeItem(
         ) {
             AsyncImage(
                 model = R.drawable.home_image,
-                contentDescription = "Profile picture",
+                contentDescription = "Profile Picture",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(38.dp)
@@ -319,7 +322,7 @@ fun HomeItem(
                         if (mediaDetail.isVideo)
                             Icon(
                                 imageVector = Icons.Rounded.PlayArrow,
-                                contentDescription = "Play video",
+                                contentDescription = "Play Video",
                                 modifier = Modifier
                                     .align(Alignment.Center)
                                     .size(52.dp)

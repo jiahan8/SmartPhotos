@@ -144,8 +144,20 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
                 .await()
         return snapshot.documents
             .filter { document ->
-                val text = document.data?.get("text")?.toString()
-                text?.contains(query, ignoreCase = true) == true
+                // Check if the main note text contains the query
+                val noteText = document.data?.get("text")?.toString() ?: ""
+                val containsInNoteText = noteText.contains(query, ignoreCase = true)
+
+                // Check if any media item's text contains the query
+                val mediaList = document.data?.get("media_list") as? List<*>
+                val containsInMediaText = mediaList?.any { item ->
+                    val mediaMap = item as? Map<*, *>
+                    val mediaText = mediaMap?.get("text")?.toString() ?: ""
+                    mediaText.contains(query, ignoreCase = true)
+                } == true
+
+                // Return true if the query is found in either the note text or any media text
+                containsInNoteText || containsInMediaText
             }
             .map { document ->
                 HomeNote(
