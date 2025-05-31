@@ -248,7 +248,7 @@ fun NoteScreen(
                                 color = MaterialTheme.colorScheme.onSurface
                             ),
                             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                            maxLines = 20,
+                            maxLines = 25,
                             modifier = Modifier
                                 .padding(top = 8.dp, bottom = 8.dp)
                                 .fillMaxWidth()

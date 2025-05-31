@@ -89,7 +89,7 @@ fun HomeScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        note.documentPath?.let { viewModel.deleteNote(it) }
+                        viewModel.deleteNote(note.documentPath)
                         viewModel.setNoteToDelete(null)
                     }
                 ) {
@@ -151,15 +151,18 @@ fun HomeScreen(
                     ) {
                         items(
                             count = notes.size,
-                            key = { index -> notes[index].documentPath ?: index }
+                            key = { index -> notes[index].documentPath }
                         ) { index ->
                             val note = notes[index]
                             HomeItem(
                                 note = note,
+                                onTap = {
+                                    navController.navigate(
+                                        Screen.NotePreview.createRoute(note.documentPath)
+                                    )
+                                },
                                 onDoubleTap = {
-                                    note.documentPath?.let {
-                                        viewModel.favoriteNote(note)
-                                    }
+                                    viewModel.favoriteNote(note)
                                 },
                                 onLongPress = {
                                     viewModel.setNoteToDelete(note)
@@ -209,25 +212,31 @@ fun HomeScreen(
 @Composable
 fun HomeItem(
     note: HomeNote,
+    onTap: () -> Unit,
     onDoubleTap: () -> Unit,
     onLongPress: () -> Unit,
     onPhotoClick: (String) -> Unit,
     onVideoClick: (String) -> Unit
 ) {
-    Column {
+    Column(
+        modifier = Modifier
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = {
+                        onTap()
+                    },
+                    onDoubleTap = {
+                        onDoubleTap()
+                    },
+                    onLongPress = {
+                        onLongPress()
+                    }
+                )
+            }
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onDoubleTap = {
-                            onDoubleTap()
-                        },
-                        onLongPress = {
-                            onLongPress()
-                        }
-                    )
-                }
                 .padding(start = 16.dp, end = 16.dp, top = 16.dp)
         ) {
             AsyncImage(
@@ -277,7 +286,8 @@ fun HomeItem(
                 note.text?.let { text ->
                     Text(
                         text = text,
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 25
                     )
                 }
             }

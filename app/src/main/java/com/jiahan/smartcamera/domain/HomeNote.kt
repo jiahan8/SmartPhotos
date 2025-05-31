@@ -10,7 +10,7 @@ import java.util.Date
 data class HomeNote(
     val text: String? = null,
     val createdDate: Date? = null,
-    val documentPath: String? = null,
+    val documentPath: String,
     val favorite: Boolean = false,
     val mediaList: List<MediaDetail>? = null
 ) : Parcelable

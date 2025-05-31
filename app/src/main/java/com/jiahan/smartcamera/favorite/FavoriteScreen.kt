@@ -72,7 +72,7 @@ fun FavoriteScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        note.documentPath?.let { viewModel.deleteNote(it) }
+                        viewModel.deleteNote(note.documentPath)
                         viewModel.setNoteToDelete(null)
                     }
                 ) {
@@ -149,15 +149,18 @@ fun FavoriteScreen(
                     ) {
                         items(
                             count = notes.size,
-                            key = { index -> notes[index].documentPath ?: index }
+                            key = { index -> notes[index].documentPath }
                         ) { index ->
                             val note = notes[index]
                             HomeItem(
                                 note = note,
+                                onTap = {
+                                    navController.navigate(
+                                        Screen.NotePreview.createRoute(note.documentPath)
+                                    )
+                                },
                                 onDoubleTap = {
-                                    note.documentPath?.let {
-                                        viewModel.favoriteNote(note)
-                                    }
+                                    viewModel.favoriteNote(note)
                                 },
                                 onLongPress = {
                                     viewModel.setNoteToDelete(note)

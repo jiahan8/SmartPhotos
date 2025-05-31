@@ -66,7 +66,7 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
         }
     }
 
-    override suspend fun saveNote(homeNote: HomeNote) {
+    override suspend fun addNote(homeNote: HomeNote) {
         firestore.collection("note")
             .add(
                 hashMapOf(
@@ -127,15 +127,13 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
     }
 
     override suspend fun favoriteNote(homeNote: HomeNote) {
-        homeNote.documentPath?.let { documentPath ->
-            firestore
-                .collection("note").document(documentPath)
-                .update("favorite", homeNote.favorite.not())
-                .await()
-        }
+        firestore
+            .collection("note").document(homeNote.documentPath)
+            .update("favorite", homeNote.favorite.not())
+            .await()
     }
 
-    override suspend fun searchFavoritedNotes(query: String): List<HomeNote> {
+    override suspend fun searchFavoriteNotes(query: String): List<HomeNote> {
         val snapshot =
             firestore.collection("note")
                 .whereEqualTo("favorite", true)
@@ -177,5 +175,27 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
                     }
                 )
             }
+    }
+
+    override suspend fun getNote(documentPath: String): HomeNote {
+        val snapshot = firestore.collection("note").document(documentPath).get().await()
+        snapshot.apply {
+            return HomeNote(
+                text = data?.get("text")?.toString(),
+                createdDate = snapshot.getDate("created"),
+                documentPath = snapshot.id,
+                favorite = data?.get("favorite") as Boolean,
+                mediaList = (data?.get("media_list") as? List<*>)?.mapNotNull { item ->
+                    val mediaMap = item as? Map<*, *> ?: return@mapNotNull null
+                    MediaDetail(
+                        photoUrl = mediaMap["photoUrl"] as? String,
+                        videoUrl = mediaMap["videoUrl"] as? String,
+                        thumbnailUrl = mediaMap["thumbnailUrl"] as? String,
+                        isVideo = mediaMap["video"] as? Boolean == true,
+                        text = mediaMap["text"] as? String
+                    )
+                }
+            )
+        }
     }
 }

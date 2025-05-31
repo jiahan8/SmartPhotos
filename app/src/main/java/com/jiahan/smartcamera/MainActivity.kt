@@ -51,6 +51,7 @@ import com.jiahan.smartcamera.favorite.FavoriteScreen
 import com.jiahan.smartcamera.home.HomeScreen
 import com.jiahan.smartcamera.note.NoteScreen
 import com.jiahan.smartcamera.preview.ImagePreviewScreen
+import com.jiahan.smartcamera.preview.NotePreviewScreen
 import com.jiahan.smartcamera.preview.PhotoPreviewScreen
 import com.jiahan.smartcamera.preview.PhotoSource
 import com.jiahan.smartcamera.preview.VideoPreviewScreen
@@ -261,6 +262,18 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             }
+                            composable(
+                                route = Screen.NotePreview.route,
+                                arguments = listOf(
+                                    navArgument(Screen.NotePreview.ID_ARG) {
+                                        type = NavType.StringType
+                                    }
+                                )
+                            ) { backStackEntry ->
+                                NotePreviewScreen(
+                                    navController = navController
+                                )
+                            }
                             composable(route = Screen.Profile.route) {
                                 ProfileScreen()
                             }
@@ -317,6 +330,12 @@ sealed class Screen(
 
         fun createLocalRoute(uri: String) = "video/$TYPE_LOCAL/${Uri.encode(uri)}"
         fun createRemoteRoute(url: String) = "video/$TYPE_REMOTE/${Uri.encode(url)}"
+    }
+
+    object NotePreview : Screen("notepreview/{id}", "Note Preview", null) {
+        const val ID_ARG = "id"
+
+        fun createRoute(id: String) = "notepreview/$id"
     }
 
     object Profile : Screen("profile", "Profile", Icons.Outlined.Person)

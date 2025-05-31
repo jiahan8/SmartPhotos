@@ -113,10 +113,11 @@ class NoteViewModel @Inject constructor(
                 _uploading.value = true
                 val mediaDetailList = uploadMediaToFirebase(mediaList)
 
-                noteRepository.saveNote(
+                noteRepository.addNote(
                     HomeNote(
                         text = text,
-                        mediaList = mediaDetailList
+                        mediaList = mediaDetailList,
+                        documentPath = ""
                     )
                 )
                 _uploadSuccess.value = true
@@ -273,7 +274,7 @@ class NoteViewModel @Inject constructor(
 
     private fun validatePostText(text: String) {
         _postTextError.value = when {
-            text.length > 200 -> resourceProvider.getString(R.string.post_validation)
+            text.length > 500 -> resourceProvider.getString(R.string.post_validation)
             else -> null
         }
     }

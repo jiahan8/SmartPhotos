@@ -89,7 +89,7 @@ class FavoriteViewModel @Inject constructor(
     suspend fun searchNotes() {
         try {
             _isLoading.value = true
-            _notes.value = noteRepository.searchFavoritedNotes(
+            _notes.value = noteRepository.searchFavoriteNotes(
                 query = _searchQuery.value,
             )
         } catch (e: Exception) {

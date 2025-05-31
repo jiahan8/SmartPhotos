@@ -14,6 +14,10 @@
     <string name="delete">Delete</string>
     <string name="cancel">Cancel</string>
 
+    // Search
+    <string name="search_notes">Search notes</string>
+    <string name="no_results_found">No results found</string>
+
     // Note
     <string name="new_note">New note</string>
     <string name="whats_new">What\'s new?</string>
@@ -22,10 +26,6 @@
     <string name="post_fail">Failed to upload post.</string>
     <string name="post_validation">Post cannot exceed 200 characters</string>
 
-    // Search
-    <string name="search_notes">Search notes</string>
-    <string name="no_results_found">No results found</string>
-
     // Favorite
     <string name="search_favorites">Search favorites</string>
 
@@ -33,6 +33,9 @@
     <string name="profile">Profile</string>
     <string name="dark_theme">Dark Theme</string>
     <string name="log_out">Log out</string>
+
+    // Note preview
+    <string name="note">Note</string>
 
     // Deep linking
     <string name="host">jiahan8.github.io</string>

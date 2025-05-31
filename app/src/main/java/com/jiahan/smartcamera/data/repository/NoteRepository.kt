@@ -4,9 +4,10 @@ import com.jiahan.smartcamera.domain.HomeNote
 
 interface NoteRepository {
     suspend fun getNotes(page: Int = 0, pageSize: Int = 10): List<HomeNote>
-    suspend fun saveNote(homeNote: HomeNote)
+    suspend fun addNote(homeNote: HomeNote)
     suspend fun searchNotes(query: String): List<HomeNote>
     suspend fun deleteNote(documentPath: String)
     suspend fun favoriteNote(homeNote: HomeNote)
-    suspend fun searchFavoritedNotes(query: String): List<HomeNote>
+    suspend fun searchFavoriteNotes(query: String): List<HomeNote>
+    suspend fun getNote(documentPath: String): HomeNote
 }
