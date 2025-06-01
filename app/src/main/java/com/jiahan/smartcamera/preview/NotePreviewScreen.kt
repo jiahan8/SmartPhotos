@@ -21,11 +21,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -34,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
@@ -53,6 +56,33 @@ fun NotePreviewScreen(
 ) {
     val scrollState = rememberScrollState()
     val note by viewModel.note.collectAsState()
+    val noteToDelete by viewModel.noteToDelete.collectAsState()
+
+    noteToDelete?.let { note ->
+        AlertDialog(
+            onDismissRequest = { viewModel.setNoteToDelete(null) },
+            title = { Text(stringResource(R.string.delete_note)) },
+            text = { Text(stringResource(R.string.delete_note_desc)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteNote(note.documentPath)
+                        viewModel.setNoteToDelete(null)
+                        navController.popBackStack()
+                    }
+                ) {
+                    Text(stringResource(R.string.delete))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { viewModel.setNoteToDelete(null) }
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -84,7 +114,7 @@ fun NotePreviewScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp)
+                        .padding(start = 16.dp, end = 16.dp, top = 16.dp)
                 ) {
                     AsyncImage(
                         model = R.drawable.home_image,
@@ -121,69 +151,97 @@ fun NotePreviewScreen(
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
+                    }
+                }
 
-                        val list = note.mediaList
-                        if (!list.isNullOrEmpty()) {
-                            LazyRow(
+                val list = note.mediaList
+                if (!list.isNullOrEmpty()) {
+                    LazyRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        contentPadding = PaddingValues(start = 56.dp, end = 8.dp)
+                    ) {
+                        items(list.size) { index ->
+                            val mediaDetail = list[index]
+                            Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp),
-                                contentPadding = PaddingValues(start = 56.dp, end = 8.dp)
-                            ) {
-                                items(list.size) { index ->
-                                    val mediaDetail = list[index]
-                                    Box(
-                                        modifier = Modifier
-                                            .padding(end = 8.dp)
-                                            .clickable {
-                                                if (list[index].isVideo) {
-                                                    navController.navigate(
-                                                        Screen.VideoPreview.createRemoteRoute(
-                                                            list[index].videoUrl.toString()
-                                                        )
-                                                    )
-                                                } else {
-                                                    navController.navigate(
-                                                        Screen.PhotoPreview.createRemoteRoute(
-                                                            list[index].photoUrl.toString()
-                                                        )
-                                                    )
-                                                }
-                                            }
-                                    ) {
-                                        AsyncImage(
-                                            model = if (mediaDetail.isVideo) mediaDetail.thumbnailUrl else mediaDetail.photoUrl,
-                                            modifier = Modifier
-                                                .height(256.dp)
-                                                .width(220.dp)
-                                                .clip(MaterialTheme.shapes.medium),
-                                            contentDescription = "Image",
-                                            contentScale = ContentScale.Crop,
-                                            onError = {
-                                                it.result.throwable.printStackTrace()
-                                            }
-                                        )
-
-                                        if (mediaDetail.isVideo)
-                                            Icon(
-                                                imageVector = Icons.Rounded.PlayArrow,
-                                                contentDescription = "Play Video",
-                                                modifier = Modifier
-                                                    .align(Alignment.Center)
-                                                    .size(52.dp)
-                                                    .clip(CircleShape)
-                                                    .background(
-                                                        MaterialTheme.colorScheme.surfaceVariant.copy(
-                                                            alpha = 0.7f
-                                                        )
-                                                    ),
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    .padding(end = 8.dp)
+                                    .clickable {
+                                        if (list[index].isVideo) {
+                                            navController.navigate(
+                                                Screen.VideoPreview.createRemoteRoute(
+                                                    list[index].videoUrl.toString()
+                                                )
                                             )
+                                        } else {
+                                            navController.navigate(
+                                                Screen.PhotoPreview.createRemoteRoute(
+                                                    list[index].photoUrl.toString()
+                                                )
+                                            )
+                                        }
                                     }
-                                }
+                            ) {
+                                AsyncImage(
+                                    model = if (mediaDetail.isVideo) mediaDetail.thumbnailUrl else mediaDetail.photoUrl,
+                                    modifier = Modifier
+                                        .height(256.dp)
+                                        .width(220.dp)
+                                        .clip(MaterialTheme.shapes.medium),
+                                    contentDescription = "Image",
+                                    contentScale = ContentScale.Crop,
+                                    onError = {
+                                        it.result.throwable.printStackTrace()
+                                    }
+                                )
+
+                                if (mediaDetail.isVideo)
+                                    Icon(
+                                        imageVector = Icons.Rounded.PlayArrow,
+                                        contentDescription = "Play Video",
+                                        modifier = Modifier
+                                            .align(Alignment.Center)
+                                            .size(52.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                MaterialTheme.colorScheme.surfaceVariant.copy(
+                                                    alpha = 0.7f
+                                                )
+                                            ),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                             }
                         }
                     }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 68.dp, end = 16.dp, top = 16.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(if (note.favorite) R.drawable.favorite else R.drawable.favorite_outlined),
+                        contentDescription = "Favorite",
+                        modifier = Modifier
+                            .clickable(
+                                interactionSource = null,
+                                indication = null
+                            ) {
+                                viewModel.favoriteNote(note)
+                            }
+                    )
+
+                    Icon(
+                        painter = painterResource(R.drawable.delete),
+                        contentDescription = "Delete",
+                        modifier = Modifier
+                            .padding(start = 6.dp)
+                            .clickable {
+                                viewModel.setNoteToDelete(note)
+                            }
+                    )
                 }
             }
         }

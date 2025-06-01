@@ -34,6 +34,8 @@ class SearchViewModel @Inject constructor(
     private val _noteToDelete = MutableStateFlow<HomeNote?>(null)
     val noteToDelete: StateFlow<HomeNote?> = _noteToDelete.asStateFlow()
 
+    private var isHandlingLocalFavoriteAction = false
+
     init {
         _notes.value = emptyList()
         viewModelScope.launch {
@@ -54,11 +56,13 @@ class SearchViewModel @Inject constructor(
         }
         viewModelScope.launch {
             noteHandler.noteFavoritedEvent.collect { updatedNote ->
-                _notes.value = _notes.value.map { note ->
-                    if (updatedNote.documentPath == note.documentPath) {
-                        updatedNote
-                    } else {
-                        note
+                if (!isHandlingLocalFavoriteAction) {
+                    _notes.value = _notes.value.map { note ->
+                        if (updatedNote.documentPath == note.documentPath) {
+                            updatedNote
+                        } else {
+                            note
+                        }
                     }
                 }
             }
@@ -97,17 +101,20 @@ class SearchViewModel @Inject constructor(
     fun favoriteNote(homeNote: HomeNote) {
         viewModelScope.launch {
             try {
+                isHandlingLocalFavoriteAction = true
                 noteRepository.favoriteNote(homeNote)
                 _notes.value = _notes.value.map { note ->
                     if (homeNote.documentPath == note.documentPath) {
-                        note.copy(favorite = !note.favorite)
+                        note.copy(favorite = note.favorite.not())
                     } else {
                         note
                     }
                 }
-                noteHandler.notifyNoteFavorited(homeNote.copy(favorite = !homeNote.favorite))
+                noteHandler.notifyNoteFavorited(homeNote.copy(favorite = homeNote.favorite.not()))
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                isHandlingLocalFavoriteAction = false
             }
         }
     }

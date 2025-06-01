@@ -275,7 +275,10 @@ fun HomeItem(
                             contentDescription = "Favorite",
                             modifier = Modifier
                                 .size(16.dp)
-                                .clickable {
+                                .clickable(
+                                    interactionSource = null,
+                                    indication = null
+                                ) {
                                     onDoubleTap()
                                 },
                             tint = MaterialTheme.colorScheme.primary

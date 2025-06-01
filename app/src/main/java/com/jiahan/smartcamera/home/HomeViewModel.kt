@@ -33,6 +33,8 @@ class HomeViewModel @Inject constructor(
     private val pageSize = 10
     private var hasMoreData = true
 
+    private var isHandlingLocalFavoriteAction = false
+
     init {
         viewModelScope.launch {
             fetchNotes(initialLoading = true)
@@ -47,11 +49,13 @@ class HomeViewModel @Inject constructor(
         }
         viewModelScope.launch {
             noteHandler.noteFavoritedEvent.collect { updatedNote ->
-                _notes.value = _notes.value.map { note ->
-                    if (updatedNote.documentPath == note.documentPath) {
-                        updatedNote
-                    } else {
-                        note
+                if (!isHandlingLocalFavoriteAction) {
+                    _notes.value = _notes.value.map { note ->
+                        if (updatedNote.documentPath == note.documentPath) {
+                            updatedNote
+                        } else {
+                            note
+                        }
                     }
                 }
             }
@@ -105,17 +109,20 @@ class HomeViewModel @Inject constructor(
     fun favoriteNote(homeNote: HomeNote) {
         viewModelScope.launch {
             try {
+                isHandlingLocalFavoriteAction = true
                 noteRepository.favoriteNote(homeNote)
                 _notes.value = _notes.value.map { note ->
                     if (homeNote.documentPath == note.documentPath) {
-                        note.copy(favorite = !note.favorite)
+                        note.copy(favorite = note.favorite.not())
                     } else {
                         note
                     }
                 }
-                noteHandler.notifyNoteFavorited(homeNote.copy(favorite = !homeNote.favorite))
+                noteHandler.notifyNoteFavorited(homeNote.copy(favorite = homeNote.favorite.not()))
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                isHandlingLocalFavoriteAction = false
             }
         }
     }

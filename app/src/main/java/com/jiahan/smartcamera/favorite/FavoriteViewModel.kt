@@ -117,12 +117,12 @@ class FavoriteViewModel @Inject constructor(
                 noteRepository.favoriteNote(homeNote)
                 _notes.value = _notes.value.map { note ->
                     if (homeNote.documentPath == note.documentPath) {
-                        note.copy(favorite = !note.favorite)
+                        note.copy(favorite = note.favorite.not())
                     } else {
                         note
                     }
                 }
-                noteHandler.notifyNoteFavorited(homeNote.copy(favorite = !homeNote.favorite))
+                noteHandler.notifyNoteFavorited(homeNote.copy(favorite = homeNote.favorite.not()))
             } catch (e: Exception) {
                 e.printStackTrace()
             }

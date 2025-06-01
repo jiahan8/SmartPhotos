@@ -344,7 +344,7 @@ fun NoteScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Icon(
-                                painter = painterResource(R.drawable.photo_library_24px),
+                                painter = painterResource(R.drawable.photo_library),
                                 contentDescription = "Choose photos",
                                 modifier = Modifier
                                     .clickable(enabled = !isUploading) {
@@ -361,7 +361,7 @@ fun NoteScreen(
                             )
 
                             Icon(
-                                painter = painterResource(R.drawable.photo_camera_24px),
+                                painter = painterResource(R.drawable.photo_camera),
                                 contentDescription = "Take Photo",
                                 modifier = Modifier
                                     .padding(start = 16.dp)
@@ -381,7 +381,7 @@ fun NoteScreen(
                             )
 
                             Icon(
-                                painter = painterResource(R.drawable.smart_display_24px),
+                                painter = painterResource(R.drawable.smart_display),
                                 contentDescription = "Take Video",
                                 modifier = Modifier
                                     .padding(start = 16.dp)

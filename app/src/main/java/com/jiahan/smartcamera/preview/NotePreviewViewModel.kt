@@ -9,6 +9,7 @@ import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -24,6 +25,8 @@ class NotePreviewViewModel @Inject constructor(
 
     private val _note = MutableStateFlow<HomeNote>(HomeNote(documentPath = documentPath))
     val note = _note.asStateFlow()
+    private val _noteToDelete = MutableStateFlow<HomeNote?>(null)
+    val noteToDelete: StateFlow<HomeNote?> = _noteToDelete.asStateFlow()
 
     init {
         getNote(documentPath)
@@ -38,5 +41,32 @@ class NotePreviewViewModel @Inject constructor(
                 e.printStackTrace()
             }
         }
+    }
+
+    fun deleteNote(documentPath: String) {
+        viewModelScope.launch {
+            try {
+                noteRepository.deleteNote(documentPath)
+                noteHandler.notifyNoteDeleted(documentPath)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun favoriteNote(homeNote: HomeNote) {
+        viewModelScope.launch {
+            try {
+                noteRepository.favoriteNote(homeNote)
+                _note.value = homeNote.copy(favorite = homeNote.favorite.not())
+                noteHandler.notifyNoteFavorited(homeNote.copy(favorite = homeNote.favorite.not()))
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun setNoteToDelete(note: HomeNote?) {
+        _noteToDelete.value = note
     }
 }
