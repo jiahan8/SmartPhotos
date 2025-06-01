@@ -11,6 +11,10 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -31,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -71,6 +76,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             val isDarkTheme by viewModel.isDarkTheme.collectAsState()
+            val showBottomBar = remember { mutableStateOf(true) }
 
             SmartCameraTheme(
                 darkTheme = isDarkTheme
@@ -86,8 +92,8 @@ class MainActivity : ComponentActivity() {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
                 val currentRoute = currentDestination?.route
-                val showBottomBar = remember(currentRoute) {
-                    currentRoute in items.map { it.route }
+                val isBottomBarVisible = remember(currentRoute, showBottomBar.value) {
+                    (currentRoute in items.map { it.route }) && showBottomBar.value
                 }
 
                 Surface(
@@ -96,7 +102,11 @@ class MainActivity : ComponentActivity() {
                 ) {
                     Scaffold(
                         bottomBar = {
-                            AnimatedVisibility(visible = showBottomBar) {
+                            AnimatedVisibility(
+                                visible = isBottomBarVisible,
+                                enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+                                exit = fadeOut() + slideOutVertically(targetOffsetY = { it })
+                            ) {
                                 NavigationBar(
                                     modifier = Modifier.height(64.dp),
                                     windowInsets = WindowInsets(0.dp),
@@ -138,7 +148,10 @@ class MainActivity : ComponentActivity() {
                         ) {
                             composable(Screen.Home.route) {
                                 HomeScreen(
-                                    navController = navController
+                                    navController = navController,
+                                    onScrollDirectionChanged = { isScrollingUp ->
+                                        showBottomBar.value = isScrollingUp
+                                    }
                                 )
                             }
                             composable(
@@ -150,7 +163,10 @@ class MainActivity : ComponentActivity() {
                                 )
                             ) {
                                 SearchScreen(
-                                    navController = navController
+                                    navController = navController,
+                                    onScrollDirectionChanged = { isScrollingUp ->
+                                        showBottomBar.value = isScrollingUp
+                                    }
                                 )
                             }
                             composable(
@@ -183,7 +199,10 @@ class MainActivity : ComponentActivity() {
                             }
                             composable(route = Screen.Favorite.route) {
                                 FavoriteScreen(
-                                    navController = navController
+                                    navController = navController,
+                                    onScrollDirectionChanged = { isScrollingUp ->
+                                        showBottomBar.value = isScrollingUp
+                                    }
                                 )
                             }
                             composable(

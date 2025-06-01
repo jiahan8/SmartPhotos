@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Favorite
@@ -40,6 +41,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,6 +49,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -62,10 +65,12 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeScreen(
     navController: NavController,
-    viewModel: HomeViewModel = hiltViewModel()
+    viewModel: HomeViewModel = hiltViewModel(),
+    onScrollDirectionChanged: (Boolean) -> Unit = {}
 ) {
     val state = rememberPullToRefreshState()
     val coroutineScope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
 
     val notes by viewModel.notes.collectAsState()
     val isInitialLoading by viewModel.isInititalLoading.collectAsState()
@@ -79,6 +84,32 @@ fun HomeScreen(
             viewModel.fetchNotes(initialLoading = true)
             viewModel.setRefreshing(false)
         }
+    }
+
+    LaunchedEffect(listState) {
+        // Initialize with true to show the bottom bar initially
+        var prevFirstVisibleItemIndex = listState.firstVisibleItemIndex
+        var prevFirstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset
+
+        // Set bottom bar to visible initially
+        onScrollDirectionChanged(true)
+
+        snapshotFlow {
+            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+        }
+            .collect { (currentIndex, currentScrollOffset) ->
+                // Only update direction after actual scrolling occurs
+                if (currentIndex != prevFirstVisibleItemIndex || currentScrollOffset != prevFirstVisibleItemScrollOffset) {
+                    val isScrollingUp = currentIndex < prevFirstVisibleItemIndex ||
+                            (currentIndex == prevFirstVisibleItemIndex &&
+                                    currentScrollOffset < prevFirstVisibleItemScrollOffset)
+
+                    onScrollDirectionChanged(isScrollingUp)
+
+                    prevFirstVisibleItemIndex = currentIndex
+                    prevFirstVisibleItemScrollOffset = currentScrollOffset
+                }
+            }
     }
 
     noteToDelete?.let { note ->
@@ -146,6 +177,7 @@ fun HomeScreen(
                     }
                 } else {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(vertical = 8.dp)
                     ) {
@@ -290,7 +322,8 @@ fun HomeItem(
                     Text(
                         text = text,
                         style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 25
+                        maxLines = 15,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }

@@ -3,6 +3,7 @@ package com.jiahan.smartcamera.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.data.repository.NoteRepository
+import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,6 +15,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
+    private val remoteConfigRepository: RemoteConfigRepository,
     private val noteRepository: NoteRepository,
     private val noteHandler: NoteHandler
 ) : ViewModel() {
@@ -37,6 +39,7 @@ class HomeViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            remoteConfigRepository.fetchAndActivateConfig()
             fetchNotes(initialLoading = true)
             noteHandler.noteAddedEvent.collect {
                 fetchNotes(initialLoading = true)

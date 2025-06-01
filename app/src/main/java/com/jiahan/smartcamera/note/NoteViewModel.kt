@@ -15,6 +15,7 @@ import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.data.repository.SearchRepository
@@ -43,6 +44,7 @@ class NoteViewModel @Inject constructor(
     private val remoteConfigRepository: RemoteConfigRepository,
     private val noteRepository: NoteRepository,
     private val searchRepository: SearchRepository,
+    private val analyticsRepository: AnalyticsRepository,
     private val noteHandler: NoteHandler,
     private val resourceProvider: ResourceProvider
 ) : ViewModel() {
@@ -226,6 +228,7 @@ class NoteViewModel @Inject constructor(
 
     fun updatePostText(text: String) {
         _postText.value = text
+        analyticsRepository.logNoteCustomEvent(text)
         validatePostText(text)
     }
 

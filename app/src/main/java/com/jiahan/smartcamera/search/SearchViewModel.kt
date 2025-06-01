@@ -2,6 +2,7 @@ package com.jiahan.smartcamera.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteHandler
@@ -18,6 +19,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val noteRepository: NoteRepository,
+    private val analyticsRepository: AnalyticsRepository,
     private val noteHandler: NoteHandler
 ) : ViewModel() {
 
@@ -79,6 +81,8 @@ class SearchViewModel @Inject constructor(
             _notes.value = noteRepository.searchNotes(
                 query = _searchQuery.value,
             )
+            analyticsRepository.logSearchCustomEvent(_searchQuery.value)
+            analyticsRepository.logSearchEvent(_searchQuery.value)
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {

@@ -14,6 +14,8 @@ class FirebaseAnalyticsRepository @Inject constructor() : AnalyticsRepository {
     companion object {
         private const val SEARCH_CUSTOM_EVENT = "search_custom"
         private const val SEARCH_TERM_CUSTOM_PARAM = "search_term_custom"
+        private const val NOTE_CUSTOM_EVENT = "note_custom"
+        private const val NOTE_TERM_CUSTOM_PARAM = "note_term_custom"
     }
 
     override fun logSearchEvent(value: String) {
@@ -28,5 +30,12 @@ class FirebaseAnalyticsRepository @Inject constructor() : AnalyticsRepository {
             putString(SEARCH_TERM_CUSTOM_PARAM, value)
         }
         firebaseAnalytics.logEvent(SEARCH_CUSTOM_EVENT, params)
+    }
+
+    override fun logNoteCustomEvent(value: String) {
+        val params = Bundle().apply {
+            putString(NOTE_TERM_CUSTOM_PARAM, value)
+        }
+        firebaseAnalytics.logEvent(NOTE_CUSTOM_EVENT, params)
     }
 }

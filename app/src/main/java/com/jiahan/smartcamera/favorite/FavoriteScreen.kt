@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Search
@@ -24,9 +25,11 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,10 +47,12 @@ import kotlinx.coroutines.launch
 @Composable
 fun FavoriteScreen(
     navController: NavController,
-    viewModel: FavoriteViewModel = hiltViewModel()
+    viewModel: FavoriteViewModel = hiltViewModel(),
+    onScrollDirectionChanged: (Boolean) -> Unit = {}
 ) {
     val state = rememberPullToRefreshState()
     val coroutineScope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
 
     val notes by viewModel.notes.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -62,6 +67,29 @@ fun FavoriteScreen(
             viewModel.searchNotes()
             viewModel.setRefreshing(false)
         }
+    }
+
+    LaunchedEffect(listState) {
+        var prevFirstVisibleItemIndex = listState.firstVisibleItemIndex
+        var prevFirstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset
+
+        onScrollDirectionChanged(true)
+
+        snapshotFlow {
+            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+        }
+            .collect { (currentIndex, currentScrollOffset) ->
+                if (currentIndex != prevFirstVisibleItemIndex || currentScrollOffset != prevFirstVisibleItemScrollOffset) {
+                    val isScrollingUp = currentIndex < prevFirstVisibleItemIndex ||
+                            (currentIndex == prevFirstVisibleItemIndex &&
+                                    currentScrollOffset < prevFirstVisibleItemScrollOffset)
+
+                    onScrollDirectionChanged(isScrollingUp)
+
+                    prevFirstVisibleItemIndex = currentIndex
+                    prevFirstVisibleItemScrollOffset = currentScrollOffset
+                }
+            }
     }
 
     noteToDelete?.let { note ->
@@ -144,6 +172,7 @@ fun FavoriteScreen(
                     }
                 } else {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(vertical = 8.dp)
                     ) {
