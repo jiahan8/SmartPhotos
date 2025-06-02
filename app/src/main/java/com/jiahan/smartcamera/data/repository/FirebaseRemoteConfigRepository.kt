@@ -13,7 +13,8 @@ class FirebaseRemoteConfigRepository @Inject constructor() : RemoteConfigReposit
 
     companion object {
         private const val STORAGE_URL_KEY = "firebase_storage_url"
-        private const val STORAGE_FOLDER_NAME_KEY = "firebase_storage_folder_name"
+        private const val STORAGE_FOLDER_KEY = "firebase_storage_folder"
+        private const val STORAGE_CACHE_FOLDER_KEY = "firebase_storage_cache_folder"
         private const val FETCH_INTERVAL_RELEASE = 3600L
     }
 
@@ -26,7 +27,7 @@ class FirebaseRemoteConfigRepository @Inject constructor() : RemoteConfigReposit
         remoteConfig.setDefaultsAsync(
             mapOf(
                 STORAGE_URL_KEY to "default_value",
-                STORAGE_FOLDER_NAME_KEY to "default_value"
+                STORAGE_FOLDER_KEY to "default_value"
             )
         )
     }
@@ -37,5 +38,8 @@ class FirebaseRemoteConfigRepository @Inject constructor() : RemoteConfigReposit
 
     override fun getStorageUrl(): String = remoteConfig.getString(STORAGE_URL_KEY)
 
-    override fun getStorageFolderName(): String = remoteConfig.getString(STORAGE_FOLDER_NAME_KEY)
+    override fun getStorageFolderName(): String = remoteConfig.getString(STORAGE_FOLDER_KEY)
+
+    override fun getStorageCacheFolderName(): String =
+        remoteConfig.getString(STORAGE_CACHE_FOLDER_KEY)
 }

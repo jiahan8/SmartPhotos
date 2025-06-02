@@ -1,16 +1,28 @@
 package com.jiahan.smartcamera.data.repository
 
+import android.graphics.Bitmap
+import android.net.Uri
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.firestore
+import com.google.firebase.storage.storage
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
+import com.jiahan.smartcamera.domain.NoteMediaDetail
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.tasks.await
+import java.io.ByteArrayOutputStream
+import java.util.UUID
 import javax.inject.Inject
 
-class DefaultNoteRepository @Inject constructor() : NoteRepository {
+class DefaultNoteRepository @Inject constructor(
+    private val remoteConfigRepository: RemoteConfigRepository
+) : NoteRepository {
     private val firestore = Firebase.firestore
     private val pageToLastVisibleDocument = mutableMapOf<Int, DocumentSnapshot>()
 
@@ -197,6 +209,73 @@ class DefaultNoteRepository @Inject constructor() : NoteRepository {
                     )
                 }
             )
+        }
+    }
+
+    override suspend fun quickUploadMediaToFirebase(uriList: List<Uri>) {
+        val storage = Firebase.storage(remoteConfigRepository.getStorageUrl())
+        val cacheStorageFolder = remoteConfigRepository.getStorageCacheFolderName()
+        coroutineScope {
+            uriList.forEach { uri ->
+                async(Dispatchers.IO) {
+                    try {
+                        val mediaId = UUID.randomUUID().toString()
+                        val storageRef = storage.reference.child("$cacheStorageFolder/$mediaId")
+                        storageRef.putFile(uri)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+        }
+    }
+
+    override suspend fun uploadMediaToFirebase(noteMediaDetailList: List<NoteMediaDetail>): List<MediaDetail> {
+        val storage = Firebase.storage(remoteConfigRepository.getStorageUrl())
+        val storageFolder = remoteConfigRepository.getStorageFolderName()
+        return coroutineScope {
+            noteMediaDetailList.map { noteMediaDetail ->
+                async(Dispatchers.IO) {
+                    try {
+                        val mediaId = UUID.randomUUID().toString()
+                        val extension = if (noteMediaDetail.isVideo) ".mp4" else ".jpg"
+                        val storageRef =
+                            storage.reference.child("$storageFolder/$mediaId$extension")
+
+                        val mediaUri = noteMediaDetail.photoUri ?: noteMediaDetail.videoUri
+                        if (mediaUri == null) {
+                            throw IllegalStateException("No media URI available for upload")
+                        }
+
+                        storageRef.putFile(mediaUri).await()
+                        val mediaUrl = storageRef.downloadUrl.await().toString()
+
+                        val thumbnailUrl = noteMediaDetail.thumbnailBitmap?.let {
+                            val thumbnailId = "thumbnail_" + UUID.randomUUID().toString()
+                            val thumbnailRef =
+                                storage.reference.child("$storageFolder/$thumbnailId.jpg")
+
+                            ByteArrayOutputStream().use { baos ->
+                                it.compress(Bitmap.CompressFormat.JPEG, 90, baos)
+                                thumbnailRef.putBytes(baos.toByteArray()).await()
+                            }
+
+                            thumbnailRef.downloadUrl.await().toString()
+                        }
+
+                        MediaDetail(
+                            photoUrl = if (!noteMediaDetail.isVideo) mediaUrl else null,
+                            videoUrl = if (noteMediaDetail.isVideo) mediaUrl else null,
+                            thumbnailUrl = thumbnailUrl,
+                            isVideo = noteMediaDetail.isVideo,
+                            text = noteMediaDetail.text
+                        )
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        null
+                    }
+                }
+            }.awaitAll().filterNotNull()
         }
     }
 }

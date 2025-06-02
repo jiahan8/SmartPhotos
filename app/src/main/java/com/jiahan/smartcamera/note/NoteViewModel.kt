@@ -7,8 +7,6 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.core.content.FileProvider.getUriForFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.ktx.Firebase
-import com.google.firebase.storage.ktx.storage
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.label.ImageLabeling
 import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
@@ -20,23 +18,18 @@ import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.data.repository.SearchRepository
 import com.jiahan.smartcamera.domain.HomeNote
-import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.domain.NoteMediaDetail
 import com.jiahan.smartcamera.util.ResourceProvider
 import com.jiahan.smartcamera.util.Util.createVideoThumbnail
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
@@ -86,34 +79,11 @@ class NoteViewModel @Inject constructor(
         }
     }
 
-    fun uploadImageToFirebase(context: Context, imageUri: Uri) {
-        viewModelScope.launch {
-            try {
-                remoteConfigRepository.fetchAndActivateConfig()
-                val storage =
-                    Firebase.storage(remoteConfigRepository.getStorageUrl())
-                val folderRef =
-                    storage.reference.child("${remoteConfigRepository.getStorageFolderName()}/${UUID.randomUUID()}.jpg")
-                _uploading.value = true
-
-                // Create a ByteArray from the InputStream instead of using the stream directly
-                val inputStream = context.contentResolver.openInputStream(imageUri)
-                    ?: throw IllegalStateException("Failed to open image stream")
-                val bytes = inputStream.use { it.readBytes() }
-                folderRef.putBytes(bytes).await()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            } finally {
-                _uploading.value = false
-            }
-        }
-    }
-
     fun uploadPost(text: String, mediaList: List<NoteMediaDetail>) {
         viewModelScope.launch {
             try {
                 _uploading.value = true
-                val mediaDetailList = uploadMediaToFirebase(mediaList)
+                val mediaDetailList = noteRepository.uploadMediaToFirebase(mediaList)
 
                 noteRepository.addNote(
                     HomeNote(
@@ -130,55 +100,6 @@ class NoteViewModel @Inject constructor(
                 _uploadSuccess.value = false
                 _uploadError.value = true
             }
-        }
-    }
-
-    private suspend fun uploadMediaToFirebase(noteMediaDetailList: List<NoteMediaDetail>): List<MediaDetail> {
-        return coroutineScope {
-            noteMediaDetailList.map { noteMediaDetail ->
-                async(Dispatchers.IO) {
-                    try {
-                        val storage = Firebase.storage(remoteConfigRepository.getStorageUrl())
-                        val folderName = remoteConfigRepository.getStorageFolderName()
-
-                        val mediaId = UUID.randomUUID().toString()
-                        val extension = if (noteMediaDetail.isVideo) ".mp4" else ".jpg"
-                        val storageRef = storage.reference.child("$folderName/$mediaId$extension")
-
-                        val mediaUri = noteMediaDetail.photoUri ?: noteMediaDetail.videoUri
-                        if (mediaUri == null) {
-                            throw IllegalStateException("No media URI available for upload")
-                        }
-
-                        storageRef.putFile(mediaUri).await()
-                        val mediaUrl = storageRef.downloadUrl.await().toString()
-
-                        val thumbnailUrl = noteMediaDetail.thumbnailBitmap?.let {
-                            val thumbnailId = UUID.randomUUID().toString()
-                            val thumbnailRef =
-                                storage.reference.child("$folderName/$thumbnailId.jpg")
-
-                            ByteArrayOutputStream().use { baos ->
-                                it.compress(Bitmap.CompressFormat.JPEG, 90, baos)
-                                thumbnailRef.putBytes(baos.toByteArray()).await()
-                            }
-
-                            thumbnailRef.downloadUrl.await().toString()
-                        }
-
-                        MediaDetail(
-                            photoUrl = if (!noteMediaDetail.isVideo) mediaUrl else null,
-                            videoUrl = if (noteMediaDetail.isVideo) mediaUrl else null,
-                            thumbnailUrl = thumbnailUrl,
-                            isVideo = noteMediaDetail.isVideo,
-                            text = noteMediaDetail.text
-                        )
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        null
-                    }
-                }
-            }.awaitAll().filterNotNull()
         }
     }
 
@@ -234,6 +155,9 @@ class NoteViewModel @Inject constructor(
 
     fun updateUriList(context: Context, uriList: List<Uri>) {
         viewModelScope.launch {
+            viewModelScope.launch {
+                noteRepository.quickUploadMediaToFirebase(uriList)
+            }
             val newMediaDetailList = uriList.mapNotNull { uri ->
                 try {
                     val isVideo = context.contentResolver.getType(uri)?.startsWith("video/") == true

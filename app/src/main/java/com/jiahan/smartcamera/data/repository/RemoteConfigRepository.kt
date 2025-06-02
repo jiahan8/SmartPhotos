@@ -4,4 +4,5 @@ interface RemoteConfigRepository {
     suspend fun fetchAndActivateConfig()
     fun getStorageUrl(): String
     fun getStorageFolderName(): String
+    fun getStorageCacheFolderName(): String
 }

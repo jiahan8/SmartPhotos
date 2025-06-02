@@ -75,9 +75,6 @@ dependencies {
     // Coil for image loading
     implementation(libs.coil.compose)
 
-    // Firebase Storage
-    implementation(libs.firebase.storage.ktx)
-
     // ML Kit Text Recognition
     implementation(libs.mlkit.text.recognition)
     implementation(libs.mlkit.text.recognition.japanese)
