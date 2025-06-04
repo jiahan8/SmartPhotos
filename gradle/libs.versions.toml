@@ -34,6 +34,7 @@ firebaseInAppmessagingDisplay = "25.1.4"
 firebaseFirestore = "25.1.4"
 firebaseAuth = "23.2.1"
 exoplayer = "1.7.1"
+coreSplashScreen = "1.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -82,6 +83,7 @@ media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", versi
 media3-exoplayer-dash = { group = "androidx.media3", name = "media3-exoplayer-dash", version.ref = "exoplayer" }
 media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "exoplayer" }
 media3-ui-compose = { group = "androidx.media3", name = "media3-ui-compose", version.ref = "exoplayer" }
+core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashScreen" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -3,6 +3,7 @@ package com.jiahan.smartcamera
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.datastore.ProfileRepository
+import com.jiahan.smartcamera.datastore.UserDataRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
@@ -11,7 +12,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    profileRepository: ProfileRepository
+    profileRepository: ProfileRepository,
+    userDataRepository: UserDataRepository
 ) : ViewModel() {
 
     val isDarkTheme = profileRepository.userPreferencesFlow
@@ -21,4 +23,7 @@ class MainViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = false
         )
+
+    val startDestination =
+        if (userDataRepository.currentUser != null) Screen.Home.route else Screen.Auth.route
 }

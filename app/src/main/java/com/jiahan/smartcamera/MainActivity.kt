@@ -42,6 +42,8 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -65,6 +67,8 @@ import com.jiahan.smartcamera.profile.ProfileScreen
 import com.jiahan.smartcamera.search.SearchScreen
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @AndroidEntryPoint
@@ -73,7 +77,38 @@ class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
+        splashScreen.setOnExitAnimationListener { splashScreenView ->
+            val fadeOutDuration = 500L
+            val scaleAnim = splashScreenView.iconView.animate()
+                .scaleX(1.5f)
+                .scaleY(1.5f)
+                .alpha(0f)
+                .setDuration(fadeOutDuration)
+
+            val fadeOut = splashScreenView.view.animate()
+                .alpha(0f)
+                .setDuration(fadeOutDuration)
+                .withEndAction {
+                    splashScreenView.remove()
+                }
+
+            // Start animations together
+            scaleAnim.start()
+            fadeOut.start()
+        }
+
         super.onCreate(savedInstanceState)
+
+        var isAppReady = false
+        splashScreen.setKeepOnScreenCondition {
+            !isAppReady
+        }
+        lifecycleScope.launch {
+            delay(1000)
+            isAppReady = true
+        }
+
         setContent {
             val isDarkTheme by viewModel.isDarkTheme.collectAsState()
             val showBottomBar = remember { mutableStateOf(true) }
@@ -143,7 +178,7 @@ class MainActivity : ComponentActivity() {
                     ) { innerPadding ->
                         NavHost(
                             navController = navController,
-                            startDestination = Screen.Home.route,
+                            startDestination = viewModel.startDestination,
                             modifier = Modifier.padding(innerPadding)
                         ) {
                             composable(Screen.Home.route) {
@@ -357,6 +392,7 @@ sealed class Screen(
         fun createRoute(id: String) = "notepreview/$id"
     }
 
+    object Auth : Screen("auth", "Auth", null)
     object Profile : Screen("profile", "Profile", Icons.Outlined.Person)
 }
 
