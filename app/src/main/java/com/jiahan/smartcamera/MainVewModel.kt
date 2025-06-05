@@ -25,5 +25,5 @@ class MainViewModel @Inject constructor(
         )
 
     val startDestination =
-        if (userDataRepository.currentUser != null) Screen.Home.route else Screen.Auth.route
+        if (userDataRepository.firebaseUser != null) Screen.Home.route else Screen.Auth.route
 }

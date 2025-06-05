@@ -324,7 +324,7 @@ fun NoteScreen(
                                             .clickable {
                                                 viewModel.removeUriFromList(index)
                                             }
-                                            .padding(4.dp),
+                                            .padding(3.dp),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }

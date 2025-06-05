@@ -20,6 +20,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -27,14 +28,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
+    navController: NavController,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
+    val navigationEvent by viewModel.navigationEvent.collectAsState()
+
+    LaunchedEffect(navigationEvent) {
+        when (navigationEvent) {
+            is ProfileViewModel.NavigationEvent.NavigateToAuth -> {
+                navController.navigate(Screen.Auth.route) {
+                    popUpTo(0) { inclusive = true }
+                }
+                viewModel.navigationEventConsumed()
+            }
+
+            null -> {}
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -87,12 +105,29 @@ fun ProfileScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
+                        viewModel.signOut()
                     }
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = stringResource(R.string.log_out),
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            HorizontalDivider(thickness = 0.5.dp)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        viewModel.deleteAccount()
+                    }
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.delete_account),
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.weight(1f)
                 )

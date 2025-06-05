@@ -33,9 +33,32 @@
     <string name="profile">Profile</string>
     <string name="dark_theme">Dark Theme</string>
     <string name="log_out">Log out</string>
+    <string name="delete_account">Delete account</string>
 
     // Note preview
     <string name="note">Note</string>
+
+    // Authentication
+    <string name="sign_in">Sign In</string>
+    <string name="create_account">Create Account</string>
+    <string name="email">Email</string>
+    <string name="full_name">Full Name</string>
+    <string name="username">Username</string>
+    <string name="password">Password</string>
+    <string name="login">Login</string>
+    <string name="sign_up">Sign Up</string>
+    <string name="need_account">Need an account? Sign Up</string>
+    <string name="already_have_account">Already have an account? Sign In</string>
+    <string name="forgot_password">Forgot Password?</string>
+    <string name="email_password_empty">Email and password cannot be empty</string>
+    <string name="all_fields_required">All fields are required</string>
+    <string name="password_reset_email_sent">Password reset email sent</string>
+    <string name="password_reset_failed">Password reset failed</string>
+    <string name="enter_email">Please enter your email first</string>
+    <string name="username_not_available">Please choose another username</string>
+    <string name="login_failed">Login failed</string>
+    <string name="sign_up_failed">Sign up failed</string>
+    <string name="error_occured">An error occurred</string>
 
     // Deep linking
     <string name="host">jiahan8.github.io</string>

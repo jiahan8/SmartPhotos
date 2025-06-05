@@ -8,6 +8,8 @@ import com.jiahan.smartcamera.data.repository.FirebaseRemoteConfigRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.SearchRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
+import com.jiahan.smartcamera.datastore.ProfileRepository
+import com.jiahan.smartcamera.datastore.UserDataRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -39,4 +41,9 @@ abstract class DataModule {
     abstract fun bindNoteRepository(
         defaultNoteRepository: DefaultNoteRepository
     ): NoteRepository
+
+    @Binds
+    abstract fun bindUserDataRepository(
+        profileRepository: ProfileRepository
+    ): UserDataRepository
 }

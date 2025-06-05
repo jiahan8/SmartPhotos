@@ -54,6 +54,7 @@ import androidx.navigation.navDeepLink
 import com.jiahan.smartcamera.Screen.ImagePreview.DETECT_ARG
 import com.jiahan.smartcamera.Screen.ImagePreview.TEXT_ARG
 import com.jiahan.smartcamera.Screen.ImagePreview.URI_ARG
+import com.jiahan.smartcamera.auth.AuthScreen
 import com.jiahan.smartcamera.favorite.FavoriteScreen
 import com.jiahan.smartcamera.home.HomeScreen
 import com.jiahan.smartcamera.note.NoteScreen
@@ -328,8 +329,15 @@ class MainActivity : ComponentActivity() {
                                     navController = navController
                                 )
                             }
+                            composable(route = Screen.Auth.route) {
+                                AuthScreen(
+                                    navController = navController
+                                )
+                            }
                             composable(route = Screen.Profile.route) {
-                                ProfileScreen()
+                                ProfileScreen(
+                                    navController = navController
+                                )
                             }
                         }
                     }
