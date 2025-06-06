@@ -66,7 +66,9 @@ class AuthViewModel @Inject constructor(
     }
 
     fun signIn() {
-        if (email.value.isBlank() || password.value.isBlank()) {
+        val email = email.value.trim()
+
+        if (email.isBlank() || password.value.isBlank()) {
             _errorMessage.value = resourceProvider.getString(R.string.email_password_empty)
             return
         }
@@ -76,9 +78,14 @@ class AuthViewModel @Inject constructor(
             _errorMessage.value = ""
 
             try {
-                val result = userDataRepository.signIn(email.value, password.value)
+                val result = userDataRepository.signIn(email, password.value)
                 if (result.isSuccess) {
-                    _navigationEvent.value = NavigationEvent.NavigateToHome
+                    if (userDataRepository.isEmailVerified()) {
+                        _navigationEvent.value = NavigationEvent.NavigateToHome
+                    } else {
+                        _errorMessage.value =
+                            resourceProvider.getString(R.string.email_not_verified)
+                    }
                 } else {
                     _errorMessage.value = result.exceptionOrNull()?.message
                         ?: resourceProvider.getString(R.string.login_failed)
@@ -93,17 +100,21 @@ class AuthViewModel @Inject constructor(
     }
 
     fun signUp() {
-        if (email.value.isBlank() || password.value.isBlank()) {
+        val email = email.value.trim()
+        val fullName = fullName.value.trim()
+        val userName = userName.value.trim()
+
+        if (email.isBlank() || password.value.isBlank()) {
             _errorMessage.value = resourceProvider.getString(R.string.email_password_empty)
             return
         }
 
-        if (fullName.value.isBlank() || userName.value.isBlank()) {
+        if (fullName.isBlank() || userName.isBlank()) {
             _errorMessage.value = resourceProvider.getString(R.string.all_fields_required)
             return
         }
 
-        when (val result = validateFullName(fullName.value)) {
+        when (val result = validateFullName(fullName)) {
             is ValidationResult.Error -> {
                 _errorMessage.value = resourceProvider.getString(result.messageResId)
                 return
@@ -112,7 +123,7 @@ class AuthViewModel @Inject constructor(
             else -> {}
         }
 
-        when (val result = validateUsername(userName.value)) {
+        when (val result = validateUsername(userName)) {
             is ValidationResult.Error -> {
                 _errorMessage.value = resourceProvider.getString(result.messageResId)
                 return
@@ -126,19 +137,19 @@ class AuthViewModel @Inject constructor(
             _errorMessage.value = ""
 
             try {
-                if (userDataRepository.isUsernameAvailable(userName.value) == false) {
+                if (!userDataRepository.isUsernameAvailable(userName)) {
                     throw Exception(resourceProvider.getString(R.string.username_not_available))
                 }
 
-                val result = userDataRepository.signUp(email.value, password.value)
+                val result = userDataRepository.signUp(
+                    email = email,
+                    password = password.value,
+                    fullName = fullName,
+                    username = userName
+                )
                 if (result.isSuccess) {
-                    userDataRepository.saveUserProfile(
-                        email = email.value,
-                        password = password.value,
-                        fullName = fullName.value,
-                        username = userName.value
-                    )
-                    _navigationEvent.value = NavigationEvent.NavigateToHome
+                    _errorMessage.value =
+                        resourceProvider.getString(R.string.verification_email_sent)
                 } else {
                     _errorMessage.value = result.exceptionOrNull()?.message
                         ?: resourceProvider.getString(R.string.sign_up_failed)
@@ -153,7 +164,9 @@ class AuthViewModel @Inject constructor(
     }
 
     fun resetPassword() {
-        if (email.value.isBlank()) {
+        val email = email.value.trim()
+
+        if (email.isBlank()) {
             _errorMessage.value = resourceProvider.getString(R.string.enter_email)
             return
         }
@@ -163,11 +176,11 @@ class AuthViewModel @Inject constructor(
             _errorMessage.value = ""
 
             try {
-                if (userDataRepository.isEmailRegistered(email.value)) {
+                if (!userDataRepository.isEmailRegistered(email)) {
                     throw Exception(resourceProvider.getString(R.string.email_not_registered))
                 }
 
-                val result = userDataRepository.resetPassword(email.value)
+                val result = userDataRepository.resetPassword(email)
                 if (result.isSuccess) {
                     _errorMessage.value =
                         resourceProvider.getString(R.string.password_reset_email_sent)
@@ -203,6 +216,21 @@ class AuthViewModel @Inject constructor(
                 ValidationResult.Error(R.string.full_name_too_long)
 
             else -> ValidationResult.Success
+        }
+    }
+
+    fun resendVerificationEmail() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                userDataRepository.sendEmailVerification()
+                _errorMessage.value = resourceProvider.getString(R.string.verification_email_resent)
+            } catch (e: Exception) {
+                _errorMessage.value =
+                    e.message ?: resourceProvider.getString(R.string.error_occured)
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 

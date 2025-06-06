@@ -8,7 +8,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.auth.auth
+import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.firestore
 import com.jiahan.smartcamera.domain.User
@@ -56,13 +56,14 @@ class ProfileRepository @Inject constructor(
         }
     }
 
-    override val firebaseUser = Firebase.auth.currentUser
+    override val firebaseUser: FirebaseUser?
+        get() = auth.currentUser
 
     override suspend fun getUser(): User? {
         return try {
             val snapshot = firestore.collection("user").get().await()
             val document = snapshot.documents.find {
-                it.get("user_id") == firebaseUser?.uid
+                it.get("user_id") == auth.currentUser?.uid
             }
             document?.let {
                 return User(
@@ -70,7 +71,7 @@ class ProfileRepository @Inject constructor(
                     password = it.get("password")?.toString() ?: "",
                     fullName = it.get("full_name")?.toString() ?: "",
                     username = it.get("username")?.toString() ?: "",
-                    profilePicture = null,
+                    profilePicture = it.get("profile_picture")?.toString(),
                     createdDate = it.getDate("created") ?: Date(),
                     documentPath = it.id
                 )
@@ -89,13 +90,54 @@ class ProfileRepository @Inject constructor(
         }
     }
 
-    override suspend fun signUp(email: String, password: String): Result<FirebaseUser?> {
+    override suspend fun signUp(
+        email: String,
+        password: String,
+        fullName: String,
+        username: String
+    ): Result<FirebaseUser?> {
         return try {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
+            updateUserProfile(fullName = fullName)
+            result.user?.sendEmailVerification()?.await()
+            saveUserProfile(password = password, username = username)
             Result.success(result.user)
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    override suspend fun saveUserProfile(
+        password: String,
+        username: String
+    ) {
+        try {
+            val firebaseUser = auth.currentUser
+            if (firebaseUser != null && isUsernameAvailable(username)) {
+                firestore.collection("user")
+                    .add(
+                        hashMapOf(
+                            "email" to firebaseUser.email,
+                            "password" to password,
+                            "full_name" to firebaseUser.displayName,
+                            "username" to username,
+                            "profile_picture" to null,
+                            "created" to FieldValue.serverTimestamp(),
+                            "user_id" to firebaseUser.uid
+                        )
+                    ).await()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    override suspend fun updateUserProfile(fullName: String) {
+        auth.currentUser?.updateProfile(
+            userProfileChangeRequest {
+                displayName = fullName
+            }
+        )?.await()
     }
 
     override suspend fun signOut() {
@@ -112,38 +154,30 @@ class ProfileRepository @Inject constructor(
     }
 
     override suspend fun isUsernameAvailable(username: String): Boolean {
-        val snapshot = firestore.collection("user").get().await()
-        return snapshot.documents.none { document -> document.get("username") == username }
+        return firestore.collection("user")
+            .whereEqualTo("username", username)
+            .limit(1)
+            .get()
+            .await()
+            .isEmpty
     }
 
     override suspend fun isEmailRegistered(email: String): Boolean {
-        val snapshot = firestore.collection("user").get().await()
-        return snapshot.documents.none { document -> document.get("email") == email }
+        return !firestore.collection("user")
+            .whereEqualTo("email", email)
+            .limit(1)
+            .get()
+            .await()
+            .isEmpty
     }
 
-    override suspend fun saveUserProfile(
-        email: String,
-        password: String,
-        fullName: String,
-        username: String
-    ) {
-        try {
-            if (isUsernameAvailable(username))
-                firestore.collection("user")
-                    .add(
-                        hashMapOf(
-                            "email" to email,
-                            "password" to password,
-                            "full_name" to fullName,
-                            "username" to username,
-                            "profile_picture" to null,
-                            "created" to FieldValue.serverTimestamp(),
-                            "user_id" to firebaseUser?.uid
-                        )
-                    ).await()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+    override fun isEmailVerified(): Boolean {
+        auth.currentUser?.reload()
+        return auth.currentUser?.isEmailVerified == true
+    }
+
+    override suspend fun sendEmailVerification() {
+        auth.currentUser?.sendEmailVerification()?.await()
     }
 
     override suspend fun deleteAccount() {

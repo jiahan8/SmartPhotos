@@ -10,11 +10,20 @@ interface UserDataRepository {
     val firebaseUser: FirebaseUser?
     suspend fun getUser(): User?
     suspend fun signIn(email: String, password: String): Result<FirebaseUser?>
-    suspend fun signUp(email: String, password: String): Result<FirebaseUser?>
+    suspend fun signUp(
+        email: String,
+        password: String,
+        fullName: String,
+        username: String
+    ): Result<FirebaseUser?>
+
+    suspend fun saveUserProfile(password: String, username: String)
+    suspend fun updateUserProfile(fullName: String)
     suspend fun signOut()
     suspend fun resetPassword(email: String): Result<Unit>
     suspend fun isUsernameAvailable(username: String): Boolean
     suspend fun isEmailRegistered(email: String): Boolean
-    suspend fun saveUserProfile(email: String, password: String, fullName: String, username: String)
+    fun isEmailVerified(): Boolean
+    suspend fun sendEmailVerification()
     suspend fun deleteAccount()
 }

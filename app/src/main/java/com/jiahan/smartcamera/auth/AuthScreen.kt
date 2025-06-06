@@ -248,6 +248,16 @@ fun AuthScreen(
                         }
                     }
 
+                    if (!isLoginMode) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.email_verification_note),
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
                     TextButton(onClick = { viewModel.toggleAuthMode() }) {
                         Text(stringResource(if (isLoginMode) R.string.need_account else R.string.already_have_account))
                     }
@@ -255,6 +265,14 @@ fun AuthScreen(
                     if (isLoginMode) {
                         TextButton(onClick = { viewModel.resetPassword() }) {
                             Text(stringResource(R.string.forgot_password))
+                        }
+                    }
+
+                    if (errorMessage.contains(stringResource(R.string.verification_email_sent)) ||
+                        errorMessage.contains(stringResource(R.string.email_not_verified))
+                    ) {
+                        TextButton(onClick = { viewModel.resendVerificationEmail() }) {
+                            Text(stringResource(R.string.resend_verification_email))
                         }
                     }
                 }
