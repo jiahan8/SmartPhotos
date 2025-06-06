@@ -66,7 +66,7 @@ class AuthViewModel @Inject constructor(
     }
 
     fun signIn() {
-        if (email.value.isEmpty() || password.value.isEmpty()) {
+        if (email.value.isBlank() || password.value.isBlank()) {
             _errorMessage.value = resourceProvider.getString(R.string.email_password_empty)
             return
         }
@@ -93,14 +93,32 @@ class AuthViewModel @Inject constructor(
     }
 
     fun signUp() {
-        if (email.value.isEmpty() || password.value.isEmpty()) {
+        if (email.value.isBlank() || password.value.isBlank()) {
             _errorMessage.value = resourceProvider.getString(R.string.email_password_empty)
             return
         }
 
-        if (fullName.value.isEmpty() || userName.value.isEmpty()) {
+        if (fullName.value.isBlank() || userName.value.isBlank()) {
             _errorMessage.value = resourceProvider.getString(R.string.all_fields_required)
             return
+        }
+
+        when (val result = validateFullName(fullName.value)) {
+            is ValidationResult.Error -> {
+                _errorMessage.value = resourceProvider.getString(result.messageResId)
+                return
+            }
+
+            else -> {}
+        }
+
+        when (val result = validateUsername(userName.value)) {
+            is ValidationResult.Error -> {
+                _errorMessage.value = resourceProvider.getString(result.messageResId)
+                return
+            }
+
+            else -> {}
         }
 
         viewModelScope.launch {
@@ -135,7 +153,7 @@ class AuthViewModel @Inject constructor(
     }
 
     fun resetPassword() {
-        if (email.value.isEmpty()) {
+        if (email.value.isBlank()) {
             _errorMessage.value = resourceProvider.getString(R.string.enter_email)
             return
         }
@@ -145,6 +163,10 @@ class AuthViewModel @Inject constructor(
             _errorMessage.value = ""
 
             try {
+                if (userDataRepository.isEmailRegistered(email.value)) {
+                    throw Exception(resourceProvider.getString(R.string.email_not_registered))
+                }
+
                 val result = userDataRepository.resetPassword(email.value)
                 if (result.isSuccess) {
                     _errorMessage.value =
@@ -163,8 +185,34 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun validateUsername(username: String): ValidationResult {
+        return when {
+            username.length > 30 ->
+                ValidationResult.Error(R.string.username_too_long)
+
+            !username.matches(Regex("^[a-zA-Z0-9._]+$")) ->
+                ValidationResult.Error(R.string.username_invalid_characters)
+
+            else -> ValidationResult.Success
+        }
+    }
+
+    fun validateFullName(fullName: String): ValidationResult {
+        return when {
+            fullName.length > 30 ->
+                ValidationResult.Error(R.string.full_name_too_long)
+
+            else -> ValidationResult.Success
+        }
+    }
+
     fun navigationEventConsumed() {
         _navigationEvent.value = null
+    }
+
+    sealed class ValidationResult {
+        object Success : ValidationResult()
+        data class Error(val messageResId: Int) : ValidationResult()
     }
 
     sealed class NavigationEvent {

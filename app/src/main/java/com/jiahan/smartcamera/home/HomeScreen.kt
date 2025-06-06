@@ -386,8 +386,7 @@ fun HomeItem(
         }
         HorizontalDivider(
             modifier = Modifier.padding(top = 16.dp, start = 8.dp, end = 8.dp),
-            thickness = 0.5.dp,
-            color = MaterialTheme.colorScheme.outlineVariant
+            thickness = 0.5.dp
         )
     }
 }

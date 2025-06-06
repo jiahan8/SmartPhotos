@@ -144,10 +144,9 @@ class DefaultNoteRepository @Inject constructor(
     }
 
     override suspend fun favoriteNote(homeNote: HomeNote) {
-        val snapshot = firestore.collection("note").document(homeNote.documentPath).get().await()
         firestore
             .collection("note").document(homeNote.documentPath)
-            .update("favorite", (snapshot.data?.get("favorite") as Boolean).not())
+            .update("favorite", (homeNote.favorite.not()))
             .await()
     }
 

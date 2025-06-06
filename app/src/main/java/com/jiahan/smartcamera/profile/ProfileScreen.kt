@@ -1,6 +1,7 @@
 package com.jiahan.smartcamera.profile
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -11,6 +12,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -18,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -40,6 +44,8 @@ fun ProfileScreen(
 ) {
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
     val navigationEvent by viewModel.navigationEvent.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val dialogState by viewModel.dialogState.collectAsState()
 
     LaunchedEffect(navigationEvent) {
         when (navigationEvent) {
@@ -52,6 +58,56 @@ fun ProfileScreen(
 
             null -> {}
         }
+    }
+
+    when (dialogState) {
+        is ProfileViewModel.DialogState.Logout -> {
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissDialog() },
+                title = { Text(stringResource(R.string.log_out)) },
+                text = { Text(stringResource(R.string.log_out_desc)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.signOut()
+                            viewModel.dismissDialog()
+                        }
+                    ) {
+                        Text(stringResource(R.string.log_out))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.dismissDialog() }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            )
+        }
+
+        is ProfileViewModel.DialogState.DeleteAccount -> {
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissDialog() },
+                title = { Text(stringResource(R.string.delete_account)) },
+                text = { Text(stringResource(R.string.delete_account_desc)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.deleteAccount()
+                            viewModel.dismissDialog()
+                        }
+                    ) {
+                        Text(stringResource(R.string.delete_account))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.dismissDialog() }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            )
+        }
+
+        else -> {}
     }
 
     Scaffold(
@@ -67,6 +123,14 @@ fun ProfileScreen(
             )
         }
     ) { padding ->
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -105,7 +169,7 @@ fun ProfileScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
-                        viewModel.signOut()
+                        viewModel.showLogoutDialog()
                     }
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -121,7 +185,7 @@ fun ProfileScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
-                        viewModel.deleteAccount()
+                        viewModel.showDeleteAccountDialog()
                     }
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically

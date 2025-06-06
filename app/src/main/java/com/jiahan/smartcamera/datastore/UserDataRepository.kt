@@ -14,6 +14,7 @@ interface UserDataRepository {
     suspend fun signOut()
     suspend fun resetPassword(email: String): Result<Unit>
     suspend fun isUsernameAvailable(username: String): Boolean
+    suspend fun isEmailRegistered(email: String): Boolean
     suspend fun saveUserProfile(email: String, password: String, fullName: String, username: String)
     suspend fun deleteAccount()
 }

@@ -107,7 +107,7 @@ fun AuthScreen(
                     .align(Alignment.Center)
                     .padding(16.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.80f)
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
                 ),
                 elevation = CardDefaults.cardElevation(3.dp)
             ) {
@@ -192,7 +192,10 @@ fun AuthScreen(
                         leadingIcon = { Icon(Icons.Rounded.Lock, contentDescription = null) },
                         trailingIcon = {
                             Icon(
-                                modifier = Modifier.clickable {
+                                modifier = Modifier.clickable(
+                                    interactionSource = null,
+                                    indication = null
+                                ) {
                                     passwordVisible = !passwordVisible
                                 },
                                 painter = if (passwordVisible)
@@ -235,8 +238,7 @@ fun AuthScreen(
                         if (isLoading) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary
+                                strokeWidth = 2.dp
                             )
                         } else {
                             Text(

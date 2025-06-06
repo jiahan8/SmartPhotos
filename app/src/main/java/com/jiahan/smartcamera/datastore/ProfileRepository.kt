@@ -116,6 +116,11 @@ class ProfileRepository @Inject constructor(
         return snapshot.documents.none { document -> document.get("username") == username }
     }
 
+    override suspend fun isEmailRegistered(email: String): Boolean {
+        val snapshot = firestore.collection("user").get().await()
+        return snapshot.documents.none { document -> document.get("email") == email }
+    }
+
     override suspend fun saveUserProfile(
         email: String,
         password: String,

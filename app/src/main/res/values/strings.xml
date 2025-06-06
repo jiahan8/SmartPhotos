@@ -34,6 +34,8 @@
     <string name="dark_theme">Dark Theme</string>
     <string name="log_out">Log out</string>
     <string name="delete_account">Delete account</string>
+    <string name="delete_account_desc">Are you sure you want to delete this account?</string>
+    <string name="log_out_desc">Are you sure you want to log out?</string>
 
     // Note preview
     <string name="note">Note</string>
@@ -56,6 +58,10 @@
     <string name="password_reset_failed">Password reset failed</string>
     <string name="enter_email">Please enter your email first</string>
     <string name="username_not_available">Please choose another username</string>
+    <string name="email_not_registered">Email not registered</string>
+    <string name="username_too_long">Username cannot exceed 30 characters</string>
+    <string name="full_name_too_long">Full name cannot exceed 30 characters</string>
+    <string name="username_invalid_characters">Username can only contain letters, numbers, periods, and underscores</string>
     <string name="login_failed">Login failed</string>
     <string name="sign_up_failed">Sign up failed</string>
     <string name="error_occured">An error occurred</string>
