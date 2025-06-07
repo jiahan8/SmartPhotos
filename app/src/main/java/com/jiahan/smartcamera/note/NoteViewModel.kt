@@ -89,7 +89,8 @@ class NoteViewModel @Inject constructor(
                     HomeNote(
                         text = text,
                         mediaList = mediaDetailList,
-                        documentPath = ""
+                        documentPath = "",
+                        username = ""
                     )
                 )
                 _uploadSuccess.value = true

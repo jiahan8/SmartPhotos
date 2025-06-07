@@ -1,15 +1,15 @@
 package com.jiahan.smartcamera.data.repository
 
-import com.google.firebase.Firebase
-import com.google.firebase.remoteconfig.remoteConfig
+import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.remoteConfigSettings
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class FirebaseRemoteConfigRepository @Inject constructor() : RemoteConfigRepository {
-    private val remoteConfig = Firebase.remoteConfig
+class FirebaseRemoteConfigRepository @Inject constructor(
+    private val remoteConfig: FirebaseRemoteConfig
+) : RemoteConfigRepository {
 
     companion object {
         private const val STORAGE_URL_KEY = "firebase_storage_url"

@@ -12,7 +12,9 @@ data class HomeNote(
     val createdDate: Date? = null,
     val documentPath: String,
     val favorite: Boolean = false,
-    val mediaList: List<MediaDetail>? = null
+    val mediaList: List<MediaDetail>? = null,
+    val username: String,
+    val profilePictureUrl: String? = null
 ) : Parcelable
 
 @Parcelize

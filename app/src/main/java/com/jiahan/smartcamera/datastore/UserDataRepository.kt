@@ -9,6 +9,7 @@ interface UserDataRepository {
     suspend fun updateIsDarkTheme(isDarkTheme: Boolean)
     val firebaseUser: FirebaseUser?
     suspend fun getUser(): User?
+    suspend fun getUser(userId: String): User?
     suspend fun signIn(email: String, password: String): Result<FirebaseUser?>
     suspend fun signUp(
         email: String,

@@ -23,7 +23,8 @@ class NotePreviewViewModel @Inject constructor(
 
     private val documentPath: String = checkNotNull(savedStateHandle[Screen.NotePreview.ID_ARG])
 
-    private val _note = MutableStateFlow<HomeNote>(HomeNote(documentPath = documentPath))
+    private val _note =
+        MutableStateFlow<HomeNote>(HomeNote(documentPath = documentPath, username = ""))
     val note = _note.asStateFlow()
     private val _noteToDelete = MutableStateFlow<HomeNote?>(null)
     val noteToDelete: StateFlow<HomeNote?> = _noteToDelete.asStateFlow()

@@ -5,12 +5,13 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.preferencesDataStore
-import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.userProfileChangeRequest
+import com.google.firebase.firestore.DocumentReference
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.firestore
+import com.google.firebase.firestore.FirebaseFirestore
 import com.jiahan.smartcamera.domain.User
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -30,11 +31,15 @@ private object PreferencesKeys {
 }
 
 class ProfileRepository @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val auth: FirebaseAuth,
+    private val firestore: FirebaseFirestore,
 ) : UserDataRepository {
 
-    private val auth = FirebaseAuth.getInstance()
-    private val firestore = Firebase.firestore
+    private val userDocumentReference: DocumentReference?
+        get() = auth.uid?.let { id ->
+            firestore.collection("user").document(id)
+        }
 
     override val userPreferencesFlow: Flow<UserPreferences> = context.dataStore.data
         .catch { exception ->
@@ -61,20 +66,20 @@ class ProfileRepository @Inject constructor(
 
     override suspend fun getUser(): User? {
         return try {
-            val snapshot = firestore.collection("user").get().await()
-            val document = snapshot.documents.find {
-                it.get("user_id") == auth.currentUser?.uid
+            val snapshot = userDocumentReference?.get()?.await()
+            snapshot?.let {
+                getUserData(it)
             }
-            document?.let {
-                return User(
-                    email = it.get("email")?.toString() ?: "",
-                    password = it.get("password")?.toString() ?: "",
-                    fullName = it.get("full_name")?.toString() ?: "",
-                    username = it.get("username")?.toString() ?: "",
-                    profilePicture = it.get("profile_picture")?.toString(),
-                    createdDate = it.getDate("created") ?: Date(),
-                    documentPath = it.id
-                )
+        } catch (e: Exception) {
+            throw Exception("Failed to fetch user: ${e.message}", e)
+        }
+    }
+
+    override suspend fun getUser(userId: String): User? {
+        return try {
+            val snapshot = firestore.collection("user").document(userId).get().await()
+            snapshot?.let {
+                getUserData(it)
             }
         } catch (e: Exception) {
             throw Exception("Failed to fetch user: ${e.message}", e)
@@ -114,18 +119,17 @@ class ProfileRepository @Inject constructor(
         try {
             val firebaseUser = auth.currentUser
             if (firebaseUser != null && isUsernameAvailable(username)) {
-                firestore.collection("user")
-                    .add(
-                        hashMapOf(
-                            "email" to firebaseUser.email,
-                            "password" to password,
-                            "full_name" to firebaseUser.displayName,
-                            "username" to username,
-                            "profile_picture" to null,
-                            "created" to FieldValue.serverTimestamp(),
-                            "user_id" to firebaseUser.uid
-                        )
-                    ).await()
+                userDocumentReference?.set(
+                    hashMapOf(
+                        "email" to firebaseUser.email,
+                        "password" to password,
+                        "full_name" to firebaseUser.displayName,
+                        "username" to username,
+                        "profile_picture" to null,
+                        "created" to FieldValue.serverTimestamp(),
+                        "user_id" to firebaseUser.uid
+                    )
+                )?.await()
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -186,5 +190,19 @@ class ProfileRepository @Inject constructor(
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    private fun getUserData(
+        userDocumentSnapshot: DocumentSnapshot
+    ): User {
+        return User(
+            email = userDocumentSnapshot.getString("email") ?: "",
+            password = userDocumentSnapshot.getString("password") ?: "",
+            fullName = userDocumentSnapshot.getString("full_name") ?: "",
+            username = userDocumentSnapshot.getString("username") ?: "",
+            profilePicture = userDocumentSnapshot.getString("profile_picture"),
+            createdDate = userDocumentSnapshot.getDate("created") ?: Date(),
+            documentPath = userDocumentSnapshot.id
+        )
     }
 }

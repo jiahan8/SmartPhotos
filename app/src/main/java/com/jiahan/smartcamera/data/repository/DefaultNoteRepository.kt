@@ -3,10 +3,11 @@ package com.jiahan.smartcamera.data.repository
 import android.graphics.Bitmap
 import android.net.Uri
 import com.google.firebase.Firebase
+import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.firestore
 import com.google.firebase.storage.storage
 import com.jiahan.smartcamera.datastore.UserDataRepository
 import com.jiahan.smartcamera.domain.HomeNote
@@ -23,197 +24,169 @@ import javax.inject.Inject
 
 class DefaultNoteRepository @Inject constructor(
     private val remoteConfigRepository: RemoteConfigRepository,
-    private val userDataRepository: UserDataRepository
+    private val userDataRepository: UserDataRepository,
+    private val firestore: FirebaseFirestore,
 ) : NoteRepository {
 
-    private val firestore = Firebase.firestore
     private val pageToLastVisibleDocument = mutableMapOf<Int, DocumentSnapshot>()
+    private val noteCollectionReference: CollectionReference?
+        get() = userDataRepository.firebaseUser?.uid?.let { id ->
+            firestore.collection("user")
+                .document(id)
+                .collection("note")
+        }
 
     override suspend fun getNotes(page: Int, pageSize: Int): List<HomeNote> {
-        try {
-            val baseQuery = firestore.collection("note")
-                .orderBy("created", Query.Direction.DESCENDING)
-                .limit(pageSize.toLong())
+        noteCollectionReference?.let { ref ->
+            try {
+                val baseQuery = ref
+                    .orderBy("created", Query.Direction.DESCENDING)
+                    .limit(pageSize.toLong())
 
-            val snapshot = if (page == 0) {
-                // First page - reset pagination state
-                pageToLastVisibleDocument.clear()
-                baseQuery.get().await()
-            } else {
-                // Get the last document from the previous page
-                val lastVisibleDoc = pageToLastVisibleDocument[page - 1]
-
-                if (lastVisibleDoc != null) {
-                    // Use startAfter with the last document from previous page
-                    baseQuery.startAfter(lastVisibleDoc).get().await()
-                } else {
-                    // Fallback if we somehow don't have the previous page document
+                val snapshot = if (page == 0) {
+                    // First page - reset pagination state
+                    pageToLastVisibleDocument.clear()
                     baseQuery.get().await()
-                }
-            }
+                } else {
+                    // Get the last document from the previous page
+                    val lastVisibleDoc = pageToLastVisibleDocument[page - 1]
 
-            // Store the last visible document for the current page
-            if (snapshot.documents.isNotEmpty()) {
-                pageToLastVisibleDocument[page] = snapshot.documents.last()
-            }
-
-            return snapshot.documents.map { document ->
-                HomeNote(
-                    text = document.data?.get("text")?.toString(),
-                    createdDate = document.getDate("created"),
-                    documentPath = document.id,
-                    favorite = document.data?.get("favorite") as? Boolean == true,
-                    mediaList = (document.data?.get("media_list") as? List<*>)?.mapNotNull { item ->
-                        val mediaMap = item as? Map<*, *> ?: return@mapNotNull null
-                        MediaDetail(
-                            photoUrl = mediaMap["photoUrl"] as? String,
-                            videoUrl = mediaMap["videoUrl"] as? String,
-                            thumbnailUrl = mediaMap["thumbnailUrl"] as? String,
-                            isVideo = mediaMap["video"] as? Boolean == true,
-                            text = mediaMap["text"] as? String
-                        )
+                    if (lastVisibleDoc != null) {
+                        // Use startAfter with the last document from previous page
+                        baseQuery.startAfter(lastVisibleDoc).get().await()
+                    } else {
+                        // Fallback if we somehow don't have the previous page document
+                        baseQuery.get().await()
                     }
-                )
+                }
+
+                // Store the last visible document for the current page
+                if (snapshot.documents.isNotEmpty()) {
+                    pageToLastVisibleDocument[page] = snapshot.documents.last()
+                }
+
+                return snapshot.documents.map { document ->
+                    val userDocument =
+                        getUserDocumentSnapshot(document.getString("user_id") as String)
+                    getHomeNote(
+                        noteDocumentSnapshot = document,
+                        userDocumentSnapshot = userDocument
+                    )
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                return emptyList()
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return emptyList()
         }
+        return emptyList()
     }
 
     override suspend fun addNote(homeNote: HomeNote) {
         val userId = userDataRepository.firebaseUser?.uid ?: return
-        firestore.collection("note")
-            .add(
-                hashMapOf(
-                    "text" to homeNote.text,
-                    "created" to FieldValue.serverTimestamp(),
-                    "favorite" to false,
-                    "media_list" to homeNote.mediaList,
-                    "user_id" to userId
-                )
+        noteCollectionReference?.add(
+            hashMapOf(
+                "text" to homeNote.text,
+                "created" to FieldValue.serverTimestamp(),
+                "favorite" to false,
+                "media_list" to homeNote.mediaList,
+                "user_id" to userId
             )
-            .await()
+        )?.await()
     }
 
     override suspend fun searchNotes(query: String): List<HomeNote> {
-        val snapshot =
-            firestore.collection("note")
+        noteCollectionReference?.let { ref ->
+            val snapshot = ref
                 .orderBy("created", Query.Direction.DESCENDING)
                 .get()
                 .await()
-        return snapshot.documents
-            .filter { document ->
-                // Check if the main note text contains the query
-                val noteText = document.data?.get("text")?.toString() ?: ""
-                val containsInNoteText = noteText.contains(query, ignoreCase = true)
+            return snapshot.documents
+                .filter { document ->
+                    // Check if the main note text contains the query
+                    val noteText = document.getString("text") ?: ""
+                    val containsInNoteText = noteText.contains(query, ignoreCase = true)
 
-                // Check if any media item's text contains the query
-                val mediaList = document.data?.get("media_list") as? List<*>
-                val containsInMediaText = mediaList?.any { item ->
-                    val mediaMap = item as? Map<*, *>
-                    val mediaText = mediaMap?.get("text")?.toString() ?: ""
-                    mediaText.contains(query, ignoreCase = true)
-                } == true
+                    // Check if any media item's text contains the query
+                    val mediaList = document.get("media_list") as? List<*>
+                    val containsInMediaText = mediaList?.any { item ->
+                        val mediaMap = item as? Map<*, *>
+                        val mediaText = mediaMap?.get("text")?.toString() ?: ""
+                        mediaText.contains(query, ignoreCase = true)
+                    } == true
 
-                // Return true if the query is found in either the note text or any media text
-                containsInNoteText || containsInMediaText
-            }
-            .map { document ->
-                HomeNote(
-                    text = document.data?.get("text")?.toString(),
-                    createdDate = document.getDate("created"),
-                    documentPath = document.id,
-                    favorite = document.data?.get("favorite") as Boolean,
-                    mediaList = (document.data?.get("media_list") as? List<*>)?.mapNotNull { item ->
-                        val mediaMap = item as? Map<*, *> ?: return@mapNotNull null
-                        MediaDetail(
-                            photoUrl = mediaMap["photoUrl"] as? String,
-                            videoUrl = mediaMap["videoUrl"] as? String,
-                            thumbnailUrl = mediaMap["thumbnailUrl"] as? String,
-                            isVideo = mediaMap["video"] as? Boolean == true,
-                            text = mediaMap["text"] as? String
-                        )
-                    }
-                )
-            }
+                    // Return true if the query is found in either the note text or any media text
+                    containsInNoteText || containsInMediaText
+                }
+                .map { document ->
+                    val userDocument =
+                        getUserDocumentSnapshot(document.getString("user_id") as String)
+                    getHomeNote(
+                        noteDocumentSnapshot = document,
+                        userDocumentSnapshot = userDocument
+                    )
+                }
+        }
+        return emptyList()
     }
 
     override suspend fun deleteNote(documentPath: String) {
-        firestore.collection("note").document(documentPath).delete().await()
+        noteCollectionReference?.document(documentPath)?.delete()?.await()
     }
 
     override suspend fun favoriteNote(homeNote: HomeNote) {
-        firestore
-            .collection("note").document(homeNote.documentPath)
-            .update("favorite", (homeNote.favorite.not()))
-            .await()
+        val snapshot = noteCollectionReference?.document(homeNote.documentPath)?.get()?.await()
+        noteCollectionReference?.document(homeNote.documentPath)
+            ?.update("favorite", snapshot?.getBoolean("favorite")?.not())
+            ?.await()
     }
 
     override suspend fun searchFavoriteNotes(query: String): List<HomeNote> {
-        val snapshot =
-            firestore.collection("note")
+        noteCollectionReference?.let { ref ->
+            val snapshot = ref
                 .whereEqualTo("favorite", true)
                 .orderBy("created", Query.Direction.DESCENDING)
                 .get()
                 .await()
-        return snapshot.documents
-            .filter { document ->
-                // Check if the main note text contains the query
-                val noteText = document.data?.get("text")?.toString() ?: ""
-                val containsInNoteText = noteText.contains(query, ignoreCase = true)
+            return snapshot.documents
+                .filter { document ->
+                    // Check if the main note text contains the query
+                    val noteText = document.getString("text") ?: ""
+                    val containsInNoteText = noteText.contains(query, ignoreCase = true)
 
-                // Check if any media item's text contains the query
-                val mediaList = document.data?.get("media_list") as? List<*>
-                val containsInMediaText = mediaList?.any { item ->
-                    val mediaMap = item as? Map<*, *>
-                    val mediaText = mediaMap?.get("text")?.toString() ?: ""
-                    mediaText.contains(query, ignoreCase = true)
-                } == true
+                    // Check if any media item's text contains the query
+                    val mediaList = document.data?.get("media_list") as? List<*>
+                    val containsInMediaText = mediaList?.any { item ->
+                        val mediaMap = item as? Map<*, *>
+                        val mediaText = mediaMap?.get("text")?.toString() ?: ""
+                        mediaText.contains(query, ignoreCase = true)
+                    } == true
 
-                // Return true if the query is found in either the note text or any media text
-                containsInNoteText || containsInMediaText
-            }
-            .map { document ->
-                HomeNote(
-                    text = document.data?.get("text")?.toString(),
-                    createdDate = document.getDate("created"),
-                    documentPath = document.id,
-                    favorite = document.data?.get("favorite") as Boolean,
-                    mediaList = (document.data?.get("media_list") as? List<*>)?.mapNotNull { item ->
-                        val mediaMap = item as? Map<*, *> ?: return@mapNotNull null
-                        MediaDetail(
-                            photoUrl = mediaMap["photoUrl"] as? String,
-                            videoUrl = mediaMap["videoUrl"] as? String,
-                            thumbnailUrl = mediaMap["thumbnailUrl"] as? String,
-                            isVideo = mediaMap["video"] as? Boolean == true,
-                            text = mediaMap["text"] as? String
-                        )
-                    }
-                )
-            }
+                    // Return true if the query is found in either the note text or any media text
+                    containsInNoteText || containsInMediaText
+                }
+                .map { document ->
+                    val userDocument =
+                        getUserDocumentSnapshot(document.getString("user_id") as String)
+                    getHomeNote(
+                        noteDocumentSnapshot = document,
+                        userDocumentSnapshot = userDocument
+                    )
+                }
+        }
+        return emptyList()
     }
 
     override suspend fun getNote(documentPath: String): HomeNote {
-        val snapshot = firestore.collection("note").document(documentPath).get().await()
-        snapshot.apply {
-            return HomeNote(
-                text = data?.get("text")?.toString(),
-                createdDate = snapshot.getDate("created"),
-                documentPath = snapshot.id,
-                favorite = data?.get("favorite") as Boolean,
-                mediaList = (data?.get("media_list") as? List<*>)?.mapNotNull { item ->
-                    val mediaMap = item as? Map<*, *> ?: return@mapNotNull null
-                    MediaDetail(
-                        photoUrl = mediaMap["photoUrl"] as? String,
-                        videoUrl = mediaMap["videoUrl"] as? String,
-                        thumbnailUrl = mediaMap["thumbnailUrl"] as? String,
-                        isVideo = mediaMap["video"] as? Boolean == true,
-                        text = mediaMap["text"] as? String
-                    )
-                }
+        noteCollectionReference?.let { ref ->
+            val noteDocument = ref.document(documentPath).get().await()
+            val userDocument =
+                getUserDocumentSnapshot(noteDocument.getString("user_id") as String)
+            return getHomeNote(
+                noteDocumentSnapshot = noteDocument,
+                userDocumentSnapshot = userDocument
             )
         }
+        return HomeNote(documentPath = "", username = "")
     }
 
     override suspend fun quickUploadMediaToFirebase(uriList: List<Uri>) {
@@ -282,4 +255,29 @@ class DefaultNoteRepository @Inject constructor(
             }.awaitAll().filterNotNull()
         }
     }
+
+    private suspend fun getUserDocumentSnapshot(userId: String) =
+        firestore.collection("user").document(userId).get().await()
+
+    private fun getHomeNote(
+        noteDocumentSnapshot: DocumentSnapshot,
+        userDocumentSnapshot: DocumentSnapshot
+    ) = HomeNote(
+        text = noteDocumentSnapshot.getString("text"),
+        createdDate = noteDocumentSnapshot.getDate("created"),
+        documentPath = noteDocumentSnapshot.id,
+        favorite = noteDocumentSnapshot.getBoolean("favorite") == true,
+        mediaList = (noteDocumentSnapshot.get("media_list") as? List<*>)?.mapNotNull { item ->
+            val mediaMap = item as? Map<*, *> ?: return@mapNotNull null
+            MediaDetail(
+                photoUrl = mediaMap["photoUrl"] as? String,
+                videoUrl = mediaMap["videoUrl"] as? String,
+                thumbnailUrl = mediaMap["thumbnailUrl"] as? String,
+                isVideo = mediaMap["video"] as? Boolean == true,
+                text = mediaMap["text"] as? String
+            )
+        },
+        username = userDocumentSnapshot.getString("username") ?: "",
+        profilePictureUrl = userDocumentSnapshot.getString("profile_picture")
+    )
 }
