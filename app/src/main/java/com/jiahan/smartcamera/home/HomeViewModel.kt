@@ -55,7 +55,7 @@ class HomeViewModel @Inject constructor(
                 if (!isHandlingLocalFavoriteAction) {
                     _notes.value = _notes.value.map { note ->
                         if (updatedNote.documentPath == note.documentPath) {
-                            updatedNote
+                            note.copy(favorite = note.favorite.not())
                         } else {
                             note
                         }
