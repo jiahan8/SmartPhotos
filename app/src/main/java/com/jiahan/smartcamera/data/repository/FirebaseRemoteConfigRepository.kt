@@ -27,7 +27,8 @@ class FirebaseRemoteConfigRepository @Inject constructor(
         remoteConfig.setDefaultsAsync(
             mapOf(
                 STORAGE_URL_KEY to "default_value",
-                STORAGE_FOLDER_KEY to "default_value"
+                STORAGE_FOLDER_KEY to "default_value",
+                STORAGE_CACHE_FOLDER_KEY to "default_value"
             )
         )
     }
