@@ -47,6 +47,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -289,7 +290,8 @@ fun HomeItem(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(38.dp)
-                        .clip(CircleShape)
+                        .clip(CircleShape),
+                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                 )
             }
 

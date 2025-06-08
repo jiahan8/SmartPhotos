@@ -14,6 +14,8 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.jiahan.smartcamera.domain.User
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -39,6 +41,10 @@ class ProfileRepository @Inject constructor(
     private val userDocumentReference: DocumentReference?
         get() = auth.uid?.let { id ->
             firestore.collection("user").document(id)
+        }
+    private val memberDocumentReference: DocumentReference?
+        get() = auth.uid?.let { id ->
+            firestore.collection("member").document(id)
         }
 
     override val userPreferencesFlow: Flow<UserPreferences> = context.dataStore.data
@@ -119,21 +125,56 @@ class ProfileRepository @Inject constructor(
         try {
             val firebaseUser = auth.currentUser
             if (firebaseUser != null && isUsernameAvailable(username)) {
-                userDocumentReference?.set(
-                    hashMapOf(
-                        "email" to firebaseUser.email,
-                        "password" to password,
-                        "full_name" to firebaseUser.displayName,
-                        "username" to username,
-                        "profile_picture" to null,
-                        "created" to FieldValue.serverTimestamp(),
-                        "user_id" to firebaseUser.uid
-                    )
-                )?.await()
+                val userData = createUserDataMap(firebaseUser, password, username)
+                val memberData = createUserDataMap(firebaseUser, username)
+                coroutineScope {
+                    val userDeferred = async {
+                        runCatching {
+                            userDocumentReference?.set(userData)?.await()
+                        }
+                    }
+                    val memberDeferred = async {
+                        runCatching {
+                            memberDocumentReference?.set(memberData)?.await()
+                        }
+                    }
+                    userDeferred.await()
+                    memberDeferred.await()
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    private fun createUserDataMap(
+        firebaseUser: FirebaseUser,
+        password: String,
+        username: String
+    ): Map<String, Any?> {
+        return hashMapOf(
+            "email" to firebaseUser.email,
+            "password" to password,
+            "full_name" to firebaseUser.displayName,
+            "username" to username,
+            "profile_picture" to null,
+            "created" to FieldValue.serverTimestamp(),
+            "user_id" to firebaseUser.uid
+        )
+    }
+
+    private fun createUserDataMap(
+        firebaseUser: FirebaseUser,
+        username: String
+    ): Map<String, Any?> {
+        return hashMapOf(
+            "email" to firebaseUser.email,
+            "full_name" to firebaseUser.displayName,
+            "username" to username,
+            "profile_picture" to null,
+            "created" to FieldValue.serverTimestamp(),
+            "user_id" to firebaseUser.uid
+        )
     }
 
     override suspend fun updateUserProfile(fullName: String) {
@@ -158,7 +199,7 @@ class ProfileRepository @Inject constructor(
     }
 
     override suspend fun isUsernameAvailable(username: String): Boolean {
-        return firestore.collection("user")
+        return firestore.collection("member")
             .whereEqualTo("username", username)
             .limit(1)
             .get()
@@ -167,7 +208,7 @@ class ProfileRepository @Inject constructor(
     }
 
     override suspend fun isEmailRegistered(email: String): Boolean {
-        return !firestore.collection("user")
+        return !firestore.collection("member")
             .whereEqualTo("email", email)
             .limit(1)
             .get()

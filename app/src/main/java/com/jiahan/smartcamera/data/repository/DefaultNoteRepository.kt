@@ -65,13 +65,21 @@ class DefaultNoteRepository @Inject constructor(
                     pageToLastVisibleDocument[page] = snapshot.documents.last()
                 }
 
+                val userIds = snapshot.documents.mapNotNull {
+                    it.getString("user_id")
+                }.distinct()
+                val userDocumentsMap = getUserDocumentsInBatch(userIds)
                 return snapshot.documents.map { document ->
-                    val userDocument =
-                        getUserDocumentSnapshot(document.getString("user_id") as String)
-                    getHomeNote(
-                        noteDocumentSnapshot = document,
-                        userDocumentSnapshot = userDocument
-                    )
+                    val userId = document.getString("user_id") as String
+                    val userDocument = userDocumentsMap[userId]
+                    if (userDocument != null) {
+                        getHomeNote(
+                            noteDocumentSnapshot = document,
+                            userDocumentSnapshot = userDocument
+                        )
+                    } else {
+                        HomeNote(documentPath = "", username = "")
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -100,6 +108,10 @@ class DefaultNoteRepository @Inject constructor(
                 .orderBy("created", Query.Direction.DESCENDING)
                 .get()
                 .await()
+            val userIds = snapshot.documents.mapNotNull {
+                it.getString("user_id")
+            }.distinct()
+            val userDocumentsMap = getUserDocumentsInBatch(userIds)
             return snapshot.documents
                 .filter { document ->
                     // Check if the main note text contains the query
@@ -118,12 +130,16 @@ class DefaultNoteRepository @Inject constructor(
                     containsInNoteText || containsInMediaText
                 }
                 .map { document ->
-                    val userDocument =
-                        getUserDocumentSnapshot(document.getString("user_id") as String)
-                    getHomeNote(
-                        noteDocumentSnapshot = document,
-                        userDocumentSnapshot = userDocument
-                    )
+                    val userId = document.getString("user_id") as String
+                    val userDocument = userDocumentsMap[userId]
+                    if (userDocument != null) {
+                        getHomeNote(
+                            noteDocumentSnapshot = document,
+                            userDocumentSnapshot = userDocument
+                        )
+                    } else {
+                        HomeNote(documentPath = "", username = "")
+                    }
                 }
         }
         return emptyList()
@@ -147,6 +163,10 @@ class DefaultNoteRepository @Inject constructor(
                 .orderBy("created", Query.Direction.DESCENDING)
                 .get()
                 .await()
+            val userIds = snapshot.documents.mapNotNull {
+                it.getString("user_id")
+            }.distinct()
+            val userDocumentsMap = getUserDocumentsInBatch(userIds)
             return snapshot.documents
                 .filter { document ->
                     // Check if the main note text contains the query
@@ -165,12 +185,16 @@ class DefaultNoteRepository @Inject constructor(
                     containsInNoteText || containsInMediaText
                 }
                 .map { document ->
-                    val userDocument =
-                        getUserDocumentSnapshot(document.getString("user_id") as String)
-                    getHomeNote(
-                        noteDocumentSnapshot = document,
-                        userDocumentSnapshot = userDocument
-                    )
+                    val userId = document.getString("user_id") as String
+                    val userDocument = userDocumentsMap[userId]
+                    if (userDocument != null) {
+                        getHomeNote(
+                            noteDocumentSnapshot = document,
+                            userDocumentSnapshot = userDocument
+                        )
+                    } else {
+                        HomeNote(documentPath = "", username = "")
+                    }
                 }
         }
         return emptyList()
@@ -280,4 +304,21 @@ class DefaultNoteRepository @Inject constructor(
         username = userDocumentSnapshot.getString("username") ?: "",
         profilePictureUrl = userDocumentSnapshot.getString("profile_picture")
     )
+
+    private suspend fun getUserDocumentsInBatch(userIds: List<String>): Map<String, DocumentSnapshot> {
+        if (userIds.isEmpty()) return emptyMap()
+        return coroutineScope {
+            userIds.map { userId ->
+                async {
+                    try {
+                        val document = firestore.collection("user").document(userId).get().await()
+                        userId to document
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        null
+                    }
+                }
+            }.awaitAll().filterNotNull().toMap()
+        }
+    }
 }

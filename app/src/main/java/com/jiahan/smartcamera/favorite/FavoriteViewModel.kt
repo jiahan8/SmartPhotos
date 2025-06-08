@@ -69,7 +69,7 @@ class FavoriteViewModel @Inject constructor(
                     } else {
                         _notes.value.map { note ->
                             if (updatedNote.documentPath == note.documentPath) {
-                                updatedNote
+                                note.copy(favorite = note.favorite.not())
                             } else {
                                 note
                             }
