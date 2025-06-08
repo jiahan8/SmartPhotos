@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -26,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
@@ -54,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -82,6 +85,7 @@ fun NoteScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val scrollState = rememberScrollState()
 
+    val user by viewModel.user.collectAsState()
     val postText by viewModel.postText.collectAsState()
     val photoUri by viewModel.photoUri.collectAsState()
     val videoUri by viewModel.videoUri.collectAsState()
@@ -221,20 +225,34 @@ fun NoteScreen(
                         .fillMaxWidth()
                         .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp)
                 ) {
-                    AsyncImage(
-                        model = R.drawable.home_image,
+                    user?.profilePicture?.let {
+                        AsyncImage(
+                            model = it,
+                            contentDescription = "Profile Picture",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                        )
+                    } ?: Image(
+                        imageVector = Icons.Rounded.AccountCircle,
                         contentDescription = "Profile Picture",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .size(38.dp)
-                            .clip(CircleShape)
+                            .clip(CircleShape),
+                        colorFilter = ColorFilter.tint(
+                            MaterialTheme.colorScheme.onSurface.copy(
+                                alpha = 0.7f
+                            )
+                        )
                     )
 
                     Column(
                         modifier = Modifier.padding(start = 16.dp)
                     ) {
                         Text(
-                            text = "jiahan",
+                            text = user?.username ?: "",
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontWeight = FontWeight.Bold
                             ),

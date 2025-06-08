@@ -274,26 +274,24 @@ fun HomeItem(
                 .fillMaxWidth()
                 .padding(start = 16.dp, end = 16.dp, top = 16.dp)
         ) {
-            if (note.profilePictureUrl != null) {
+            note.profilePictureUrl?.let {
                 AsyncImage(
-                    model = note.profilePictureUrl,
+                    model = it,
                     contentDescription = "Profile Picture",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
                 )
-            } else {
-                Image(
-                    imageVector = Icons.Rounded.AccountCircle,
-                    contentDescription = "Profile Picture",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape),
-                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
-                )
-            }
+            } ?: Image(
+                imageVector = Icons.Rounded.AccountCircle,
+                contentDescription = "Profile Picture",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape),
+                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+            )
 
             Column(
                 modifier = Modifier.padding(start = 16.dp)

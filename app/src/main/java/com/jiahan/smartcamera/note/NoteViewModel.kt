@@ -17,8 +17,10 @@ import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.data.repository.SearchRepository
+import com.jiahan.smartcamera.datastore.ProfileRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.NoteMediaDetail
+import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.ResourceProvider
 import com.jiahan.smartcamera.util.Util.createVideoThumbnail
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -37,6 +39,7 @@ class NoteViewModel @Inject constructor(
     private val remoteConfigRepository: RemoteConfigRepository,
     private val noteRepository: NoteRepository,
     private val searchRepository: SearchRepository,
+    private val profileRepository: ProfileRepository,
     private val analyticsRepository: AnalyticsRepository,
     private val noteHandler: NoteHandler,
     private val resourceProvider: ResourceProvider
@@ -53,6 +56,8 @@ class NoteViewModel @Inject constructor(
     private val _postButtonEnabled = MutableStateFlow(false)
     val postButtonEnabled = _postButtonEnabled.asStateFlow()
 
+    private val _user = MutableStateFlow<User?>(null)
+    val user = _user.asStateFlow()
     private val _postText = MutableStateFlow("")
     val postText = _postText.asStateFlow()
     private val _photoUri = MutableStateFlow<Uri?>(null)
@@ -66,6 +71,7 @@ class NoteViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             remoteConfigRepository.fetchAndActivateConfig()
+            _user.value = getUser()
             combine(
                 _uploading,
                 _postText,
@@ -78,6 +84,8 @@ class NoteViewModel @Inject constructor(
             }
         }
     }
+
+    suspend fun getUser() = profileRepository.getUser()
 
     fun uploadPost(text: String, mediaList: List<NoteMediaDetail>) {
         viewModelScope.launch {
