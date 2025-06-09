@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class EditProfileViewModel @Inject constructor(
+class ProfileViewModel @Inject constructor(
     private val profileRepository: ProfileRepository,
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,

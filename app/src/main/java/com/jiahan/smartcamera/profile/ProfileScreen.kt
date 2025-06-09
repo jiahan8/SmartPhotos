@@ -47,9 +47,9 @@ import com.jiahan.smartcamera.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditProfileScreen(
+fun ProfileScreen(
     navController: NavController,
-    viewModel: EditProfileViewModel = hiltViewModel()
+    viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val user by viewModel.user.collectAsState()
     val email by viewModel.email.collectAsState()

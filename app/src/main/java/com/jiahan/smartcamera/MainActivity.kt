@@ -64,7 +64,7 @@ import com.jiahan.smartcamera.preview.PhotoPreviewScreen
 import com.jiahan.smartcamera.preview.PhotoSource
 import com.jiahan.smartcamera.preview.VideoPreviewScreen
 import com.jiahan.smartcamera.preview.VideoSource
-import com.jiahan.smartcamera.profile.EditProfileScreen
+import com.jiahan.smartcamera.profile.ProfileScreen
 import com.jiahan.smartcamera.settings.SettingsScreen
 import com.jiahan.smartcamera.search.SearchScreen
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
@@ -336,7 +336,7 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             composable(route = Screen.Profile.route) {
-                                EditProfileScreen(
+                                ProfileScreen(
                                     navController = navController
                                 )
                             }
