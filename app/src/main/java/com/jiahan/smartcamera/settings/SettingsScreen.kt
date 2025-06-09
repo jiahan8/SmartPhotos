@@ -1,4 +1,4 @@
-package com.jiahan.smartcamera.profile
+package com.jiahan.smartcamera.settings
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -11,12 +11,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -38,9 +40,9 @@ import com.jiahan.smartcamera.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(
+fun SettingsScreen(
     navController: NavController,
-    viewModel: ProfileViewModel = hiltViewModel()
+    viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
     val navigationEvent by viewModel.navigationEvent.collectAsState()
@@ -49,7 +51,7 @@ fun ProfileScreen(
 
     LaunchedEffect(navigationEvent) {
         when (navigationEvent) {
-            is ProfileViewModel.NavigationEvent.NavigateToAuth -> {
+            is SettingsViewModel.NavigationEvent.NavigateToAuth -> {
                 navController.navigate(Screen.Auth.route) {
                     popUpTo(0) { inclusive = true }
                 }
@@ -61,7 +63,7 @@ fun ProfileScreen(
     }
 
     when (dialogState) {
-        is ProfileViewModel.DialogState.Logout -> {
+        is SettingsViewModel.DialogState.Logout -> {
             AlertDialog(
                 onDismissRequest = { viewModel.dismissDialog() },
                 title = { Text(stringResource(R.string.log_out)) },
@@ -84,7 +86,7 @@ fun ProfileScreen(
             )
         }
 
-        is ProfileViewModel.DialogState.DeleteAccount -> {
+        is SettingsViewModel.DialogState.DeleteAccount -> {
             AlertDialog(
                 onDismissRequest = { viewModel.dismissDialog() },
                 title = { Text(stringResource(R.string.delete_account)) },
@@ -115,9 +117,17 @@ fun ProfileScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = stringResource(R.string.profile),
+                        text = stringResource(R.string.settings),
                         style = MaterialTheme.typography.titleMedium,
                     )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
                 },
                 windowInsets = WindowInsets(0.dp),
             )

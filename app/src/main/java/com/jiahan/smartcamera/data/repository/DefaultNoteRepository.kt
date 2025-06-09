@@ -311,7 +311,7 @@ class DefaultNoteRepository @Inject constructor(
             userIds.map { userId ->
                 async {
                     try {
-                        val document = firestore.collection("user").document(userId).get().await()
+                        val document = getUserDocumentSnapshot(userId)
                         userId to document
                     } catch (e: Exception) {
                         e.printStackTrace()

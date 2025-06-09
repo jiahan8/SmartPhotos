@@ -1,4 +1,4 @@
-package com.jiahan.smartcamera.profile
+package com.jiahan.smartcamera.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class ProfileViewModel @Inject constructor(
+class SettingsViewModel @Inject constructor(
     private val profileRepository: ProfileRepository
 ) : ViewModel() {
 

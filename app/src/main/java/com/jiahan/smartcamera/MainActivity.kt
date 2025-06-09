@@ -64,7 +64,8 @@ import com.jiahan.smartcamera.preview.PhotoPreviewScreen
 import com.jiahan.smartcamera.preview.PhotoSource
 import com.jiahan.smartcamera.preview.VideoPreviewScreen
 import com.jiahan.smartcamera.preview.VideoSource
-import com.jiahan.smartcamera.profile.ProfileScreen
+import com.jiahan.smartcamera.profile.EditProfileScreen
+import com.jiahan.smartcamera.settings.SettingsScreen
 import com.jiahan.smartcamera.search.SearchScreen
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -335,7 +336,12 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             composable(route = Screen.Profile.route) {
-                                ProfileScreen(
+                                EditProfileScreen(
+                                    navController = navController
+                                )
+                            }
+                            composable(route = Screen.Settings.route) {
+                                SettingsScreen(
                                     navController = navController
                                 )
                             }
@@ -402,6 +408,7 @@ sealed class Screen(
 
     object Auth : Screen("auth", "Auth", null)
     object Profile : Screen("profile", "Profile", Icons.Outlined.Person)
+    object Settings : Screen("settings", "Settings", null)
 }
 
 @Composable

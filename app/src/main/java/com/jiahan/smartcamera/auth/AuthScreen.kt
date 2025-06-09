@@ -61,7 +61,6 @@ fun AuthScreen(
     navController: NavController,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
-
     val email by viewModel.email.collectAsState()
     val password by viewModel.password.collectAsState()
     val fullName by viewModel.fullName.collectAsState()

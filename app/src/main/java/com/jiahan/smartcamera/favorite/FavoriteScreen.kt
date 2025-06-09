@@ -144,7 +144,7 @@ fun FavoriteScreen(
                 )
             )
         }
-    ) { innerPadding ->
+    ) { padding ->
         if (isLoading) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -155,9 +155,9 @@ fun FavoriteScreen(
         } else {
             PullToRefreshBox(
                 modifier = Modifier.padding(
-                    top = innerPadding.calculateTopPadding(),
-                    start = innerPadding.calculateStartPadding(LayoutDirection.Ltr),
-                    end = innerPadding.calculateEndPadding(LayoutDirection.Ltr)
+                    top = padding.calculateTopPadding(),
+                    start = padding.calculateStartPadding(LayoutDirection.Ltr),
+                    end = padding.calculateEndPadding(LayoutDirection.Ltr)
                 ),
                 state = state,
                 isRefreshing = isRefreshing,
