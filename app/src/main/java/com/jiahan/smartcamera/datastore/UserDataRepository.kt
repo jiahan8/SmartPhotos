@@ -1,5 +1,6 @@
 package com.jiahan.smartcamera.datastore
 
+import android.net.Uri
 import com.google.firebase.auth.FirebaseUser
 import com.jiahan.smartcamera.domain.User
 import kotlinx.coroutines.flow.Flow
@@ -19,7 +20,7 @@ interface UserDataRepository {
     ): Result<FirebaseUser?>
 
     suspend fun saveUserProfile(password: String, username: String)
-    suspend fun updateUserProfile(fullName: String)
+    suspend fun updateUserProfile(fullName: String?, photo: Uri?)
     suspend fun signOut()
     suspend fun resetPassword(email: String): Result<Unit>
     suspend fun isUsernameAvailable(username: String): Boolean

@@ -58,7 +58,7 @@ class ProfileViewModel @Inject constructor(
 
     fun updateUserProfile() {
         viewModelScope.launch {
-            profileRepository.updateUserProfile("")
+            profileRepository.updateUserProfile("", null)
         }
     }
 }

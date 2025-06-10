@@ -1,6 +1,7 @@
 package com.jiahan.smartcamera.datastore
 
 import android.content.Context
+import android.net.Uri
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
@@ -109,7 +110,7 @@ class ProfileRepository @Inject constructor(
     ): Result<FirebaseUser?> {
         return try {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
-            updateUserProfile(fullName = fullName)
+            updateUserProfile(fullName = fullName, photo = null)
             result.user?.sendEmailVerification()?.await()
             saveUserProfile(password = password, username = username)
             Result.success(result.user)
@@ -177,10 +178,15 @@ class ProfileRepository @Inject constructor(
         )
     }
 
-    override suspend fun updateUserProfile(fullName: String) {
+    override suspend fun updateUserProfile(fullName: String?, photo: Uri?) {
         auth.currentUser?.updateProfile(
             userProfileChangeRequest {
-                displayName = fullName
+                fullName?.let {
+                    displayName = fullName
+                }
+                photo?.let {
+                    photoUri = photo
+                }
             }
         )?.await()
     }
