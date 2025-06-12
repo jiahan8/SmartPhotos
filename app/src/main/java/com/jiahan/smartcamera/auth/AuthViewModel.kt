@@ -87,12 +87,12 @@ class AuthViewModel @Inject constructor(
                             resourceProvider.getString(R.string.email_not_verified)
                     }
                 } else {
-                    _errorMessage.value = result.exceptionOrNull()?.message
+                    _errorMessage.value = result.exceptionOrNull()?.localizedMessage
                         ?: resourceProvider.getString(R.string.login_failed)
                 }
             } catch (e: Exception) {
                 _errorMessage.value =
-                    e.message ?: resourceProvider.getString(R.string.error_occured)
+                    e.localizedMessage ?: resourceProvider.getString(R.string.error_occured)
             } finally {
                 _isLoading.value = false
             }
@@ -151,12 +151,12 @@ class AuthViewModel @Inject constructor(
                     _errorMessage.value =
                         resourceProvider.getString(R.string.verification_email_sent)
                 } else {
-                    _errorMessage.value = result.exceptionOrNull()?.message
+                    _errorMessage.value = result.exceptionOrNull()?.localizedMessage
                         ?: resourceProvider.getString(R.string.sign_up_failed)
                 }
             } catch (e: Exception) {
                 _errorMessage.value =
-                    e.message ?: resourceProvider.getString(R.string.error_occured)
+                    e.localizedMessage ?: resourceProvider.getString(R.string.error_occured)
             } finally {
                 _isLoading.value = false
             }
@@ -186,12 +186,12 @@ class AuthViewModel @Inject constructor(
                         resourceProvider.getString(R.string.password_reset_email_sent)
                 } else {
                     _errorMessage.value =
-                        result.exceptionOrNull()?.message
+                        result.exceptionOrNull()?.localizedMessage
                             ?: resourceProvider.getString(R.string.password_reset_failed)
                 }
             } catch (e: Exception) {
                 _errorMessage.value =
-                    e.message ?: resourceProvider.getString(R.string.error_occured)
+                    e.localizedMessage ?: resourceProvider.getString(R.string.error_occured)
             } finally {
                 _isLoading.value = false
             }
@@ -212,8 +212,8 @@ class AuthViewModel @Inject constructor(
 
     fun validateFullName(fullName: String): ValidationResult {
         return when {
-            fullName.length > 30 ->
-                ValidationResult.Error(R.string.full_name_too_long)
+            fullName.length > 50 ->
+                ValidationResult.Error(R.string.name_too_long)
 
             else -> ValidationResult.Success
         }
@@ -227,7 +227,7 @@ class AuthViewModel @Inject constructor(
                 _errorMessage.value = resourceProvider.getString(R.string.verification_email_resent)
             } catch (e: Exception) {
                 _errorMessage.value =
-                    e.message ?: resourceProvider.getString(R.string.error_occured)
+                    e.localizedMessage ?: resourceProvider.getString(R.string.error_occured)
             } finally {
                 _isLoading.value = false
             }

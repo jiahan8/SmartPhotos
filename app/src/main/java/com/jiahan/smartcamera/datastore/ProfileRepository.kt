@@ -1,7 +1,6 @@
 package com.jiahan.smartcamera.datastore
 
 import android.content.Context
-import android.net.Uri
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
@@ -78,7 +77,7 @@ class ProfileRepository @Inject constructor(
                 getUserData(it)
             }
         } catch (e: Exception) {
-            throw Exception("Failed to fetch user: ${e.message}", e)
+            throw Exception("Failed to fetch user: ${e.localizedMessage}", e)
         }
     }
 
@@ -89,7 +88,7 @@ class ProfileRepository @Inject constructor(
                 getUserData(it)
             }
         } catch (e: Exception) {
-            throw Exception("Failed to fetch user: ${e.message}", e)
+            throw Exception("Failed to fetch user: ${e.localizedMessage}", e)
         }
     }
 
@@ -110,13 +109,26 @@ class ProfileRepository @Inject constructor(
     ): Result<FirebaseUser?> {
         return try {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
-            updateUserProfile(fullName = fullName, photo = null)
+            updateFirebaseUserProfile(fullName = fullName)
             result.user?.sendEmailVerification()?.await()
             saveUserProfile(password = password, username = username)
             Result.success(result.user)
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    override suspend fun updateUserProfile(
+        fullName: String?,
+        username: String?,
+        profilePictureUrl: String?
+    ) {
+        updateFirebaseUserProfile(fullName = fullName)
+        updateDatabaseUserProfile(
+            fullName = fullName,
+            username = username,
+            profilePictureUrl = null
+        )
     }
 
     override suspend fun saveUserProfile(
@@ -178,17 +190,49 @@ class ProfileRepository @Inject constructor(
         )
     }
 
-    override suspend fun updateUserProfile(fullName: String?, photo: Uri?) {
+    override suspend fun updateFirebaseUserProfile(
+        fullName: String?,
+    ) {
         auth.currentUser?.updateProfile(
             userProfileChangeRequest {
                 fullName?.let {
                     displayName = fullName
                 }
-                photo?.let {
-                    photoUri = photo
-                }
             }
         )?.await()
+    }
+
+    override suspend fun updateDatabaseUserProfile(
+        fullName: String?,
+        username: String?,
+        profilePictureUrl: String?
+    ) {
+        try {
+            val updates = mutableMapOf<String, Any>()
+
+            fullName?.let { updates["full_name"] = it }
+            username?.let { updates["username"] = it }
+            profilePictureUrl?.let { updates["profile_picture"] = it.toString() }
+
+            if (updates.isNotEmpty()) {
+                coroutineScope {
+                    val userDeferred = async {
+                        runCatching {
+                            userDocumentReference?.update(updates)?.await()
+                        }
+                    }
+                    val memberDeferred = async {
+                        runCatching {
+                            memberDocumentReference?.update(updates)?.await()
+                        }
+                    }
+                    userDeferred.await()
+                    memberDeferred.await()
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     override suspend fun signOut() {

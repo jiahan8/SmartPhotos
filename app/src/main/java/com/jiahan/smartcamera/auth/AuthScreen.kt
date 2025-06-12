@@ -142,7 +142,7 @@ fun AuthScreen(
                         OutlinedTextField(
                             value = fullName,
                             onValueChange = { viewModel.updateFullNameText(it) },
-                            label = { Text(stringResource(R.string.full_name)) },
+                            label = { Text(stringResource(R.string.name)) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.large,
                             singleLine = true,

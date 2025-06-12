@@ -48,7 +48,7 @@
     <string name="sign_in">Sign In</string>
     <string name="create_account">Create Account</string>
     <string name="email">Email</string>
-    <string name="full_name">Full Name</string>
+    <string name="name">Name</string>
     <string name="username">Username</string>
     <string name="password">Password</string>
     <string name="login">Login</string>
@@ -64,7 +64,7 @@
     <string name="username_not_available">Please choose another username</string>
     <string name="email_not_registered">Email not registered</string>
     <string name="username_too_long">Username cannot exceed 30 characters</string>
-    <string name="full_name_too_long">Full name cannot exceed 30 characters</string>
+    <string name="name_too_long">Name cannot exceed 50 characters</string>
     <string name="username_invalid_characters">Username can only contain letters, numbers, periods, and underscores</string>
     <string name="verification_email_sent">Verification email sent. Please check your inbox and verify your email before logging in.</string>
     <string name="email_not_verified">Please verify your email before logging in. Check your inbox for verification link.</string>
@@ -74,6 +74,7 @@
     <string name="login_failed">Login failed</string>
     <string name="sign_up_failed">Sign up failed</string>
     <string name="error_occured">An error occurred</string>
+    <string name="info_updated_success">Info updated successfully!</string>
 
     // Deep linking
     <string name="host">jiahan8.github.io</string>
