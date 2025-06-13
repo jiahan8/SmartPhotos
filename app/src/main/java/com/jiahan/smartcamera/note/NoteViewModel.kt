@@ -21,6 +21,11 @@ import com.jiahan.smartcamera.datastore.ProfileRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.NoteMediaDetail
 import com.jiahan.smartcamera.domain.User
+import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
+import com.jiahan.smartcamera.util.FileConstants.EXTENSION_MP4
+import com.jiahan.smartcamera.util.FileConstants.FILE_PROVIDER_AUTHORITY
+import com.jiahan.smartcamera.util.FileConstants.PREFIX_PHOTO
+import com.jiahan.smartcamera.util.FileConstants.PREFIX_VIDEO
 import com.jiahan.smartcamera.util.ResourceProvider
 import com.jiahan.smartcamera.util.Util.createVideoThumbnail
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -129,14 +134,14 @@ class NoteViewModel @Inject constructor(
         val timeStamp = System.currentTimeMillis()
         val storageDir = context.cacheDir
         val imageFile = File.createTempFile(
-            "smartcameraphoto_${timeStamp}",
-            ".jpg",
+            "$PREFIX_PHOTO${timeStamp}",
+            EXTENSION_JPG,
             storageDir
         )
 
         return getUriForFile(
             context,
-            "com.jiahan.smartcamera.fileprovider",
+            FILE_PROVIDER_AUTHORITY,
             imageFile
         )
     }
@@ -145,14 +150,14 @@ class NoteViewModel @Inject constructor(
         val timeStamp = System.currentTimeMillis()
         val storageDir = context.cacheDir
         val videoFile = File.createTempFile(
-            "smartcameravideo_${timeStamp}",
-            ".mp4",
+            "$PREFIX_VIDEO${timeStamp}",
+            EXTENSION_MP4,
             storageDir
         )
 
         return getUriForFile(
             context,
-            "com.jiahan.smartcamera.fileprovider",
+            FILE_PROVIDER_AUTHORITY,
             videoFile
         )
     }

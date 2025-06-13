@@ -3,6 +3,7 @@ package com.jiahan.smartcamera.profile
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -35,6 +36,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
@@ -121,7 +123,8 @@ fun ProfileScreen(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(72.dp)
-                        .clip(CircleShape)
+                        .clip(CircleShape),
+                    alignment = Alignment.Center
                 )
             } ?: Image(
                 imageVector = Icons.Rounded.AccountCircle,
@@ -200,17 +203,20 @@ fun ProfileScreen(
                 )
             }
 
+            Spacer(modifier = Modifier.weight(1f))
+
             Button(
                 modifier = Modifier
+                    .padding(bottom = 16.dp)
                     .fillMaxWidth()
-                    .height(50.dp),
+                    .height(52.dp),
                 onClick = { viewModel.updateUserProfile() },
                 enabled = isFormChanged && isErrorFree && !isSaving
             ) {
                 if (isSaving) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp
+                        strokeWidth = 1.5.dp
                     )
                 } else {
                     Text(

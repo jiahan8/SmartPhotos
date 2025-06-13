@@ -103,8 +103,8 @@ class ProfileViewModel @Inject constructor(
         _usernameErrorMessage.value = null
         _errorMessage.value = null
 
-        val fullName = fullName.value.trim()
-        val userName = username.value.trim()
+        val trimmedFullName = fullName.value.trim()
+        val trimmedUsername = username.value.trim()
 
         if (!_isErrorFree.value) return
 
@@ -112,8 +112,8 @@ class ProfileViewModel @Inject constructor(
             _isLoading.value = true
 
             try {
-                if (userName != _user.value?.username &&
-                    !userDataRepository.isUsernameAvailable(userName)
+                if (trimmedUsername != _user.value?.username &&
+                    !userDataRepository.isUsernameAvailable(trimmedUsername)
                 ) {
                     _usernameErrorMessage.value =
                         resourceProvider.getString(R.string.username_not_available)
@@ -122,8 +122,8 @@ class ProfileViewModel @Inject constructor(
                 }
 
                 profileRepository.updateUserProfile(
-                    fullName = fullName,
-                    username = userName,
+                    fullName = trimmedFullName,
+                    username = trimmedUsername,
                     profilePictureUrl = null
                 )
                 loadUserData()
@@ -131,7 +131,7 @@ class ProfileViewModel @Inject constructor(
                 _updateSuccess.value = true
             } catch (e: Exception) {
                 _errorMessage.value =
-                    e.localizedMessage ?: resourceProvider.getString(R.string.error_occured)
+                    e.localizedMessage ?: resourceProvider.getString(R.string.error_occurred)
                 _updateSuccess.value = false
             } finally {
                 _isLoading.value = false
@@ -141,7 +141,7 @@ class ProfileViewModel @Inject constructor(
 
     fun validateUsername(username: String): ValidationResult {
         return when {
-            username.isBlank() -> ValidationResult.Error(R.string.all_fields_required)
+            username.isBlank() -> ValidationResult.Error(R.string.username_empty)
 
             username.length > 30 ->
                 ValidationResult.Error(R.string.username_too_long)
@@ -155,7 +155,7 @@ class ProfileViewModel @Inject constructor(
 
     fun validateFullName(fullName: String): ValidationResult {
         return when {
-            fullName.isBlank() -> ValidationResult.Error(R.string.all_fields_required)
+            fullName.isBlank() -> ValidationResult.Error(R.string.name_empty)
 
             fullName.length > 50 ->
                 ValidationResult.Error(R.string.name_too_long)

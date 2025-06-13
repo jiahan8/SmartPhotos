@@ -13,6 +13,8 @@ import com.google.mlkit.genai.imagedescription.ImageDescription
 import com.google.mlkit.genai.imagedescription.ImageDescriptionRequest
 import com.jiahan.smartcamera.database.dao.PhotoDao
 import com.jiahan.smartcamera.database.data.DatabasePhoto
+import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
+import com.jiahan.smartcamera.util.FileConstants.PREFIX_PHOTO
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -52,7 +54,7 @@ class DefaultSearchRepository @Inject constructor(
     suspend fun saveImage(bitmap: Bitmap, title: String) {
         return withContext(Dispatchers.IO) {
             // Create a unique filename
-            val filename = "IMG_${UUID.randomUUID()}.jpg"
+            val filename = "$PREFIX_PHOTO${UUID.randomUUID()}$EXTENSION_JPG"
             val file = File(imagesDir, filename)
 
             // Save the bitmap to file
@@ -77,7 +79,7 @@ class DefaultSearchRepository @Inject constructor(
     override suspend fun saveImageFromUri(uri: Uri, title: String) {
         return withContext(Dispatchers.IO) {
             // Create a unique filename
-            val filename = "IMG_${UUID.randomUUID()}.jpg"
+            val filename = "$PREFIX_PHOTO${UUID.randomUUID()}$EXTENSION_JPG"
             val file = File(imagesDir, filename)
 
             // Copy the content from URI to our file

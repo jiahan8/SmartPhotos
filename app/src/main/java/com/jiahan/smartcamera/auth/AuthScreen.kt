@@ -20,8 +20,6 @@ import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -64,7 +62,7 @@ fun AuthScreen(
     val email by viewModel.email.collectAsState()
     val password by viewModel.password.collectAsState()
     val fullName by viewModel.fullName.collectAsState()
-    val username by viewModel.userName.collectAsState()
+    val username by viewModel.username.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val isLoginMode by viewModel.isLoginMode.collectAsState()
@@ -91,188 +89,172 @@ fun AuthScreen(
                     top = padding.calculateTopPadding(),
                     start = padding.calculateStartPadding(LayoutDirection.Ltr),
                     end = padding.calculateEndPadding(LayoutDirection.Ltr)
-                )
-        ) {
-            AsyncImage(
-                model = R.drawable.home_image,
-                contentDescription = "Background image",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .align(Alignment.Center)
-                    .padding(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
                 ),
-                elevation = CardDefaults.cardElevation(3.dp)
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Text(
-                        text = stringResource(if (isLoginMode) R.string.sign_in else R.string.create_account),
-                        style = MaterialTheme.typography.titleLarge,
-                    )
+                AsyncImage(
+                    model = R.mipmap.ic_launcher,
+                    contentDescription = "Background image",
+                    contentScale = ContentScale.Crop,
+                )
 
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { viewModel.updateEmailText(it) },
+                    label = { Text(stringResource(R.string.email)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Next
+                    ),
+                    leadingIcon = { Icon(Icons.Rounded.Email, contentDescription = null) }
+                )
+
+                var passwordVisible by remember { mutableStateOf(false) }
+
+                if (!isLoginMode) {
                     OutlinedTextField(
-                        value = email,
-                        onValueChange = { viewModel.updateEmailText(it) },
-                        label = { Text(stringResource(R.string.email)) },
+                        value = fullName,
+                        onValueChange = { viewModel.updateFullNameText(it) },
+                        label = { Text(stringResource(R.string.name)) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.large,
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Email,
-                            imeAction = ImeAction.Next
-                        ),
-                        leadingIcon = { Icon(Icons.Rounded.Email, contentDescription = null) }
+                        leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null) },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                     )
 
-                    var passwordVisible by remember { mutableStateOf(false) }
-
-                    if (!isLoginMode) {
-                        OutlinedTextField(
-                            value = fullName,
-                            onValueChange = { viewModel.updateFullNameText(it) },
-                            label = { Text(stringResource(R.string.name)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.large,
-                            singleLine = true,
-                            leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null) },
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
-                        )
-
-                        OutlinedTextField(
-                            value = username,
-                            onValueChange = { viewModel.updateUsernameText(it) },
-                            label = { Text(stringResource(R.string.username)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.large,
-                            singleLine = true,
-                            leadingIcon = {
-                                Icon(Icons.Rounded.AccountCircle, contentDescription = null)
-                            },
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
-                        )
-                    }
-
                     OutlinedTextField(
-                        value = password,
-                        onValueChange = { viewModel.updatePasswordText(it) },
-                        label = { Text(stringResource(R.string.password)) },
+                        value = username,
+                        onValueChange = { viewModel.updateUsernameText(it) },
+                        label = { Text(stringResource(R.string.username)) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.large,
                         singleLine = true,
-                        visualTransformation = if (passwordVisible)
-                            VisualTransformation.None
-                        else
-                            PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Password,
-                            imeAction = ImeAction.Done
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = {
-                                if (isLoginMode) {
-                                    viewModel.signIn()
-                                } else {
-                                    viewModel.signUp()
-                                }
-                            }
-                        ),
-                        leadingIcon = { Icon(Icons.Rounded.Lock, contentDescription = null) },
-                        trailingIcon = {
-                            Icon(
-                                modifier = Modifier.clickable(
-                                    interactionSource = null,
-                                    indication = null
-                                ) {
-                                    passwordVisible = !passwordVisible
-                                },
-                                painter = if (passwordVisible)
-                                    painterResource(R.drawable.visibility)
-                                else
-                                    painterResource(R.drawable.visibility_off),
-                                contentDescription = if (passwordVisible)
-                                    "Hide password"
-                                else
-                                    "Show password"
-                            )
-                        }
+                        leadingIcon = {
+                            Icon(Icons.Rounded.AccountCircle, contentDescription = null)
+                        },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                     )
+                }
 
-                    if (errorMessage.isNotEmpty()) {
-                        Text(
-                            text = errorMessage,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Button(
-                        onClick = {
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { viewModel.updatePasswordText(it) },
+                    label = { Text(stringResource(R.string.password)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    singleLine = true,
+                    visualTransformation = if (passwordVisible)
+                        VisualTransformation.None
+                    else
+                        PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
                             if (isLoginMode) {
                                 viewModel.signIn()
                             } else {
                                 viewModel.signUp()
                             }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        enabled = !isLoading
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text(
-                                text = stringResource(if (isLoginMode) R.string.login else R.string.sign_up),
-                                style = MaterialTheme.typography.bodyLarge
-                            )
                         }
-                    }
-
-                    if (!isLoginMode) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = stringResource(R.string.email_verification_note),
-                            style = MaterialTheme.typography.bodySmall,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
+                    ),
+                    leadingIcon = { Icon(Icons.Rounded.Lock, contentDescription = null) },
+                    trailingIcon = {
+                        Icon(
+                            modifier = Modifier.clickable(
+                                interactionSource = null,
+                                indication = null
+                            ) {
+                                passwordVisible = !passwordVisible
+                            },
+                            painter = if (passwordVisible)
+                                painterResource(R.drawable.visibility)
+                            else
+                                painterResource(R.drawable.visibility_off),
+                            contentDescription = if (passwordVisible)
+                                "Hide password"
+                            else
+                                "Show password"
                         )
                     }
+                )
 
-                    TextButton(onClick = { viewModel.toggleAuthMode() }) {
-                        Text(stringResource(if (isLoginMode) R.string.need_account else R.string.already_have_account))
-                    }
+                if (errorMessage.isNotEmpty()) {
+                    Text(
+                        text = errorMessage,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
 
-                    if (isLoginMode) {
-                        TextButton(onClick = { viewModel.resetPassword() }) {
-                            Text(stringResource(R.string.forgot_password))
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = {
+                        if (isLoginMode) {
+                            viewModel.signIn()
+                        } else {
+                            viewModel.signUp()
                         }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    enabled = !isLoading
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 1.5.dp
+                        )
+                    } else {
+                        Text(
+                            text = stringResource(if (isLoginMode) R.string.login else R.string.sign_up),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
                     }
+                }
 
-                    if (errorMessage.contains(stringResource(R.string.verification_email_sent)) ||
-                        errorMessage.contains(stringResource(R.string.email_not_verified))
-                    ) {
-                        TextButton(onClick = { viewModel.resendVerificationEmail() }) {
-                            Text(stringResource(R.string.resend_verification_email))
-                        }
+                if (!isLoginMode) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.email_verification_note),
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                TextButton(onClick = { viewModel.toggleAuthMode() }) {
+                    Text(stringResource(if (isLoginMode) R.string.need_account else R.string.already_have_account))
+                }
+
+                if (isLoginMode) {
+                    TextButton(onClick = { viewModel.resetPassword() }) {
+                        Text(stringResource(R.string.forgot_password))
+                    }
+                }
+
+                if (errorMessage.contains(stringResource(R.string.verification_email_sent)) ||
+                    errorMessage.contains(stringResource(R.string.email_not_verified))
+                ) {
+                    TextButton(onClick = { viewModel.resendVerificationEmail() }) {
+                        Text(stringResource(R.string.resend_verification_email))
                     }
                 }
             }

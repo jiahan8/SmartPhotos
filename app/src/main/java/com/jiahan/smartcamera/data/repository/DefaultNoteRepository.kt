@@ -1,5 +1,6 @@
 package com.jiahan.smartcamera.data.repository
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import com.google.firebase.Firebase
@@ -9,10 +10,15 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.storage
+import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.datastore.UserDataRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.domain.NoteMediaDetail
+import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
+import com.jiahan.smartcamera.util.FileConstants.EXTENSION_MP4
+import com.jiahan.smartcamera.util.FileConstants.PREFIX_THUMBNAIL
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -23,6 +29,7 @@ import java.util.UUID
 import javax.inject.Inject
 
 class DefaultNoteRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val remoteConfigRepository: RemoteConfigRepository,
     private val userDataRepository: UserDataRepository,
     private val firestore: FirebaseFirestore,
@@ -239,22 +246,23 @@ class DefaultNoteRepository @Inject constructor(
                 async(Dispatchers.IO) {
                     try {
                         val mediaId = UUID.randomUUID().toString()
-                        val extension = if (noteMediaDetail.isVideo) ".mp4" else ".jpg"
+                        val extension =
+                            if (noteMediaDetail.isVideo) EXTENSION_MP4 else EXTENSION_JPG
                         val storageRef =
                             storage.reference.child("$storageFolder/$mediaId$extension")
 
                         val mediaUri = noteMediaDetail.photoUri ?: noteMediaDetail.videoUri
                         if (mediaUri == null) {
-                            throw IllegalStateException("No media URI available for upload")
+                            throw IllegalStateException(context.getString(R.string.no_media_available))
                         }
 
                         storageRef.putFile(mediaUri).await()
                         val mediaUrl = storageRef.downloadUrl.await().toString()
 
                         val thumbnailUrl = noteMediaDetail.thumbnailBitmap?.let {
-                            val thumbnailId = "thumbnail_" + UUID.randomUUID().toString()
+                            val thumbnailId = PREFIX_THUMBNAIL + UUID.randomUUID().toString()
                             val thumbnailRef =
-                                storage.reference.child("$storageFolder/$thumbnailId.jpg")
+                                storage.reference.child("$storageFolder/$thumbnailId$EXTENSION_JPG")
 
                             ByteArrayOutputStream().use { baos ->
                                 it.compress(Bitmap.CompressFormat.JPEG, 90, baos)

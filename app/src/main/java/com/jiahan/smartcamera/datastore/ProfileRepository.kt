@@ -77,7 +77,7 @@ class ProfileRepository @Inject constructor(
                 getUserData(it)
             }
         } catch (e: Exception) {
-            throw Exception("Failed to fetch user: ${e.localizedMessage}", e)
+            throw Exception(e.localizedMessage)
         }
     }
 
@@ -88,7 +88,7 @@ class ProfileRepository @Inject constructor(
                 getUserData(it)
             }
         } catch (e: Exception) {
-            throw Exception("Failed to fetch user: ${e.localizedMessage}", e)
+            throw Exception(e.localizedMessage)
         }
     }
 

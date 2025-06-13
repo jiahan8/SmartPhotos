@@ -23,8 +23,8 @@ class AuthViewModel @Inject constructor(
     val password = _password.asStateFlow()
     private val _fullName = MutableStateFlow("")
     val fullName = _fullName.asStateFlow()
-    private val _userName = MutableStateFlow("")
-    val userName = _userName.asStateFlow()
+    private val _username = MutableStateFlow("")
+    val username = _username.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading = _isLoading.asStateFlow()
@@ -49,7 +49,7 @@ class AuthViewModel @Inject constructor(
     }
 
     fun updateUsernameText(text: String) {
-        _userName.value = text
+        _username.value = text
     }
 
     fun toggleAuthMode() {
@@ -62,13 +62,13 @@ class AuthViewModel @Inject constructor(
         _email.value = ""
         _password.value = ""
         _fullName.value = ""
-        _userName.value = ""
+        _username.value = ""
     }
 
     fun signIn() {
-        val email = email.value.trim()
+        val trimmedEmail = email.value.trim()
 
-        if (email.isBlank() || password.value.isBlank()) {
+        if (trimmedEmail.isBlank() || password.value.isBlank()) {
             _errorMessage.value = resourceProvider.getString(R.string.email_password_empty)
             return
         }
@@ -78,7 +78,7 @@ class AuthViewModel @Inject constructor(
             _errorMessage.value = ""
 
             try {
-                val result = userDataRepository.signIn(email, password.value)
+                val result = userDataRepository.signIn(trimmedEmail, password.value)
                 if (result.isSuccess) {
                     if (userDataRepository.isEmailVerified()) {
                         _navigationEvent.value = NavigationEvent.NavigateToHome
@@ -88,11 +88,11 @@ class AuthViewModel @Inject constructor(
                     }
                 } else {
                     _errorMessage.value = result.exceptionOrNull()?.localizedMessage
-                        ?: resourceProvider.getString(R.string.login_failed)
+                        ?: resourceProvider.getString(R.string.login_failure)
                 }
             } catch (e: Exception) {
                 _errorMessage.value =
-                    e.localizedMessage ?: resourceProvider.getString(R.string.error_occured)
+                    e.localizedMessage ?: resourceProvider.getString(R.string.error_occurred)
             } finally {
                 _isLoading.value = false
             }
@@ -100,21 +100,21 @@ class AuthViewModel @Inject constructor(
     }
 
     fun signUp() {
-        val email = email.value.trim()
-        val fullName = fullName.value.trim()
-        val userName = userName.value.trim()
+        val trimmedEmail = email.value.trim()
+        val trimmedFullName = fullName.value.trim()
+        val trimmedUsername = username.value.trim()
 
-        if (email.isBlank() || password.value.isBlank()) {
+        if (trimmedEmail.isBlank() || password.value.isBlank()) {
             _errorMessage.value = resourceProvider.getString(R.string.email_password_empty)
             return
         }
 
-        if (fullName.isBlank() || userName.isBlank()) {
+        if (trimmedFullName.isBlank() || trimmedUsername.isBlank()) {
             _errorMessage.value = resourceProvider.getString(R.string.all_fields_required)
             return
         }
 
-        when (val result = validateFullName(fullName)) {
+        when (val result = validateFullName(trimmedFullName)) {
             is ValidationResult.Error -> {
                 _errorMessage.value = resourceProvider.getString(result.messageResId)
                 return
@@ -123,7 +123,7 @@ class AuthViewModel @Inject constructor(
             else -> {}
         }
 
-        when (val result = validateUsername(userName)) {
+        when (val result = validateUsername(trimmedUsername)) {
             is ValidationResult.Error -> {
                 _errorMessage.value = resourceProvider.getString(result.messageResId)
                 return
@@ -137,26 +137,26 @@ class AuthViewModel @Inject constructor(
             _errorMessage.value = ""
 
             try {
-                if (!userDataRepository.isUsernameAvailable(userName)) {
+                if (!userDataRepository.isUsernameAvailable(trimmedUsername)) {
                     throw Exception(resourceProvider.getString(R.string.username_not_available))
                 }
 
                 val result = userDataRepository.signUp(
-                    email = email,
+                    email = trimmedEmail,
                     password = password.value,
-                    fullName = fullName,
-                    username = userName
+                    fullName = trimmedFullName,
+                    username = trimmedUsername
                 )
                 if (result.isSuccess) {
                     _errorMessage.value =
                         resourceProvider.getString(R.string.verification_email_sent)
                 } else {
                     _errorMessage.value = result.exceptionOrNull()?.localizedMessage
-                        ?: resourceProvider.getString(R.string.sign_up_failed)
+                        ?: resourceProvider.getString(R.string.sign_up_failure)
                 }
             } catch (e: Exception) {
                 _errorMessage.value =
-                    e.localizedMessage ?: resourceProvider.getString(R.string.error_occured)
+                    e.localizedMessage ?: resourceProvider.getString(R.string.error_occurred)
             } finally {
                 _isLoading.value = false
             }
@@ -164,9 +164,9 @@ class AuthViewModel @Inject constructor(
     }
 
     fun resetPassword() {
-        val email = email.value.trim()
+        val trimmedEmail = email.value.trim()
 
-        if (email.isBlank()) {
+        if (trimmedEmail.isBlank()) {
             _errorMessage.value = resourceProvider.getString(R.string.enter_email)
             return
         }
@@ -176,22 +176,22 @@ class AuthViewModel @Inject constructor(
             _errorMessage.value = ""
 
             try {
-                if (!userDataRepository.isEmailRegistered(email)) {
+                if (!userDataRepository.isEmailRegistered(trimmedEmail)) {
                     throw Exception(resourceProvider.getString(R.string.email_not_registered))
                 }
 
-                val result = userDataRepository.resetPassword(email)
+                val result = userDataRepository.resetPassword(trimmedEmail)
                 if (result.isSuccess) {
                     _errorMessage.value =
                         resourceProvider.getString(R.string.password_reset_email_sent)
                 } else {
                     _errorMessage.value =
                         result.exceptionOrNull()?.localizedMessage
-                            ?: resourceProvider.getString(R.string.password_reset_failed)
+                            ?: resourceProvider.getString(R.string.password_reset_failure)
                 }
             } catch (e: Exception) {
                 _errorMessage.value =
-                    e.localizedMessage ?: resourceProvider.getString(R.string.error_occured)
+                    e.localizedMessage ?: resourceProvider.getString(R.string.error_occurred)
             } finally {
                 _isLoading.value = false
             }
@@ -227,7 +227,7 @@ class AuthViewModel @Inject constructor(
                 _errorMessage.value = resourceProvider.getString(R.string.verification_email_resent)
             } catch (e: Exception) {
                 _errorMessage.value =
-                    e.localizedMessage ?: resourceProvider.getString(R.string.error_occured)
+                    e.localizedMessage ?: resourceProvider.getString(R.string.error_occurred)
             } finally {
                 _isLoading.value = false
             }

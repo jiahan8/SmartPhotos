@@ -52,8 +52,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.jiahan.smartcamera.Screen.ImagePreview.DETECT_ARG
+import com.jiahan.smartcamera.Screen.ImagePreview.IMAGE_DEEP_LINK_URI_PATTERN
 import com.jiahan.smartcamera.Screen.ImagePreview.TEXT_ARG
 import com.jiahan.smartcamera.Screen.ImagePreview.URI_ARG
+import com.jiahan.smartcamera.Screen.Search.SEARCH_DEEP_LINK_URI_PATTERN
 import com.jiahan.smartcamera.auth.AuthScreen
 import com.jiahan.smartcamera.favorite.FavoriteScreen
 import com.jiahan.smartcamera.home.HomeScreen
@@ -353,17 +355,16 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private const val SEARCH_DEEP_LINK_URI_PATTERN = "live://jiahan8.github.io/search"
-private const val IMAGE_DEEP_LINK_URI_PATTERN =
-    "live://jiahan8.github.io/image?uri={$URI_ARG}&text={$TEXT_ARG}&detect={$DETECT_ARG}"
-
 sealed class Screen(
     val route: String,
     val title: String,
     val icon: ImageVector?
 ) {
     object Home : Screen("home", "Home", Icons.Outlined.Home)
-    object Search : Screen("search", "Search", Icons.Outlined.Search)
+    object Search : Screen("search", "Search", Icons.Outlined.Search) {
+        const val SEARCH_DEEP_LINK_URI_PATTERN = "live://jiahan8.github.io/search"
+    }
+
     object Note : Screen("note", "Note", Icons.Outlined.Create)
     object Favorite : Screen("favorite", "Favorite", Icons.Outlined.FavoriteBorder)
     object ImagePreview : Screen(
@@ -374,6 +375,9 @@ sealed class Screen(
         const val URI_ARG = "uri"
         const val TEXT_ARG = "text"
         const val DETECT_ARG = "detect"
+        const val IMAGE_DEEP_LINK_URI_PATTERN =
+            "live://jiahan8.github.io/image?uri={$URI_ARG}&text={$TEXT_ARG}&detect={$DETECT_ARG}"
+
         fun createRoute(imageUri: String, text: String, detect: Boolean = false) =
             "image?uri=$imageUri&text=$text&detect=$detect"
     }
