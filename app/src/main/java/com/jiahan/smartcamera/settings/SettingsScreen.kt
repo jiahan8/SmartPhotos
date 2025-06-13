@@ -179,6 +179,20 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
+                    }
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.language),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            HorizontalDivider(thickness = 0.5.dp)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
                         viewModel.showLogoutDialog()
                     }
                     .padding(horizontal = 16.dp, vertical = 16.dp),

@@ -108,12 +108,12 @@ fun ProfileScreen(
     ) { padding ->
         Column(
             modifier = Modifier
+                .fillMaxSize()
                 .padding(
                     top = padding.calculateTopPadding(),
                     start = padding.calculateStartPadding(LayoutDirection.Ltr) + 16.dp,
                     end = padding.calculateEndPadding(LayoutDirection.Ltr) + 16.dp
-                )
-                .fillMaxSize(),
+                ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             profilePictureUrl?.let {

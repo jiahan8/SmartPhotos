@@ -1,0 +1,87 @@
+<resources>
+    <string name="app_name">スマートフォト</string>
+
+    <!-- Photo -->
+    <string name="photo">写真</string>
+    <string name="search_photos">写真を検索</string>
+    <string name="no_photos_found">写真が見つかりません</string>
+    <string name="saved_at">%s に保存されました</string>
+
+    <!-- Home -->
+    <string name="no_notes_found">メモが見つかりません</string>
+    <string name="delete_note">メモを削除</string>
+    <string name="delete_note_desc">このメモを削除してもよろしいですか？</string>
+    <string name="delete">削除</string>
+    <string name="cancel">キャンセル</string>
+
+    <!-- Search -->
+    <string name="search_notes">メモを検索</string>
+    <string name="no_results_found">結果が見つかりません</string>
+
+    <!-- Note -->
+    <string name="new_note">新しいメモ</string>
+    <string name="whats_new">新着情報</string>
+    <string name="post">投稿</string>
+    <string name="post_success">投稿が正常にアップロードされました</string>
+    <string name="post_failure">投稿のアップロードに失敗しました</string>
+    <string name="post_validation">投稿は200文字以内で入力してください</string>
+    <string name="no_media_available">アップロードするメディアがありません</string>
+
+    <!-- Favorite -->
+    <string name="search_favorites">お気に入りを検索</string>
+
+    <!-- Settings -->
+    <string name="settings">設定</string>
+    <string name="dark_theme">ダークテーマ</string>
+    <string name="language">言語</string>
+    <string name="log_out">ログアウト</string>
+    <string name="log_out_desc">ログアウトしてもよろしいですか？</string>
+    <string name="delete_account">アカウントを削除</string>
+    <string name="delete_account_desc">このアカウントを削除してもよろしいですか？</string>
+
+    <!-- Profile -->
+    <string name="profile">プロフィール</string>
+    <string name="save_changes">変更を保存</string>
+
+    <!-- Note preview -->
+    <string name="note">メモ</string>
+
+    <!-- Authentication -->
+    <string name="email">メールアドレス</string>
+    <string name="name">名前</string>
+    <string name="username">ユーザー名</string>
+    <string name="password">パスワード</string>
+    <string name="login">ログイン</string>
+    <string name="sign_up">サインアップ</string>
+    <string name="need_account">アカウントをお持ちでない方はこちら</string>
+    <string name="already_have_account">すでにアカウントをお持ちですか？サインイン</string>
+    <string name="forgot_password">パスワードをお忘れですか？</string>
+    <string name="email_password_empty">メールアドレスとパスワードを入力してください</string>
+    <string name="all_fields_required">すべての項目を入力してください</string>
+    <string name="password_reset_email_sent">パスワードリセットのメールを送信しました</string>
+    <string name="password_reset_failure">パスワードリセットに失敗しました</string>
+    <string name="enter_email">まずメールアドレスを入力してください</string>
+    <string name="username_not_available">別のユーザー名を選択してください</string>
+    <string name="email_not_registered">このメールアドレスは登録されていません</string>
+    <string name="username_too_long">ユーザー名は30文字以内で入力してください</string>
+    <string name="name_too_long">名前は50文字以内で入力してください</string>
+    <string name="username_invalid_characters">ユーザー名には英数字、ピリオド、アンダースコアのみ使用できます</string>
+    <string name="verification_email_sent">確認メールを送信しました。メールを確認し、認証を完了してください。</string>
+    <string name="email_not_verified">メールを認証してください。受信箱を確認して認証リンクを開いてください。</string>
+    <string name="verification_email_resent">確認メールを再送信しました。受信箱をご確認ください。</string>
+    <string name="email_verification_note">アカウントにアクセスするには、メールアドレスの認証が必要です。</string>
+    <string name="resend_verification_email">確認メールを再送信</string>
+    <string name="login_failure">ログインに失敗しました</string>
+    <string name="sign_up_failure">サインアップに失敗しました</string>
+    <string name="error_occurred">エラーが発生しました</string>
+    <string name="name_empty">名前を入力してください</string>
+    <string name="username_empty">ユーザー名を入力してください</string>
+    <string name="info_updated_success">情報を更新しました</string>
+
+    <!-- Deep linking -->
+    <string name="host">jiahan8.github.io</string>
+    <string name="scheme">live</string>
+    <string name="search_path_prefix">/search</string>
+    <string name="image_path_prefix">/image</string>
+    <string name="https">https</string>
+</resources>
