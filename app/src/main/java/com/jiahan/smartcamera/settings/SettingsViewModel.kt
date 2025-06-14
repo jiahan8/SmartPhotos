@@ -24,6 +24,8 @@ class SettingsViewModel @Inject constructor(
     val isLoading = _isLoading.asStateFlow()
     private val _dialogState = MutableStateFlow<DialogState>(DialogState.None)
     val dialogState = _dialogState.asStateFlow()
+    private val _isActionError = MutableStateFlow(false)
+    val isActionError = _isActionError.asStateFlow()
 
     val isDarkTheme = profileRepository.userPreferencesFlow
         .map { it.isDarkTheme }
@@ -42,20 +44,32 @@ class SettingsViewModel @Inject constructor(
     fun signOut() {
         viewModelScope.launch {
             _isLoading.value = true
-            profileRepository.signOut()
-            delay(1000)
-            _navigationEvent.value = NavigationEvent.NavigateToAuth
-            _isLoading.value = false
+            try {
+                profileRepository.signOut()
+                delay(1000)
+                _navigationEvent.value = NavigationEvent.NavigateToAuth
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _isActionError.value = true
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
     fun deleteAccount() {
         viewModelScope.launch {
             _isLoading.value = true
-            profileRepository.deleteAccount()
-            delay(1000)
-            _navigationEvent.value = NavigationEvent.NavigateToAuth
-            _isLoading.value = false
+            try {
+                profileRepository.deleteAccount()
+                delay(1000)
+                _navigationEvent.value = NavigationEvent.NavigateToAuth
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _isActionError.value = true
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
@@ -73,6 +87,10 @@ class SettingsViewModel @Inject constructor(
 
     fun navigationEventConsumed() {
         _navigationEvent.value = null
+    }
+
+    fun resetActionError() {
+        _isActionError.value = false
     }
 
     sealed class DialogState {

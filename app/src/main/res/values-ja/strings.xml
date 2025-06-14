@@ -26,7 +26,7 @@
     <string name="whats_new">新着情報</string>
     <string name="post">投稿</string>
     <string name="post_success">投稿が正常にアップロードされました</string>
-    <string name="post_failure">投稿のアップロードに失敗しました</string>
+    <string name="post_failure">投稿のアップロードに失敗しました。もう一度お試しください。</string>
     <string name="post_validation">投稿は200文字以内で入力してください</string>
     <string name="no_media_available">アップロードするメディアがありません</string>
 
@@ -42,6 +42,7 @@
     <string name="log_out_desc">ログアウトしてもよろしいですか？</string>
     <string name="delete_account">アカウントを削除</string>
     <string name="delete_account_desc">このアカウントを削除してもよろしいですか？</string>
+    <string name="action_failure">問題が発生しました。もう一度お試しください。</string>
 
     <!-- Profile -->
     <string name="profile">プロフィール</string>
@@ -67,7 +68,7 @@
     <string name="email_password_empty">メールアドレスとパスワードを入力してください</string>
     <string name="all_fields_required">すべての項目を入力してください</string>
     <string name="password_reset_email_sent">パスワードリセットのメールを送信しました</string>
-    <string name="password_reset_failure">パスワードリセットに失敗しました</string>
+    <string name="password_reset_failure">パスワードをリセットできませんでした。もう一度お試しください。</string>
     <string name="enter_email">まずメールアドレスを入力してください</string>
     <string name="username_not_available">別のユーザー名を選択してください</string>
     <string name="email_not_registered">このメールアドレスは登録されていません</string>
@@ -79,13 +80,13 @@
     <string name="verification_email_resent">確認メールを再送信しました。受信箱をご確認ください。</string>
     <string name="email_verification_note">アカウントにアクセスするには、メールアドレスの認証が必要です。</string>
     <string name="resend_verification_email">確認メールを再送信</string>
-    <string name="login_failure">ログインに失敗しました</string>
-    <string name="sign_up_failure">サインアップに失敗しました</string>
+    <string name="login_failure">ログインできませんでした。メールアドレスとパスワードをご確認ください。</string>
+    <string name="sign_up_failure">アカウントを作成できませんでした。もう一度お試しください。</string>
     <string name="error_occurred">エラーが発生しました</string>
     <string name="name_empty">名前を入力してください</string>
     <string name="username_empty">ユーザー名を入力してください</string>
     <string name="info_updated_success">情報を更新しました</string>
-    <string name="info_updated_failure">情報の更新に失敗しました</string>
+    <string name="info_updated_failure">プロフィールを更新できませんでした。もう一度お試しください。</string>
 
     <!-- Deep linking -->
     <string name="host">jiahan8.github.io</string>

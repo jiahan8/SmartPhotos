@@ -3,18 +3,22 @@ package com.jiahan.smartcamera
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.datastore.ProfileRepository
-import com.jiahan.smartcamera.datastore.UserDataRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    profileRepository: ProfileRepository,
-    userDataRepository: UserDataRepository
+    profileRepository: ProfileRepository
 ) : ViewModel() {
+
+    private val _startDestination = MutableStateFlow(Screen.Auth.route)
+    val startDestination = _startDestination.asStateFlow()
 
     val isDarkTheme = profileRepository.userPreferencesFlow
         .map { it.isDarkTheme }
@@ -24,9 +28,13 @@ class MainViewModel @Inject constructor(
             initialValue = false
         )
 
-    val startDestination =
-        if (userDataRepository.firebaseUser != null && userDataRepository.isEmailVerified())
-            Screen.Home.route
-        else
-            Screen.Auth.route
+    init {
+        viewModelScope.launch {
+            _startDestination.value =
+                if (profileRepository.firebaseUser != null && profileRepository.isEmailVerified())
+                    Screen.Home.route
+                else
+                    Screen.Auth.route
+        }
+    }
 }

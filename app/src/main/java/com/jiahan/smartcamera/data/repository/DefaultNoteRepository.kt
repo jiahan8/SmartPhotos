@@ -11,7 +11,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.storage
 import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.datastore.UserDataRepository
+import com.jiahan.smartcamera.datastore.ProfileRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.domain.NoteMediaDetail
@@ -31,13 +31,13 @@ import javax.inject.Inject
 class DefaultNoteRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val remoteConfigRepository: RemoteConfigRepository,
-    private val userDataRepository: UserDataRepository,
+    private val profileRepository: ProfileRepository,
     private val firestore: FirebaseFirestore,
 ) : NoteRepository {
 
     private val pageToLastVisibleDocument = mutableMapOf<Int, DocumentSnapshot>()
     private val noteCollectionReference: CollectionReference?
-        get() = userDataRepository.firebaseUser?.uid?.let { id ->
+        get() = profileRepository.firebaseUser?.uid?.let { id ->
             firestore.collection("user")
                 .document(id)
                 .collection("note")
@@ -97,7 +97,7 @@ class DefaultNoteRepository @Inject constructor(
     }
 
     override suspend fun addNote(homeNote: HomeNote) {
-        val userId = userDataRepository.firebaseUser?.uid ?: return
+        val userId = profileRepository.firebaseUser?.uid ?: return
         noteCollectionReference?.add(
             hashMapOf(
                 "text" to homeNote.text,

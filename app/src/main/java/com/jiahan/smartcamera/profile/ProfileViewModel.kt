@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.auth.AuthViewModel.ValidationResult
 import com.jiahan.smartcamera.datastore.ProfileRepository
-import com.jiahan.smartcamera.datastore.UserDataRepository
 import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.ResourceProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,7 +16,6 @@ import javax.inject.Inject
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val profileRepository: ProfileRepository,
-    private val userDataRepository: UserDataRepository,
     private val resourceProvider: ResourceProvider
 ) : ViewModel() {
 
@@ -49,10 +47,10 @@ class ProfileViewModel @Inject constructor(
     val updateError = _updateError.asStateFlow()
 
     init {
-        loadUserData()
+        loadUserProfile()
     }
 
-    private fun loadUserData() {
+    private fun loadUserProfile() {
         viewModelScope.launch {
             _user.value = profileRepository.getUser()
             _email.value = _user.value?.email ?: ""
@@ -115,7 +113,7 @@ class ProfileViewModel @Inject constructor(
 
             try {
                 if (trimmedUsername != _user.value?.username &&
-                    !userDataRepository.isUsernameAvailable(trimmedUsername)
+                    !profileRepository.isUsernameAvailable(trimmedUsername)
                 ) {
                     _usernameErrorMessage.value =
                         resourceProvider.getString(R.string.username_not_available)
@@ -128,7 +126,7 @@ class ProfileViewModel @Inject constructor(
                     username = trimmedUsername,
                     profilePictureUrl = null
                 )
-                loadUserData()
+                loadUserProfile()
                 _isFormChanged.value = false
                 _updateSuccess.value = true
             } catch (e: Exception) {

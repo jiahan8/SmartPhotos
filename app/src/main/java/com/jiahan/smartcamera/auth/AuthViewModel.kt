@@ -3,7 +3,7 @@ package com.jiahan.smartcamera.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.datastore.UserDataRepository
+import com.jiahan.smartcamera.datastore.ProfileRepository
 import com.jiahan.smartcamera.util.ResourceProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,7 +13,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val userDataRepository: UserDataRepository,
+    private val profileRepository: ProfileRepository,
     private val resourceProvider: ResourceProvider
 ) : ViewModel() {
 
@@ -78,9 +78,9 @@ class AuthViewModel @Inject constructor(
             _errorMessage.value = ""
 
             try {
-                val result = userDataRepository.signIn(trimmedEmail, password.value)
+                val result = profileRepository.signIn(trimmedEmail, password.value)
                 if (result.isSuccess) {
-                    if (userDataRepository.isEmailVerified()) {
+                    if (profileRepository.isEmailVerified()) {
                         _navigationEvent.value = NavigationEvent.NavigateToHome
                     } else {
                         _errorMessage.value =
@@ -137,11 +137,11 @@ class AuthViewModel @Inject constructor(
             _errorMessage.value = ""
 
             try {
-                if (!userDataRepository.isUsernameAvailable(trimmedUsername)) {
+                if (!profileRepository.isUsernameAvailable(trimmedUsername)) {
                     throw Exception(resourceProvider.getString(R.string.username_not_available))
                 }
 
-                val result = userDataRepository.signUp(
+                val result = profileRepository.signUp(
                     email = trimmedEmail,
                     password = password.value,
                     fullName = trimmedFullName,
@@ -176,11 +176,11 @@ class AuthViewModel @Inject constructor(
             _errorMessage.value = ""
 
             try {
-                if (!userDataRepository.isEmailRegistered(trimmedEmail)) {
+                if (!profileRepository.isEmailRegistered(trimmedEmail)) {
                     throw Exception(resourceProvider.getString(R.string.email_not_registered))
                 }
 
-                val result = userDataRepository.resetPassword(trimmedEmail)
+                val result = profileRepository.resetPassword(trimmedEmail)
                 if (result.isSuccess) {
                     _errorMessage.value =
                         resourceProvider.getString(R.string.password_reset_email_sent)
@@ -223,7 +223,7 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                userDataRepository.sendEmailVerification()
+                profileRepository.sendEmailVerification()
                 _errorMessage.value = resourceProvider.getString(R.string.verification_email_resent)
             } catch (e: Exception) {
                 _errorMessage.value =

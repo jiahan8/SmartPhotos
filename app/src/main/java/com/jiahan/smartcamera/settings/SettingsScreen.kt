@@ -24,6 +24,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,6 +48,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.Screen
+import com.jiahan.smartcamera.common.CustomSnackbarHost
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,11 +60,15 @@ fun SettingsScreen(
     val configuration = LocalConfiguration.current
     val packageName = remember { context.packageName }
     val locale = ConfigurationCompat.getLocales(configuration).get(0)
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
     val navigationEvent by viewModel.navigationEvent.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val dialogState by viewModel.dialogState.collectAsState()
+    val actionError by viewModel.isActionError.collectAsState()
+
+    val actionFailureMessage = stringResource(R.string.action_failure)
 
     LaunchedEffect(navigationEvent) {
         when (navigationEvent) {
@@ -73,6 +80,13 @@ fun SettingsScreen(
             }
 
             null -> {}
+        }
+    }
+
+    LaunchedEffect(actionError) {
+        if (actionError) {
+            snackbarHostState.showSnackbar(actionFailureMessage, duration = SnackbarDuration.Short)
+            viewModel.resetActionError()
         }
     }
 
@@ -145,7 +159,8 @@ fun SettingsScreen(
                 },
                 windowInsets = WindowInsets(0.dp),
             )
-        }
+        },
+        snackbarHost = { CustomSnackbarHost(snackbarHostState) }
     ) { padding ->
         if (isLoading) {
             Box(

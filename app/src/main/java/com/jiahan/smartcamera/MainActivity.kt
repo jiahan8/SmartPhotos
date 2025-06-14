@@ -116,6 +116,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val isDarkTheme by viewModel.isDarkTheme.collectAsState()
+            val startDestination by viewModel.startDestination.collectAsState()
             val showBottomBar = remember { mutableStateOf(true) }
 
             SmartCameraTheme(
@@ -183,7 +184,7 @@ class MainActivity : ComponentActivity() {
                     ) { innerPadding ->
                         NavHost(
                             navController = navController,
-                            startDestination = viewModel.startDestination,
+                            startDestination = startDestination,
                             modifier = Modifier.padding(innerPadding)
                         ) {
                             composable(Screen.Home.route) {

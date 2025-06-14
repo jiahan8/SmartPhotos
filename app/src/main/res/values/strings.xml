@@ -26,7 +26,7 @@
     <string name="whats_new">What\'s new?</string>
     <string name="post">Post</string>
     <string name="post_success">Post uploaded successfully</string>
-    <string name="post_failure">Failed to upload post</string>
+    <string name="post_failure">Couldn\'t upload your post. Please try again.</string>
     <string name="post_validation">Post cannot exceed 200 characters</string>
     <string name="no_media_available">No media URI available for upload</string>
 
@@ -42,6 +42,7 @@
     <string name="log_out_desc">Are you sure you want to log out?</string>
     <string name="delete_account">Delete account</string>
     <string name="delete_account_desc">Are you sure you want to delete this account?</string>
+    <string name="action_failure">Something went wrong. Please try again.</string>
 
     <!-- Profile -->
     <string name="profile">Profile</string>
@@ -67,7 +68,7 @@
     <string name="email_password_empty">Email and password cannot be empty</string>
     <string name="all_fields_required">All fields are required</string>
     <string name="password_reset_email_sent">Password reset email sent</string>
-    <string name="password_reset_failure">Password reset failed</string>
+    <string name="password_reset_failure">Couldn\'t reset your password. Please try again.</string>
     <string name="enter_email">Please enter your email first</string>
     <string name="username_not_available">Please choose another username</string>
     <string name="email_not_registered">Email not registered</string>
@@ -79,13 +80,13 @@
     <string name="verification_email_resent">Verification email has been resent. Please check your inbox.</string>
     <string name="email_verification_note">You will need to verify your email address before accessing your account.</string>
     <string name="resend_verification_email">Resend verification email</string>
-    <string name="login_failure">Login failed</string>
-    <string name="sign_up_failure">Sign up failed</string>
+    <string name="login_failure">Couldn\'t login. Please check your email and password.</string>
+    <string name="sign_up_failure">Couldn\'t create your account. Please try again.</string>
     <string name="error_occurred">An error occurred</string>
     <string name="name_empty">Name cannot be empty</string>
     <string name="username_empty">Username cannot be empty</string>
     <string name="info_updated_success">Info updated successfully</string>
-    <string name="info_updated_failure">Failed to update info</string>
+    <string name="info_updated_failure">Couldn\'t update your profile. Please try again.</string>
 
     <!-- Deep linking -->
     <string name="host">jiahan8.github.io</string>
