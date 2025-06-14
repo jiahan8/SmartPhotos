@@ -150,7 +150,9 @@ fun FavoriteScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(
+                    strokeWidth = 1.5.dp
+                )
             }
         } else {
             PullToRefreshBox(
@@ -217,7 +219,7 @@ fun FavoriteScreen(
                                 ) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(32.dp),
-                                        strokeWidth = 2.dp
+                                        strokeWidth = 1.5.dp
                                     )
                                 }
                             }

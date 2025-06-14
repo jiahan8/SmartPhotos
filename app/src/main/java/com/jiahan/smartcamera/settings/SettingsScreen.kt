@@ -1,5 +1,8 @@
 package com.jiahan.smartcamera.settings
 
+import android.content.Intent
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,10 +32,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.os.ConfigurationCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.jiahan.smartcamera.R
@@ -44,6 +53,11 @@ fun SettingsScreen(
     navController: NavController,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val packageName = remember { context.packageName }
+    val locale = ConfigurationCompat.getLocales(configuration).get(0)
+
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
     val navigationEvent by viewModel.navigationEvent.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -138,7 +152,9 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(
+                    strokeWidth = 1.5.dp
+                )
             }
         }
         Column(
@@ -152,6 +168,11 @@ fun SettingsScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Icon(
+                    painter = painterResource(R.drawable.dark_mode),
+                    modifier = Modifier.padding(end = 12.dp),
+                    contentDescription = "Dark theme"
+                )
                 Text(
                     text = stringResource(R.string.dark_theme),
                     modifier = Modifier.weight(1f)
@@ -174,21 +195,43 @@ fun SettingsScreen(
                     }
                 )
             }
-            HorizontalDivider(thickness = 0.5.dp)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
+                        // For Android 13+ (API 33+), open app language settings
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            val intent = Intent(Settings.ACTION_APP_LOCALE_SETTINGS)
+                            intent.data = android.net.Uri.fromParts("package", packageName, null)
+                            context.startActivity(intent)
+                        } else {
+                            val intent = Intent(Settings.ACTION_LOCALE_SETTINGS)
+                            context.startActivity(intent)
+                        }
                     }
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Icon(
+                    painter = painterResource(R.drawable.translate),
+                    modifier = Modifier.padding(end = 12.dp),
+                    contentDescription = "Language"
+                )
                 Text(
                     text = stringResource(R.string.language),
+                    maxLines = 1,
                     modifier = Modifier.weight(1f)
                 )
+                locale?.let {
+                    Text(
+                        text = locale.displayLanguage,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(start = 12.dp),
+                    )
+                }
             }
-            HorizontalDivider(thickness = 0.5.dp)
+            HorizontalDivider(thickness = 2.dp)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -204,7 +247,6 @@ fun SettingsScreen(
                     modifier = Modifier.weight(1f)
                 )
             }
-            HorizontalDivider(thickness = 0.5.dp)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

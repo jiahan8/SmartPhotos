@@ -214,7 +214,7 @@ fun AuthScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp),
+                        .height(52.dp),
                     enabled = !isLoading
                 ) {
                     if (isLoading) {

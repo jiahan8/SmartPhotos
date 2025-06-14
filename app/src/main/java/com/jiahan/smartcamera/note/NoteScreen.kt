@@ -211,7 +211,9 @@ fun NoteScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(
+                        strokeWidth = 1.5.dp
+                    )
                 }
             }
             Column(
@@ -300,7 +302,7 @@ fun NoteScreen(
                                     AsyncImage(
                                         model = if (noteMediaDetail.isVideo) noteMediaDetail.thumbnailBitmap else noteMediaDetail.photoUri,
                                         modifier = Modifier
-                                            .height(205.dp)
+                                            .height(212.dp)
                                             .maskClip(MaterialTheme.shapes.extraLarge),
                                         contentDescription = "Image",
                                         contentScale = ContentScale.Crop,
