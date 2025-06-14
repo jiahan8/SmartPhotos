@@ -17,13 +17,21 @@
 
     <!-- Search -->
     <string name="search">Search</string>
-    <string name="search_notes">Search notes</string>
+    <string name="search_notes_photos">Search notes and photos</string>
+    <string name="find_photos">Find your photos</string>
+    <string name="what_you_looking_for">What are you looking for?</string>
+    <string name="find_notes">Find saved notes</string>
+    <string name="look_up">Look up something you wrote</string>
     <string name="no_results_found">No results found</string>
 
     <!-- Note -->
     <string name="note">Note</string>
     <string name="new_note">New note</string>
     <string name="whats_new">What\'s new?</string>
+    <string name="create_note">Create a note</string>
+    <string name="write_this_moment">Write about this moment</string>
+    <string name="whats_on_mind">What\'s on your mind?</string>
+    <string name="write_a_thought">Write a thought…</string>
     <string name="post">Post</string>
     <string name="post_success">Post uploaded successfully</string>
     <string name="post_failure">Couldn\'t upload your post. Please try again.</string>

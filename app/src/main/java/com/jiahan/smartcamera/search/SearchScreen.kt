@@ -1,5 +1,7 @@
 package com.jiahan.smartcamera.search
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -28,11 +30,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -41,6 +48,7 @@ import androidx.navigation.NavController
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.Screen
 import com.jiahan.smartcamera.home.HomeItem
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,6 +68,24 @@ fun SearchScreen(
     val isRefreshing by viewModel.refreshing.collectAsState()
     val isLoadingMore by viewModel.isLoadingMore.collectAsState()
     val noteToDelete by viewModel.noteToDelete.collectAsState()
+
+    val placeholderOptions =
+        listOf(
+            stringResource(R.string.search_notes_photos),
+            stringResource(R.string.find_photos),
+            stringResource(R.string.find_notes),
+            stringResource(R.string.what_you_looking_for),
+            stringResource(R.string.look_up)
+        )
+    val placeholderList = remember { placeholderOptions }
+    var currentPlaceholderIndex by remember { mutableIntStateOf(0) }
+    val placeholder = placeholderList[currentPlaceholderIndex]
+    var isTransitioning by remember { mutableStateOf(false) }
+    val placeholderAlpha by animateFloatAsState(
+        targetValue = if (isTransitioning) 0f else 1f,
+        animationSpec = tween(durationMillis = 500),
+        label = "placeholderAlpha"
+    )
 
     val onRefresh: () -> Unit = {
         coroutineScope.launch {
@@ -90,6 +116,17 @@ fun SearchScreen(
                     prevFirstVisibleItemScrollOffset = currentScrollOffset
                 }
             }
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(3000)
+            isTransitioning = true
+            delay(500)
+            currentPlaceholderIndex = (currentPlaceholderIndex + 1) % placeholderList.size
+            isTransitioning = false
+            delay(500)
+        }
     }
 
     noteToDelete?.let { note ->
@@ -136,7 +173,13 @@ fun SearchScreen(
                             .size(20.dp)
                     )
                 },
-                placeholder = { Text(text = stringResource(R.string.search_notes)) },
+                placeholder = {
+                    Text(
+                        text = placeholder,
+                        modifier = Modifier
+                            .graphicsLayer(alpha = placeholderAlpha)
+                    )
+                },
                 colors = TextFieldDefaults.colors(
                     cursorColor = Color.Gray,
                     unfocusedIndicatorColor = Color.Transparent,

@@ -6,6 +6,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -46,6 +48,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -56,6 +59,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -71,6 +75,7 @@ import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.Screen
 import com.jiahan.smartcamera.common.CustomSnackbarHost
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,6 +99,24 @@ fun NoteScreen(
     val uploadError by viewModel.uploadError.collectAsState()
     val postTextError by viewModel.postTextError.collectAsState()
     val buttonEnabled by viewModel.postButtonEnabled.collectAsState()
+
+    val placeholderOptions =
+        listOf(
+            stringResource(R.string.whats_new),
+            stringResource(R.string.create_note),
+            stringResource(R.string.write_this_moment),
+            stringResource(R.string.whats_on_mind),
+            stringResource(R.string.write_a_thought)
+        )
+    val placeholderList = remember { placeholderOptions }
+    var currentPlaceholderIndex by remember { mutableIntStateOf(0) }
+    val placeholder = placeholderList[currentPlaceholderIndex]
+    var isTransitioning by remember { mutableStateOf(false) }
+    val placeholderAlpha by animateFloatAsState(
+        targetValue = if (isTransitioning) 0f else 1f,
+        animationSpec = tween(durationMillis = 500),
+        label = "placeholderAlpha"
+    )
 
     val postSuccessMessage = stringResource(R.string.post_success)
     val postFailureMessage = stringResource(R.string.post_failure)
@@ -180,6 +203,17 @@ fun NoteScreen(
             keyboardController?.hide()
             snackbarHostState.showSnackbar(postFailureMessage, duration = SnackbarDuration.Short)
             viewModel.resetUploadError()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(3000)
+            isTransitioning = true
+            delay(500)
+            currentPlaceholderIndex = (currentPlaceholderIndex + 1) % placeholderList.size
+            isTransitioning = false
+            delay(500)
         }
     }
 
@@ -272,7 +306,22 @@ fun NoteScreen(
                                 .padding(top = 8.dp, bottom = 8.dp)
                                 .fillMaxWidth()
                                 .focusRequester(focusRequester),
-                            enabled = !isUploading
+                            enabled = !isUploading,
+                            decorationBox = { innerTextField ->
+                                Box {
+                                    innerTextField()
+                                    if (postText.isBlank()) {
+                                        Text(
+                                            text = placeholder,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                                alpha = 0.7f
+                                            ),
+                                            modifier = Modifier.graphicsLayer(alpha = placeholderAlpha)
+                                        )
+                                    }
+                                }
+                            }
                         )
 
                         if (mediaList.isNotEmpty()) {

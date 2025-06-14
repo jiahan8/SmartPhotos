@@ -17,13 +17,21 @@
 
     <!-- Search -->
     <string name="search">検索</string>
-    <string name="search_notes">メモを検索</string>
+    <string name="search_notes_photos">ノートや写真を検索</string>
+    <string name="find_photos">自分の写真を探す</string>
+    <string name="what_you_looking_for">お探しのものは何ですか？</string>
+    <string name="find_notes">保存したノートを探す</string>
+    <string name="look_up">書いた内容を調べる</string>
     <string name="no_results_found">結果が見つかりません</string>
 
     <!-- Note -->
     <string name="note">メモ</string>
     <string name="new_note">新しいメモ</string>
-    <string name="whats_new">新着情報</string>
+    <string name="whats_new">最近どう？</string>
+    <string name="create_note">ノートを作成</string>
+    <string name="write_this_moment">この瞬間について書く</string>
+    <string name="whats_on_mind">今、何を考えていますか？</string>
+    <string name="write_a_thought">思いついたことを書いてみよう…</string>
     <string name="post">投稿</string>
     <string name="post_success">投稿が正常にアップロードされました</string>
     <string name="post_failure">投稿のアップロードに失敗しました。もう一度お試しください。</string>
