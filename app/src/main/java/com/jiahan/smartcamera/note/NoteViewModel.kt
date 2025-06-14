@@ -111,9 +111,10 @@ class NoteViewModel @Inject constructor(
             } catch (e: Exception) {
                 e.printStackTrace()
                 _uploading.value = false
+                _uploadSuccess.value = false
                 _uploadError.value = true
             } finally {
-                _uploadSuccess.value = false
+                _uploading.value = false
             }
         }
     }

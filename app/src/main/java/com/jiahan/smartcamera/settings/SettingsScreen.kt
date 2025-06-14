@@ -231,7 +231,7 @@ fun SettingsScreen(
                     )
                 }
             }
-            HorizontalDivider(thickness = 2.dp)
+            HorizontalDivider(thickness = 1.dp)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
