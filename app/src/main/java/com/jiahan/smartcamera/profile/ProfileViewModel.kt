@@ -45,6 +45,8 @@ class ProfileViewModel @Inject constructor(
     val isLoading = _isLoading.asStateFlow()
     private val _updateSuccess = MutableStateFlow(false)
     val updateSuccess = _updateSuccess.asStateFlow()
+    private val _updateError = MutableStateFlow(false)
+    val updateError = _updateError.asStateFlow()
 
     init {
         loadUserData()
@@ -133,6 +135,7 @@ class ProfileViewModel @Inject constructor(
                 _errorMessage.value =
                     e.localizedMessage ?: resourceProvider.getString(R.string.error_occurred)
                 _updateSuccess.value = false
+                _updateError.value = true
             } finally {
                 _isLoading.value = false
             }
@@ -166,5 +169,9 @@ class ProfileViewModel @Inject constructor(
 
     fun resetUpdateSuccess() {
         _updateSuccess.value = false
+    }
+
+    fun resetUpdateError() {
+        _updateError.value = false
     }
 }

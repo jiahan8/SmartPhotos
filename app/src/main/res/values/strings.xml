@@ -8,6 +8,7 @@
     <string name="saved_at">Saved: %s</string>
 
     <!-- Home -->
+    <string name="home">Home</string>
     <string name="no_notes_found">No notes found</string>
     <string name="delete_note">Delete note</string>
     <string name="delete_note_desc">Are you sure you want to delete this note?</string>
@@ -15,10 +16,12 @@
     <string name="cancel">Cancel</string>
 
     <!-- Search -->
+    <string name="search">Search</string>
     <string name="search_notes">Search notes</string>
     <string name="no_results_found">No results found</string>
 
     <!-- Note -->
+    <string name="note">Note</string>
     <string name="new_note">New note</string>
     <string name="whats_new">What\'s new?</string>
     <string name="post">Post</string>
@@ -28,6 +31,7 @@
     <string name="no_media_available">No media URI available for upload</string>
 
     <!-- Favorite -->
+    <string name="favorite">Favorite</string>
     <string name="search_favorites">Search favorites</string>
 
     <!-- Settings -->
@@ -44,9 +48,13 @@
     <string name="save_changes">Save Changes</string>
 
     <!-- Note preview -->
-    <string name="note">Note</string>
+    <string name="note_preview">Note Preview</string>
+
+    <!-- Video -->
+    <string name="video">Video</string>
 
     <!-- Authentication -->
+    <string name="authentication">Authentication</string>
     <string name="email">Email</string>
     <string name="name">Name</string>
     <string name="username">Username</string>
@@ -77,6 +85,7 @@
     <string name="name_empty">Name cannot be empty</string>
     <string name="username_empty">Username cannot be empty</string>
     <string name="info_updated_success">Info updated successfully</string>
+    <string name="info_updated_failure">Failed to update info</string>
 
     <!-- Deep linking -->
     <string name="host">jiahan8.github.io</string>

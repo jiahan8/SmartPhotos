@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -159,11 +160,11 @@ class MainActivity : ComponentActivity() {
                                                     AnimatedIcon(
                                                         selected = selected,
                                                         imageVector = icon,
-                                                        contentDescription = screen.title
+                                                        contentDescription = stringResource(screen.titleResId)
                                                     )
                                                 }
                                             },
-                                            label = { Text(screen.title) },
+                                            label = { Text(stringResource(screen.titleResId)) },
                                             selected = currentDestination?.route == screen.route,
                                             onClick = {
                                                 navController.navigate(screen.route) {
@@ -357,19 +358,19 @@ class MainActivity : ComponentActivity() {
 
 sealed class Screen(
     val route: String,
-    val title: String,
+    val titleResId: Int,
     val icon: ImageVector?
 ) {
-    object Home : Screen("home", "Home", Icons.Outlined.Home)
-    object Search : Screen("search", "Search", Icons.Outlined.Search) {
+    object Home : Screen("home", R.string.home, Icons.Outlined.Home)
+    object Search : Screen("search", R.string.search, Icons.Outlined.Search) {
         const val SEARCH_DEEP_LINK_URI_PATTERN = "live://jiahan8.github.io/search"
     }
 
-    object Note : Screen("note", "Note", Icons.Outlined.Create)
-    object Favorite : Screen("favorite", "Favorite", Icons.Outlined.FavoriteBorder)
+    object Note : Screen("note", R.string.note, Icons.Outlined.Create)
+    object Favorite : Screen("favorite", R.string.favorite, Icons.Outlined.FavoriteBorder)
     object ImagePreview : Screen(
         route = "image?uri={uri}&text={text}&detect={detect}",
-        title = "Photo",
+        titleResId = R.string.photo,
         icon = Icons.Outlined.Search
     ) {
         const val URI_ARG = "uri"
@@ -382,7 +383,7 @@ sealed class Screen(
             "image?uri=$imageUri&text=$text&detect=$detect"
     }
 
-    object PhotoPreview : Screen("photo/{type}/{source}", "Photo", null) {
+    object PhotoPreview : Screen("photo/{type}/{source}", R.string.photo, null) {
         const val TYPE_ARG = "type"
         const val SOURCE_ARG = "source"
 
@@ -393,7 +394,7 @@ sealed class Screen(
         fun createRemoteRoute(url: String) = "photo/$TYPE_REMOTE/${Uri.encode(url)}"
     }
 
-    object VideoPreview : Screen("video/{type}/{source}", "Video", null) {
+    object VideoPreview : Screen("video/{type}/{source}", R.string.video, null) {
         const val TYPE_ARG = "type"
         const val SOURCE_ARG = "source"
 
@@ -404,15 +405,15 @@ sealed class Screen(
         fun createRemoteRoute(url: String) = "video/$TYPE_REMOTE/${Uri.encode(url)}"
     }
 
-    object NotePreview : Screen("notepreview/{id}", "Note Preview", null) {
+    object NotePreview : Screen("notepreview/{id}", R.string.note_preview, null) {
         const val ID_ARG = "id"
 
         fun createRoute(id: String) = "notepreview/$id"
     }
 
-    object Auth : Screen("auth", "Auth", null)
-    object Profile : Screen("profile", "Profile", Icons.Outlined.Person)
-    object Settings : Screen("settings", "Settings", null)
+    object Auth : Screen("auth", R.string.authentication, null)
+    object Profile : Screen("profile", R.string.profile, Icons.Outlined.Person)
+    object Settings : Screen("settings", R.string.settings, null)
 }
 
 @Composable

@@ -72,13 +72,22 @@ fun ProfileScreen(
     val isFormChanged by viewModel.isFormChanged.collectAsState()
     val isSaving by viewModel.isLoading.collectAsState()
     val updateSuccess by viewModel.updateSuccess.collectAsState()
+    val updateError by viewModel.updateError.collectAsState()
 
-    val postSuccessMessage = stringResource(R.string.info_updated_success)
+    val updateSuccessMessage = stringResource(R.string.info_updated_success)
+    val updateFailureMessage = stringResource(R.string.info_updated_failure)
 
     LaunchedEffect(updateSuccess) {
         if (updateSuccess) {
-            snackbarHostState.showSnackbar(postSuccessMessage, duration = SnackbarDuration.Short)
+            snackbarHostState.showSnackbar(updateSuccessMessage, duration = SnackbarDuration.Short)
             viewModel.resetUpdateSuccess()
+        }
+    }
+
+    LaunchedEffect(updateError) {
+        if (updateError) {
+            snackbarHostState.showSnackbar(updateFailureMessage, duration = SnackbarDuration.Short)
+            viewModel.resetUpdateError()
         }
     }
 
@@ -114,6 +123,7 @@ fun ProfileScreen(
                     start = padding.calculateStartPadding(LayoutDirection.Ltr) + 16.dp,
                     end = padding.calculateEndPadding(LayoutDirection.Ltr) + 16.dp
                 ),
+            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             profilePictureUrl?.let {
@@ -140,89 +150,94 @@ fun ProfileScreen(
                 )
             )
 
-            OutlinedTextField(
-                value = email,
-                onValueChange = {},
-                label = { Text(stringResource(R.string.email)) },
-                enabled = false,
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.large,
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
-                    imeAction = ImeAction.Next
-                ),
-                leadingIcon = { Icon(Icons.Rounded.Email, contentDescription = null) }
-            )
-
-            OutlinedTextField(
-                value = fullName,
-                onValueChange = { viewModel.updateFullNameText(it) },
-                label = { Text(stringResource(R.string.name)) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.large,
-                singleLine = true,
-                leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null) },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
-            )
-
-            fullNameErrorMessage?.let {
-                Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
-            OutlinedTextField(
-                value = username,
-                onValueChange = { viewModel.updateUsernameText(it) },
-                label = { Text(stringResource(R.string.username)) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.large,
-                singleLine = true,
-                leadingIcon = {
-                    Icon(Icons.Rounded.AccountCircle, contentDescription = null)
-                },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
-            )
-
-            usernameErrorMessage?.let {
-                Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
-            errorMessage?.let {
-                Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            Button(
-                modifier = Modifier
-                    .padding(bottom = 16.dp)
-                    .fillMaxWidth()
-                    .height(52.dp),
-                onClick = { viewModel.updateUserProfile() },
-                enabled = isFormChanged && isErrorFree && !isSaving
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                if (isSaving) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 1.5.dp
-                    )
-                } else {
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = {},
+                    label = { Text(stringResource(R.string.email)) },
+                    enabled = false,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Next
+                    ),
+                    leadingIcon = { Icon(Icons.Rounded.Email, contentDescription = null) }
+                )
+
+                OutlinedTextField(
+                    value = fullName,
+                    onValueChange = { viewModel.updateFullNameText(it) },
+                    label = { Text(stringResource(R.string.name)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null) },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                )
+
+                fullNameErrorMessage?.let {
                     Text(
-                        text = stringResource(R.string.save_changes),
-                        style = MaterialTheme.typography.bodyLarge
+                        text = it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
                     )
+                }
+
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { viewModel.updateUsernameText(it) },
+                    label = { Text(stringResource(R.string.username)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    singleLine = true,
+                    leadingIcon = {
+                        Icon(Icons.Rounded.AccountCircle, contentDescription = null)
+                    },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
+                )
+
+                usernameErrorMessage?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                errorMessage?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                Button(
+                    modifier = Modifier
+                        .padding(bottom = 16.dp)
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    onClick = { viewModel.updateUserProfile() },
+                    enabled = isFormChanged && isErrorFree && !isSaving
+                ) {
+                    if (isSaving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 1.5.dp
+                        )
+                    } else {
+                        Text(
+                            text = stringResource(R.string.save_changes),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
                 }
             }
         }

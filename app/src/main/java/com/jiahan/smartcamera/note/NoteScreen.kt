@@ -96,7 +96,7 @@ fun NoteScreen(
     val buttonEnabled by viewModel.postButtonEnabled.collectAsState()
 
     val postSuccessMessage = stringResource(R.string.post_success)
-    val postFailMessage = stringResource(R.string.post_failure)
+    val postFailureMessage = stringResource(R.string.post_failure)
 
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -178,7 +178,7 @@ fun NoteScreen(
     LaunchedEffect(uploadError) {
         if (uploadError) {
             keyboardController?.hide()
-            snackbarHostState.showSnackbar(postFailMessage, duration = SnackbarDuration.Short)
+            snackbarHostState.showSnackbar(postFailureMessage, duration = SnackbarDuration.Short)
             viewModel.resetUploadError()
         }
     }

@@ -8,6 +8,7 @@
     <string name="saved_at">%s に保存されました</string>
 
     <!-- Home -->
+    <string name="home">ホーム</string>
     <string name="no_notes_found">メモが見つかりません</string>
     <string name="delete_note">メモを削除</string>
     <string name="delete_note_desc">このメモを削除してもよろしいですか？</string>
@@ -15,10 +16,12 @@
     <string name="cancel">キャンセル</string>
 
     <!-- Search -->
+    <string name="search">検索</string>
     <string name="search_notes">メモを検索</string>
     <string name="no_results_found">結果が見つかりません</string>
 
     <!-- Note -->
+    <string name="note">メモ</string>
     <string name="new_note">新しいメモ</string>
     <string name="whats_new">新着情報</string>
     <string name="post">投稿</string>
@@ -28,6 +31,7 @@
     <string name="no_media_available">アップロードするメディアがありません</string>
 
     <!-- Favorite -->
+    <string name="favorite">お気に入り</string>
     <string name="search_favorites">お気に入りを検索</string>
 
     <!-- Settings -->
@@ -44,9 +48,13 @@
     <string name="save_changes">変更を保存</string>
 
     <!-- Note preview -->
-    <string name="note">メモ</string>
+    <string name="note_preview">メモのプレビュー</string>
+
+    <!-- Video -->
+    <string name="video">ビデオ</string>
 
     <!-- Authentication -->
+    <string name="authentication">認証</string>
     <string name="email">メールアドレス</string>
     <string name="name">名前</string>
     <string name="username">ユーザー名</string>
@@ -77,6 +85,7 @@
     <string name="name_empty">名前を入力してください</string>
     <string name="username_empty">ユーザー名を入力してください</string>
     <string name="info_updated_success">情報を更新しました</string>
+    <string name="info_updated_failure">情報の更新に失敗しました</string>
 
     <!-- Deep linking -->
     <string name="host">jiahan8.github.io</string>
