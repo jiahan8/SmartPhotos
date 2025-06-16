@@ -17,6 +17,8 @@ class MainViewModel @Inject constructor(
     profileRepository: ProfileRepository
 ) : ViewModel() {
 
+    private val _isAppReady = MutableStateFlow(false)
+    val isAppReady = _isAppReady.asStateFlow()
     private val _startDestination = MutableStateFlow(Screen.Auth.route)
     val startDestination = _startDestination.asStateFlow()
 
@@ -35,6 +37,7 @@ class MainViewModel @Inject constructor(
                     Screen.Home.route
                 else
                     Screen.Auth.route
+            _isAppReady.value = true
         }
     }
 }

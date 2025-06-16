@@ -44,7 +44,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -68,12 +67,10 @@ import com.jiahan.smartcamera.preview.PhotoSource
 import com.jiahan.smartcamera.preview.VideoPreviewScreen
 import com.jiahan.smartcamera.preview.VideoSource
 import com.jiahan.smartcamera.profile.ProfileScreen
-import com.jiahan.smartcamera.settings.SettingsScreen
 import com.jiahan.smartcamera.search.SearchScreen
+import com.jiahan.smartcamera.settings.SettingsScreen
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @AndroidEntryPoint
@@ -105,19 +102,15 @@ class MainActivity : ComponentActivity() {
 
         super.onCreate(savedInstanceState)
 
-        var isAppReady = false
-        splashScreen.setKeepOnScreenCondition {
-            !isAppReady
-        }
-        lifecycleScope.launch {
-            delay(1000)
-            isAppReady = true
-        }
-
         setContent {
             val isDarkTheme by viewModel.isDarkTheme.collectAsState()
             val startDestination by viewModel.startDestination.collectAsState()
+            val isAppReady by viewModel.isAppReady.collectAsState()
             val showBottomBar = remember { mutableStateOf(true) }
+
+            splashScreen.setKeepOnScreenCondition {
+                !isAppReady
+            }
 
             SmartCameraTheme(
                 darkTheme = isDarkTheme
