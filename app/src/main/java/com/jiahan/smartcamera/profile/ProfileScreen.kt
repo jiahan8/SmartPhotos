@@ -30,6 +30,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -132,7 +133,7 @@ fun ProfileScreen(
                     contentDescription = "Profile Picture",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .size(72.dp)
+                        .size(88.dp)
                         .clip(CircleShape),
                     alignment = Alignment.Center
                 )
@@ -141,7 +142,7 @@ fun ProfileScreen(
                 contentDescription = "Profile Picture",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(72.dp)
+                    .size(88.dp)
                     .clip(CircleShape),
                 colorFilter = ColorFilter.tint(
                     MaterialTheme.colorScheme.onSurface.copy(
@@ -149,6 +150,12 @@ fun ProfileScreen(
                     )
                 )
             )
+
+            TextButton(
+                onClick = {}
+            ) {
+                Text(text = stringResource(R.string.change_profile_picture))
+            }
 
             Column(
                 modifier = Modifier.fillMaxWidth(),

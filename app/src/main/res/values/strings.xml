@@ -54,6 +54,7 @@
 
     <!-- Profile -->
     <string name="profile">Profile</string>
+    <string name="change_profile_picture">Change Profile Picture</string>
     <string name="save_changes">Save Changes</string>
 
     <!-- Note preview -->
