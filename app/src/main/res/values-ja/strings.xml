@@ -54,7 +54,9 @@
 
     <!-- Profile -->
     <string name="profile">プロフィール</string>
-    <string name="change_profile_picture">プロフィール写真を変更</string>
+    <string name="edit_picture">写真を編集</string>
+    <string name="choose_from_library">ライブラリから選択</string>
+    <string name="remove_current_picture">現在の写真を削除</string>
     <string name="save_changes">変更を保存</string>
 
     <!-- Note preview -->

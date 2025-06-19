@@ -86,6 +86,7 @@ fun NoteScreen(
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    var isErrorSnackBar by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val scrollState = rememberScrollState()
@@ -192,6 +193,7 @@ fun NoteScreen(
     LaunchedEffect(uploadSuccess) {
         if (uploadSuccess) {
             keyboardController?.hide()
+            isErrorSnackBar = false
             snackbarHostState.showSnackbar(postSuccessMessage, duration = SnackbarDuration.Short)
             viewModel.resetUploadSuccess()
             viewModel.resetUploading()
@@ -202,6 +204,7 @@ fun NoteScreen(
     LaunchedEffect(uploadError) {
         if (uploadError) {
             keyboardController?.hide()
+            isErrorSnackBar = true
             snackbarHostState.showSnackbar(postFailureMessage, duration = SnackbarDuration.Short)
             viewModel.resetUploadError()
         }
@@ -230,7 +233,7 @@ fun NoteScreen(
                 windowInsets = WindowInsets(0.dp),
             )
         },
-        snackbarHost = { CustomSnackbarHost(snackbarHostState) }
+        snackbarHost = { CustomSnackbarHost(snackbarHostState, isErrorSnackBar) }
     ) { padding ->
         Box(
             modifier = Modifier

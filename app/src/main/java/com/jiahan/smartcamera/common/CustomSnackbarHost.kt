@@ -9,15 +9,16 @@ import androidx.compose.runtime.Composable
 
 @Composable
 fun CustomSnackbarHost(
-    snackbarHostState: SnackbarHostState
+    snackbarHostState: SnackbarHostState,
+    isError: Boolean = false
 ) {
     SnackbarHost(
         hostState = snackbarHostState,
         snackbar = { snackbarData ->
             Snackbar(
                 snackbarData = snackbarData,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
+                containerColor = if (isError) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primary,
+                contentColor = if (isError) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimary,
                 actionColor = MaterialTheme.colorScheme.secondary,
                 shape = MaterialTheme.shapes.medium
             )

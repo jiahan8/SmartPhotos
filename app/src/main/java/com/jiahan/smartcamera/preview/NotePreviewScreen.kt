@@ -254,7 +254,8 @@ fun NotePreviewScreen(
                                 indication = null
                             ) {
                                 viewModel.favoriteNote(note)
-                            }
+                            },
+                        tint = MaterialTheme.colorScheme.primary
                     )
 
                     Icon(
@@ -264,7 +265,8 @@ fun NotePreviewScreen(
                             .padding(start = 6.dp)
                             .clickable {
                                 viewModel.setNoteToDelete(note)
-                            }
+                            },
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
             }
