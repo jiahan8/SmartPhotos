@@ -1,10 +1,12 @@
 package com.jiahan.smartcamera.datastore
 
 import android.content.Context
+import android.net.Uri
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.preferencesDataStore
+import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.userProfileChangeRequest
@@ -12,7 +14,10 @@ import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.storage
+import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.domain.User
+import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -22,6 +27,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import java.io.IOException
 import java.util.Date
+import java.util.UUID
 import javax.inject.Inject
 
 private const val USER_PREFERENCES_NAME = "user_preferences"
@@ -36,6 +42,7 @@ class DefaultProfileRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
+    private val remoteConfigRepository: RemoteConfigRepository,
 ) : ProfileRepository {
 
     private val userDocumentReference: DocumentReference?
@@ -121,13 +128,15 @@ class DefaultProfileRepository @Inject constructor(
     override suspend fun updateUserProfile(
         fullName: String?,
         username: String?,
-        profilePictureUrl: String?
+        profilePictureUrl: String?,
+        deleteProfilePicture: Boolean
     ) {
         updateFirebaseUserProfile(fullName = fullName)
         updateDatabaseUserProfile(
             fullName = fullName,
             username = username,
-            profilePictureUrl = null
+            profilePictureUrl = profilePictureUrl,
+            deleteProfilePicture = deleteProfilePicture
         )
     }
 
@@ -201,13 +210,18 @@ class DefaultProfileRepository @Inject constructor(
     override suspend fun updateDatabaseUserProfile(
         fullName: String?,
         username: String?,
-        profilePictureUrl: String?
+        profilePictureUrl: String?,
+        deleteProfilePicture: Boolean
     ) {
-        val updates = mutableMapOf<String, Any>()
+        val updates = mutableMapOf<String, Any?>()
 
         fullName?.let { updates["full_name"] = it }
         username?.let { updates["username"] = it }
-        profilePictureUrl?.let { updates["profile_picture"] = it.toString() }
+        if (deleteProfilePicture) {
+            updates["profile_picture"] = null
+        } else {
+            profilePictureUrl?.let { updates["profile_picture"] = it.toString() }
+        }
 
         if (updates.isNotEmpty()) {
             coroutineScope {
@@ -223,6 +237,26 @@ class DefaultProfileRepository @Inject constructor(
                 }
                 userDeferred.await()
                 memberDeferred.await()
+            }
+        }
+    }
+
+    override suspend fun uploadMediaToFirebase(uri: Uri): String? {
+        val storage = Firebase.storage(remoteConfigRepository.getStorageUrl())
+        val storageFolder = remoteConfigRepository.getStorageFolderName()
+        return coroutineScope {
+            try {
+                val mediaId = UUID.randomUUID().toString()
+                val extension = EXTENSION_JPG
+                val storageRef =
+                    storage.reference.child("$storageFolder/$mediaId$extension")
+
+                storageRef.putFile(uri).await()
+                val mediaUrl = storageRef.downloadUrl.await().toString()
+                mediaUrl
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
             }
         }
     }

@@ -51,11 +51,14 @@
     <string name="delete_account">Delete account</string>
     <string name="delete_account_desc">Are you sure you want to delete this account?</string>
     <string name="action_failure">Something went wrong. Please try again.</string>
+    <string name="delete_picture">Delete picture</string>
+    <string name="delete_picture_desc">Are you sure you want to delete this picture?</string>
 
     <!-- Profile -->
     <string name="profile">Profile</string>
     <string name="edit_picture">Edit picture</string>
     <string name="choose_from_library">Choose from library</string>
+    <string name="take_photo">Take photo</string>
     <string name="remove_current_picture">Remove current picture</string>
     <string name="save_changes">Save Changes</string>
 

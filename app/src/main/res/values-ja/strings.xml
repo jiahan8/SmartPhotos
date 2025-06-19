@@ -51,11 +51,14 @@
     <string name="delete_account">アカウントを削除</string>
     <string name="delete_account_desc">このアカウントを削除してもよろしいですか？</string>
     <string name="action_failure">問題が発生しました。もう一度お試しください。</string>
+    <string name="delete_picture">写真を削除</string>
+    <string name="delete_picture_desc">この写真を削除してもよろしいですか？</string>
 
     <!-- Profile -->
     <string name="profile">プロフィール</string>
     <string name="edit_picture">写真を編集</string>
     <string name="choose_from_library">ライブラリから選択</string>
+    <string name="take_photo">写真を撮る</string>
     <string name="remove_current_picture">現在の写真を削除</string>
     <string name="save_changes">変更を保存</string>
 

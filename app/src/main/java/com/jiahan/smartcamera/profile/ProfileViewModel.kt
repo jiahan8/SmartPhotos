@@ -1,16 +1,23 @@
 package com.jiahan.smartcamera.profile
 
+import android.content.Context
+import android.net.Uri
+import androidx.core.content.FileProvider.getUriForFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.auth.AuthViewModel.ValidationResult
 import com.jiahan.smartcamera.datastore.ProfileRepository
 import com.jiahan.smartcamera.domain.User
+import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
+import com.jiahan.smartcamera.util.FileConstants.FILE_PROVIDER_AUTHORITY
+import com.jiahan.smartcamera.util.FileConstants.PREFIX_PHOTO
 import com.jiahan.smartcamera.util.ResourceProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
@@ -28,6 +35,8 @@ class ProfileViewModel @Inject constructor(
     val username = _username.asStateFlow()
     private val _profilePictureUrl = MutableStateFlow<String?>(null)
     val profilePictureUrl = _profilePictureUrl.asStateFlow()
+    private val _photoUri = MutableStateFlow<Uri?>(null)
+    val photoUri = _photoUri.asStateFlow()
 
     private val _fullNameErrorMessage = MutableStateFlow<String?>(null)
     val fullNameErrorMessage = _fullNameErrorMessage.asStateFlow()
@@ -45,6 +54,8 @@ class ProfileViewModel @Inject constructor(
     val updateSuccess = _updateSuccess.asStateFlow()
     private val _updateError = MutableStateFlow(false)
     val updateError = _updateError.asStateFlow()
+    private val _dialogState = MutableStateFlow<DialogState>(DialogState.None)
+    val dialogState = _dialogState.asStateFlow()
 
     init {
         loadUserProfile()
@@ -84,10 +95,6 @@ class ProfileViewModel @Inject constructor(
         checkFormChanges()
     }
 
-    fun updateProfilePictureUrl(url: String) {
-        _profilePictureUrl.value = url
-    }
-
     private fun checkFormChanges() {
         _isFormChanged.value = _fullName.value.trim() != _user.value?.fullName ||
                 _username.value.trim() != _user.value?.username
@@ -124,7 +131,8 @@ class ProfileViewModel @Inject constructor(
                 profileRepository.updateUserProfile(
                     fullName = trimmedFullName,
                     username = trimmedUsername,
-                    profilePictureUrl = null
+                    profilePictureUrl = null,
+                    deleteProfilePicture = false
                 )
                 loadUserProfile()
                 _isFormChanged.value = false
@@ -165,11 +173,81 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    fun uploadProfilePicture(uri: Uri) {
+        viewModelScope.launch {
+            try {
+                val pictureUrl = profileRepository.uploadMediaToFirebase(uri)
+                profileRepository.updateUserProfile(
+                    fullName = null,
+                    username = null,
+                    profilePictureUrl = pictureUrl,
+                    deleteProfilePicture = false
+                )
+                loadUserProfile()
+                _updateSuccess.value = true
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _updateSuccess.value = false
+            }
+        }
+    }
+
+    fun deletePicture() {
+        viewModelScope.launch {
+            try {
+                profileRepository.updateUserProfile(
+                    fullName = null,
+                    username = null,
+                    profilePictureUrl = null,
+                    deleteProfilePicture = true
+                )
+                loadUserProfile()
+                _updateSuccess.value = true
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _updateSuccess.value = false
+            }
+        }
+    }
+
+    fun createImageUri(context: Context): Uri? {
+        val timeStamp = System.currentTimeMillis()
+        val storageDir = context.cacheDir
+        val imageFile = File.createTempFile(
+            "$PREFIX_PHOTO${timeStamp}",
+            EXTENSION_JPG,
+            storageDir
+        )
+
+        return getUriForFile(
+            context,
+            FILE_PROVIDER_AUTHORITY,
+            imageFile
+        )
+    }
+
+    fun updatePhotoUri(uri: Uri?) {
+        _photoUri.value = uri
+    }
+
     fun resetUpdateSuccess() {
         _updateSuccess.value = false
     }
 
     fun resetUpdateError() {
         _updateError.value = false
+    }
+
+    fun showDeletePictureDialog() {
+        _dialogState.value = DialogState.DeletePicture
+    }
+
+    fun dismissDialog() {
+        _dialogState.value = DialogState.None
+    }
+
+    sealed class DialogState {
+        object None : DialogState()
+        object DeletePicture : DialogState()
     }
 }

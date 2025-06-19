@@ -1,8 +1,15 @@
 package com.jiahan.smartcamera.profile
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,13 +22,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -49,12 +59,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -68,10 +80,12 @@ fun ProfileScreen(
     navController: NavController,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     var isErrorSnackBar by remember { mutableStateOf(false) }
     val bottomSheetState = rememberModalBottomSheetState()
     var showSheet by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
 
     val email by viewModel.email.collectAsState()
     val fullName by viewModel.fullName.collectAsState()
@@ -85,13 +99,59 @@ fun ProfileScreen(
     val isSaving by viewModel.isLoading.collectAsState()
     val updateSuccess by viewModel.updateSuccess.collectAsState()
     val updateError by viewModel.updateError.collectAsState()
+    val dialogState by viewModel.dialogState.collectAsState()
+    val photoUri by viewModel.photoUri.collectAsState()
 
     val updateSuccessMessage = stringResource(R.string.info_updated_success)
     val updateFailureMessage = stringResource(R.string.info_updated_failure)
 
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val libraryLauncher = rememberLauncherForActivityResult(
+        contract = PickVisualMedia()
+    ) { uri ->
+        uri?.let {
+            viewModel.updatePhotoUri(uri)
+        }
+    }
+
+    val pictureLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            photoUri?.let { uri ->
+                viewModel.updatePhotoUri(uri)
+            }
+        } else {
+            photoUri?.let { uri ->
+                context.contentResolver.delete(uri, null, null)
+                viewModel.updatePhotoUri(null)
+            }
+        }
+    }
+
+    val photoCameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasCameraPermission = isGranted
+        if (isGranted) {
+            val uri = viewModel.createImageUri(context)
+            viewModel.updatePhotoUri(uri)
+            uri?.let { pictureLauncher.launch(it) }
+        }
+    }
+
     LaunchedEffect(updateSuccess) {
         if (updateSuccess) {
             isErrorSnackBar = false
+            showSheet = false
             snackbarHostState.showSnackbar(updateSuccessMessage, duration = SnackbarDuration.Short)
             viewModel.resetUpdateSuccess()
         }
@@ -100,6 +160,7 @@ fun ProfileScreen(
     LaunchedEffect(updateError) {
         if (updateError) {
             isErrorSnackBar = true
+            showSheet = false
             snackbarHostState.showSnackbar(updateFailureMessage, duration = SnackbarDuration.Short)
             viewModel.resetUpdateError()
         }
@@ -119,6 +180,11 @@ fun ProfileScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
+                            libraryLauncher.launch(
+                                PickVisualMediaRequest(
+                                    PickVisualMedia.ImageOnly
+                                )
+                            )
                         }
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -137,24 +203,79 @@ fun ProfileScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
+                            if (hasCameraPermission) {
+                                val uri = viewModel.createImageUri(context)
+                                viewModel.updatePhotoUri(uri)
+                                uri?.let { pictureLauncher.launch(it) }
+                            } else {
+                                photoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                            }
                         }
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.delete),
+                        painter = painterResource(R.drawable.photo_camera),
                         modifier = Modifier.padding(end = 12.dp),
-                        contentDescription = "Delete",
-                        tint = MaterialTheme.colorScheme.error
+                        contentDescription = "Take photo"
                     )
                     Text(
-                        text = stringResource(R.string.remove_current_picture),
-                        color = MaterialTheme.colorScheme.error,
+                        text = stringResource(R.string.take_photo),
                         modifier = Modifier.weight(1f)
                     )
                 }
+                profilePictureUrl?.let {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                viewModel.showDeletePictureDialog()
+                            }
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.delete),
+                            modifier = Modifier.padding(end = 12.dp),
+                            contentDescription = "Delete",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                        Text(
+                            text = stringResource(R.string.remove_current_picture),
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
             }
         }
+    }
+
+    when (dialogState) {
+        is ProfileViewModel.DialogState.DeletePicture -> {
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissDialog() },
+                title = { Text(stringResource(R.string.delete_picture)) },
+                text = { Text(stringResource(R.string.delete_picture_desc)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.deletePicture()
+                            viewModel.dismissDialog()
+                        }
+                    ) {
+                        Text(stringResource(R.string.delete_picture))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.dismissDialog() }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            )
+        }
+
+        else -> {}
     }
 
     Scaffold(
@@ -181,134 +302,138 @@ fun ProfileScreen(
         },
         snackbarHost = { CustomSnackbarHost(snackbarHostState, isErrorSnackBar) }
     ) { padding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
                     top = padding.calculateTopPadding(),
                     start = padding.calculateStartPadding(LayoutDirection.Ltr) + 16.dp,
                     end = padding.calculateEndPadding(LayoutDirection.Ltr) + 16.dp
-                ),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                )
         ) {
-            profilePictureUrl?.let {
-                AsyncImage(
-                    model = it,
+            Column(
+                modifier = Modifier.verticalScroll(scrollState),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                profilePictureUrl?.let {
+                    AsyncImage(
+                        model = it,
+                        contentDescription = "Profile Picture",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(88.dp)
+                            .clip(CircleShape),
+                        alignment = Alignment.Center
+                    )
+                } ?: Image(
+                    imageVector = Icons.Rounded.AccountCircle,
                     contentDescription = "Profile Picture",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(88.dp)
                         .clip(CircleShape),
-                    alignment = Alignment.Center
-                )
-            } ?: Image(
-                imageVector = Icons.Rounded.AccountCircle,
-                contentDescription = "Profile Picture",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(88.dp)
-                    .clip(CircleShape),
-                colorFilter = ColorFilter.tint(
-                    MaterialTheme.colorScheme.onSurface.copy(
-                        alpha = 0.7f
+                    colorFilter = ColorFilter.tint(
+                        MaterialTheme.colorScheme.onSurface.copy(
+                            alpha = 0.7f
+                        )
                     )
                 )
-            )
 
-            TextButton(
-                onClick = { showSheet = true }
-            ) {
-                Text(text = stringResource(R.string.edit_picture))
-            }
-
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = {},
-                    label = { Text(stringResource(R.string.email)) },
-                    enabled = false,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Email,
-                        imeAction = ImeAction.Next
-                    ),
-                    leadingIcon = { Icon(Icons.Rounded.Email, contentDescription = null) }
-                )
-
-                OutlinedTextField(
-                    value = fullName,
-                    onValueChange = { viewModel.updateFullNameText(it) },
-                    label = { Text(stringResource(R.string.name)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    singleLine = true,
-                    leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null) },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
-                )
-
-                fullNameErrorMessage?.let {
-                    Text(
-                        text = it,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-
-                OutlinedTextField(
-                    value = username,
-                    onValueChange = { viewModel.updateUsernameText(it) },
-                    label = { Text(stringResource(R.string.username)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    singleLine = true,
-                    leadingIcon = {
-                        Icon(Icons.Rounded.AccountCircle, contentDescription = null)
-                    },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
-                )
-
-                usernameErrorMessage?.let {
-                    Text(
-                        text = it,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-
-                errorMessage?.let {
-                    Text(
-                        text = it,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                Button(
-                    modifier = Modifier
-                        .padding(bottom = 16.dp)
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    onClick = { viewModel.updateUserProfile() },
-                    enabled = isFormChanged && isErrorFree && !isSaving
+                TextButton(
+                    onClick = { showSheet = true }
                 ) {
-                    if (isSaving) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 1.5.dp
-                        )
-                    } else {
+                    Text(text = stringResource(R.string.edit_picture))
+                }
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = {},
+                        label = { Text(stringResource(R.string.email)) },
+                        enabled = false,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Next
+                        ),
+                        leadingIcon = { Icon(Icons.Rounded.Email, contentDescription = null) }
+                    )
+
+                    OutlinedTextField(
+                        value = fullName,
+                        onValueChange = { viewModel.updateFullNameText(it) },
+                        label = { Text(stringResource(R.string.name)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large,
+                        singleLine = true,
+                        leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null) },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                    )
+
+                    fullNameErrorMessage?.let {
                         Text(
-                            text = stringResource(R.string.save_changes),
-                            style = MaterialTheme.typography.bodyLarge
+                            text = it,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
                         )
+                    }
+
+                    OutlinedTextField(
+                        value = username,
+                        onValueChange = { viewModel.updateUsernameText(it) },
+                        label = { Text(stringResource(R.string.username)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large,
+                        singleLine = true,
+                        leadingIcon = {
+                            Icon(Icons.Rounded.AccountCircle, contentDescription = null)
+                        },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
+                    )
+
+                    usernameErrorMessage?.let {
+                        Text(
+                            text = it,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+
+                    errorMessage?.let {
+                        Text(
+                            text = it,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    Button(
+                        modifier = Modifier
+                            .padding(bottom = 16.dp)
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        onClick = { viewModel.updateUserProfile() },
+                        enabled = isFormChanged && isErrorFree && !isSaving
+                    ) {
+                        if (isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 1.5.dp
+                            )
+                        } else {
+                            Text(
+                                text = stringResource(R.string.save_changes),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
                     }
                 }
             }
