@@ -29,25 +29,34 @@ android {
         }
     }
 
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            buildConfigField("boolean", "DEBUG_MODE", "false")
+        }
+        debug {
+            isMinifyEnabled = false
+            buildConfigField("boolean", "DEBUG_MODE", "true")
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     kotlinOptions {
         jvmTarget = "11"
-    }
-    buildFeatures {
-        compose = true
-        buildConfig = true
     }
 
     androidResources {

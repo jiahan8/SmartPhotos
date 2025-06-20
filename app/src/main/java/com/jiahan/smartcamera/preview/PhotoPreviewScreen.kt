@@ -14,11 +14,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
@@ -43,14 +45,17 @@ fun PhotoPreviewScreen(
                     }
                 },
                 windowInsets = WindowInsets(0.dp),
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent
+                )
             )
         }
     ) { padding ->
         Box(
             modifier = Modifier
-                .padding(padding)
+                .padding()
                 .fillMaxSize(),
-            contentAlignment = Alignment.Center,
+            contentAlignment = Alignment.Center
         ) {
             // Track zoom and offset state
             val scale = remember { mutableFloatStateOf(1f) }
