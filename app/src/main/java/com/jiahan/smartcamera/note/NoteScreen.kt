@@ -48,7 +48,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -86,7 +85,6 @@ fun NoteScreen(
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
-    var isErrorSnackBar by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val scrollState = rememberScrollState()
@@ -101,6 +99,7 @@ fun NoteScreen(
     val uploadError by viewModel.uploadError.collectAsState()
     val postTextError by viewModel.postTextError.collectAsState()
     val buttonEnabled by viewModel.postButtonEnabled.collectAsState()
+    val isErrorSnackBar by viewModel.isErrorSnackBar.collectAsState()
 
     val placeholderOptions =
         listOf(
@@ -111,7 +110,7 @@ fun NoteScreen(
             stringResource(R.string.write_a_thought)
         )
     val placeholderList = remember { placeholderOptions }
-    var currentPlaceholderIndex by remember { mutableIntStateOf(0) }
+    val currentPlaceholderIndex by viewModel.currentPlaceholderIndex.collectAsState()
     val placeholder = placeholderList[currentPlaceholderIndex]
     var isTransitioning by remember { mutableStateOf(false) }
     val placeholderAlpha by animateFloatAsState(
@@ -193,7 +192,7 @@ fun NoteScreen(
     LaunchedEffect(uploadSuccess) {
         if (uploadSuccess) {
             keyboardController?.hide()
-            isErrorSnackBar = false
+            viewModel.updateErrorSnackBar(false)
             snackbarHostState.showSnackbar(postSuccessMessage, duration = SnackbarDuration.Short)
             viewModel.resetUploadSuccess()
             viewModel.resetUploading()
@@ -204,7 +203,7 @@ fun NoteScreen(
     LaunchedEffect(uploadError) {
         if (uploadError) {
             keyboardController?.hide()
-            isErrorSnackBar = true
+            viewModel.updateErrorSnackBar(true)
             snackbarHostState.showSnackbar(postFailureMessage, duration = SnackbarDuration.Short)
             viewModel.resetUploadError()
         }
@@ -215,7 +214,7 @@ fun NoteScreen(
             delay(3000)
             isTransitioning = true
             delay(500)
-            currentPlaceholderIndex = (currentPlaceholderIndex + 1) % placeholderList.size
+            viewModel.updateCurrentPlaceholderIndex((currentPlaceholderIndex + 1) % placeholderList.size)
             isTransitioning = false
             delay(500)
         }

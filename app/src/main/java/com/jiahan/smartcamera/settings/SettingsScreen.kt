@@ -34,9 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -63,7 +61,7 @@ fun SettingsScreen(
     val packageName = remember { context.packageName }
     val locale = ConfigurationCompat.getLocales(configuration).get(0)
     val snackbarHostState = remember { SnackbarHostState() }
-    var isErrorSnackBar by remember { mutableStateOf(false) }
+    val isErrorSnackBar by viewModel.isErrorSnackBar.collectAsState()
 
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
     val navigationEvent by viewModel.navigationEvent.collectAsState()
@@ -88,7 +86,7 @@ fun SettingsScreen(
 
     LaunchedEffect(actionError) {
         if (actionError) {
-            isErrorSnackBar = true
+            viewModel.updateErrorSnackBar(true)
             snackbarHostState.showSnackbar(actionFailureMessage, duration = SnackbarDuration.Short)
             viewModel.resetActionError()
         }
@@ -199,7 +197,7 @@ fun SettingsScreen(
                 Switch(
                     checked = isDarkTheme,
                     onCheckedChange = { newValue ->
-                        viewModel.updateIsDarkTheme(newValue)
+                        viewModel.updateDarkThemeVisibility(newValue)
                     },
                     thumbContent = if (isDarkTheme) {
                         {

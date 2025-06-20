@@ -35,7 +35,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -106,7 +105,7 @@ class MainActivity : ComponentActivity() {
             val isDarkTheme by viewModel.isDarkTheme.collectAsState()
             val startDestination by viewModel.startDestination.collectAsState()
             val isAppReady by viewModel.isAppReady.collectAsState()
-            val showBottomBar = remember { mutableStateOf(true) }
+            val showBottomBar by viewModel.showBottomBar.collectAsState()
 
             splashScreen.setKeepOnScreenCondition {
                 !isAppReady
@@ -126,8 +125,8 @@ class MainActivity : ComponentActivity() {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
                 val currentRoute = currentDestination?.route
-                val isBottomBarVisible = remember(currentRoute, showBottomBar.value) {
-                    (currentRoute in items.map { it.route }) && showBottomBar.value
+                val isBottomBarVisible = remember(currentRoute, showBottomBar) {
+                    (currentRoute in items.map { it.route }) && showBottomBar
                 }
 
                 Surface(
@@ -184,7 +183,7 @@ class MainActivity : ComponentActivity() {
                                 HomeScreen(
                                     navController = navController,
                                     onScrollDirectionChanged = { isScrollingUp ->
-                                        showBottomBar.value = isScrollingUp
+                                        viewModel.updateBottomBarVisibility(isScrollingUp)
                                     }
                                 )
                             }
@@ -199,7 +198,7 @@ class MainActivity : ComponentActivity() {
                                 SearchScreen(
                                     navController = navController,
                                     onScrollDirectionChanged = { isScrollingUp ->
-                                        showBottomBar.value = isScrollingUp
+                                        viewModel.updateBottomBarVisibility(isScrollingUp)
                                     }
                                 )
                             }
@@ -235,7 +234,7 @@ class MainActivity : ComponentActivity() {
                                 FavoriteScreen(
                                     navController = navController,
                                     onScrollDirectionChanged = { isScrollingUp ->
-                                        showBottomBar.value = isScrollingUp
+                                        viewModel.updateBottomBarVisibility(isScrollingUp)
                                     }
                                 )
                             }

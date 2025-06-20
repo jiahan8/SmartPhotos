@@ -56,6 +56,10 @@ class ProfileViewModel @Inject constructor(
     val updateError = _updateError.asStateFlow()
     private val _dialogState = MutableStateFlow<DialogState>(DialogState.None)
     val dialogState = _dialogState.asStateFlow()
+    private val _isErrorSnackBar = MutableStateFlow(false)
+    val isErrorSnackBar = _isErrorSnackBar.asStateFlow()
+    private val _showBottomSheet = MutableStateFlow(false)
+    val showBottomSheet = _showBottomSheet.asStateFlow()
 
     init {
         loadUserProfile()
@@ -148,7 +152,7 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun validateUsername(username: String): ValidationResult {
+    private fun validateUsername(username: String): ValidationResult {
         return when {
             username.isBlank() -> ValidationResult.Error(R.string.username_empty)
 
@@ -162,7 +166,7 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun validateFullName(fullName: String): ValidationResult {
+    private fun validateFullName(fullName: String): ValidationResult {
         return when {
             fullName.isBlank() -> ValidationResult.Error(R.string.name_empty)
 
@@ -244,6 +248,14 @@ class ProfileViewModel @Inject constructor(
 
     fun dismissDialog() {
         _dialogState.value = DialogState.None
+    }
+
+    fun updateErrorSnackBar(isError: Boolean) {
+        _isErrorSnackBar.value = isError
+    }
+
+    fun updateBottomSheetVisibility(showBottomSheet: Boolean) {
+        _showBottomSheet.value = showBottomSheet
     }
 
     sealed class DialogState {

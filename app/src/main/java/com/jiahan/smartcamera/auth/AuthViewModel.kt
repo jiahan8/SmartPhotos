@@ -26,6 +26,8 @@ class AuthViewModel @Inject constructor(
     private val _username = MutableStateFlow("")
     val username = _username.asStateFlow()
 
+    private val _isPasswordVisible = MutableStateFlow(false)
+    val passwordVisible = _isPasswordVisible.asStateFlow()
     private val _isLoading = MutableStateFlow(false)
     val isLoading = _isLoading.asStateFlow()
     private val _errorMessage = MutableStateFlow("")
@@ -50,6 +52,10 @@ class AuthViewModel @Inject constructor(
 
     fun updateUsernameText(text: String) {
         _username.value = text
+    }
+
+    fun updatePasswordVisibility(showPassword: Boolean) {
+        _isPasswordVisible.value = showPassword
     }
 
     fun toggleAuthMode() {

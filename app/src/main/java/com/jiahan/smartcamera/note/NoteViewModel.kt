@@ -60,6 +60,8 @@ class NoteViewModel @Inject constructor(
     val postTextError = _postTextError.asStateFlow()
     private val _postButtonEnabled = MutableStateFlow(false)
     val postButtonEnabled = _postButtonEnabled.asStateFlow()
+    private val _isErrorSnackBar = MutableStateFlow(false)
+    val isErrorSnackBar = _isErrorSnackBar.asStateFlow()
 
     private val _user = MutableStateFlow<User?>(null)
     val user = _user.asStateFlow()
@@ -72,6 +74,9 @@ class NoteViewModel @Inject constructor(
     private val _mediaList = MutableStateFlow<List<NoteMediaDetail>>(emptyList())
     val mediaList = _mediaList.asStateFlow()
     private val _videoThumbnails = mutableStateMapOf<Uri, Bitmap?>()
+
+    private val _currentPlaceholderIndex = MutableStateFlow(0)
+    val currentPlaceholderIndex = _currentPlaceholderIndex.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -269,5 +274,13 @@ class NoteViewModel @Inject constructor(
 
             "$description$labelText$visionText"
         }
+    }
+
+    fun updateErrorSnackBar(isError: Boolean) {
+        _isErrorSnackBar.value = isError
+    }
+
+    fun updateCurrentPlaceholderIndex(index: Int) {
+        _currentPlaceholderIndex.value = index
     }
 }

@@ -26,6 +26,8 @@ class SettingsViewModel @Inject constructor(
     val dialogState = _dialogState.asStateFlow()
     private val _isActionError = MutableStateFlow(false)
     val isActionError = _isActionError.asStateFlow()
+    private val _isErrorSnackBar = MutableStateFlow(false)
+    val isErrorSnackBar = _isErrorSnackBar.asStateFlow()
 
     val isDarkTheme = profileRepository.userPreferencesFlow
         .map { it.isDarkTheme }
@@ -35,9 +37,9 @@ class SettingsViewModel @Inject constructor(
             initialValue = false
         )
 
-    fun updateIsDarkTheme(isDarkTheme: Boolean) {
+    fun updateDarkThemeVisibility(showDarkTheme: Boolean) {
         viewModelScope.launch {
-            profileRepository.updateIsDarkTheme(isDarkTheme)
+            profileRepository.updateDarkThemeVisibility(showDarkTheme)
         }
     }
 
@@ -91,6 +93,10 @@ class SettingsViewModel @Inject constructor(
 
     fun resetActionError() {
         _isActionError.value = false
+    }
+
+    fun updateErrorSnackBar(isError: Boolean) {
+        _isErrorSnackBar.value = isError
     }
 
     sealed class DialogState {

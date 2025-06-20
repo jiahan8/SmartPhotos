@@ -50,7 +50,7 @@ fun FavoriteScreen(
     viewModel: FavoriteViewModel = hiltViewModel(),
     onScrollDirectionChanged: (Boolean) -> Unit = {}
 ) {
-    val state = rememberPullToRefreshState()
+    val pullToRefreshState = rememberPullToRefreshState()
     val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
@@ -161,7 +161,7 @@ fun FavoriteScreen(
                     start = padding.calculateStartPadding(LayoutDirection.Ltr),
                     end = padding.calculateEndPadding(LayoutDirection.Ltr)
                 ),
-                state = state,
+                state = pullToRefreshState,
                 isRefreshing = isRefreshing,
                 onRefresh = onRefresh,
             ) {
@@ -176,7 +176,7 @@ fun FavoriteScreen(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(vertical = 8.dp)
+                        contentPadding = PaddingValues(top = 8.dp, bottom = 38.dp)
                     ) {
                         items(
                             count = notes.size,

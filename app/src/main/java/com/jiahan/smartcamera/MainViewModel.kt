@@ -21,6 +21,8 @@ class MainViewModel @Inject constructor(
     val isAppReady = _isAppReady.asStateFlow()
     private val _startDestination = MutableStateFlow(Screen.Auth.route)
     val startDestination = _startDestination.asStateFlow()
+    private val _showBottomBar = MutableStateFlow(true)
+    val showBottomBar = _showBottomBar.asStateFlow()
 
     val isDarkTheme = profileRepository.userPreferencesFlow
         .map { it.isDarkTheme }
@@ -39,5 +41,9 @@ class MainViewModel @Inject constructor(
                     Screen.Auth.route
             _isAppReady.value = true
         }
+    }
+
+    fun updateBottomBarVisibility(showBottomBar: Boolean) {
+        _showBottomBar.value = showBottomBar
     }
 }

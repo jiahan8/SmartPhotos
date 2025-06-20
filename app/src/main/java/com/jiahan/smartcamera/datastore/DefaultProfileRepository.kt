@@ -68,9 +68,9 @@ class DefaultProfileRepository @Inject constructor(
             UserPreferences(isDarkTheme)
         }
 
-    override suspend fun updateIsDarkTheme(isDarkTheme: Boolean) {
+    override suspend fun updateDarkThemeVisibility(showDarkTheme: Boolean) {
         context.dataStore.edit { preferences ->
-            preferences[PreferencesKeys.IS_DARK_THEME] = isDarkTheme
+            preferences[PreferencesKeys.IS_DARK_THEME] = showDarkTheme
         }
     }
 

@@ -82,9 +82,9 @@ fun ProfileScreen(
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
-    var isErrorSnackBar by remember { mutableStateOf(false) }
+    val isErrorSnackBar by viewModel.isErrorSnackBar.collectAsState()
     val bottomSheetState = rememberModalBottomSheetState()
-    var showSheet by remember { mutableStateOf(false) }
+    val showBottomSheet by viewModel.showBottomSheet.collectAsState()
     val scrollState = rememberScrollState()
 
     val email by viewModel.email.collectAsState()
@@ -150,8 +150,8 @@ fun ProfileScreen(
 
     LaunchedEffect(updateSuccess) {
         if (updateSuccess) {
-            isErrorSnackBar = false
-            showSheet = false
+            viewModel.updateErrorSnackBar(false)
+            viewModel.updateBottomSheetVisibility(false)
             snackbarHostState.showSnackbar(updateSuccessMessage, duration = SnackbarDuration.Short)
             viewModel.resetUpdateSuccess()
         }
@@ -159,16 +159,16 @@ fun ProfileScreen(
 
     LaunchedEffect(updateError) {
         if (updateError) {
-            isErrorSnackBar = true
-            showSheet = false
+            viewModel.updateErrorSnackBar(true)
+            viewModel.updateBottomSheetVisibility(false)
             snackbarHostState.showSnackbar(updateFailureMessage, duration = SnackbarDuration.Short)
             viewModel.resetUpdateError()
         }
     }
 
-    if (showSheet) {
+    if (showBottomSheet) {
         ModalBottomSheet(
-            onDismissRequest = { showSheet = false },
+            onDismissRequest = { viewModel.updateBottomSheetVisibility(false) },
             sheetState = bottomSheetState
         ) {
             Column(
@@ -341,7 +341,7 @@ fun ProfileScreen(
                 )
 
                 TextButton(
-                    onClick = { showSheet = true }
+                    onClick = { viewModel.updateBottomSheetVisibility(true) }
                 ) {
                     Text(text = stringResource(R.string.edit_picture))
                 }

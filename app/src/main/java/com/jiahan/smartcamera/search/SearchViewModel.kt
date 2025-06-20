@@ -35,6 +35,8 @@ class SearchViewModel @Inject constructor(
     val isLoadingMore = _isLoadingMore.asStateFlow()
     private val _noteToDelete = MutableStateFlow<HomeNote?>(null)
     val noteToDelete: StateFlow<HomeNote?> = _noteToDelete.asStateFlow()
+    private val _currentPlaceholderIndex = MutableStateFlow(0)
+    val currentPlaceholderIndex = _currentPlaceholderIndex.asStateFlow()
 
     private var isHandlingLocalFavoriteAction = false
 
@@ -129,5 +131,9 @@ class SearchViewModel @Inject constructor(
 
     fun setNoteToDelete(note: HomeNote?) {
         _noteToDelete.value = note
+    }
+
+    fun updateCurrentPlaceholderIndex(index: Int) {
+        _currentPlaceholderIndex.value = index
     }
 }

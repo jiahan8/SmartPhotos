@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface ProfileRepository {
     val userPreferencesFlow: Flow<UserPreferences>
-    suspend fun updateIsDarkTheme(isDarkTheme: Boolean)
+    suspend fun updateDarkThemeVisibility(isDarkTheme: Boolean)
     val firebaseUser: FirebaseUser?
     suspend fun getUser(): User?
     suspend fun getUser(userId: String): User?

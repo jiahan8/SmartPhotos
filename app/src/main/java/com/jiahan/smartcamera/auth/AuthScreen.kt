@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Email
@@ -32,9 +34,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -59,10 +58,13 @@ fun AuthScreen(
     navController: NavController,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
+    val scrollState = rememberScrollState()
+
     val email by viewModel.email.collectAsState()
     val password by viewModel.password.collectAsState()
     val fullName by viewModel.fullName.collectAsState()
     val username by viewModel.username.collectAsState()
+    val passwordVisible by viewModel.passwordVisible.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val isLoginMode by viewModel.isLoginMode.collectAsState()
@@ -95,6 +97,7 @@ fun AuthScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(scrollState)
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -118,8 +121,6 @@ fun AuthScreen(
                     ),
                     leadingIcon = { Icon(Icons.Rounded.Email, contentDescription = null) }
                 )
-
-                var passwordVisible by remember { mutableStateOf(false) }
 
                 if (!isLoginMode) {
                     OutlinedTextField(
@@ -178,7 +179,7 @@ fun AuthScreen(
                                 interactionSource = null,
                                 indication = null
                             ) {
-                                passwordVisible = !passwordVisible
+                                viewModel.updatePasswordVisibility(!passwordVisible)
                             },
                             painter = if (passwordVisible)
                                 painterResource(R.drawable.visibility)

@@ -30,7 +30,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -58,7 +57,7 @@ fun SearchScreen(
     viewModel: SearchViewModel = hiltViewModel(),
     onScrollDirectionChanged: (Boolean) -> Unit = {}
 ) {
-    val state = rememberPullToRefreshState()
+    val pullToRefreshState = rememberPullToRefreshState()
     val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
@@ -78,7 +77,7 @@ fun SearchScreen(
             stringResource(R.string.look_up)
         )
     val placeholderList = remember { placeholderOptions }
-    var currentPlaceholderIndex by remember { mutableIntStateOf(0) }
+    val currentPlaceholderIndex by viewModel.currentPlaceholderIndex.collectAsState()
     val placeholder = placeholderList[currentPlaceholderIndex]
     var isTransitioning by remember { mutableStateOf(false) }
     val placeholderAlpha by animateFloatAsState(
@@ -123,7 +122,7 @@ fun SearchScreen(
             delay(3000)
             isTransitioning = true
             delay(500)
-            currentPlaceholderIndex = (currentPlaceholderIndex + 1) % placeholderList.size
+            viewModel.updateCurrentPlaceholderIndex((currentPlaceholderIndex + 1) % placeholderList.size)
             isTransitioning = false
             delay(500)
         }
@@ -204,7 +203,7 @@ fun SearchScreen(
                     start = padding.calculateStartPadding(LayoutDirection.Ltr),
                     end = padding.calculateEndPadding(LayoutDirection.Ltr)
                 ),
-                state = state,
+                state = pullToRefreshState,
                 isRefreshing = isRefreshing,
                 onRefresh = onRefresh,
             ) {
@@ -219,7 +218,7 @@ fun SearchScreen(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(vertical = 8.dp)
+                        contentPadding = PaddingValues(top = 8.dp, bottom = 38.dp)
                     ) {
                         items(
                             count = notes.size,
