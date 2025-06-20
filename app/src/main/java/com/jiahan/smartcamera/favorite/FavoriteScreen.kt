@@ -41,6 +41,9 @@ import androidx.navigation.NavController
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.Screen
 import com.jiahan.smartcamera.home.HomeItem
+import com.jiahan.smartcamera.util.pairwise
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,25 +73,17 @@ fun FavoriteScreen(
     }
 
     LaunchedEffect(listState) {
-        var prevFirstVisibleItemIndex = listState.firstVisibleItemIndex
-        var prevFirstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset
-
         onScrollDirectionChanged(true)
-
-        snapshotFlow {
-            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
-        }
-            .collect { (currentIndex, currentScrollOffset) ->
-                if (currentIndex != prevFirstVisibleItemIndex || currentScrollOffset != prevFirstVisibleItemScrollOffset) {
-                    val isScrollingUp = currentIndex < prevFirstVisibleItemIndex ||
-                            (currentIndex == prevFirstVisibleItemIndex &&
-                                    currentScrollOffset < prevFirstVisibleItemScrollOffset)
-
-                    onScrollDirectionChanged(isScrollingUp)
-
-                    prevFirstVisibleItemIndex = currentIndex
-                    prevFirstVisibleItemScrollOffset = currentScrollOffset
-                }
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .pairwise()
+            .map { (prev, curr) ->
+                val (prevIndex, prevOffset) = prev
+                val (currIndex, currOffset) = curr
+                currIndex < prevIndex || (currIndex == prevIndex && currOffset < prevOffset)
+            }
+            .distinctUntilChanged()
+            .collect { isScrollingUp ->
+                onScrollDirectionChanged(isScrollingUp)
             }
     }
 

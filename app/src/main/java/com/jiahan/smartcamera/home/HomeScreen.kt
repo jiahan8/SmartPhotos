@@ -61,7 +61,10 @@ import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.Screen
 import com.jiahan.smartcamera.domain.HomeNote
+import com.jiahan.smartcamera.util.pairwise
 import com.jiahan.smartcamera.util.Util.formatDateTime
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,28 +93,17 @@ fun HomeScreen(
     }
 
     LaunchedEffect(listState) {
-        // Initialize with true to show the bottom bar initially
-        var prevFirstVisibleItemIndex = listState.firstVisibleItemIndex
-        var prevFirstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset
-
-        // Set bottom bar to visible initially
         onScrollDirectionChanged(true)
-
-        snapshotFlow {
-            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
-        }
-            .collect { (currentIndex, currentScrollOffset) ->
-                // Only update direction after actual scrolling occurs
-                if (currentIndex != prevFirstVisibleItemIndex || currentScrollOffset != prevFirstVisibleItemScrollOffset) {
-                    val isScrollingUp = currentIndex < prevFirstVisibleItemIndex ||
-                            (currentIndex == prevFirstVisibleItemIndex &&
-                                    currentScrollOffset < prevFirstVisibleItemScrollOffset)
-
-                    onScrollDirectionChanged(isScrollingUp)
-
-                    prevFirstVisibleItemIndex = currentIndex
-                    prevFirstVisibleItemScrollOffset = currentScrollOffset
-                }
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .pairwise()
+            .map { (prev, curr) ->
+                val (prevIndex, prevOffset) = prev
+                val (currIndex, currOffset) = curr
+                currIndex < prevIndex || (currIndex == prevIndex && currOffset < prevOffset)
+            }
+            .distinctUntilChanged()
+            .collect { isScrollingUp ->
+                onScrollDirectionChanged(isScrollingUp)
             }
     }
 
