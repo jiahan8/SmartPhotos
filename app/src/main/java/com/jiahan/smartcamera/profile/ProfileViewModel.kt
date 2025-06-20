@@ -6,7 +6,7 @@ import androidx.core.content.FileProvider.getUriForFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.auth.AuthViewModel.ValidationResult
+import com.jiahan.smartcamera.auth.ValidationResult
 import com.jiahan.smartcamera.datastore.ProfileRepository
 import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG

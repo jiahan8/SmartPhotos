@@ -95,7 +95,7 @@ class NoteViewModel @Inject constructor(
         }
     }
 
-    suspend fun getUser() = profileRepository.getUser()
+    private suspend fun getUser() = profileRepository.getUser()
 
     fun uploadPost(text: String, mediaList: List<NoteMediaDetail>) {
         viewModelScope.launch {
@@ -220,6 +220,14 @@ class NoteViewModel @Inject constructor(
         _videoUri.value = uri
     }
 
+    fun updateErrorSnackBar(isError: Boolean) {
+        _isErrorSnackBar.value = isError
+    }
+
+    fun updateCurrentPlaceholderIndex(index: Int) {
+        _currentPlaceholderIndex.value = index
+    }
+
     private fun validatePostText(text: String) {
         _postTextError.value = when {
             text.length > 500 -> resourceProvider.getString(R.string.post_validation)
@@ -227,16 +235,16 @@ class NoteViewModel @Inject constructor(
         }
     }
 
-    fun getVideoThumbnail(context: Context, uri: Uri): Bitmap? {
+    private fun getVideoThumbnail(context: Context, uri: Uri): Bitmap? {
         return _videoThumbnails.getOrPut(uri) {
             createVideoThumbnail(context, uri)
         }
     }
 
-    suspend fun generateDescription(imageUri: Uri) =
+    private suspend fun generateDescription(imageUri: Uri) =
         searchRepository.prepareAndStartImageDescription(imageUri)
 
-    suspend fun detectLabelsAndJapaneseText(context: Context, image: Uri): String {
+    private suspend fun detectLabelsAndJapaneseText(context: Context, image: Uri): String {
         return coroutineScope {
             val inputImage = InputImage.fromFilePath(context, image)
             val labeler = ImageLabeling.getClient(ImageLabelerOptions.DEFAULT_OPTIONS)
@@ -274,13 +282,5 @@ class NoteViewModel @Inject constructor(
 
             "$description$labelText$visionText"
         }
-    }
-
-    fun updateErrorSnackBar(isError: Boolean) {
-        _isErrorSnackBar.value = isError
-    }
-
-    fun updateCurrentPlaceholderIndex(index: Int) {
-        _currentPlaceholderIndex.value = index
     }
 }

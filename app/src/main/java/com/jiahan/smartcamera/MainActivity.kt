@@ -410,7 +410,7 @@ sealed class Screen(
 }
 
 @Composable
-fun AnimatedIcon(
+private fun AnimatedIcon(
     selected: Boolean,
     imageVector: ImageVector,
     contentDescription: String

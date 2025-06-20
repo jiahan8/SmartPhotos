@@ -33,7 +33,7 @@ class NotePreviewViewModel @Inject constructor(
         getNote(documentPath)
     }
 
-    fun getNote(documentPath: String) {
+    private fun getNote(documentPath: String) {
         viewModelScope.launch {
             try {
                 val note = noteRepository.getNote(documentPath)

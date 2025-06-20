@@ -204,7 +204,7 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun validateUsername(username: String): ValidationResult {
+    private fun validateUsername(username: String): ValidationResult {
         return when {
             username.length > 30 ->
                 ValidationResult.Error(R.string.username_too_long)
@@ -216,7 +216,7 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun validateFullName(fullName: String): ValidationResult {
+    private fun validateFullName(fullName: String): ValidationResult {
         return when {
             fullName.length > 50 ->
                 ValidationResult.Error(R.string.name_too_long)
@@ -244,12 +244,12 @@ class AuthViewModel @Inject constructor(
         _navigationEvent.value = null
     }
 
-    sealed class ValidationResult {
-        object Success : ValidationResult()
-        data class Error(val messageResId: Int) : ValidationResult()
-    }
-
     sealed class NavigationEvent {
         object NavigateToHome : NavigationEvent()
     }
+}
+
+sealed class ValidationResult {
+    object Success : ValidationResult()
+    data class Error(val messageResId: Int) : ValidationResult()
 }
