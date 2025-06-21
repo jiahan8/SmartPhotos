@@ -62,7 +62,7 @@ fun AuthScreen(
 
     val email by viewModel.email.collectAsState()
     val password by viewModel.password.collectAsState()
-    val fullName by viewModel.fullName.collectAsState()
+    val displayName by viewModel.displayName.collectAsState()
     val username by viewModel.username.collectAsState()
     val passwordVisible by viewModel.passwordVisible.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -124,8 +124,8 @@ fun AuthScreen(
 
                 if (!isLoginMode) {
                     OutlinedTextField(
-                        value = fullName,
-                        onValueChange = { viewModel.updateFullNameText(it) },
+                        value = displayName,
+                        onValueChange = { viewModel.updateDisplayNameText(it) },
                         label = { Text(stringResource(R.string.name)) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.large,

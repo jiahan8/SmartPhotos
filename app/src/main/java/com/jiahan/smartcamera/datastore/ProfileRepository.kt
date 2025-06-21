@@ -4,6 +4,7 @@ import android.net.Uri
 import com.google.firebase.auth.FirebaseUser
 import com.jiahan.smartcamera.domain.User
 import kotlinx.coroutines.flow.Flow
+import kotlin.Boolean
 
 interface ProfileRepository {
     val userPreferencesFlow: Flow<UserPreferences>
@@ -15,21 +16,28 @@ interface ProfileRepository {
     suspend fun signUp(
         email: String,
         password: String,
-        fullName: String,
+        displayName: String,
         username: String
     ): Result<FirebaseUser?>
 
+    suspend fun createUserProfile(password: String, username: String)
+
     suspend fun updateUserProfile(
-        fullName: String?,
+        displayName: String?,
         username: String?,
+        profilePictureUri: Uri?,
         profilePictureUrl: String?,
         deleteProfilePicture: Boolean = false
     )
 
-    suspend fun saveUserProfile(password: String, username: String)
-    suspend fun updateFirebaseUserProfile(fullName: String?)
+    suspend fun updateFirebaseUserProfile(
+        displayName: String?,
+        profilePictureUri: Uri?,
+        deleteProfilePicture: Boolean
+    )
+
     suspend fun updateDatabaseUserProfile(
-        fullName: String?,
+        displayName: String?,
         username: String?,
         profilePictureUrl: String?,
         deleteProfilePicture: Boolean = false

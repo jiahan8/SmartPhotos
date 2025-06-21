@@ -111,14 +111,18 @@ class DefaultProfileRepository @Inject constructor(
     override suspend fun signUp(
         email: String,
         password: String,
-        fullName: String,
+        displayName: String,
         username: String
     ): Result<FirebaseUser?> {
         return try {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
-            updateFirebaseUserProfile(fullName = fullName)
+            updateFirebaseUserProfile(
+                name = displayName,
+                profilePictureUri = null,
+                deleteProfilePicture = false
+            )
             result.user?.sendEmailVerification()?.await()
-            saveUserProfile(password = password, username = username)
+            createUserProfile(password = password, username = username)
             Result.success(result.user)
         } catch (e: Exception) {
             Result.failure(e)
@@ -126,21 +130,26 @@ class DefaultProfileRepository @Inject constructor(
     }
 
     override suspend fun updateUserProfile(
-        fullName: String?,
+        displayName: String?,
         username: String?,
+        profilePictureUri: Uri?,
         profilePictureUrl: String?,
         deleteProfilePicture: Boolean
     ) {
-        updateFirebaseUserProfile(fullName = fullName)
+        updateFirebaseUserProfile(
+            name = displayName,
+            profilePictureUri = profilePictureUri,
+            deleteProfilePicture = deleteProfilePicture
+        )
         updateDatabaseUserProfile(
-            fullName = fullName,
+            displayName = displayName,
             username = username,
             profilePictureUrl = profilePictureUrl,
             deleteProfilePicture = deleteProfilePicture
         )
     }
 
-    override suspend fun saveUserProfile(
+    override suspend fun createUserProfile(
         password: String,
         username: String
     ) {
@@ -173,7 +182,7 @@ class DefaultProfileRepository @Inject constructor(
         return hashMapOf(
             "email" to firebaseUser.email,
             "password" to password,
-            "full_name" to firebaseUser.displayName,
+            "display_name" to firebaseUser.displayName,
             "username" to username,
             "profile_picture" to null,
             "created" to FieldValue.serverTimestamp(),
@@ -187,7 +196,7 @@ class DefaultProfileRepository @Inject constructor(
     ): Map<String, Any?> {
         return hashMapOf(
             "email" to firebaseUser.email,
-            "full_name" to firebaseUser.displayName,
+            "display_name" to firebaseUser.displayName,
             "username" to username,
             "profile_picture" to null,
             "created" to FieldValue.serverTimestamp(),
@@ -196,26 +205,35 @@ class DefaultProfileRepository @Inject constructor(
     }
 
     override suspend fun updateFirebaseUserProfile(
-        fullName: String?,
+        name: String?,
+        profilePictureUri: Uri?,
+        deleteProfilePicture: Boolean
     ) {
         auth.currentUser?.updateProfile(
             userProfileChangeRequest {
-                fullName?.let {
-                    displayName = fullName
+                name?.let {
+                    displayName = name
+                }
+                if (deleteProfilePicture) {
+                    photoUri = null
+                } else {
+                    profilePictureUri?.let {
+                        photoUri = profilePictureUri
+                    }
                 }
             }
         )?.await()
     }
 
     override suspend fun updateDatabaseUserProfile(
-        fullName: String?,
+        displayName: String?,
         username: String?,
         profilePictureUrl: String?,
         deleteProfilePicture: Boolean
     ) {
         val updates = mutableMapOf<String, Any?>()
 
-        fullName?.let { updates["full_name"] = it }
+        displayName?.let { updates["display_name"] = it }
         username?.let { updates["username"] = it }
         if (deleteProfilePicture) {
             updates["profile_picture"] = null
@@ -316,7 +334,7 @@ class DefaultProfileRepository @Inject constructor(
         return User(
             email = userDocumentSnapshot.getString("email") ?: "",
             password = userDocumentSnapshot.getString("password") ?: "",
-            fullName = userDocumentSnapshot.getString("full_name") ?: "",
+            displayName = userDocumentSnapshot.getString("display_name") ?: "",
             username = userDocumentSnapshot.getString("username") ?: "",
             profilePicture = userDocumentSnapshot.getString("profile_picture"),
             createdDate = userDocumentSnapshot.getDate("created") ?: Date(),

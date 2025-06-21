@@ -88,10 +88,10 @@ fun ProfileScreen(
     val scrollState = rememberScrollState()
 
     val email by viewModel.email.collectAsState()
-    val fullName by viewModel.fullName.collectAsState()
+    val displayName by viewModel.displayName.collectAsState()
     val username by viewModel.username.collectAsState()
     val profilePictureUrl by viewModel.profilePictureUrl.collectAsState()
-    val fullNameErrorMessage by viewModel.fullNameErrorMessage.collectAsState()
+    val displayNameErrorMessage by viewModel.displayNameErrorMessage.collectAsState()
     val usernameErrorMessage by viewModel.usernameErrorMessage.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val isErrorFree by viewModel.isErrorFree.collectAsState()
@@ -260,7 +260,7 @@ fun ProfileScreen(
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            viewModel.deletePicture()
+                            viewModel.deleteProfilePicture()
                             viewModel.dismissDialog()
                         }
                     ) {
@@ -366,8 +366,8 @@ fun ProfileScreen(
                     )
 
                     OutlinedTextField(
-                        value = fullName,
-                        onValueChange = { viewModel.updateFullNameText(it) },
+                        value = displayName,
+                        onValueChange = { viewModel.updateDisplayNameText(it) },
                         label = { Text(stringResource(R.string.name)) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.large,
@@ -376,7 +376,7 @@ fun ProfileScreen(
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                     )
 
-                    fullNameErrorMessage?.let {
+                    displayNameErrorMessage?.let {
                         Text(
                             text = it,
                             color = MaterialTheme.colorScheme.error,

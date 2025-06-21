@@ -21,8 +21,8 @@ class AuthViewModel @Inject constructor(
     val email = _email.asStateFlow()
     private val _password = MutableStateFlow("")
     val password = _password.asStateFlow()
-    private val _fullName = MutableStateFlow("")
-    val fullName = _fullName.asStateFlow()
+    private val _displayName = MutableStateFlow("")
+    val displayName = _displayName.asStateFlow()
     private val _username = MutableStateFlow("")
     val username = _username.asStateFlow()
 
@@ -46,8 +46,8 @@ class AuthViewModel @Inject constructor(
         _password.value = text
     }
 
-    fun updateFullNameText(text: String) {
-        _fullName.value = text
+    fun updateDisplayNameText(text: String) {
+        _displayName.value = text
     }
 
     fun updateUsernameText(text: String) {
@@ -67,7 +67,7 @@ class AuthViewModel @Inject constructor(
     private fun clearFields() {
         _email.value = ""
         _password.value = ""
-        _fullName.value = ""
+        _displayName.value = ""
         _username.value = ""
     }
 
@@ -107,7 +107,7 @@ class AuthViewModel @Inject constructor(
 
     fun signUp() {
         val trimmedEmail = email.value.trim()
-        val trimmedFullName = fullName.value.trim()
+        val trimmedDisplayName = displayName.value.trim()
         val trimmedUsername = username.value.trim()
 
         if (trimmedEmail.isBlank() || password.value.isBlank()) {
@@ -115,12 +115,12 @@ class AuthViewModel @Inject constructor(
             return
         }
 
-        if (trimmedFullName.isBlank() || trimmedUsername.isBlank()) {
+        if (trimmedDisplayName.isBlank() || trimmedUsername.isBlank()) {
             _errorMessage.value = resourceProvider.getString(R.string.all_fields_required)
             return
         }
 
-        when (val result = validateFullName(trimmedFullName)) {
+        when (val result = validateDisplayName(trimmedDisplayName)) {
             is ValidationResult.Error -> {
                 _errorMessage.value = resourceProvider.getString(result.messageResId)
                 return
@@ -150,7 +150,7 @@ class AuthViewModel @Inject constructor(
                 val result = profileRepository.signUp(
                     email = trimmedEmail,
                     password = password.value,
-                    fullName = trimmedFullName,
+                    displayName = trimmedDisplayName,
                     username = trimmedUsername
                 )
                 if (result.isSuccess) {
@@ -216,9 +216,9 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    private fun validateFullName(fullName: String): ValidationResult {
+    private fun validateDisplayName(displayName: String): ValidationResult {
         return when {
-            fullName.length > 50 ->
+            displayName.length > 50 ->
                 ValidationResult.Error(R.string.name_too_long)
 
             else -> ValidationResult.Success
