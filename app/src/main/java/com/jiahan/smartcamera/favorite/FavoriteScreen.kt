@@ -171,7 +171,7 @@ fun FavoriteScreen(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(top = 8.dp, bottom = 38.dp)
+                        contentPadding = PaddingValues(top = 8.dp, bottom = 76.dp)
                     ) {
                         items(
                             count = notes.size,

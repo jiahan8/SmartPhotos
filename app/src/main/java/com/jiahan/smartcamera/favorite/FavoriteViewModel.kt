@@ -8,7 +8,6 @@ import com.jiahan.smartcamera.note.NoteHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
@@ -22,7 +21,7 @@ class FavoriteViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _notes = MutableStateFlow<List<HomeNote>>(emptyList())
-    val notes: StateFlow<List<HomeNote>> = _notes
+    val notes = _notes.asStateFlow()
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
     private val _isLoading = MutableStateFlow(false)
@@ -32,7 +31,7 @@ class FavoriteViewModel @Inject constructor(
     private val _isLoadingMore = MutableStateFlow(false)
     val isLoadingMore = _isLoadingMore.asStateFlow()
     private val _noteToDelete = MutableStateFlow<HomeNote?>(null)
-    val noteToDelete: StateFlow<HomeNote?> = _noteToDelete.asStateFlow()
+    val noteToDelete = _noteToDelete.asStateFlow()
 
     init {
         viewModelScope.launch {

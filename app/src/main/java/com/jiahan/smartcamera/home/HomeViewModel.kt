@@ -8,7 +8,6 @@ import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -21,7 +20,7 @@ class HomeViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _notes = MutableStateFlow<List<HomeNote>>(emptyList())
-    val notes: StateFlow<List<HomeNote>> = _notes
+    val notes = _notes.asStateFlow()
     private val _isInitialLoading = MutableStateFlow(true)
     val isInititalLoading = _isInitialLoading.asStateFlow()
     private val _isRefreshing = MutableStateFlow(false)
@@ -29,7 +28,7 @@ class HomeViewModel @Inject constructor(
     private val _isLoadingMore = MutableStateFlow(false)
     val isLoadingMore = _isLoadingMore.asStateFlow()
     private val _noteToDelete = MutableStateFlow<HomeNote?>(null)
-    val noteToDelete: StateFlow<HomeNote?> = _noteToDelete.asStateFlow()
+    val noteToDelete = _noteToDelete.asStateFlow()
 
     private var currentPage = 0
     private val pageSize = 10

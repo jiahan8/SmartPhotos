@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
@@ -62,6 +63,7 @@ fun NotePreviewScreen(
     val scrollState = rememberScrollState()
     val note by viewModel.note.collectAsState()
     val noteToDelete by viewModel.noteToDelete.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
 
     noteToDelete?.let { note ->
         AlertDialog(
@@ -102,172 +104,184 @@ fun NotePreviewScreen(
             )
         }
     ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    top = padding.calculateTopPadding(),
-                    start = padding.calculateStartPadding(LayoutDirection.Ltr),
-                    end = padding.calculateEndPadding(LayoutDirection.Ltr)
-                )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(scrollState)
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-                Row(
+                CircularProgressIndicator(
+                    strokeWidth = 1.5.dp
+                )
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        top = padding.calculateTopPadding(),
+                        start = padding.calculateStartPadding(LayoutDirection.Ltr),
+                        end = padding.calculateEndPadding(LayoutDirection.Ltr)
+                    )
+            ) {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, top = 16.dp)
+                        .verticalScroll(scrollState)
                 ) {
-                    note.profilePictureUrl?.let {
-                        AsyncImage(
-                            model = it,
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, end = 16.dp, top = 16.dp)
+                    ) {
+                        note.profilePictureUrl?.let {
+                            AsyncImage(
+                                model = it,
+                                contentDescription = "Profile Picture",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                            )
+                        } ?: Image(
+                            imageVector = Icons.Rounded.AccountCircle,
                             contentDescription = "Profile Picture",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .size(38.dp)
-                                .clip(CircleShape)
-                        )
-                    } ?: Image(
-                        imageVector = Icons.Rounded.AccountCircle,
-                        contentDescription = "Profile Picture",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape),
-                        colorFilter = ColorFilter.tint(
-                            MaterialTheme.colorScheme.onSurface.copy(
-                                alpha = 0.7f
+                                .clip(CircleShape),
+                            colorFilter = ColorFilter.tint(
+                                MaterialTheme.colorScheme.onSurface.copy(
+                                    alpha = 0.7f
+                                )
                             )
                         )
-                    )
 
-                    Column(
-                        modifier = Modifier.padding(start = 16.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
+                        Column(
+                            modifier = Modifier.padding(start = 16.dp)
                         ) {
-                            Text(
-                                text = note.username,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
-
-                            Text(
-                                text = note.createdDate?.time?.let { (formatDateTime(it)) } ?: "",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(start = 8.dp),
-                                maxLines = 1
-                            )
-                        }
-
-                        note.text?.let { text ->
-                            Text(
-                                text = text,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    }
-                }
-
-                val list = note.mediaList
-                if (!list.isNullOrEmpty()) {
-                    LazyRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp),
-                        contentPadding = PaddingValues(start = 56.dp, end = 8.dp)
-                    ) {
-                        items(list.size) { index ->
-                            val mediaDetail = list[index]
-                            Box(
-                                modifier = Modifier
-                                    .padding(end = 8.dp)
-                                    .clickable {
-                                        if (list[index].isVideo) {
-                                            navController.navigate(
-                                                Screen.VideoPreview.createRemoteRoute(
-                                                    list[index].videoUrl.toString()
-                                                )
-                                            )
-                                        } else {
-                                            navController.navigate(
-                                                Screen.PhotoPreview.createRemoteRoute(
-                                                    list[index].photoUrl.toString()
-                                                )
-                                            )
-                                        }
-                                    }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                AsyncImage(
-                                    model = if (mediaDetail.isVideo) mediaDetail.thumbnailUrl else mediaDetail.photoUrl,
-                                    modifier = Modifier
-                                        .height(256.dp)
-                                        .width(220.dp)
-                                        .clip(MaterialTheme.shapes.medium),
-                                    contentDescription = "Image",
-                                    contentScale = ContentScale.Crop,
-                                    onError = {
-                                        it.result.throwable.printStackTrace()
-                                    }
+                                Text(
+                                    text = note.username,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
                                 )
 
-                                if (mediaDetail.isVideo)
-                                    Icon(
-                                        imageVector = Icons.Rounded.PlayArrow,
-                                        contentDescription = "Play Video",
-                                        modifier = Modifier
-                                            .align(Alignment.Center)
-                                            .size(52.dp)
-                                            .clip(CircleShape)
-                                            .background(
-                                                MaterialTheme.colorScheme.surfaceVariant.copy(
-                                                    alpha = 0.7f
-                                                )
-                                            ),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                Text(
+                                    text = note.createdDate?.time?.let { (formatDateTime(it)) }
+                                        ?: "",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(start = 8.dp),
+                                    maxLines = 1
+                                )
+                            }
+
+                            note.text?.let { text ->
+                                Text(
+                                    text = text,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
                             }
                         }
                     }
-                }
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 68.dp, end = 16.dp, top = 16.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(if (note.favorite) R.drawable.favorite else R.drawable.favorite_outlined),
-                        contentDescription = "Favorite",
-                        modifier = Modifier
-                            .clickable(
-                                interactionSource = null,
-                                indication = null
-                            ) {
-                                viewModel.favoriteNote(note)
-                            },
-                        tint = if (note.favorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
-                    )
+                    val list = note.mediaList
+                    if (!list.isNullOrEmpty()) {
+                        LazyRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
+                            contentPadding = PaddingValues(start = 56.dp, end = 8.dp)
+                        ) {
+                            items(list.size) { index ->
+                                val mediaDetail = list[index]
+                                Box(
+                                    modifier = Modifier
+                                        .padding(end = 8.dp)
+                                        .clickable {
+                                            if (list[index].isVideo) {
+                                                navController.navigate(
+                                                    Screen.VideoPreview.createRemoteRoute(
+                                                        list[index].videoUrl.toString()
+                                                    )
+                                                )
+                                            } else {
+                                                navController.navigate(
+                                                    Screen.PhotoPreview.createRemoteRoute(
+                                                        list[index].photoUrl.toString()
+                                                    )
+                                                )
+                                            }
+                                        }
+                                ) {
+                                    AsyncImage(
+                                        model = if (mediaDetail.isVideo) mediaDetail.thumbnailUrl else mediaDetail.photoUrl,
+                                        modifier = Modifier
+                                            .height(256.dp)
+                                            .width(220.dp)
+                                            .clip(MaterialTheme.shapes.medium),
+                                        contentDescription = "Image",
+                                        contentScale = ContentScale.Crop,
+                                        onError = {
+                                            it.result.throwable.printStackTrace()
+                                        }
+                                    )
 
-                    Icon(
-                        painter = painterResource(R.drawable.delete),
-                        contentDescription = "Delete",
-                        modifier = Modifier
-                            .padding(start = 6.dp)
-                            .clickable {
-                                viewModel.setNoteToDelete(note)
+                                    if (mediaDetail.isVideo)
+                                        Icon(
+                                            imageVector = Icons.Rounded.PlayArrow,
+                                            contentDescription = "Play Video",
+                                            modifier = Modifier
+                                                .align(Alignment.Center)
+                                                .size(52.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    MaterialTheme.colorScheme.surfaceVariant.copy(
+                                                        alpha = 0.7f
+                                                    )
+                                                ),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                }
                             }
-                    )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 68.dp, end = 16.dp, top = 16.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(if (note.favorite) R.drawable.favorite else R.drawable.favorite_outlined),
+                            contentDescription = "Favorite",
+                            modifier = Modifier
+                                .clickable(
+                                    interactionSource = null,
+                                    indication = null
+                                ) {
+                                    viewModel.favoriteNote(note)
+                                },
+                            tint = if (note.favorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                        )
+
+                        Icon(
+                            painter = painterResource(R.drawable.delete),
+                            contentDescription = "Delete",
+                            modifier = Modifier
+                                .padding(start = 6.dp)
+                                .clickable {
+                                    viewModel.setNoteToDelete(note)
+                                }
+                        )
+                    }
                 }
             }
         }

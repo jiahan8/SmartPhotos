@@ -119,7 +119,6 @@ fun NoteScreen(
         label = "placeholderAlpha"
     )
 
-    val postSuccessMessage = stringResource(R.string.post_success)
     val postFailureMessage = stringResource(R.string.post_failure)
 
     var hasCameraPermission by remember {
@@ -193,7 +192,6 @@ fun NoteScreen(
         if (uploadSuccess) {
             keyboardController?.hide()
             viewModel.updateErrorSnackBar(false)
-            snackbarHostState.showSnackbar(postSuccessMessage, duration = SnackbarDuration.Short)
             viewModel.resetUploadSuccess()
             viewModel.resetUploading()
             navController.popBackStack()
@@ -243,16 +241,6 @@ fun NoteScreen(
                     end = padding.calculateEndPadding(LayoutDirection.Ltr)
                 )
         ) {
-            if (isUploading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        strokeWidth = 1.5.dp
-                    )
-                }
-            }
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -493,6 +481,16 @@ fun NoteScreen(
                             focusRequester.requestFocus()
                         }
                     }
+                }
+            }
+            if (isUploading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        strokeWidth = 1.5.dp
+                    )
                 }
             }
         }
