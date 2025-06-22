@@ -1,3 +1,3 @@
 package com.jiahan.smartcamera.datastore
 
-data class UserPreferences(val isDarkTheme: Boolean)
+data class UserPreferences(val isDarkTheme: Boolean, val username: String)

@@ -89,7 +89,8 @@ fun NoteScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val scrollState = rememberScrollState()
 
-    val user by viewModel.user.collectAsState()
+    val profilePictureUri by viewModel.profilePictureUri.collectAsState()
+    val username by viewModel.username.collectAsState()
     val postText by viewModel.postText.collectAsState()
     val photoUri by viewModel.photoUri.collectAsState()
     val videoUri by viewModel.videoUri.collectAsState()
@@ -251,14 +252,17 @@ fun NoteScreen(
                         .fillMaxWidth()
                         .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp)
                 ) {
-                    user?.profilePicture?.let {
+                    profilePictureUri?.let {
                         AsyncImage(
                             model = it,
                             contentDescription = "Profile Picture",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .size(38.dp)
-                                .clip(CircleShape)
+                                .clip(CircleShape),
+                            onError = {
+                                it.result.throwable.printStackTrace()
+                            }
                         )
                     } ?: Image(
                         imageVector = Icons.Rounded.AccountCircle,
@@ -278,7 +282,7 @@ fun NoteScreen(
                         modifier = Modifier.padding(start = 16.dp)
                     ) {
                         Text(
-                            text = user?.username ?: "",
+                            text = username ?: "",
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontWeight = FontWeight.Bold
                             ),

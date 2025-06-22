@@ -118,7 +118,7 @@ fun ProfileScreen(
         contract = PickVisualMedia()
     ) { uri ->
         uri?.let {
-            viewModel.updatePhotoUri(uri)
+            viewModel.uploadProfilePicture(uri)
         }
     }
 
@@ -127,7 +127,7 @@ fun ProfileScreen(
     ) { success ->
         if (success) {
             photoUri?.let { uri ->
-                viewModel.updatePhotoUri(uri)
+                viewModel.uploadProfilePicture(uri)
             }
         } else {
             photoUri?.let { uri ->

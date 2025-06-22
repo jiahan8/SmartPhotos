@@ -9,6 +9,7 @@ import kotlin.Boolean
 interface ProfileRepository {
     val userPreferencesFlow: Flow<UserPreferences>
     suspend fun updateDarkThemeVisibility(isDarkTheme: Boolean)
+    suspend fun updateUsername(username: String)
     val firebaseUser: FirebaseUser?
     suspend fun getUser(): User?
     suspend fun getUser(userId: String): User?

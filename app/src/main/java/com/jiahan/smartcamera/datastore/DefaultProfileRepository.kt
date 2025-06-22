@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
@@ -36,6 +37,7 @@ private val Context.dataStore by preferencesDataStore(name = USER_PREFERENCES_NA
 
 private object PreferencesKeys {
     val IS_DARK_THEME = booleanPreferencesKey(name = "is_dark_theme")
+    val USERNAME = stringPreferencesKey(name = "username")
 }
 
 class DefaultProfileRepository @Inject constructor(
@@ -65,12 +67,22 @@ class DefaultProfileRepository @Inject constructor(
         }.map { preferences ->
             // Get our dark theme value, defaulting to false if not set:
             val isDarkTheme = preferences[PreferencesKeys.IS_DARK_THEME] == true
-            UserPreferences(isDarkTheme)
+            val username = preferences[PreferencesKeys.USERNAME].toString()
+            UserPreferences(
+                isDarkTheme = isDarkTheme,
+                username = username
+            )
         }
 
     override suspend fun updateDarkThemeVisibility(showDarkTheme: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.IS_DARK_THEME] = showDarkTheme
+        }
+    }
+
+    override suspend fun updateUsername(username: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.USERNAME] = username
         }
     }
 

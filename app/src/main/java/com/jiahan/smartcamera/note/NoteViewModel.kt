@@ -20,7 +20,6 @@ import com.jiahan.smartcamera.data.repository.SearchRepository
 import com.jiahan.smartcamera.datastore.ProfileRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.NoteMediaDetail
-import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_MP4
 import com.jiahan.smartcamera.util.FileConstants.FILE_PROVIDER_AUTHORITY
@@ -32,8 +31,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.io.File
@@ -63,8 +65,8 @@ class NoteViewModel @Inject constructor(
     private val _isErrorSnackBar = MutableStateFlow(false)
     val isErrorSnackBar = _isErrorSnackBar.asStateFlow()
 
-    private val _user = MutableStateFlow<User?>(null)
-    val user = _user.asStateFlow()
+    private val _profilePictureUri = MutableStateFlow<Uri?>(null)
+    val profilePictureUri = _profilePictureUri.asStateFlow()
     private val _postText = MutableStateFlow("")
     val postText = _postText.asStateFlow()
     private val _photoUri = MutableStateFlow<Uri?>(null)
@@ -78,10 +80,18 @@ class NoteViewModel @Inject constructor(
     private val _currentPlaceholderIndex = MutableStateFlow(0)
     val currentPlaceholderIndex = _currentPlaceholderIndex.asStateFlow()
 
+    val username = profileRepository.userPreferencesFlow
+        .map { it.username }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
+
     init {
         viewModelScope.launch {
             remoteConfigRepository.fetchAndActivateConfig()
-            _user.value = getUser()
+            _profilePictureUri.value = profileRepository.firebaseUser?.photoUrl
             combine(
                 _uploading,
                 _postText,
@@ -94,8 +104,6 @@ class NoteViewModel @Inject constructor(
             }
         }
     }
-
-    private suspend fun getUser() = profileRepository.getUser()
 
     fun uploadPost(text: String, mediaList: List<NoteMediaDetail>) {
         viewModelScope.launch {

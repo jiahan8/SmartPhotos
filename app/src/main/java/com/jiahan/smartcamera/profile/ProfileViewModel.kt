@@ -72,6 +72,7 @@ class ProfileViewModel @Inject constructor(
             _displayName.value = _user.value?.displayName ?: ""
             _username.value = _user.value?.username ?: ""
             _profilePictureUrl.value = _user.value?.profilePicture
+            profileRepository.updateUsername(_user.value?.username ?: "")
         }
     }
 
