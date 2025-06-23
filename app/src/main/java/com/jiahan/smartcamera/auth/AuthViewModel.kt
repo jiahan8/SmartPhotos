@@ -87,8 +87,9 @@ class AuthViewModel @Inject constructor(
                 val result = profileRepository.signIn(trimmedEmail, password.value)
                 if (result.isSuccess) {
                     if (profileRepository.isEmailVerified()) {
-                        profileRepository.updateUsername(
-                            username = profileRepository.getUser()?.username ?: ""
+                        profileRepository.updateLocalUserProfile(
+                            username = profileRepository.getUser()?.username ?: "",
+                            profilePictureUrl = profileRepository.getUser()?.profilePicture,
                         )
                         _navigationEvent.value = NavigationEvent.NavigateToHome
                     } else {

@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -97,7 +98,9 @@ fun ProfileScreen(
     val isErrorFree by viewModel.isErrorFree.collectAsState()
     val isFormChanged by viewModel.isFormChanged.collectAsState()
     val isSaving by viewModel.isLoading.collectAsState()
+    val isUploading by viewModel.isUploading.collectAsState()
     val updateSuccess by viewModel.updateSuccess.collectAsState()
+    val uploadSuccess by viewModel.uploadSuccess.collectAsState()
     val updateError by viewModel.updateError.collectAsState()
     val dialogState by viewModel.dialogState.collectAsState()
     val photoUri by viewModel.photoUri.collectAsState()
@@ -154,6 +157,15 @@ fun ProfileScreen(
             viewModel.updateBottomSheetVisibility(false)
             snackbarHostState.showSnackbar(updateSuccessMessage, duration = SnackbarDuration.Short)
             viewModel.resetUpdateSuccess()
+        }
+    }
+
+    LaunchedEffect(uploadSuccess) {
+        if (uploadSuccess) {
+            viewModel.updateErrorSnackBar(false)
+            viewModel.updateBottomSheetVisibility(false)
+            snackbarHostState.showSnackbar(updateSuccessMessage, duration = SnackbarDuration.Short)
+            viewModel.resetUploadSuccess()
         }
     }
 
@@ -436,6 +448,21 @@ fun ProfileScreen(
                         }
                     }
                 }
+            }
+        }
+        if (isUploading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) {},
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    strokeWidth = 1.5.dp
+                )
             }
         }
     }

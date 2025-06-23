@@ -50,8 +50,12 @@ class ProfileViewModel @Inject constructor(
     val isFormChanged = _isFormChanged.asStateFlow()
     private val _isLoading = MutableStateFlow(false)
     val isLoading = _isLoading.asStateFlow()
+    private val _isUploading = MutableStateFlow(false)
+    val isUploading = _isUploading.asStateFlow()
     private val _updateSuccess = MutableStateFlow(false)
     val updateSuccess = _updateSuccess.asStateFlow()
+    private val _uploadSuccess = MutableStateFlow(false)
+    val uploadSuccess = _uploadSuccess.asStateFlow()
     private val _updateError = MutableStateFlow(false)
     val updateError = _updateError.asStateFlow()
     private val _dialogState = MutableStateFlow<DialogState>(DialogState.None)
@@ -72,7 +76,10 @@ class ProfileViewModel @Inject constructor(
             _displayName.value = _user.value?.displayName ?: ""
             _username.value = _user.value?.username ?: ""
             _profilePictureUrl.value = _user.value?.profilePicture
-            profileRepository.updateUsername(_user.value?.username ?: "")
+            profileRepository.updateLocalUserProfile(
+                username = _user.value?.username ?: "",
+                profilePictureUrl = _user.value?.profilePicture
+            )
         }
     }
 
@@ -181,6 +188,8 @@ class ProfileViewModel @Inject constructor(
 
     fun uploadProfilePicture(profilePictureUri: Uri) {
         viewModelScope.launch {
+            _isUploading.value = true
+            _showBottomSheet.value = false
             try {
                 val profilePictureUrl = profileRepository.uploadMediaToFirebase(profilePictureUri)
                 profileRepository.updateUserProfile(
@@ -191,16 +200,21 @@ class ProfileViewModel @Inject constructor(
                     deleteProfilePicture = false
                 )
                 loadUserProfile()
-                _updateSuccess.value = true
+                _uploadSuccess.value = true
             } catch (e: Exception) {
                 e.printStackTrace()
-                _updateSuccess.value = false
+                _uploadSuccess.value = false
+                _updateError.value = true
+            } finally {
+                _isUploading.value = false
             }
         }
     }
 
     fun deleteProfilePicture() {
         viewModelScope.launch {
+            _isUploading.value = true
+            _showBottomSheet.value = false
             try {
                 profileRepository.updateUserProfile(
                     displayName = null,
@@ -210,10 +224,13 @@ class ProfileViewModel @Inject constructor(
                     deleteProfilePicture = true
                 )
                 loadUserProfile()
-                _updateSuccess.value = true
+                _uploadSuccess.value = true
             } catch (e: Exception) {
                 e.printStackTrace()
-                _updateSuccess.value = false
+                _uploadSuccess.value = false
+                _updateError.value = true
+            } finally {
+                _isUploading.value = false
             }
         }
     }
@@ -240,6 +257,10 @@ class ProfileViewModel @Inject constructor(
 
     fun resetUpdateSuccess() {
         _updateSuccess.value = false
+    }
+
+    fun resetUploadSuccess() {
+        _uploadSuccess.value = false
     }
 
     fun resetUpdateError() {

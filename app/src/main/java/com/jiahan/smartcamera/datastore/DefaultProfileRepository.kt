@@ -38,6 +38,7 @@ private val Context.dataStore by preferencesDataStore(name = USER_PREFERENCES_NA
 private object PreferencesKeys {
     val IS_DARK_THEME = booleanPreferencesKey(name = "is_dark_theme")
     val USERNAME = stringPreferencesKey(name = "username")
+    val PROFILE_PICTURE = stringPreferencesKey(name = "profile_picture")
 }
 
 class DefaultProfileRepository @Inject constructor(
@@ -68,9 +69,11 @@ class DefaultProfileRepository @Inject constructor(
             // Get our dark theme value, defaulting to false if not set:
             val isDarkTheme = preferences[PreferencesKeys.IS_DARK_THEME] == true
             val username = preferences[PreferencesKeys.USERNAME].toString()
+            val profilePicture = preferences[PreferencesKeys.PROFILE_PICTURE]
             UserPreferences(
                 isDarkTheme = isDarkTheme,
-                username = username
+                username = username,
+                profilePicture = profilePicture
             )
         }
 
@@ -80,9 +83,14 @@ class DefaultProfileRepository @Inject constructor(
         }
     }
 
-    override suspend fun updateUsername(username: String) {
+    override suspend fun updateLocalUserProfile(username: String, profilePictureUrl: String?) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.USERNAME] = username
+            profilePictureUrl?.let {
+                preferences[PreferencesKeys.PROFILE_PICTURE] = profilePictureUrl
+            } ?: run {
+                preferences.remove(PreferencesKeys.PROFILE_PICTURE)
+            }
         }
     }
 

@@ -1,6 +1,5 @@
 package com.jiahan.smartcamera
 
-import android.annotation.SuppressLint
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -71,7 +70,6 @@ import com.jiahan.smartcamera.settings.SettingsScreen
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import dagger.hilt.android.AndroidEntryPoint
 
-@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 

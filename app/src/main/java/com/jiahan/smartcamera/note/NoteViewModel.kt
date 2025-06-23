@@ -18,6 +18,7 @@ import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.data.repository.SearchRepository
 import com.jiahan.smartcamera.datastore.ProfileRepository
+import com.jiahan.smartcamera.datastore.UserPreferences
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.NoteMediaDetail
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
@@ -34,6 +35,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -46,7 +48,7 @@ class NoteViewModel @Inject constructor(
     private val remoteConfigRepository: RemoteConfigRepository,
     private val noteRepository: NoteRepository,
     private val searchRepository: SearchRepository,
-    private val profileRepository: ProfileRepository,
+    profileRepository: ProfileRepository,
     private val analyticsRepository: AnalyticsRepository,
     private val noteHandler: NoteHandler,
     private val resourceProvider: ResourceProvider
@@ -65,8 +67,6 @@ class NoteViewModel @Inject constructor(
     private val _isErrorSnackBar = MutableStateFlow(false)
     val isErrorSnackBar = _isErrorSnackBar.asStateFlow()
 
-    private val _profilePictureUri = MutableStateFlow<Uri?>(null)
-    val profilePictureUri = _profilePictureUri.asStateFlow()
     private val _postText = MutableStateFlow("")
     val postText = _postText.asStateFlow()
     private val _photoUri = MutableStateFlow<Uri?>(null)
@@ -80,18 +80,29 @@ class NoteViewModel @Inject constructor(
     private val _currentPlaceholderIndex = MutableStateFlow(0)
     val currentPlaceholderIndex = _currentPlaceholderIndex.asStateFlow()
 
-    val username = profileRepository.userPreferencesFlow
-        .map { it.username }
+    private val userPreferences = profileRepository.userPreferencesFlow
+        .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = null
+            initialValue = UserPreferences(
+                isDarkTheme = false,
+                username = "",
+                profilePicture = null
+            )
         )
+
+    val username = userPreferences
+        .map { it.username }
+        .distinctUntilChanged()
+
+    val profilePicture = userPreferences
+        .map { it.profilePicture }
+        .distinctUntilChanged()
 
     init {
         viewModelScope.launch {
             remoteConfigRepository.fetchAndActivateConfig()
-            _profilePictureUri.value = profileRepository.firebaseUser?.photoUrl
             combine(
                 _uploading,
                 _postText,
