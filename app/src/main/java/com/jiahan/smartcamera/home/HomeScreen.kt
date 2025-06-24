@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
@@ -61,8 +60,8 @@ import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.Screen
 import com.jiahan.smartcamera.domain.HomeNote
-import com.jiahan.smartcamera.util.pairwise
 import com.jiahan.smartcamera.util.Util.formatDateTime
+import com.jiahan.smartcamera.util.pairwise
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -140,11 +139,10 @@ fun HomeScreen(
                         text = stringResource(R.string.app_name),
                         style = MaterialTheme.typography.titleMedium,
                     )
-                },
-                windowInsets = WindowInsets(0.dp),
+                }
             )
         }
-    ) { innerPadding ->
+    ) { padding ->
         if (isInitialLoading) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -157,9 +155,9 @@ fun HomeScreen(
         } else {
             PullToRefreshBox(
                 modifier = Modifier.padding(
-                    top = innerPadding.calculateTopPadding(),
-                    start = innerPadding.calculateStartPadding(LayoutDirection.Ltr),
-                    end = innerPadding.calculateEndPadding(LayoutDirection.Ltr)
+                    top = padding.calculateTopPadding(),
+                    start = padding.calculateStartPadding(LayoutDirection.Ltr),
+                    end = padding.calculateEndPadding(LayoutDirection.Ltr)
                 ),
                 state = pullToRefreshState,
                 isRefreshing = isRefreshing,

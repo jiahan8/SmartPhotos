@@ -14,10 +14,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Create
@@ -40,7 +37,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavType
@@ -139,10 +135,7 @@ class MainActivity : ComponentActivity() {
                                 enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
                                 exit = fadeOut() + slideOutVertically(targetOffsetY = { it })
                             ) {
-                                NavigationBar(
-                                    modifier = Modifier.height(64.dp),
-                                    windowInsets = WindowInsets(0.dp),
-                                ) {
+                                NavigationBar {
                                     items.forEach { screen ->
                                         val selected = currentDestination?.route == screen.route
 
@@ -172,20 +165,19 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
-                    ) { innerPadding ->
+                    ) { padding ->
                         NavHost(
                             navController = navController,
-                            startDestination = startDestination
+                            startDestination = startDestination,
+                            modifier = Modifier.padding()
                         ) {
                             composable(Screen.Home.route) {
-                                Box(modifier = Modifier.padding(innerPadding)) {
-                                    HomeScreen(
-                                        navController = navController,
-                                        onScrollDirectionChanged = { isScrollingUp ->
-                                            viewModel.updateBottomBarVisibility(isScrollingUp)
-                                        }
-                                    )
-                                }
+                                HomeScreen(
+                                    navController = navController,
+                                    onScrollDirectionChanged = { isScrollingUp ->
+                                        viewModel.updateBottomBarVisibility(isScrollingUp)
+                                    }
+                                )
                             }
                             composable(
                                 route = Screen.Search.route,
@@ -195,14 +187,12 @@ class MainActivity : ComponentActivity() {
                                     }
                                 )
                             ) {
-                                Box(modifier = Modifier.padding(innerPadding)) {
-                                    SearchScreen(
-                                        navController = navController,
-                                        onScrollDirectionChanged = { isScrollingUp ->
-                                            viewModel.updateBottomBarVisibility(isScrollingUp)
-                                        }
-                                    )
-                                }
+                                SearchScreen(
+                                    navController = navController,
+                                    onScrollDirectionChanged = { isScrollingUp ->
+                                        viewModel.updateBottomBarVisibility(isScrollingUp)
+                                    }
+                                )
                             }
                             composable(
                                 route = Screen.ImagePreview.route,
@@ -228,21 +218,17 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             composable(route = Screen.Note.route) {
-                                Box(modifier = Modifier.padding(innerPadding)) {
-                                    NoteScreen(
-                                        navController = navController
-                                    )
-                                }
+                                NoteScreen(
+                                    navController = navController
+                                )
                             }
                             composable(route = Screen.Favorite.route) {
-                                Box(modifier = Modifier.padding(innerPadding)) {
-                                    FavoriteScreen(
-                                        navController = navController,
-                                        onScrollDirectionChanged = { isScrollingUp ->
-                                            viewModel.updateBottomBarVisibility(isScrollingUp)
-                                        }
-                                    )
-                                }
+                                FavoriteScreen(
+                                    navController = navController,
+                                    onScrollDirectionChanged = { isScrollingUp ->
+                                        viewModel.updateBottomBarVisibility(isScrollingUp)
+                                    }
+                                )
                             }
                             composable(
                                 route = Screen.PhotoPreview.route,
@@ -338,11 +324,9 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             composable(route = Screen.Profile.route) {
-                                Box(modifier = Modifier.padding(innerPadding)) {
-                                    ProfileScreen(
-                                        navController = navController
-                                    )
-                                }
+                                ProfileScreen(
+                                    navController = navController
+                                )
                             }
                             composable(route = Screen.Settings.route) {
                                 SettingsScreen(

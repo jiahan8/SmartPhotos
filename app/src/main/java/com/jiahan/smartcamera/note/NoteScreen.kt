@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
@@ -227,8 +226,7 @@ fun NoteScreen(
                         text = stringResource(R.string.new_note),
                         style = MaterialTheme.typography.titleMedium,
                     )
-                },
-                windowInsets = WindowInsets(0.dp),
+                }
             )
         },
         snackbarHost = { CustomSnackbarHost(snackbarHostState, isErrorSnackBar) }
