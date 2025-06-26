@@ -203,6 +203,7 @@ fun SettingsScreen(
                                 imageVector = Icons.Rounded.Check,
                                 contentDescription = null,
                                 modifier = Modifier.size(12.dp),
+                                tint = MaterialTheme.colorScheme.primary
                             )
                         }
                     } else {
