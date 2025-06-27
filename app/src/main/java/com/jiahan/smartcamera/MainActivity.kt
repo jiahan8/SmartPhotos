@@ -30,15 +30,18 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.WindowCompat
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -109,6 +112,15 @@ class MainActivity : ComponentActivity() {
             SmartCameraTheme(
                 darkTheme = isDarkTheme
             ) {
+                val view = LocalView.current
+                if (!view.isInEditMode) {
+                    SideEffect {
+                        WindowCompat.getInsetsController(window, window.decorView).apply {
+                            isAppearanceLightStatusBars = !isDarkTheme
+                            isAppearanceLightNavigationBars = !isDarkTheme
+                        }
+                    }
+                }
                 val navController = rememberNavController()
                 val items = listOf(
                     Screen.Home,

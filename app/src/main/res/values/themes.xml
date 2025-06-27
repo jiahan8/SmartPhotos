@@ -1,19 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.SmartCamera" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowLightNavigationBar">true</item>
-    </style>
+    <style name="Theme.SmartCamera" parent="android:Theme.Material.Light.NoActionBar" />
 
     <style name="Theme.App.Starting" parent="Theme.SplashScreen">
-        <!-- Use your app icon as the splash icon -->
         <item name="windowSplashScreenAnimatedIcon">@drawable/home_image</item>
-        <!-- Background color of the splash screen -->
-        <item name="windowSplashScreenBackground">@color/black</item>
-        <!-- Theme to transition to after splash screen -->
         <item name="postSplashScreenTheme">@style/Theme.SmartCamera</item>
     </style>
 </resources>

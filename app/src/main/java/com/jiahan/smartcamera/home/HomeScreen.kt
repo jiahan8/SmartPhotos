@@ -310,7 +310,7 @@ fun HomeItem(
                         maxLines = 1
                     )
 
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     if (note.favorite) {
                         Icon(
