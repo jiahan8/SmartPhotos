@@ -204,6 +204,11 @@ fun FavoriteScreen(
                                     navController.navigate(
                                         Screen.VideoPreview.createRemoteRoute(url)
                                     )
+                                },
+                                onProfilePictureClick = { url ->
+                                    navController.navigate(
+                                        Screen.PhotoPreview.createRemoteRoute(url)
+                                    )
                                 }
                             )
                         }

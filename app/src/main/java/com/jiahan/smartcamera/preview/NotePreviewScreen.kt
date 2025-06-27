@@ -149,6 +149,11 @@ fun NotePreviewScreen(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(CircleShape)
+                                    .clickable {
+                                        navController.navigate(
+                                            Screen.PhotoPreview.createRemoteRoute(it)
+                                        )
+                                    }
                             )
                         } ?: Image(
                             imageVector = Icons.Rounded.AccountCircle,

@@ -333,7 +333,12 @@ fun ProfileScreen(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .size(88.dp)
-                            .clip(CircleShape),
+                            .clip(CircleShape)
+                            .clickable {
+                                navController.navigate(
+                                    Screen.PhotoPreview.createRemoteRoute(it)
+                                )
+                            },
                         alignment = Alignment.Center
                     )
                 } ?: Image(

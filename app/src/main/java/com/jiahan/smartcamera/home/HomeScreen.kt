@@ -203,6 +203,11 @@ fun HomeScreen(
                                     navController.navigate(
                                         Screen.VideoPreview.createRemoteRoute(url)
                                     )
+                                },
+                                onProfilePictureClick = { url ->
+                                    navController.navigate(
+                                        Screen.PhotoPreview.createRemoteRoute(url)
+                                    )
                                 }
                             )
 
@@ -243,7 +248,8 @@ fun HomeItem(
     onDoubleTap: () -> Unit,
     onLongPress: () -> Unit,
     onPhotoClick: (String) -> Unit,
-    onVideoClick: (String) -> Unit
+    onVideoClick: (String) -> Unit,
+    onProfilePictureClick: (String) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -274,6 +280,9 @@ fun HomeItem(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
+                        .clickable {
+                            onProfilePictureClick(it)
+                        }
                 )
             } ?: Image(
                 imageVector = Icons.Rounded.AccountCircle,
