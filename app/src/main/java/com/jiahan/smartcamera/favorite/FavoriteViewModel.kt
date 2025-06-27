@@ -2,6 +2,7 @@ package com.jiahan.smartcamera.favorite
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteHandler
@@ -17,6 +18,7 @@ import javax.inject.Inject
 @HiltViewModel
 class FavoriteViewModel @Inject constructor(
     private val noteRepository: NoteRepository,
+    private val analyticsRepository: AnalyticsRepository,
     private val noteHandler: NoteHandler
 ) : ViewModel() {
 
@@ -91,6 +93,7 @@ class FavoriteViewModel @Inject constructor(
             _notes.value = noteRepository.searchFavoriteNotes(
                 query = _searchQuery.value,
             )
+            analyticsRepository.logFavoriteSearchCustomEvent(_searchQuery.value)
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {

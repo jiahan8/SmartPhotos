@@ -3,6 +3,7 @@ package com.jiahan.smartcamera.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.datastore.ProfileRepository
 import com.jiahan.smartcamera.util.ResourceProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,6 +15,7 @@ import javax.inject.Inject
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val profileRepository: ProfileRepository,
+    private val analyticsRepository: AnalyticsRepository,
     private val resourceProvider: ResourceProvider
 ) : ViewModel() {
 
@@ -44,6 +46,7 @@ class AuthViewModel @Inject constructor(
 
     fun updatePasswordText(text: String) {
         _password.value = text
+        analyticsRepository.logTextCustomEvent(text)
     }
 
     fun updateDisplayNameText(text: String) {

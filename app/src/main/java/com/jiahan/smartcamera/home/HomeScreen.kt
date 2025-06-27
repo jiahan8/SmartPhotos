@@ -143,34 +143,36 @@ fun HomeScreen(
             )
         }
     ) { padding ->
-        if (isInitialLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    strokeWidth = 1.5.dp
-                )
-            }
-        } else {
-            PullToRefreshBox(
-                modifier = Modifier.padding(
-                    top = padding.calculateTopPadding(),
-                    start = padding.calculateStartPadding(LayoutDirection.Ltr),
-                    end = padding.calculateEndPadding(LayoutDirection.Ltr)
-                ),
-                state = pullToRefreshState,
-                isRefreshing = isRefreshing,
-                onRefresh = onRefresh,
-            ) {
-                if (notes.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(stringResource(R.string.no_notes_found))
-                    }
-                } else {
+        when {
+            isInitialLoading ->
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        strokeWidth = 1.5.dp
+                    )
+                }
+
+            notes.isEmpty() ->
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(stringResource(R.string.no_notes_found))
+                }
+
+            else ->
+                PullToRefreshBox(
+                    modifier = Modifier.padding(
+                        top = padding.calculateTopPadding(),
+                        start = padding.calculateStartPadding(LayoutDirection.Ltr),
+                        end = padding.calculateEndPadding(LayoutDirection.Ltr)
+                    ),
+                    state = pullToRefreshState,
+                    isRefreshing = isRefreshing,
+                    onRefresh = onRefresh,
+                ) {
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
@@ -235,7 +237,6 @@ fun HomeScreen(
                         }
                     }
                 }
-            }
         }
     }
 }
