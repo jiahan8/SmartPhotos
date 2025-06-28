@@ -332,7 +332,8 @@ class MainActivity : ComponentActivity() {
                             }
                             composable(route = Screen.Auth.route) {
                                 AuthScreen(
-                                    navController = navController
+                                    navController = navController,
+                                    mainViewModel = viewModel
                                 )
                             }
                             composable(route = Screen.Profile.route) {

@@ -46,4 +46,8 @@ class MainViewModel @Inject constructor(
     fun updateBottomBarVisibility(showBottomBar: Boolean) {
         _showBottomBar.value = showBottomBar
     }
+
+    fun updateStartDestination(destination: String) {
+        _startDestination.value = destination
+    }
 }

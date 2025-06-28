@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.jiahan.smartcamera.MainViewModel
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.Screen
 
@@ -53,6 +54,7 @@ import com.jiahan.smartcamera.Screen
 @Composable
 fun AuthScreen(
     navController: NavController,
+    mainViewModel: MainViewModel,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val scrollState = rememberScrollState()
@@ -70,8 +72,9 @@ fun AuthScreen(
     LaunchedEffect(navigationEvent) {
         when (navigationEvent) {
             is AuthViewModel.NavigationEvent.NavigateToHome -> {
+                mainViewModel.updateStartDestination(Screen.Home.route)
                 navController.navigate(Screen.Home.route) {
-                    popUpTo(Screen.Auth.route) { inclusive = true }
+                    popUpTo(0) { inclusive = true }
                 }
                 viewModel.navigationEventConsumed()
             }
