@@ -41,11 +41,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.Stable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -60,6 +63,7 @@ import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.Screen
 import com.jiahan.smartcamera.domain.HomeNote
+import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.util.Util.formatDateTime
 import com.jiahan.smartcamera.util.pairwise
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -252,6 +256,16 @@ fun HomeScreen(
     }
 }
 
+@Stable
+data class HomeItemCallbacks(
+    val onTap: () -> Unit,
+    val onDoubleTap: () -> Unit,
+    val onLongPress: () -> Unit,
+    val onPhotoClick: (String) -> Unit,
+    val onVideoClick: (String) -> Unit,
+    val onProfilePictureClick: (String) -> Unit
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeItem(
@@ -263,19 +277,40 @@ fun HomeItem(
     onVideoClick: (String) -> Unit,
     onProfilePictureClick: (String) -> Unit
 ) {
+    val callbacks = remember(
+        onTap,
+        onDoubleTap,
+        onLongPress,
+        onPhotoClick,
+        onVideoClick,
+        onProfilePictureClick
+    ) {
+        HomeItemCallbacks(
+            onTap = onTap,
+            onDoubleTap = onDoubleTap,
+            onLongPress = onLongPress,
+            onPhotoClick = onPhotoClick,
+            onVideoClick = onVideoClick,
+            onProfilePictureClick = onProfilePictureClick
+        )
+    }
+
+    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
+    val onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val surfaceVariantColor = MaterialTheme.colorScheme.surfaceVariant
+
+    val formattedDate = remember(note.createdDate) {
+        note.createdDate?.time?.let { formatDateTime(it) } ?: ""
+    }
+
     Column(
         modifier = Modifier
-            .pointerInput(Unit) {
+            .pointerInput(callbacks) {
                 detectTapGestures(
-                    onTap = {
-                        onTap()
-                    },
-                    onDoubleTap = {
-                        onDoubleTap()
-                    },
-                    onLongPress = {
-                        onLongPress()
-                    }
+                    onTap = { callbacks.onTap() },
+                    onDoubleTap = { callbacks.onDoubleTap() },
+                    onLongPress = { callbacks.onLongPress() }
                 )
             }
     ) {
@@ -284,16 +319,16 @@ fun HomeItem(
                 .fillMaxWidth()
                 .padding(start = 16.dp, end = 16.dp, top = 16.dp)
         ) {
-            note.profilePictureUrl?.let {
+            note.profilePictureUrl?.let { profileUrl ->
                 AsyncImage(
-                    model = it,
+                    model = profileUrl,
                     contentDescription = "Profile Picture",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
                         .clickable {
-                            onProfilePictureClick(it)
+                            callbacks.onProfilePictureClick(profileUrl)
                         }
                 )
             } ?: Image(
@@ -303,7 +338,7 @@ fun HomeItem(
                 modifier = Modifier
                     .size(38.dp)
                     .clip(CircleShape),
-                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                colorFilter = ColorFilter.tint(onSurfaceColor.copy(alpha = 0.7f))
             )
 
             Column(
@@ -324,9 +359,9 @@ fun HomeItem(
                     )
 
                     Text(
-                        text = note.createdDate?.time?.let { (formatDateTime(it)) } ?: "",
+                        text = formattedDate,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = onSurfaceVariantColor,
                         modifier = Modifier.padding(start = 8.dp),
                         maxLines = 1
                     )
@@ -343,9 +378,9 @@ fun HomeItem(
                                     interactionSource = null,
                                     indication = null
                                 ) {
-                                    onDoubleTap()
+                                    callbacks.onDoubleTap()
                                 },
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = primaryColor
                         )
                     }
                 }
@@ -360,65 +395,104 @@ fun HomeItem(
                 }
             }
         }
-        if (!note.mediaList.isNullOrEmpty()) {
+
+        note.mediaList?.takeIf { it.isNotEmpty() }?.let { mediaList ->
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),
                 contentPadding = PaddingValues(start = 56.dp, end = 8.dp)
             ) {
-                items(note.mediaList.size) { index ->
-                    val mediaDetail = note.mediaList[index]
-                    Box(
-                        modifier = Modifier
-                            .padding(end = 8.dp)
-                            .clickable {
-                                if (mediaDetail.isVideo)
-                                    mediaDetail.videoUrl?.let {
-                                        onVideoClick(it)
-                                    }
-                                else {
-                                    mediaDetail.photoUrl?.let {
-                                        onPhotoClick(it)
-                                    }
-                                }
-                            }
-                    ) {
-                        AsyncImage(
-                            model = if (mediaDetail.isVideo) mediaDetail.thumbnailUrl else mediaDetail.photoUrl,
-                            modifier = Modifier
-                                .height(256.dp)
-                                .width(220.dp)
-                                .clip(MaterialTheme.shapes.medium),
-                            contentDescription = "Image",
-                            contentScale = ContentScale.Crop,
-                            onError = {
-                                it.result.throwable.printStackTrace()
-                            }
-                        )
-
-                        if (mediaDetail.isVideo)
-                            Icon(
-                                imageVector = Icons.Rounded.PlayArrow,
-                                contentDescription = "Play Video",
-                                modifier = Modifier
-                                    .align(Alignment.Center)
-                                    .size(52.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        MaterialTheme.colorScheme.surfaceVariant.copy(
-                                            alpha = 0.7f
-                                        )
-                                    ),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                items(
+                    count = mediaList.size,
+                    key = { index ->
+                        val media = mediaList[index]
+                        "${note.documentPath}_${index}_${if (media.isVideo) media.videoUrl else media.photoUrl}"
                     }
+                ) { index ->
+                    MediaItem(
+                        mediaDetail = mediaList[index],
+                        onPhotoClick = callbacks.onPhotoClick,
+                        onVideoClick = callbacks.onVideoClick,
+                        surfaceVariantColor = surfaceVariantColor,
+                        onSurfaceVariantColor = onSurfaceVariantColor
+                    )
                 }
             }
         }
+
         HorizontalDivider(
             modifier = Modifier.padding(top = 16.dp, start = 8.dp, end = 8.dp),
             thickness = 0.5.dp
         )
+    }
+}
+
+@Composable
+private fun MediaItem(
+    mediaDetail: MediaDetail,
+    onPhotoClick: (String) -> Unit,
+    onVideoClick: (String) -> Unit,
+    surfaceVariantColor: Color,
+    onSurfaceVariantColor: Color
+) {
+    val isVideo = remember(mediaDetail) {
+        mediaDetail.isVideo
+    }
+
+    val imageUrl = remember(mediaDetail) {
+        if (isVideo) {
+            mediaDetail.thumbnailUrl
+        } else {
+            mediaDetail.photoUrl
+        }
+    }
+
+    val mediaUrl = remember(mediaDetail) {
+        if (isVideo) {
+            mediaDetail.videoUrl
+        } else {
+            mediaDetail.photoUrl
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .padding(end = 8.dp)
+            .clickable {
+                mediaUrl?.takeIf { it.isNotEmpty() }?.let { url ->
+                    if (isVideo) {
+                        onVideoClick(url)
+                    } else {
+                        onPhotoClick(url)
+                    }
+                }
+            }
+    ) {
+        AsyncImage(
+            model = imageUrl,
+            modifier = Modifier
+                .height(256.dp)
+                .width(220.dp)
+                .clip(MaterialTheme.shapes.medium),
+            contentDescription = "Image",
+            contentScale = ContentScale.Crop,
+            onError = {
+                it.result.throwable.printStackTrace()
+            }
+        )
+
+        if (isVideo) {
+            Icon(
+                imageVector = Icons.Rounded.PlayArrow,
+                contentDescription = "Play Video",
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(surfaceVariantColor.copy(alpha = 0.7f)),
+                tint = onSurfaceVariantColor
+            )
+        }
     }
 }
