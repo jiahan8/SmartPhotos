@@ -165,7 +165,7 @@ class MainActivity : ComponentActivity() {
                                             label = { Text(stringResource(screen.titleResId)) },
                                             selected = currentDestination?.route == screen.route,
                                             onClick = {
-                                                if (currentDestination?.route == Screen.Home.route) {
+                                                if (currentDestination?.route == screen.route) {
                                                     when (screen.route) {
                                                         Screen.Home.route -> viewModel.triggerScrollToTop()
                                                         Screen.Search.route -> viewModel.triggerScrollToTop()
@@ -216,6 +216,10 @@ class MainActivity : ComponentActivity() {
                                     navController = navController,
                                     onScrollDirectionChanged = { isScrollingUp ->
                                         viewModel.updateBottomBarVisibility(isScrollingUp)
+                                    },
+                                    scrollToTop = scrollToTop,
+                                    onScrollToTopConsumed = {
+                                        viewModel.consumeScrollToTopEvent()
                                     }
                                 )
                             }
@@ -252,6 +256,10 @@ class MainActivity : ComponentActivity() {
                                     navController = navController,
                                     onScrollDirectionChanged = { isScrollingUp ->
                                         viewModel.updateBottomBarVisibility(isScrollingUp)
+                                    },
+                                    scrollToTop = scrollToTop,
+                                    onScrollToTopConsumed = {
+                                        viewModel.consumeScrollToTopEvent()
                                     }
                                 )
                             }
