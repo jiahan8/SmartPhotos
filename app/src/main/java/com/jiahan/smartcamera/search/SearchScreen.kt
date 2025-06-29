@@ -61,7 +61,9 @@ import kotlinx.coroutines.launch
 fun SearchScreen(
     navController: NavController,
     viewModel: SearchViewModel = hiltViewModel(),
-    onScrollDirectionChanged: (Boolean) -> Unit = {}
+    onScrollDirectionChanged: (Boolean) -> Unit = {},
+    scrollToTop: Long?,
+    onScrollToTopConsumed: () -> Unit
 ) {
     val pullToRefreshState = rememberPullToRefreshState()
     val coroutineScope = rememberCoroutineScope()
@@ -123,6 +125,15 @@ fun SearchScreen(
             viewModel.updateCurrentPlaceholderIndex((currentPlaceholderIndex + 1) % placeholderList.size)
             isTransitioning = false
             delay(500)
+        }
+    }
+
+    LaunchedEffect(scrollToTop) {
+        scrollToTop?.let {
+            if (notes.isNotEmpty()) {
+                listState.animateScrollToItem(0)
+                onScrollToTopConsumed()
+            }
         }
     }
 

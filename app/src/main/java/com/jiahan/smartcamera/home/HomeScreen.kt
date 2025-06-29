@@ -71,7 +71,9 @@ import kotlinx.coroutines.launch
 fun HomeScreen(
     navController: NavController,
     viewModel: HomeViewModel = hiltViewModel(),
-    onScrollDirectionChanged: (Boolean) -> Unit = {}
+    onScrollDirectionChanged: (Boolean) -> Unit = {},
+    scrollToTop: Long?,
+    onScrollToTopConsumed: () -> Unit
 ) {
     val pullToRefreshState = rememberPullToRefreshState()
     val coroutineScope = rememberCoroutineScope()
@@ -104,6 +106,15 @@ fun HomeScreen(
             .collect { isScrollingUp ->
                 onScrollDirectionChanged(isScrollingUp)
             }
+    }
+
+    LaunchedEffect(scrollToTop) {
+        scrollToTop?.let {
+            if (notes.isNotEmpty()) {
+                listState.animateScrollToItem(0)
+                onScrollToTopConsumed()
+            }
+        }
     }
 
     noteToDelete?.let { note ->

@@ -23,6 +23,8 @@ class MainViewModel @Inject constructor(
     val startDestination = _startDestination.asStateFlow()
     private val _showBottomBar = MutableStateFlow(true)
     val showBottomBar = _showBottomBar.asStateFlow()
+    private val _scrollToTop = MutableStateFlow<Long?>(null)
+    val scrollToTop = _scrollToTop.asStateFlow()
 
     val isDarkTheme = profileRepository.userPreferencesFlow
         .map { it.isDarkTheme }
@@ -49,5 +51,13 @@ class MainViewModel @Inject constructor(
 
     fun updateStartDestination(destination: String) {
         _startDestination.value = destination
+    }
+
+    fun triggerScrollToTop() {
+        _scrollToTop.value = System.currentTimeMillis()
+    }
+
+    fun consumeScrollToTopEvent() {
+        _scrollToTop.value = null
     }
 }

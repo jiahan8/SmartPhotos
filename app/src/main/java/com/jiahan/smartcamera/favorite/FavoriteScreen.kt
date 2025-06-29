@@ -54,7 +54,9 @@ import kotlinx.coroutines.launch
 fun FavoriteScreen(
     navController: NavController,
     viewModel: FavoriteViewModel = hiltViewModel(),
-    onScrollDirectionChanged: (Boolean) -> Unit = {}
+    onScrollDirectionChanged: (Boolean) -> Unit = {},
+    scrollToTop: Long?,
+    onScrollToTopConsumed: () -> Unit
 ) {
     val pullToRefreshState = rememberPullToRefreshState()
     val coroutineScope = rememberCoroutineScope()
@@ -88,6 +90,15 @@ fun FavoriteScreen(
             .collect { isScrollingUp ->
                 onScrollDirectionChanged(isScrollingUp)
             }
+    }
+
+    LaunchedEffect(scrollToTop) {
+        scrollToTop?.let {
+            if (notes.isNotEmpty()) {
+                listState.animateScrollToItem(0)
+                onScrollToTopConsumed()
+            }
+        }
     }
 
     noteToDelete?.let { note ->

@@ -104,6 +104,7 @@ class MainActivity : ComponentActivity() {
             val startDestination by viewModel.startDestination.collectAsState()
             val isAppReady by viewModel.isAppReady.collectAsState()
             val showBottomBar by viewModel.showBottomBar.collectAsState()
+            val scrollToTop by viewModel.scrollToTop.collectAsState()
 
             splashScreen.setKeepOnScreenCondition {
                 !isAppReady
@@ -164,12 +165,20 @@ class MainActivity : ComponentActivity() {
                                             label = { Text(stringResource(screen.titleResId)) },
                                             selected = currentDestination?.route == screen.route,
                                             onClick = {
-                                                navController.navigate(screen.route) {
-                                                    popUpTo(navController.graph.startDestinationId) {
-                                                        saveState = true
+                                                if (currentDestination?.route == Screen.Home.route) {
+                                                    when (screen.route) {
+                                                        Screen.Home.route -> viewModel.triggerScrollToTop()
+                                                        Screen.Search.route -> viewModel.triggerScrollToTop()
+                                                        Screen.Favorite.route -> viewModel.triggerScrollToTop()
                                                     }
-                                                    launchSingleTop = true
-                                                    restoreState = true
+                                                } else {
+                                                    navController.navigate(screen.route) {
+                                                        popUpTo(navController.graph.startDestinationId) {
+                                                            saveState = true
+                                                        }
+                                                        launchSingleTop = true
+                                                        restoreState = true
+                                                    }
                                                 }
                                             }
                                         )
@@ -188,6 +197,10 @@ class MainActivity : ComponentActivity() {
                                     navController = navController,
                                     onScrollDirectionChanged = { isScrollingUp ->
                                         viewModel.updateBottomBarVisibility(isScrollingUp)
+                                    },
+                                    scrollToTop = scrollToTop,
+                                    onScrollToTopConsumed = {
+                                        viewModel.consumeScrollToTopEvent()
                                     }
                                 )
                             }
