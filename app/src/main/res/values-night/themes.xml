@@ -3,4 +3,8 @@
 
     <style name="Theme.SmartCamera" parent="android:Theme.Material.NoActionBar" />
 
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenAnimatedIcon">@drawable/home_image</item>
+        <item name="postSplashScreenTheme">@style/Theme.SmartCamera</item>
+    </style>
 </resources>
