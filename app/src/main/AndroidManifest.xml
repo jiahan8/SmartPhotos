@@ -39,9 +39,9 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <!-- Accepts URIs that begin with "https://jiahan8.github.io/search” -->
                 <data
-                    android:host="@string/host"
-                    android:pathPrefix="@string/search_path_prefix"
-                    android:scheme="@string/scheme" />
+                    android:host="jiahan8.github.io"
+                    android:pathPrefix="/search"
+                    android:scheme="live" />
                 <!-- note that the leading "/" is required for pathPrefix-->
             </intent-filter>
             <intent-filter>
@@ -51,9 +51,9 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:host="@string/host"
-                    android:pathPrefix="@string/image_path_prefix"
-                    android:scheme="@string/scheme" />
+                    android:host="jiahan8.github.io"
+                    android:pathPrefix="/image"
+                    android:scheme="live" />
             </intent-filter>
         </activity>
 

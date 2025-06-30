@@ -101,11 +101,4 @@
     <string name="username_empty">Username cannot be empty</string>
     <string name="info_updated_success">Info updated successfully</string>
     <string name="info_updated_failure">Couldn\'t update your profile. Please try again.</string>
-
-    <!-- Deep linking -->
-    <string name="host">jiahan8.github.io</string>
-    <string name="scheme">live</string>
-    <string name="search_path_prefix">/search</string>
-    <string name="image_path_prefix">/image</string>
-    <string name="https">https</string>
 </resources>

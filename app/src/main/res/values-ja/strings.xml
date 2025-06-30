@@ -101,11 +101,4 @@
     <string name="username_empty">ユーザー名を入力してください</string>
     <string name="info_updated_success">情報を更新しました</string>
     <string name="info_updated_failure">プロフィールを更新できませんでした。もう一度お試しください。</string>
-
-    <!-- Deep linking -->
-    <string name="host">jiahan8.github.io</string>
-    <string name="scheme">live</string>
-    <string name="search_path_prefix">/search</string>
-    <string name="image_path_prefix">/image</string>
-    <string name="https">https</string>
 </resources>
