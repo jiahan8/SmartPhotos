@@ -28,6 +28,7 @@
 * Firebase Crashlytics
 * Firebase Cloud Messaging (Push Notifications)
 * Firebase Storage
+* Firebase A/B Testing
 
 ### Machine Learning & AI
 * ML Kit Text Recognition (Multiple Languages: English, Japanese, Chinese)
