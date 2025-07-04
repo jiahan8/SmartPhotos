@@ -29,6 +29,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountCircle
+import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
@@ -250,9 +251,9 @@ fun NoteScreen(
                         .fillMaxWidth()
                         .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp)
                 ) {
-                    profilePicture?.let {
+                    profilePicture?.let { profilePicture ->
                         AsyncImage(
-                            model = it,
+                            model = profilePicture,
                             contentDescription = "Profile Picture",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
@@ -302,16 +303,33 @@ fun NoteScreen(
                                 .focusRequester(focusRequester),
                             enabled = !isUploading,
                             decorationBox = { innerTextField ->
-                                Box {
-                                    innerTextField()
-                                    if (postText.isBlank()) {
-                                        Text(
-                                            text = placeholder,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                                alpha = 0.7f
-                                            ),
-                                            modifier = Modifier.graphicsLayer(alpha = placeholderAlpha)
+                                Row {
+                                    Box(
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        innerTextField()
+                                        if (postText.isBlank()) {
+                                            Text(
+                                                text = placeholder,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                                    alpha = 0.7f
+                                                ),
+                                                modifier = Modifier.graphicsLayer(alpha = placeholderAlpha)
+                                            )
+                                        }
+                                    }
+                                    if (postText.isNotBlank() && !isUploading) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Clear,
+                                            contentDescription = "Clear",
+                                            modifier = Modifier
+                                                .padding(end = 12.dp)
+                                                .size(16.dp)
+                                                .clickable {
+                                                    viewModel.updatePostText("")
+                                                },
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
