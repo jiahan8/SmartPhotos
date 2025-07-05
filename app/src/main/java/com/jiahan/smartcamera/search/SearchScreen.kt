@@ -186,12 +186,10 @@ fun SearchScreen(
                 },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
-                        IconButton(
-                            onClick = { viewModel.updateSearchQuery("") }
-                        ) {
+                        IconButton(onClick = { viewModel.updateSearchQuery("") }) {
                             Icon(
                                 imageVector = Icons.Rounded.Clear,
-                                contentDescription = "Clear",
+                                contentDescription = "Clear field",
                                 modifier = Modifier
                                     .padding(end = 8.dp)
                                     .size(20.dp)

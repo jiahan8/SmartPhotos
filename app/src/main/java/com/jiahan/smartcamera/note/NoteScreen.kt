@@ -322,7 +322,7 @@ fun NoteScreen(
                                     if (postText.isNotBlank() && !isUploading) {
                                         Icon(
                                             imageVector = Icons.Rounded.Clear,
-                                            contentDescription = "Clear",
+                                            contentDescription = "Clear field",
                                             modifier = Modifier
                                                 .padding(end = 12.dp)
                                                 .size(16.dp)

@@ -28,6 +28,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountCircle
+import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.Person
@@ -299,9 +300,7 @@ fun ProfileScreen(
                     )
                 },
                 actions = {
-                    IconButton(onClick = {
-                        navController.navigate(Screen.Settings.route)
-                    }) {
+                    IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
                         Icon(
                             imageVector = Icons.Rounded.Menu,
                             contentDescription = "Menu"
@@ -388,6 +387,18 @@ fun ProfileScreen(
                         shape = MaterialTheme.shapes.large,
                         singleLine = true,
                         leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null) },
+                        trailingIcon = {
+                            if (displayName.isNotEmpty()) {
+                                IconButton(onClick = { viewModel.updateDisplayNameText("") }) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Clear,
+                                        contentDescription = "Clear field",
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                    )
+                                }
+                            }
+                        },
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                     )
 
@@ -408,6 +419,18 @@ fun ProfileScreen(
                         singleLine = true,
                         leadingIcon = {
                             Icon(Icons.Rounded.AccountCircle, contentDescription = null)
+                        },
+                        trailingIcon = {
+                            if (username.isNotEmpty()) {
+                                IconButton(onClick = { viewModel.updateUsernameText("") }) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Clear,
+                                        contentDescription = "Clear field",
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                    )
+                                }
+                            }
                         },
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
                     )
