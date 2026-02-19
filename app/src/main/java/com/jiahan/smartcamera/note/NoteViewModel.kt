@@ -302,4 +302,13 @@ class NoteViewModel @Inject constructor(
             "$description$labelText$visionText"
         }
     }
+
+    override fun onCleared() {
+        super.onCleared()
+        // Clean up bitmap cache to prevent memory leaks
+        _videoThumbnails.values.forEach { bitmap ->
+            bitmap?.recycle()
+        }
+        _videoThumbnails.clear()
+    }
 }

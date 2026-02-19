@@ -31,7 +31,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -44,6 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.os.ConfigurationCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.Screen
@@ -60,13 +60,13 @@ fun SettingsScreen(
     val packageName = remember { context.packageName }
     val locale = ConfigurationCompat.getLocales(configuration).get(0)
     val snackbarHostState = remember { SnackbarHostState() }
-    val isErrorSnackBar by viewModel.isErrorSnackBar.collectAsState()
+    val isErrorSnackBar by viewModel.isErrorSnackBar.collectAsStateWithLifecycle()
 
-    val isDarkTheme by viewModel.isDarkTheme.collectAsState()
-    val navigationEvent by viewModel.navigationEvent.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val dialogState by viewModel.dialogState.collectAsState()
-    val actionError by viewModel.isActionError.collectAsState()
+    val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
+    val navigationEvent by viewModel.navigationEvent.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val dialogState by viewModel.dialogState.collectAsStateWithLifecycle()
+    val actionError by viewModel.isActionError.collectAsStateWithLifecycle()
 
     val actionFailureMessage = stringResource(R.string.action_failure)
 

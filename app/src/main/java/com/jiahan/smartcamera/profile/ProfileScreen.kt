@@ -50,7 +50,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -69,6 +68,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
@@ -83,27 +83,27 @@ fun ProfileScreen(
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
-    val isErrorSnackBar by viewModel.isErrorSnackBar.collectAsState()
+    val isErrorSnackBar by viewModel.isErrorSnackBar.collectAsStateWithLifecycle()
     val bottomSheetState = rememberModalBottomSheetState()
-    val showBottomSheet by viewModel.showBottomSheet.collectAsState()
+    val showBottomSheet by viewModel.showBottomSheet.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
 
-    val email by viewModel.email.collectAsState()
-    val displayName by viewModel.displayName.collectAsState()
-    val username by viewModel.username.collectAsState()
-    val profilePictureUrl by viewModel.profilePictureUrl.collectAsState()
-    val displayNameErrorMessage by viewModel.displayNameErrorMessage.collectAsState()
-    val usernameErrorMessage by viewModel.usernameErrorMessage.collectAsState()
-    val errorMessage by viewModel.errorMessage.collectAsState()
-    val isErrorFree by viewModel.isErrorFree.collectAsState()
-    val isFormChanged by viewModel.isFormChanged.collectAsState()
-    val isSaving by viewModel.isLoading.collectAsState()
-    val isUploading by viewModel.isUploading.collectAsState()
-    val updateSuccess by viewModel.updateSuccess.collectAsState()
-    val uploadSuccess by viewModel.uploadSuccess.collectAsState()
-    val updateError by viewModel.updateError.collectAsState()
-    val dialogState by viewModel.dialogState.collectAsState()
-    val photoUri by viewModel.photoUri.collectAsState()
+    val email by viewModel.email.collectAsStateWithLifecycle()
+    val displayName by viewModel.displayName.collectAsStateWithLifecycle()
+    val username by viewModel.username.collectAsStateWithLifecycle()
+    val profilePictureUrl by viewModel.profilePictureUrl.collectAsStateWithLifecycle()
+    val displayNameErrorMessage by viewModel.displayNameErrorMessage.collectAsStateWithLifecycle()
+    val usernameErrorMessage by viewModel.usernameErrorMessage.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+    val isErrorFree by viewModel.isErrorFree.collectAsStateWithLifecycle()
+    val isFormChanged by viewModel.isFormChanged.collectAsStateWithLifecycle()
+    val isSaving by viewModel.isLoading.collectAsStateWithLifecycle()
+    val isUploading by viewModel.isUploading.collectAsStateWithLifecycle()
+    val updateSuccess by viewModel.updateSuccess.collectAsStateWithLifecycle()
+    val uploadSuccess by viewModel.uploadSuccess.collectAsStateWithLifecycle()
+    val updateError by viewModel.updateError.collectAsStateWithLifecycle()
+    val dialogState by viewModel.dialogState.collectAsStateWithLifecycle()
+    val photoUri by viewModel.photoUri.collectAsStateWithLifecycle()
 
     val updateSuccessMessage = stringResource(R.string.info_updated_success)
     val updateFailureMessage = stringResource(R.string.info_updated_failure)

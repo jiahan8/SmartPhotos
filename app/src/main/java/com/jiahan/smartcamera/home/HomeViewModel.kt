@@ -22,7 +22,7 @@ class HomeViewModel @Inject constructor(
     private val _notes = MutableStateFlow<List<HomeNote>>(emptyList())
     val notes = _notes.asStateFlow()
     private val _isInitialLoading = MutableStateFlow(true)
-    val isInititalLoading = _isInitialLoading.asStateFlow()
+    val isInitialLoading = _isInitialLoading.asStateFlow()
     private val _isRefreshing = MutableStateFlow(false)
     val refreshing = _isRefreshing.asStateFlow()
     private val _isLoadingMore = MutableStateFlow(false)

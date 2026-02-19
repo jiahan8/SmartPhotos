@@ -46,7 +46,6 @@ import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,6 +69,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
@@ -89,18 +89,18 @@ fun NoteScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val scrollState = rememberScrollState()
 
-    val profilePicture by viewModel.profilePicture.collectAsState(null)
-    val username by viewModel.username.collectAsState("")
-    val postText by viewModel.postText.collectAsState()
-    val photoUri by viewModel.photoUri.collectAsState()
-    val videoUri by viewModel.videoUri.collectAsState()
-    val mediaList by viewModel.mediaList.collectAsState()
-    val isUploading by viewModel.uploading.collectAsState()
-    val uploadSuccess by viewModel.uploadSuccess.collectAsState()
-    val uploadError by viewModel.uploadError.collectAsState()
-    val postTextError by viewModel.postTextError.collectAsState()
-    val buttonEnabled by viewModel.postButtonEnabled.collectAsState()
-    val isErrorSnackBar by viewModel.isErrorSnackBar.collectAsState()
+    val profilePicture by viewModel.profilePicture.collectAsStateWithLifecycle(null)
+    val username by viewModel.username.collectAsStateWithLifecycle("")
+    val postText by viewModel.postText.collectAsStateWithLifecycle()
+    val photoUri by viewModel.photoUri.collectAsStateWithLifecycle()
+    val videoUri by viewModel.videoUri.collectAsStateWithLifecycle()
+    val mediaList by viewModel.mediaList.collectAsStateWithLifecycle()
+    val isUploading by viewModel.uploading.collectAsStateWithLifecycle()
+    val uploadSuccess by viewModel.uploadSuccess.collectAsStateWithLifecycle()
+    val uploadError by viewModel.uploadError.collectAsStateWithLifecycle()
+    val postTextError by viewModel.postTextError.collectAsStateWithLifecycle()
+    val buttonEnabled by viewModel.postButtonEnabled.collectAsStateWithLifecycle()
+    val isErrorSnackBar by viewModel.isErrorSnackBar.collectAsStateWithLifecycle()
 
     val placeholderOptions =
         listOf(
@@ -111,7 +111,7 @@ fun NoteScreen(
             stringResource(R.string.write_a_thought)
         )
     val placeholderList = remember { placeholderOptions }
-    val currentPlaceholderIndex by viewModel.currentPlaceholderIndex.collectAsState()
+    val currentPlaceholderIndex by viewModel.currentPlaceholderIndex.collectAsStateWithLifecycle()
     val placeholder = placeholderList[currentPlaceholderIndex]
     var isTransitioning by remember { mutableStateOf(false) }
     val placeholderAlpha by animateFloatAsState(

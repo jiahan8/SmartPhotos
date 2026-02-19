@@ -31,7 +31,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -42,6 +41,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -100,11 +100,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            val isDarkTheme by viewModel.isDarkTheme.collectAsState()
-            val startDestination by viewModel.startDestination.collectAsState()
-            val isAppReady by viewModel.isAppReady.collectAsState()
-            val showBottomBar by viewModel.showBottomBar.collectAsState()
-            val scrollToTop by viewModel.scrollToTop.collectAsState()
+            val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
+            val startDestination by viewModel.startDestination.collectAsStateWithLifecycle()
+            val isAppReady by viewModel.isAppReady.collectAsStateWithLifecycle()
+            val showBottomBar by viewModel.showBottomBar.collectAsStateWithLifecycle()
+            val scrollToTop by viewModel.scrollToTop.collectAsStateWithLifecycle()
 
             splashScreen.setKeepOnScreenCondition {
                 !isAppReady

@@ -35,7 +35,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
@@ -62,9 +62,9 @@ fun NotePreviewScreen(
     viewModel: NotePreviewViewModel = hiltViewModel()
 ) {
     val scrollState = rememberScrollState()
-    val note by viewModel.note.collectAsState()
-    val noteToDelete by viewModel.noteToDelete.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val note by viewModel.note.collectAsStateWithLifecycle()
+    val noteToDelete by viewModel.noteToDelete.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
 
     noteToDelete?.let { note ->
         AlertDialog(

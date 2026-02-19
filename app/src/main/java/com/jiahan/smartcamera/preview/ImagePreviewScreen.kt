@@ -26,7 +26,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,9 +55,9 @@ fun ImagePreviewScreen(
     var showSheet by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
-    val detectedText by viewModel.detectedText.collectAsState()
+    val detectedText by viewModel.detectedText.collectAsStateWithLifecycle()
     val fabVisible = detectedText.isNotBlank()
-    val isImageSaved by viewModel.isImageSaved.collectAsState()
+    val isImageSaved by viewModel.isImageSaved.collectAsStateWithLifecycle()
 
     LaunchedEffect(imageUri) {
         if (shouldDetectImage)
