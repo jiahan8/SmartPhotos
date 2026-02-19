@@ -148,7 +148,7 @@ fun ImagePreviewScreen(
                         .verticalScroll(scrollState)
                 ) {
                     Text(
-                        text = if (detectedText.isBlank()) "No text detected." else detectedText
+                        text = detectedText.ifBlank { "No text detected." }
                     )
                 }
             }

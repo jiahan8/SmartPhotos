@@ -77,9 +77,9 @@ class DefaultProfileRepository @Inject constructor(
             )
         }
 
-    override suspend fun updateDarkThemeVisibility(showDarkTheme: Boolean) {
+    override suspend fun updateDarkThemeVisibility(isDarkTheme: Boolean) {
         context.dataStore.edit { preferences ->
-            preferences[PreferencesKeys.IS_DARK_THEME] = showDarkTheme
+            preferences[PreferencesKeys.IS_DARK_THEME] = isDarkTheme
         }
     }
 
@@ -137,7 +137,7 @@ class DefaultProfileRepository @Inject constructor(
         return try {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
             updateFirebaseUserProfile(
-                name = displayName,
+                displayName = displayName,
                 profilePictureUri = null,
                 deleteProfilePicture = false
             )
@@ -157,7 +157,7 @@ class DefaultProfileRepository @Inject constructor(
         deleteProfilePicture: Boolean
     ) {
         updateFirebaseUserProfile(
-            name = displayName,
+            displayName = displayName,
             profilePictureUri = profilePictureUri,
             deleteProfilePicture = deleteProfilePicture
         )
@@ -225,14 +225,14 @@ class DefaultProfileRepository @Inject constructor(
     }
 
     override suspend fun updateFirebaseUserProfile(
-        name: String?,
+        displayName: String?,
         profilePictureUri: Uri?,
         deleteProfilePicture: Boolean
     ) {
         auth.currentUser?.updateProfile(
             userProfileChangeRequest {
-                name?.let {
-                    displayName = name
+                displayName?.let {
+                    this.displayName = displayName
                 }
                 if (deleteProfilePicture) {
                     photoUri = null
@@ -258,7 +258,7 @@ class DefaultProfileRepository @Inject constructor(
         if (deleteProfilePicture) {
             updates["profile_picture"] = null
         } else {
-            profilePictureUrl?.let { updates["profile_picture"] = it.toString() }
+            profilePictureUrl?.let { updates["profile_picture"] = it }
         }
 
         if (updates.isNotEmpty()) {
