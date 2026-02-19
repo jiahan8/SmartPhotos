@@ -52,6 +52,9 @@ import androidx.navigation.NavController
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.Screen
 import com.jiahan.smartcamera.home.HomeItem
+import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_PLACEHOLDER_ROTATION_DELAY_MS
+import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_TRANSITION_DELAY_MS
+import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_TRANSITION_FADE_DURATION_MS
 import com.jiahan.smartcamera.util.pairwise
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -92,7 +95,7 @@ fun SearchScreen(
     var isTransitioning by remember { mutableStateOf(false) }
     val placeholderAlpha by animateFloatAsState(
         targetValue = if (isTransitioning) 0f else 1f,
-        animationSpec = tween(durationMillis = 500),
+        animationSpec = tween(durationMillis = TEXT_FIELD_TRANSITION_FADE_DURATION_MS),
         label = "placeholderAlpha"
     )
 
@@ -121,12 +124,12 @@ fun SearchScreen(
 
     LaunchedEffect(Unit) {
         while (true) {
-            delay(3000)
+            delay(TEXT_FIELD_PLACEHOLDER_ROTATION_DELAY_MS)
             isTransitioning = true
-            delay(500)
+            delay(TEXT_FIELD_TRANSITION_DELAY_MS)
             viewModel.updateCurrentPlaceholderIndex((currentPlaceholderIndex + 1) % placeholderList.size)
             isTransitioning = false
-            delay(500)
+            delay(TEXT_FIELD_TRANSITION_DELAY_MS)
         }
     }
 

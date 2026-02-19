@@ -28,6 +28,8 @@ import com.jiahan.smartcamera.util.FileConstants.PREFIX_PHOTO
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_VIDEO
 import com.jiahan.smartcamera.util.ResourceProvider
 import com.jiahan.smartcamera.util.Util.createVideoThumbnail
+import com.jiahan.smartcamera.util.AppConstants.MAX_POST_TEXT_LENGTH
+import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -84,7 +86,7 @@ class NoteViewModel @Inject constructor(
         .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
+            started = SharingStarted.WhileSubscribed(STATEFLOW_WHILE_SUBSCRIBED_MS),
             initialValue = UserPreferences(
                 isDarkTheme = false,
                 username = "",
@@ -249,7 +251,7 @@ class NoteViewModel @Inject constructor(
 
     private fun validatePostText(text: String) {
         _postTextError.value = when {
-            text.length > 500 -> resourceProvider.getString(R.string.post_validation)
+            text.length > MAX_POST_TEXT_LENGTH -> resourceProvider.getString(R.string.post_validation)
             else -> null
         }
     }

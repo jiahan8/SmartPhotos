@@ -6,6 +6,7 @@ import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteHandler
+import com.jiahan.smartcamera.util.AppConstants.DEBOUNCE_MS
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,7 +44,7 @@ class SearchViewModel @Inject constructor(
         _notes.value = emptyList()
         viewModelScope.launch {
             searchQuery
-                .debounce(300)
+                .debounce(DEBOUNCE_MS)
                 .collect { query ->
                     if (query.isBlank()) {
                         _notes.value = emptyList()

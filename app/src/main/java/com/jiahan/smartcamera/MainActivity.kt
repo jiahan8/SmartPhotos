@@ -68,6 +68,7 @@ import com.jiahan.smartcamera.profile.ProfileScreen
 import com.jiahan.smartcamera.search.SearchScreen
 import com.jiahan.smartcamera.settings.SettingsScreen
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
+import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -448,7 +449,7 @@ private fun AnimatedIcon(
             if (targetState) {
                 spring(dampingRatio = 0.2f, stiffness = 100f)
             } else {
-                tween(durationMillis = 300)
+                tween(durationMillis = ANIMATION_DURATION_SHORT_MS)
             }
         }
     ) { isSelected ->

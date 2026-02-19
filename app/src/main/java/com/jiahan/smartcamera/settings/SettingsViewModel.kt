@@ -3,6 +3,8 @@ package com.jiahan.smartcamera.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.datastore.ProfileRepository
+import com.jiahan.smartcamera.util.AppConstants.AUTH_ACTION_DELAY_MS
+import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,7 +35,7 @@ class SettingsViewModel @Inject constructor(
         .map { it.isDarkTheme }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
+            started = SharingStarted.WhileSubscribed(STATEFLOW_WHILE_SUBSCRIBED_MS),
             initialValue = false
         )
 
@@ -48,7 +50,7 @@ class SettingsViewModel @Inject constructor(
             _isLoading.value = true
             try {
                 profileRepository.signOut()
-                delay(1000)
+                delay(AUTH_ACTION_DELAY_MS)
                 _navigationEvent.value = NavigationEvent.NavigateToAuth
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -64,7 +66,7 @@ class SettingsViewModel @Inject constructor(
             _isLoading.value = true
             try {
                 profileRepository.deleteAccount()
-                delay(1000)
+                delay(AUTH_ACTION_DELAY_MS)
                 _navigationEvent.value = NavigationEvent.NavigateToAuth
             } catch (e: Exception) {
                 e.printStackTrace()

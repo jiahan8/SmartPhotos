@@ -34,6 +34,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
+import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -111,12 +112,27 @@ fun PhotoPreviewScreen(
                         scope.launch {
                             if (scale.value > minScale) {
                                 // If already zoomed in, animate back to the default state (zoomed out)
-                                launch { scale.animateTo(minScale, animationSpec = tween(300)) }
-                                launch { offset.animateTo(Offset.Zero, animationSpec = tween(300)) }
+                                launch {
+                                    scale.animateTo(
+                                        minScale,
+                                        animationSpec = tween(ANIMATION_DURATION_SHORT_MS)
+                                    )
+                                }
+                                launch {
+                                    offset.animateTo(
+                                        Offset.Zero,
+                                        animationSpec = tween(ANIMATION_DURATION_SHORT_MS)
+                                    )
+                                }
                             } else {
                                 // If zoomed out, animate to a zoomed-in state, focusing on the tapped point
                                 val targetScale = 3f
-                                launch { scale.animateTo(targetScale, animationSpec = tween(300)) }
+                                launch {
+                                    scale.animateTo(
+                                        targetScale,
+                                        animationSpec = tween(ANIMATION_DURATION_SHORT_MS)
+                                    )
+                                }
 
                                 // Calculate the offset to center the tapped point on the screen
                                 val newOffset = Offset(
@@ -135,7 +151,7 @@ fun PhotoPreviewScreen(
                                             x = newOffset.x.coerceIn(-maxOffsetX, maxOffsetX),
                                             y = newOffset.y.coerceIn(-maxOffsetY, maxOffsetY)
                                         ),
-                                        animationSpec = tween(300)
+                                        animationSpec = tween(ANIMATION_DURATION_SHORT_MS)
                                     )
                                 }
                             }

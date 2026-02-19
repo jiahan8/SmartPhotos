@@ -3,6 +3,7 @@ package com.jiahan.smartcamera
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.datastore.ProfileRepository
+import com.jiahan.smartcamera.util.AppConstants.STATE_FLOW_TIMEOUT_MS
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,7 +31,7 @@ class MainViewModel @Inject constructor(
         .map { it.isDarkTheme }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
+            started = SharingStarted.WhileSubscribed(STATE_FLOW_TIMEOUT_MS),
             initialValue = false
         )
 

@@ -2,6 +2,7 @@ package com.jiahan.smartcamera.data.repository
 
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.remoteConfigSettings
+import com.jiahan.smartcamera.util.AppConstants.REMOTE_CONFIG_FETCH_INTERVAL_SECONDS
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -15,12 +16,11 @@ class FirebaseRemoteConfigRepository @Inject constructor(
         private const val STORAGE_URL_KEY = "firebase_storage_url"
         private const val STORAGE_FOLDER_KEY = "firebase_storage_folder"
         private const val STORAGE_CACHE_FOLDER_KEY = "firebase_storage_cache_folder"
-        private const val FETCH_INTERVAL_RELEASE = 3600L
     }
 
     init {
         val configSettings = remoteConfigSettings {
-            minimumFetchIntervalInSeconds = FETCH_INTERVAL_RELEASE // for release
+            minimumFetchIntervalInSeconds = REMOTE_CONFIG_FETCH_INTERVAL_SECONDS // for release mode
         }
 
         remoteConfig.setConfigSettingsAsync(configSettings)

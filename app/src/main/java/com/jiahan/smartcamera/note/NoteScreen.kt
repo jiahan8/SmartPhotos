@@ -75,6 +75,9 @@ import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.Screen
 import com.jiahan.smartcamera.common.CustomSnackbarHost
+import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_PLACEHOLDER_ROTATION_DELAY_MS
+import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_TRANSITION_DELAY_MS
+import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_TRANSITION_FADE_DURATION_MS
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -116,7 +119,7 @@ fun NoteScreen(
     var isTransitioning by remember { mutableStateOf(false) }
     val placeholderAlpha by animateFloatAsState(
         targetValue = if (isTransitioning) 0f else 1f,
-        animationSpec = tween(durationMillis = 500),
+        animationSpec = tween(durationMillis = TEXT_FIELD_TRANSITION_FADE_DURATION_MS),
         label = "placeholderAlpha"
     )
 
@@ -210,12 +213,12 @@ fun NoteScreen(
 
     LaunchedEffect(Unit) {
         while (true) {
-            delay(3000)
+            delay(TEXT_FIELD_PLACEHOLDER_ROTATION_DELAY_MS)
             isTransitioning = true
-            delay(500)
+            delay(TEXT_FIELD_TRANSITION_DELAY_MS)
             viewModel.updateCurrentPlaceholderIndex((currentPlaceholderIndex + 1) % placeholderList.size)
             isTransitioning = false
-            delay(500)
+            delay(TEXT_FIELD_TRANSITION_DELAY_MS)
         }
     }
 

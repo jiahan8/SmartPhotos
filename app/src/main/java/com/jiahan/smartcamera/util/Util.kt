@@ -4,6 +4,10 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import com.jiahan.smartcamera.util.AppConstants.VIDEO_THUMBNAIL_DIMENSION
+import com.jiahan.smartcamera.util.AppConstants.VIDEO_THUMBNAIL_TIME_MICROSECONDS
+import com.jiahan.smartcamera.util.AppConstants.VIDEO_THUMBNAIL_DEFAULT_WIDTH
+import com.jiahan.smartcamera.util.AppConstants.VIDEO_THUMBNAIL_DEFAULT_HEIGHT
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -27,25 +31,24 @@ object Util {
             // Get video dimensions for better quality thumbnails
             val width =
                 retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt()
-                    ?: 640
+                    ?: VIDEO_THUMBNAIL_DEFAULT_WIDTH
             val height =
                 retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt()
-                    ?: 360
+                    ?: VIDEO_THUMBNAIL_DEFAULT_HEIGHT
 
             // Calculate scaled dimensions maintaining aspect ratio
-            val maxDimension = 1080 // Higher resolution for better quality
             val scaleFactor = if (width > height) {
-                maxDimension.toFloat() / width
+                VIDEO_THUMBNAIL_DIMENSION.toFloat() / width
             } else {
-                maxDimension.toFloat() / height
+                VIDEO_THUMBNAIL_DIMENSION.toFloat() / height
             }
 
             val scaledWidth = (width * scaleFactor).toInt()
             val scaledHeight = (height * scaleFactor).toInt()
 
-            // Get frame at 1 second or first frame if video is shorter
+            // Get frame at specified time
             val bitmap = retriever.getScaledFrameAtTime(
-                1000000, // 1 second in microseconds
+                VIDEO_THUMBNAIL_TIME_MICROSECONDS,
                 MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
                 scaledWidth,
                 scaledHeight

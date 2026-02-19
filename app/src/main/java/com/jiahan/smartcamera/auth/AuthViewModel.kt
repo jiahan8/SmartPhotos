@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.datastore.ProfileRepository
+import com.jiahan.smartcamera.util.AppConstants.MAX_DISPLAY_NAME_LENGTH
+import com.jiahan.smartcamera.util.AppConstants.MAX_USERNAME_LENGTH
 import com.jiahan.smartcamera.util.ResourceProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -213,7 +215,7 @@ class AuthViewModel @Inject constructor(
 
     private fun validateUsername(username: String): ValidationResult {
         return when {
-            username.length > 30 ->
+            username.length > MAX_USERNAME_LENGTH ->
                 ValidationResult.Error(R.string.username_too_long)
 
             !username.matches(Regex("^[a-zA-Z0-9._]+$")) ->
@@ -225,7 +227,7 @@ class AuthViewModel @Inject constructor(
 
     private fun validateDisplayName(displayName: String): ValidationResult {
         return when {
-            displayName.length > 50 ->
+            displayName.length > MAX_DISPLAY_NAME_LENGTH ->
                 ValidationResult.Error(R.string.name_too_long)
 
             else -> ValidationResult.Success

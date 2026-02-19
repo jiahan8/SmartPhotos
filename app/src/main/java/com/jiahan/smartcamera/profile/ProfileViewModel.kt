@@ -9,6 +9,8 @@ import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.auth.ValidationResult
 import com.jiahan.smartcamera.datastore.ProfileRepository
 import com.jiahan.smartcamera.domain.User
+import com.jiahan.smartcamera.util.AppConstants.MAX_DISPLAY_NAME_LENGTH
+import com.jiahan.smartcamera.util.AppConstants.MAX_USERNAME_LENGTH
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
 import com.jiahan.smartcamera.util.FileConstants.FILE_PROVIDER_AUTHORITY
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_PHOTO
@@ -165,7 +167,7 @@ class ProfileViewModel @Inject constructor(
         return when {
             username.isBlank() -> ValidationResult.Error(R.string.username_empty)
 
-            username.length > 30 ->
+            username.length > MAX_USERNAME_LENGTH ->
                 ValidationResult.Error(R.string.username_too_long)
 
             !username.matches(Regex("^[a-zA-Z0-9._]+$")) ->
@@ -179,7 +181,7 @@ class ProfileViewModel @Inject constructor(
         return when {
             displayName.isBlank() -> ValidationResult.Error(R.string.name_empty)
 
-            displayName.length > 50 ->
+            displayName.length > MAX_DISPLAY_NAME_LENGTH ->
                 ValidationResult.Error(R.string.name_too_long)
 
             else -> ValidationResult.Success

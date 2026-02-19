@@ -6,6 +6,7 @@ import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteHandler
+import com.jiahan.smartcamera.util.AppConstants.DEFAULT_PAGE_SIZE
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,7 +32,7 @@ class HomeViewModel @Inject constructor(
     val noteToDelete = _noteToDelete.asStateFlow()
 
     private var currentPage = 0
-    private val pageSize = 10
+    private val pageSize = DEFAULT_PAGE_SIZE
     private var hasMoreData = true
 
     private var isHandlingLocalFavoriteAction = false
