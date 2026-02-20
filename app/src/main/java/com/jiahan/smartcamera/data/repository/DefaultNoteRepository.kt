@@ -306,7 +306,8 @@ class DefaultNoteRepository @Inject constructor(
                 videoUrl = mediaMap["videoUrl"] as? String,
                 thumbnailUrl = mediaMap["thumbnailUrl"] as? String,
                 isVideo = mediaMap["video"] as? Boolean == true,
-                text = mediaMap["text"] as? String
+                text = mediaMap["text"] as? String,
+                generatedText = mediaMap["generatedText"] as? String
             )
         },
         username = userDocumentSnapshot.getString("username") ?: "",

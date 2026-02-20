@@ -23,7 +23,8 @@ data class MediaDetail(
     val videoUrl: String? = null,
     val thumbnailUrl: String? = null,
     val isVideo: Boolean = false,
-    val text: String? = null
+    val text: String? = null,
+    val generatedText: String? = null
 ) : Parcelable
 
 @Parcelize
