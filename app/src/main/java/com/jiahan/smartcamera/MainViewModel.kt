@@ -38,7 +38,7 @@ class MainViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             _startDestination.value =
-                if (profileRepository.firebaseUser != null && profileRepository.isEmailVerified())
+                if (profileRepository.firebaseUser != null && profileRepository.firebaseUser?.isEmailVerified == true)
                     Screen.Home.route
                 else
                     Screen.Auth.route
