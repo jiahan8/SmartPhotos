@@ -7,20 +7,16 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.core.content.FileProvider.getUriForFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.label.ImageLabeling
-import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
-import com.jiahan.smartcamera.data.repository.SearchRepository
 import com.jiahan.smartcamera.datastore.ProfileRepository
 import com.jiahan.smartcamera.datastore.UserPreferences
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.NoteMediaDetail
+import com.jiahan.smartcamera.util.AppConstants.MAX_POST_TEXT_LENGTH
+import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_MP4
 import com.jiahan.smartcamera.util.FileConstants.FILE_PROVIDER_AUTHORITY
@@ -28,11 +24,7 @@ import com.jiahan.smartcamera.util.FileConstants.PREFIX_PHOTO
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_VIDEO
 import com.jiahan.smartcamera.util.ResourceProvider
 import com.jiahan.smartcamera.util.Util.createVideoThumbnail
-import com.jiahan.smartcamera.util.AppConstants.MAX_POST_TEXT_LENGTH
-import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,7 +33,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import java.io.File
 import javax.inject.Inject
 
@@ -49,7 +40,6 @@ import javax.inject.Inject
 class NoteViewModel @Inject constructor(
     private val remoteConfigRepository: RemoteConfigRepository,
     private val noteRepository: NoteRepository,
-    private val searchRepository: SearchRepository,
     profileRepository: ProfileRepository,
     private val analyticsRepository: AnalyticsRepository,
     private val noteHandler: NoteHandler,
@@ -205,15 +195,12 @@ class NoteViewModel @Inject constructor(
                     val isVideo = context.contentResolver.getType(uri)?.startsWith("video/") == true
 
                     val bitmap = if (isVideo) getVideoThumbnail(context, uri) else null
-                    val detectedText =
-                        if (isVideo) null else detectLabelsAndJapaneseText(context, uri)
 
                     NoteMediaDetail(
                         photoUri = if (!isVideo) uri else null,
                         videoUri = if (isVideo) uri else null,
                         thumbnailBitmap = if (isVideo) bitmap else null,
-                        isVideo = isVideo,
-                        text = detectedText
+                        isVideo = isVideo
                     )
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -259,49 +246,6 @@ class NoteViewModel @Inject constructor(
     private fun getVideoThumbnail(context: Context, uri: Uri): Bitmap? {
         return _videoThumbnails.getOrPut(uri) {
             createVideoThumbnail(context, uri)
-        }
-    }
-
-    private suspend fun generateDescription(imageUri: Uri) =
-        searchRepository.prepareAndStartImageDescription(imageUri)
-
-    private suspend fun detectLabelsAndJapaneseText(context: Context, image: Uri): String {
-        return coroutineScope {
-            val inputImage = InputImage.fromFilePath(context, image)
-            val labeler = ImageLabeling.getClient(ImageLabelerOptions.DEFAULT_OPTIONS)
-            val japaneseRecognizer = TextRecognition.getClient(
-                JapaneseTextRecognizerOptions.Builder().build()
-            )
-            val descriptionDeferred = async {
-                runCatching {
-                    generateDescription(image)
-                }
-            }
-
-            val labelDeferred = async {
-                runCatching {
-                    labeler.process(inputImage).await()
-                }
-            }
-
-            val textDeferred = async {
-                runCatching {
-                    japaneseRecognizer.process(inputImage).await()
-                }
-            }
-
-            val descriptionResult = descriptionDeferred.await()
-            val labelResult = labelDeferred.await()
-            val textResult = textDeferred.await()
-
-            val description =
-                descriptionResult.getOrNull()?.takeIf { it.isNotEmpty() } ?: ""
-
-            val labelText = labelResult.getOrNull()?.joinToString("\n") { it.text }
-
-            val visionText = textResult.getOrNull()?.text
-
-            "$description$labelText$visionText"
         }
     }
 

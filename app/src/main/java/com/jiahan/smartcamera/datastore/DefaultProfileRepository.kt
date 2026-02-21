@@ -48,13 +48,28 @@ class DefaultProfileRepository @Inject constructor(
     private val remoteConfigRepository: RemoteConfigRepository,
 ) : ProfileRepository {
 
+    companion object {
+        // Collection names
+        private const val COLLECTION_USER = "user"
+        private const val COLLECTION_MEMBER = "member"
+
+        // Field names
+        private const val FIELD_EMAIL = "email"
+        private const val FIELD_PASSWORD = "password"
+        private const val FIELD_DISPLAY_NAME = "display_name"
+        private const val FIELD_USERNAME = "username"
+        private const val FIELD_PROFILE_PICTURE = "profile_picture"
+        private const val FIELD_CREATED = "created"
+        private const val FIELD_USER_ID = "user_id"
+    }
+
     private val userDocumentReference: DocumentReference?
         get() = auth.uid?.let { id ->
-            firestore.collection("user").document(id)
+            firestore.collection(COLLECTION_USER).document(id)
         }
     private val memberDocumentReference: DocumentReference?
         get() = auth.uid?.let { id ->
-            firestore.collection("member").document(id)
+            firestore.collection(COLLECTION_MEMBER).document(id)
         }
 
     override val userPreferencesFlow: Flow<UserPreferences> = context.dataStore.data
@@ -110,7 +125,7 @@ class DefaultProfileRepository @Inject constructor(
 
     override suspend fun getUser(userId: String): User? {
         return try {
-            val snapshot = firestore.collection("user").document(userId).get().await()
+            val snapshot = firestore.collection(COLLECTION_USER).document(userId).get().await()
             snapshot?.let {
                 getUserProfile(it)
             }
@@ -177,20 +192,16 @@ class DefaultProfileRepository @Inject constructor(
         if (firebaseUser != null && isUsernameAvailable(username)) {
             val userProfile = createUserProfileMap(firebaseUser, password, username)
             val memberProfile = createUserProfileMap(firebaseUser, username)
-            coroutineScope {
-                val userDeferred = async {
-                    runCatching {
-                        userDocumentReference?.set(userProfile)?.await()
-                    }
+            updateUserAndMemberDocuments(
+                userOperation = {
+                    userDocumentReference?.set(userProfile)?.await()
+                    Unit
+                },
+                memberOperation = {
+                    memberDocumentReference?.set(memberProfile)?.await()
+                    Unit
                 }
-                val memberDeferred = async {
-                    runCatching {
-                        memberDocumentReference?.set(memberProfile)?.await()
-                    }
-                }
-                userDeferred.await()
-                memberDeferred.await()
-            }
+            )
         }
     }
 
@@ -200,13 +211,13 @@ class DefaultProfileRepository @Inject constructor(
         username: String
     ): Map<String, Any?> {
         return hashMapOf(
-            "email" to firebaseUser.email,
-            "password" to password,
-            "display_name" to firebaseUser.displayName,
-            "username" to username,
-            "profile_picture" to null,
-            "created" to FieldValue.serverTimestamp(),
-            "user_id" to firebaseUser.uid
+            FIELD_EMAIL to firebaseUser.email,
+            FIELD_PASSWORD to password,
+            FIELD_DISPLAY_NAME to firebaseUser.displayName,
+            FIELD_USERNAME to username,
+            FIELD_PROFILE_PICTURE to null,
+            FIELD_CREATED to FieldValue.serverTimestamp(),
+            FIELD_USER_ID to firebaseUser.uid
         )
     }
 
@@ -215,12 +226,12 @@ class DefaultProfileRepository @Inject constructor(
         username: String
     ): Map<String, Any?> {
         return hashMapOf(
-            "email" to firebaseUser.email,
-            "display_name" to firebaseUser.displayName,
-            "username" to username,
-            "profile_picture" to null,
-            "created" to FieldValue.serverTimestamp(),
-            "user_id" to firebaseUser.uid
+            FIELD_EMAIL to firebaseUser.email,
+            FIELD_DISPLAY_NAME to firebaseUser.displayName,
+            FIELD_USERNAME to username,
+            FIELD_PROFILE_PICTURE to null,
+            FIELD_CREATED to FieldValue.serverTimestamp(),
+            FIELD_USER_ID to firebaseUser.uid
         )
     }
 
@@ -251,31 +262,57 @@ class DefaultProfileRepository @Inject constructor(
         profilePictureUrl: String?,
         deleteProfilePicture: Boolean
     ) {
-        val updates = mutableMapOf<String, Any?>()
-
-        displayName?.let { updates["display_name"] = it }
-        username?.let { updates["username"] = it }
-        if (deleteProfilePicture) {
-            updates["profile_picture"] = null
-        } else {
-            profilePictureUrl?.let { updates["profile_picture"] = it }
-        }
+        val updates = buildProfileUpdateMap(
+            displayName = displayName,
+            username = username,
+            profilePictureUrl = profilePictureUrl,
+            deleteProfilePicture = deleteProfilePicture
+        )
 
         if (updates.isNotEmpty()) {
-            coroutineScope {
-                val userDeferred = async {
-                    runCatching {
-                        userDocumentReference?.update(updates)?.await()
-                    }
+            updateUserAndMemberDocuments(
+                userOperation = {
+                    userDocumentReference?.update(updates)?.await()
+                    Unit
+                },
+                memberOperation = {
+                    memberDocumentReference?.update(updates)?.await()
+                    Unit
                 }
-                val memberDeferred = async {
-                    runCatching {
-                        memberDocumentReference?.update(updates)?.await()
-                    }
-                }
-                userDeferred.await()
-                memberDeferred.await()
+            )
+        }
+    }
+
+    private fun buildProfileUpdateMap(
+        displayName: String?,
+        username: String?,
+        profilePictureUrl: String?,
+        deleteProfilePicture: Boolean
+    ): Map<String, Any?> {
+        val updates = mutableMapOf<String, Any?>()
+        displayName?.let { updates[FIELD_DISPLAY_NAME] = it }
+        username?.let { updates[FIELD_USERNAME] = it }
+        if (deleteProfilePicture) {
+            updates[FIELD_PROFILE_PICTURE] = null
+        } else {
+            profilePictureUrl?.let { updates[FIELD_PROFILE_PICTURE] = it }
+        }
+        return updates
+    }
+
+    private suspend fun updateUserAndMemberDocuments(
+        userOperation: suspend () -> Unit?,
+        memberOperation: suspend () -> Unit?
+    ) {
+        coroutineScope {
+            val userDeferred = async {
+                runCatching { userOperation() }
             }
+            val memberDeferred = async {
+                runCatching { memberOperation() }
+            }
+            userDeferred.await()
+            memberDeferred.await()
         }
     }
 
@@ -313,8 +350,8 @@ class DefaultProfileRepository @Inject constructor(
     }
 
     override suspend fun isUsernameAvailable(username: String): Boolean {
-        return firestore.collection("member")
-            .whereEqualTo("username", username)
+        return firestore.collection(COLLECTION_MEMBER)
+            .whereEqualTo(FIELD_USERNAME, username)
             .limit(1)
             .get()
             .await()
@@ -322,8 +359,8 @@ class DefaultProfileRepository @Inject constructor(
     }
 
     override suspend fun isEmailRegistered(email: String): Boolean {
-        return !firestore.collection("member")
-            .whereEqualTo("email", email)
+        return !firestore.collection(COLLECTION_MEMBER)
+            .whereEqualTo(FIELD_EMAIL, email)
             .limit(1)
             .get()
             .await()
@@ -352,12 +389,12 @@ class DefaultProfileRepository @Inject constructor(
         userDocumentSnapshot: DocumentSnapshot
     ): User {
         return User(
-            email = userDocumentSnapshot.getString("email") ?: "",
-            password = userDocumentSnapshot.getString("password") ?: "",
-            displayName = userDocumentSnapshot.getString("display_name") ?: "",
-            username = userDocumentSnapshot.getString("username") ?: "",
-            profilePicture = userDocumentSnapshot.getString("profile_picture"),
-            createdDate = userDocumentSnapshot.getDate("created") ?: Date(),
+            email = userDocumentSnapshot.getString(FIELD_EMAIL) ?: "",
+            password = userDocumentSnapshot.getString(FIELD_PASSWORD) ?: "",
+            displayName = userDocumentSnapshot.getString(FIELD_DISPLAY_NAME) ?: "",
+            username = userDocumentSnapshot.getString(FIELD_USERNAME) ?: "",
+            profilePicture = userDocumentSnapshot.getString(FIELD_PROFILE_PICTURE),
+            createdDate = userDocumentSnapshot.getDate(FIELD_CREATED) ?: Date(),
             documentPath = userDocumentSnapshot.id
         )
     }

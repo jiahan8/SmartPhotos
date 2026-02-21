@@ -23,7 +23,6 @@ data class MediaDetail(
     val videoUrl: String? = null,
     val thumbnailUrl: String? = null,
     val isVideo: Boolean = false,
-    val text: String? = null,
     val generatedText: List<String>? = null,
     val generatedObjects: List<DetectedObject>? = null,
     val generatedLabels: List<DetectedLabel>? = null
@@ -46,6 +45,5 @@ data class NoteMediaDetail(
     val photoUri: Uri? = null,
     val videoUri: Uri? = null,
     val thumbnailBitmap: Bitmap? = null,
-    val isVideo: Boolean = false,
-    val text: String? = null
+    val isVideo: Boolean = false
 ) : Parcelable

@@ -280,8 +280,7 @@ class DefaultNoteRepository @Inject constructor(
                             photoUrl = if (!noteMediaDetail.isVideo) mediaUrl else null,
                             videoUrl = if (noteMediaDetail.isVideo) mediaUrl else null,
                             thumbnailUrl = thumbnailUrl,
-                            isVideo = noteMediaDetail.isVideo,
-                            text = noteMediaDetail.text
+                            isVideo = noteMediaDetail.isVideo
                         )
                     } catch (e: Exception) {
                         e.printStackTrace()
@@ -316,7 +315,6 @@ class DefaultNoteRepository @Inject constructor(
         videoUrl = mediaMap[FIELD_VIDEO_URL] as? String,
         thumbnailUrl = mediaMap[FIELD_THUMBNAIL_URL] as? String,
         isVideo = mediaMap[FIELD_VIDEO] as? Boolean == true,
-        text = mediaMap[FIELD_TEXT] as? String,
         generatedText = (mediaMap[FIELD_GENERATED_TEXT] as? List<*>)?.mapNotNull { it as? String },
         generatedObjects = parseDetectedObjects(mediaMap[FIELD_GENERATED_OBJECTS] as? List<*>),
         generatedLabels = parseDetectedLabels(mediaMap[FIELD_GENERATED_LABELS] as? List<*>)
