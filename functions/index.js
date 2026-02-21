@@ -23,10 +23,11 @@ const visionClient = new vision.ImageAnnotatorClient();
 setGlobalOptions({maxInstances: 10});
 
 /**
- * Cloud Function to process text recognition on images in a note
+ * Cloud Function to process text recognition, label detection, and
+ * object detection on images in a note
  * This function is automatically triggered when a new note is created
- * It processes all images in the media_list and adds generatedText field
- * Uses ML Kit Text Recognition v2 API
+ * It processes all images in the media_list and adds detection fields
+ * Uses Google Cloud Vision API for text, label, and object detection
  */
 exports.processTextRecognition = onDocumentCreated(
     {
@@ -77,30 +78,76 @@ exports.processTextRecognition = onDocumentCreated(
               }
 
               try {
-                // Use Vision client to detect text (handles auth automatically)
-                const [result] = await visionClient.textDetection(imageUrl);
-                const detections = result.textAnnotations;
+                // Use Vision client to detect text, labels, and objects
+                const [textResult] =
+                  await visionClient.textDetection(imageUrl);
+                const [labelResult] =
+                  await visionClient.labelDetection(imageUrl);
+                const [objectResult] =
+                  await visionClient.objectLocalization(imageUrl);
 
-                let generatedText = "";
-                if (detections && detections.length > 0) {
+                // Process text detection - create array of detected text
+                const generatedText = [];
+                const textDetections = textResult.textAnnotations;
+                if (textDetections && textDetections.length > 0) {
                   // First annotation contains the entire detected text
-                  generatedText = detections[0].description || "";
+                  const fullText = textDetections[0].description || "";
+                  if (fullText) {
+                    // Split by newlines and add each line as array item
+                    const lines = fullText
+                        .split("\n")
+                        .filter((line) => line.trim());
+                    generatedText.push(...lines);
+                  }
                 }
 
-                const preview = generatedText.substring(0, 100);
-                logger.info(`Text detected: ${preview}...`);
+                // Process label detection
+                // Create array of maps with label and score
+                const generatedLabels = [];
+                const labels = labelResult.labelAnnotations;
+                if (labels && labels.length > 0) {
+                  labels.forEach((label) => {
+                    generatedLabels.push({
+                      label: label.description,
+                      score: label.score,
+                    });
+                  });
+                }
 
-                // Return updated media object with generatedText field
+                // Process object detection
+                // Create array of maps with object and score
+                const generatedObjects = [];
+                const objects = objectResult.localizedObjectAnnotations;
+                if (objects && objects.length > 0) {
+                  objects.forEach((object) => {
+                    generatedObjects.push({
+                      object: object.name,
+                      score: object.score,
+                    });
+                  });
+                }
+
+                logger.info(
+                    `Detection results - Text: ${generatedText.length}, ` +
+                    `Labels: ${generatedLabels.length}, ` +
+                    `Objects: ${generatedObjects.length}`,
+                );
+
+                // Return updated media object with all detection fields
                 return {
                   ...media,
                   generatedText: generatedText,
+                  generatedLabels: generatedLabels,
+                  generatedObjects: generatedObjects,
                 };
               } catch (error) {
                 logger.error("Error processing image:", error);
-                // Return media with empty text if processing fails
+                // Return media with empty arrays if processing fails
                 return {
                   ...media,
-                  generatedText: "",
+                  generatedText: [],
+                  generatedLabels: [],
+                  generatedObjects: [],
                 };
               }
             }),

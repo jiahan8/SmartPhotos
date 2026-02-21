@@ -24,7 +24,21 @@ data class MediaDetail(
     val thumbnailUrl: String? = null,
     val isVideo: Boolean = false,
     val text: String? = null,
-    val generatedText: String? = null
+    val generatedText: List<String>? = null,
+    val generatedObjects: List<DetectedObject>? = null,
+    val generatedLabels: List<DetectedLabel>? = null
+) : Parcelable
+
+@Parcelize
+data class DetectedObject(
+    val objectName: String,
+    val score: Double
+) : Parcelable
+
+@Parcelize
+data class DetectedLabel(
+    val label: String,
+    val score: Double
 ) : Parcelable
 
 @Parcelize

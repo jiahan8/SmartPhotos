@@ -12,6 +12,8 @@ import com.google.firebase.firestore.Query
 import com.google.firebase.storage.storage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.datastore.ProfileRepository
+import com.jiahan.smartcamera.domain.DetectedLabel
+import com.jiahan.smartcamera.domain.DetectedObject
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.domain.NoteMediaDetail
@@ -20,9 +22,11 @@ import com.jiahan.smartcamera.util.FileConstants.EXTENSION_MP4
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_THUMBNAIL
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.io.ByteArrayOutputStream
 import java.util.UUID
@@ -35,19 +39,48 @@ class DefaultNoteRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
 ) : NoteRepository {
 
+    companion object {
+        // Collection names
+        private const val COLLECTION_USER = "user"
+        private const val COLLECTION_NOTE = "note"
+
+        // Field names
+        private const val FIELD_TEXT = "text"
+        private const val FIELD_CREATED = "created"
+        private const val FIELD_FAVORITE = "favorite"
+        private const val FIELD_MEDIA_LIST = "media_list"
+        private const val FIELD_USER_ID = "user_id"
+        private const val FIELD_USERNAME = "username"
+        private const val FIELD_PROFILE_PICTURE = "profile_picture"
+
+        // Media field names
+        private const val FIELD_PHOTO_URL = "photoUrl"
+        private const val FIELD_VIDEO_URL = "videoUrl"
+        private const val FIELD_THUMBNAIL_URL = "thumbnailUrl"
+        private const val FIELD_VIDEO = "video"
+        private const val FIELD_GENERATED_TEXT = "generatedText"
+        private const val FIELD_GENERATED_OBJECTS = "generatedObjects"
+        private const val FIELD_GENERATED_LABELS = "generatedLabels"
+
+        // Detection field names
+        private const val FIELD_OBJECT = "object"
+        private const val FIELD_LABEL = "label"
+        private const val FIELD_SCORE = "score"
+    }
+
     private val pageToLastVisibleDocument = mutableMapOf<Int, DocumentSnapshot>()
     private val noteCollectionReference: CollectionReference?
         get() = profileRepository.firebaseUser?.uid?.let { id ->
-            firestore.collection("user")
+            firestore.collection(COLLECTION_USER)
                 .document(id)
-                .collection("note")
+                .collection(COLLECTION_NOTE)
         }
 
     override suspend fun getNotes(page: Int, pageSize: Int): List<HomeNote> {
         noteCollectionReference?.let { ref ->
             try {
                 val baseQuery = ref
-                    .orderBy("created", Query.Direction.DESCENDING)
+                    .orderBy(FIELD_CREATED, Query.Direction.DESCENDING)
                     .limit(pageSize.toLong())
 
                 val snapshot = if (page == 0) {
@@ -73,11 +106,11 @@ class DefaultNoteRepository @Inject constructor(
                 }
 
                 val userIds = snapshot.documents.mapNotNull {
-                    it.getString("user_id")
+                    it.getString(FIELD_USER_ID)
                 }.distinct()
                 val userDocumentsMap = getUserDocumentsInBatch(userIds)
                 return snapshot.documents.map { document ->
-                    val userId = document.getString("user_id") as String
+                    val userId = document.getString(FIELD_USER_ID) as String
                     val userDocument = userDocumentsMap[userId]
                     if (userDocument != null) {
                         getHomeNote(
@@ -100,11 +133,11 @@ class DefaultNoteRepository @Inject constructor(
         val userId = profileRepository.firebaseUser?.uid ?: return
         noteCollectionReference?.add(
             hashMapOf(
-                "text" to homeNote.text,
-                "created" to FieldValue.serverTimestamp(),
-                "favorite" to false,
-                "media_list" to homeNote.mediaList,
-                "user_id" to userId
+                FIELD_TEXT to homeNote.text,
+                FIELD_CREATED to FieldValue.serverTimestamp(),
+                FIELD_FAVORITE to false,
+                FIELD_MEDIA_LIST to homeNote.mediaList,
+                FIELD_USER_ID to userId
             )
         )?.await()
     }
@@ -112,32 +145,17 @@ class DefaultNoteRepository @Inject constructor(
     override suspend fun searchNotes(query: String): List<HomeNote> {
         noteCollectionReference?.let { ref ->
             val snapshot = ref
-                .orderBy("created", Query.Direction.DESCENDING)
+                .orderBy(FIELD_CREATED, Query.Direction.DESCENDING)
                 .get()
                 .await()
             val userIds = snapshot.documents.mapNotNull {
-                it.getString("user_id")
+                it.getString(FIELD_USER_ID)
             }.distinct()
             val userDocumentsMap = getUserDocumentsInBatch(userIds)
             return snapshot.documents
-                .filter { document ->
-                    // Check if the main note text contains the query
-                    val noteText = document.getString("text") ?: ""
-                    val containsInNoteText = noteText.contains(query, ignoreCase = true)
-
-                    // Check if any media item's text contains the query
-                    val mediaList = document.get("media_list") as? List<*>
-                    val containsInMediaText = mediaList?.any { item ->
-                        val mediaMap = item as? Map<*, *>
-                        val mediaText = mediaMap?.get("text")?.toString() ?: ""
-                        mediaText.contains(query, ignoreCase = true)
-                    } == true
-
-                    // Return true if the query is found in either the note text or any media text
-                    containsInNoteText || containsInMediaText
-                }
+                .filter { document -> matchesSearchQuery(document, query) }
                 .map { document ->
-                    val userId = document.getString("user_id") as String
+                    val userId = document.getString(FIELD_USER_ID) as String
                     val userDocument = userDocumentsMap[userId]
                     if (userDocument != null) {
                         getHomeNote(
@@ -159,40 +177,25 @@ class DefaultNoteRepository @Inject constructor(
     override suspend fun favoriteNote(homeNote: HomeNote) {
         val snapshot = noteCollectionReference?.document(homeNote.documentPath)?.get()?.await()
         noteCollectionReference?.document(homeNote.documentPath)
-            ?.update("favorite", snapshot?.getBoolean("favorite")?.not())
+            ?.update(FIELD_FAVORITE, snapshot?.getBoolean(FIELD_FAVORITE)?.not())
             ?.await()
     }
 
     override suspend fun searchFavoriteNotes(query: String): List<HomeNote> {
         noteCollectionReference?.let { ref ->
             val snapshot = ref
-                .whereEqualTo("favorite", true)
-                .orderBy("created", Query.Direction.DESCENDING)
+                .whereEqualTo(FIELD_FAVORITE, true)
+                .orderBy(FIELD_CREATED, Query.Direction.DESCENDING)
                 .get()
                 .await()
             val userIds = snapshot.documents.mapNotNull {
-                it.getString("user_id")
+                it.getString(FIELD_USER_ID)
             }.distinct()
             val userDocumentsMap = getUserDocumentsInBatch(userIds)
             return snapshot.documents
-                .filter { document ->
-                    // Check if the main note text contains the query
-                    val noteText = document.getString("text") ?: ""
-                    val containsInNoteText = noteText.contains(query, ignoreCase = true)
-
-                    // Check if any media item's text contains the query
-                    val mediaList = document.data?.get("media_list") as? List<*>
-                    val containsInMediaText = mediaList?.any { item ->
-                        val mediaMap = item as? Map<*, *>
-                        val mediaText = mediaMap?.get("text")?.toString() ?: ""
-                        mediaText.contains(query, ignoreCase = true)
-                    } == true
-
-                    // Return true if the query is found in either the note text or any media text
-                    containsInNoteText || containsInMediaText
-                }
+                .filter { document -> matchesSearchQuery(document, query) }
                 .map { document ->
-                    val userId = document.getString("user_id") as String
+                    val userId = document.getString(FIELD_USER_ID) as String
                     val userDocument = userDocumentsMap[userId]
                     if (userDocument != null) {
                         getHomeNote(
@@ -211,7 +214,7 @@ class DefaultNoteRepository @Inject constructor(
         noteCollectionReference?.let { ref ->
             val noteDocument = ref.document(documentPath).get().await()
             val userDocument =
-                getUserDocumentSnapshot(noteDocument.getString("user_id") as String)
+                getUserDocumentSnapshot(noteDocument.getString(FIELD_USER_ID) as String)
             return getHomeNote(
                 noteDocumentSnapshot = noteDocument,
                 userDocumentSnapshot = userDocument
@@ -223,16 +226,17 @@ class DefaultNoteRepository @Inject constructor(
     override suspend fun quickUploadMediaToFirebase(uriList: List<Uri>) {
         val storage = Firebase.storage(remoteConfigRepository.getStorageUrl())
         val cacheStorageFolder = remoteConfigRepository.getStorageCacheFolderName()
-        coroutineScope {
-            uriList.forEach { uri ->
-                async(Dispatchers.IO) {
-                    try {
-                        val mediaId = UUID.randomUUID().toString()
-                        val storageRef = storage.reference.child("$cacheStorageFolder/$mediaId")
-                        storageRef.putFile(uri)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
+
+        // Fire-and-forget: launches uploads in background without waiting
+        uriList.forEach { uri ->
+            @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
+            GlobalScope.launch(Dispatchers.IO) {
+                try {
+                    val mediaId = UUID.randomUUID().toString()
+                    val storageRef = storage.reference.child("$cacheStorageFolder/$mediaId")
+                    storageRef.putFile(uri).await()
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             }
         }
@@ -289,30 +293,100 @@ class DefaultNoteRepository @Inject constructor(
     }
 
     private suspend fun getUserDocumentSnapshot(userId: String) =
-        firestore.collection("user").document(userId).get().await()
+        firestore.collection(COLLECTION_USER).document(userId).get().await()
 
     private fun getHomeNote(
         noteDocumentSnapshot: DocumentSnapshot,
         userDocumentSnapshot: DocumentSnapshot
     ) = HomeNote(
-        text = noteDocumentSnapshot.getString("text"),
-        createdDate = noteDocumentSnapshot.getDate("created"),
+        text = noteDocumentSnapshot.getString(FIELD_TEXT),
+        createdDate = noteDocumentSnapshot.getDate(FIELD_CREATED),
         documentPath = noteDocumentSnapshot.id,
-        favorite = noteDocumentSnapshot.getBoolean("favorite") == true,
-        mediaList = (noteDocumentSnapshot.get("media_list") as? List<*>)?.mapNotNull { item ->
+        favorite = noteDocumentSnapshot.getBoolean(FIELD_FAVORITE) == true,
+        mediaList = (noteDocumentSnapshot.get(FIELD_MEDIA_LIST) as? List<*>)?.mapNotNull { item ->
             val mediaMap = item as? Map<*, *> ?: return@mapNotNull null
-            MediaDetail(
-                photoUrl = mediaMap["photoUrl"] as? String,
-                videoUrl = mediaMap["videoUrl"] as? String,
-                thumbnailUrl = mediaMap["thumbnailUrl"] as? String,
-                isVideo = mediaMap["video"] as? Boolean == true,
-                text = mediaMap["text"] as? String,
-                generatedText = mediaMap["generatedText"] as? String
-            )
+            parseMediaDetail(mediaMap)
         },
-        username = userDocumentSnapshot.getString("username") ?: "",
-        profilePictureUrl = userDocumentSnapshot.getString("profile_picture")
+        username = userDocumentSnapshot.getString(FIELD_USERNAME) ?: "",
+        profilePictureUrl = userDocumentSnapshot.getString(FIELD_PROFILE_PICTURE)
     )
+
+    private fun parseMediaDetail(mediaMap: Map<*, *>): MediaDetail = MediaDetail(
+        photoUrl = mediaMap[FIELD_PHOTO_URL] as? String,
+        videoUrl = mediaMap[FIELD_VIDEO_URL] as? String,
+        thumbnailUrl = mediaMap[FIELD_THUMBNAIL_URL] as? String,
+        isVideo = mediaMap[FIELD_VIDEO] as? Boolean == true,
+        text = mediaMap[FIELD_TEXT] as? String,
+        generatedText = (mediaMap[FIELD_GENERATED_TEXT] as? List<*>)?.mapNotNull { it as? String },
+        generatedObjects = parseDetectedObjects(mediaMap[FIELD_GENERATED_OBJECTS] as? List<*>),
+        generatedLabels = parseDetectedLabels(mediaMap[FIELD_GENERATED_LABELS] as? List<*>)
+    )
+
+    private fun parseDetectedObjects(objectsList: List<*>?): List<DetectedObject>? {
+        return objectsList?.mapNotNull { objectItem ->
+            val objectMap = objectItem as? Map<*, *>
+            val objectValue = objectMap?.get(FIELD_OBJECT) as? String
+            val scoreValue = objectMap?.get(FIELD_SCORE) as? Double
+            if (objectValue != null && scoreValue != null) {
+                DetectedObject(objectName = objectValue, score = scoreValue)
+            } else null
+        }
+    }
+
+    private fun parseDetectedLabels(labelsList: List<*>?): List<DetectedLabel>? {
+        return labelsList?.mapNotNull { labelItem ->
+            val labelMap = labelItem as? Map<*, *>
+            val labelValue = labelMap?.get(FIELD_LABEL) as? String
+            val scoreValue = labelMap?.get(FIELD_SCORE) as? Double
+            if (labelValue != null && scoreValue != null) {
+                DetectedLabel(label = labelValue, score = scoreValue)
+            } else null
+        }
+    }
+
+    private fun matchesSearchQuery(document: DocumentSnapshot, query: String): Boolean {
+        // Check if the main note text contains the query
+        val noteText = document.getString(FIELD_TEXT) ?: ""
+        if (noteText.contains(query, ignoreCase = true)) {
+            return true
+        }
+
+        // Check if any media item's generated content contains the query
+        val mediaList = document.get(FIELD_MEDIA_LIST) as? List<*>
+        return mediaList?.any { item ->
+            matchesMediaSearchQuery(item as? Map<*, *>, query)
+        } == true
+    }
+
+    private fun matchesMediaSearchQuery(mediaMap: Map<*, *>?, query: String): Boolean {
+        if (mediaMap == null) return false
+
+        // Check generatedText array
+        val generatedText = mediaMap[FIELD_GENERATED_TEXT] as? List<*>
+        if (generatedText?.any { text ->
+                (text as? String)?.contains(query, ignoreCase = true) == true
+            } == true) {
+            return true
+        }
+
+        // Check generatedObjects - look in "object" field values
+        val generatedObjects = mediaMap[FIELD_GENERATED_OBJECTS] as? List<*>
+        if (generatedObjects?.any { objectItem ->
+                val objectMap = objectItem as? Map<*, *>
+                val objectValue = objectMap?.get(FIELD_OBJECT) as? String
+                objectValue?.contains(query, ignoreCase = true) == true
+            } == true) {
+            return true
+        }
+
+        // Check generatedLabels - look in "label" field values
+        val generatedLabels = mediaMap[FIELD_GENERATED_LABELS] as? List<*>
+        return generatedLabels?.any { labelItem ->
+            val labelMap = labelItem as? Map<*, *>
+            val labelValue = labelMap?.get(FIELD_LABEL) as? String
+            labelValue?.contains(query, ignoreCase = true) == true
+        } == true
+    }
 
     private suspend fun getUserDocumentsInBatch(userIds: List<String>): Map<String, DocumentSnapshot> {
         if (userIds.isEmpty()) return emptyMap()
