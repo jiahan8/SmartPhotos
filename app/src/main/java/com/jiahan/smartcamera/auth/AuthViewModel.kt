@@ -158,7 +158,7 @@ class AuthViewModel @Inject constructor(
 
                 val result = profileRepository.signUp(
                     email = trimmedEmail,
-                    password = password.value,
+                    metadata = password.value,
                     displayName = trimmedDisplayName,
                     username = trimmedUsername
                 )

@@ -55,7 +55,7 @@ class DefaultProfileRepository @Inject constructor(
 
         // Field names
         private const val FIELD_EMAIL = "email"
-        private const val FIELD_PASSWORD = "password"
+        private const val FIELD_METADATA = "metadata"
         private const val FIELD_DISPLAY_NAME = "display_name"
         private const val FIELD_USERNAME = "username"
         private const val FIELD_PROFILE_PICTURE = "profile_picture"
@@ -134,9 +134,9 @@ class DefaultProfileRepository @Inject constructor(
         }
     }
 
-    override suspend fun signIn(email: String, password: String): Result<FirebaseUser?> {
+    override suspend fun signIn(email: String, metadata: String): Result<FirebaseUser?> {
         return try {
-            val result = auth.signInWithEmailAndPassword(email, password).await()
+            val result = auth.signInWithEmailAndPassword(email, metadata).await()
             Result.success(result.user)
         } catch (e: Exception) {
             Result.failure(e)
@@ -145,19 +145,19 @@ class DefaultProfileRepository @Inject constructor(
 
     override suspend fun signUp(
         email: String,
-        password: String,
+        metadata: String,
         displayName: String,
         username: String
     ): Result<FirebaseUser?> {
         return try {
-            val result = auth.createUserWithEmailAndPassword(email, password).await()
+            val result = auth.createUserWithEmailAndPassword(email, metadata).await()
             updateFirebaseUserProfile(
                 displayName = displayName,
                 profilePictureUri = null,
                 deleteProfilePicture = false
             )
             result.user?.sendEmailVerification()?.await()
-            createUserProfile(password = password, username = username)
+            createUserProfile(metadata = metadata, username = username)
             Result.success(result.user)
         } catch (e: Exception) {
             Result.failure(e)
@@ -185,12 +185,12 @@ class DefaultProfileRepository @Inject constructor(
     }
 
     override suspend fun createUserProfile(
-        password: String,
+        metadata: String,
         username: String
     ) {
         val firebaseUser = auth.currentUser
         if (firebaseUser != null && isUsernameAvailable(username)) {
-            val userProfile = createUserProfileMap(firebaseUser, password, username)
+            val userProfile = createUserProfileMap(firebaseUser, metadata, username)
             val memberProfile = createUserProfileMap(firebaseUser, username)
             updateUserAndMemberDocuments(
                 userOperation = {
@@ -207,12 +207,12 @@ class DefaultProfileRepository @Inject constructor(
 
     private fun createUserProfileMap(
         firebaseUser: FirebaseUser,
-        password: String,
+        metadata: String,
         username: String
     ): Map<String, Any?> {
         return hashMapOf(
             FIELD_EMAIL to firebaseUser.email,
-            FIELD_PASSWORD to password,
+            FIELD_METADATA to metadata,
             FIELD_DISPLAY_NAME to firebaseUser.displayName,
             FIELD_USERNAME to username,
             FIELD_PROFILE_PICTURE to null,
@@ -390,7 +390,7 @@ class DefaultProfileRepository @Inject constructor(
     ): User {
         return User(
             email = userDocumentSnapshot.getString(FIELD_EMAIL) ?: "",
-            password = userDocumentSnapshot.getString(FIELD_PASSWORD) ?: "",
+            metadata = userDocumentSnapshot.getString(FIELD_METADATA) ?: "",
             displayName = userDocumentSnapshot.getString(FIELD_DISPLAY_NAME) ?: "",
             username = userDocumentSnapshot.getString(FIELD_USERNAME) ?: "",
             profilePicture = userDocumentSnapshot.getString(FIELD_PROFILE_PICTURE),

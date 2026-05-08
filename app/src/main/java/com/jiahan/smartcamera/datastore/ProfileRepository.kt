@@ -13,15 +13,15 @@ interface ProfileRepository {
     val firebaseUser: FirebaseUser?
     suspend fun getUser(): User?
     suspend fun getUser(userId: String): User?
-    suspend fun signIn(email: String, password: String): Result<FirebaseUser?>
+    suspend fun signIn(email: String, metadata: String): Result<FirebaseUser?>
     suspend fun signUp(
         email: String,
-        password: String,
+        metadata: String,
         displayName: String,
         username: String
     ): Result<FirebaseUser?>
 
-    suspend fun createUserProfile(password: String, username: String)
+    suspend fun createUserProfile(metadata: String, username: String)
 
     suspend fun updateUserProfile(
         displayName: String?,

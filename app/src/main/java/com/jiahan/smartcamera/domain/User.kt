@@ -7,7 +7,7 @@ import java.util.Date
 @Parcelize
 data class User(
     val email: String,
-    val password: String,
+    val metadata: String,
     val displayName: String,
     val username: String,
     val profilePicture: String?,
