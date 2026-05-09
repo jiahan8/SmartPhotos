@@ -49,16 +49,11 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
-import com.jiahan.smartcamera.Screen.ImagePreview.DETECT_ARG
-import com.jiahan.smartcamera.Screen.ImagePreview.IMAGE_DEEP_LINK_URI_PATTERN
-import com.jiahan.smartcamera.Screen.ImagePreview.TEXT_ARG
-import com.jiahan.smartcamera.Screen.ImagePreview.URI_ARG
 import com.jiahan.smartcamera.Screen.Search.SEARCH_DEEP_LINK_URI_PATTERN
 import com.jiahan.smartcamera.auth.AuthScreen
 import com.jiahan.smartcamera.favorite.FavoriteScreen
 import com.jiahan.smartcamera.home.HomeScreen
 import com.jiahan.smartcamera.note.NoteScreen
-import com.jiahan.smartcamera.preview.ImagePreviewScreen
 import com.jiahan.smartcamera.preview.NotePreviewScreen
 import com.jiahan.smartcamera.preview.PhotoPreviewScreen
 import com.jiahan.smartcamera.preview.PhotoSource
@@ -222,29 +217,6 @@ class MainActivity : ComponentActivity() {
                                     onScrollToTopConsumed = {
                                         viewModel.consumeScrollToTopEvent()
                                     }
-                                )
-                            }
-                            composable(
-                                route = Screen.ImagePreview.route,
-                                arguments = listOf(
-                                    navArgument(URI_ARG) {
-                                        type = NavType.StringType
-                                    },
-                                    navArgument(TEXT_ARG) {
-                                        type = NavType.StringType
-                                    },
-                                    navArgument(DETECT_ARG) {
-                                        type = NavType.BoolType
-                                    }
-                                ),
-                                deepLinks = listOf(
-                                    navDeepLink {
-                                        uriPattern = IMAGE_DEEP_LINK_URI_PATTERN
-                                    }
-                                )
-                            ) { backStackEntry ->
-                                ImagePreviewScreen(
-                                    navController = navController
                                 )
                             }
                             composable(route = Screen.Note.route) {
