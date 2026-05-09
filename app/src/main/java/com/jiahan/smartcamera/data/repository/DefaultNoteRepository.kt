@@ -175,9 +175,8 @@ class DefaultNoteRepository @Inject constructor(
     }
 
     override suspend fun favoriteNote(homeNote: HomeNote) {
-        val snapshot = noteCollectionReference?.document(homeNote.documentPath)?.get()?.await()
         noteCollectionReference?.document(homeNote.documentPath)
-            ?.update(FIELD_FAVORITE, snapshot?.getBoolean(FIELD_FAVORITE)?.not())
+            ?.update(FIELD_FAVORITE, homeNote.favorite.not())
             ?.await()
     }
 

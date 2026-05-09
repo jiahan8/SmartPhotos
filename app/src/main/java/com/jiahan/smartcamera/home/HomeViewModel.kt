@@ -40,10 +40,8 @@ class HomeViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             remoteConfigRepository.fetchAndActivateConfig()
-            fetchNotes(initialLoading = true)
-            noteHandler.noteAddedEvent.collect {
-                fetchNotes(initialLoading = true)
-            }
+            launch { fetchNotes(initialLoading = true) }
+            launch { noteHandler.noteAddedEvent.collect { fetchNotes(initialLoading = true) } }
         }
         viewModelScope.launch {
             noteHandler.noteDeletedEvent.collect { documentPath ->
@@ -65,7 +63,15 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    suspend fun fetchNotes(initialLoading: Boolean) {
+    fun refresh() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            fetchNotes(initialLoading = true)
+            _isRefreshing.value = false
+        }
+    }
+
+    private suspend fun fetchNotes(initialLoading: Boolean) {
         try {
             if (initialLoading) {
                 _isInitialLoading.value = true
@@ -130,9 +136,6 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun setRefreshing(refreshing: Boolean) {
-        _isRefreshing.value = refreshing
-    }
 
     fun setNoteToDelete(note: HomeNote?) {
         _noteToDelete.value = note

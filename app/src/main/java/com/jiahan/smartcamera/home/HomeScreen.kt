@@ -42,7 +42,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,7 +67,6 @@ import com.jiahan.smartcamera.util.Util.formatDateTime
 import com.jiahan.smartcamera.util.pairwise
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,7 +78,6 @@ fun HomeScreen(
     onScrollToTopConsumed: () -> Unit
 ) {
     val pullToRefreshState = rememberPullToRefreshState()
-    val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
     val notes by viewModel.notes.collectAsStateWithLifecycle()
@@ -89,13 +86,7 @@ fun HomeScreen(
     val isLoadingMore by viewModel.isLoadingMore.collectAsStateWithLifecycle()
     val noteToDelete by viewModel.noteToDelete.collectAsStateWithLifecycle()
 
-    val onRefresh: () -> Unit = {
-        coroutineScope.launch {
-            viewModel.setRefreshing(true)
-            viewModel.fetchNotes(initialLoading = true)
-            viewModel.setRefreshing(false)
-        }
-    }
+    val onRefresh: () -> Unit = { viewModel.refresh() }
 
     LaunchedEffect(listState) {
         onScrollDirectionChanged(true)

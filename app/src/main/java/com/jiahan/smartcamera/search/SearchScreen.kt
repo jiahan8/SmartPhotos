@@ -36,7 +36,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -59,7 +58,6 @@ import com.jiahan.smartcamera.util.pairwise
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,7 +69,6 @@ fun SearchScreen(
     onScrollToTopConsumed: () -> Unit
 ) {
     val pullToRefreshState = rememberPullToRefreshState()
-    val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
     val notes by viewModel.notes.collectAsStateWithLifecycle()
@@ -99,13 +96,7 @@ fun SearchScreen(
         label = "placeholderAlpha"
     )
 
-    val onRefresh: () -> Unit = {
-        coroutineScope.launch {
-            viewModel.setRefreshing(true)
-            viewModel.searchNotes()
-            viewModel.setRefreshing(false)
-        }
-    }
+    val onRefresh: () -> Unit = { viewModel.refresh() }
 
     LaunchedEffect(listState) {
         onScrollDirectionChanged(true)

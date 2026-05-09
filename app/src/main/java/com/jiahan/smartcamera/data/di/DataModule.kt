@@ -31,11 +31,13 @@ abstract class DataModule {
     ): AnalyticsRepository
 
     @Binds
+    @Singleton
     abstract fun bindNoteRepository(
         defaultNoteRepository: DefaultNoteRepository
     ): NoteRepository
 
     @Binds
+    @Singleton
     abstract fun bindProfileRepository(
         defaultProfileRepository: DefaultProfileRepository
     ): ProfileRepository

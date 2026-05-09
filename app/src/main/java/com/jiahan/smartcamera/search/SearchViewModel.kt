@@ -41,7 +41,6 @@ class SearchViewModel @Inject constructor(
     private var isHandlingLocalFavoriteAction = false
 
     init {
-        _notes.value = emptyList()
         viewModelScope.launch {
             searchQuery
                 .debounce(DEBOUNCE_MS)
@@ -77,7 +76,15 @@ class SearchViewModel @Inject constructor(
         _searchQuery.value = query
     }
 
-    suspend fun searchNotes() {
+    fun refresh() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            searchNotes()
+            _isRefreshing.value = false
+        }
+    }
+
+    private suspend fun searchNotes() {
         try {
             _isLoading.value = true
             _notes.value = noteRepository.searchNotes(
@@ -125,9 +132,6 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    fun setRefreshing(refreshing: Boolean) {
-        _isRefreshing.value = refreshing
-    }
 
     fun setNoteToDelete(note: HomeNote?) {
         _noteToDelete.value = note
