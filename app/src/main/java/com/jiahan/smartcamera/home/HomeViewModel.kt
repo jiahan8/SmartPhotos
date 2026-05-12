@@ -35,8 +35,6 @@ class HomeViewModel @Inject constructor(
     private val pageSize = DEFAULT_PAGE_SIZE
     private var hasMoreData = true
 
-    private var isHandlingLocalFavoriteAction = false
-
     init {
         viewModelScope.launch {
             remoteConfigRepository.fetchAndActivateConfig()
@@ -50,13 +48,11 @@ class HomeViewModel @Inject constructor(
         }
         viewModelScope.launch {
             noteHandler.noteFavoritedEvent.collect { updatedNote ->
-                if (!isHandlingLocalFavoriteAction) {
-                    _notes.value = _notes.value.map { note ->
-                        if (updatedNote.documentPath == note.documentPath) {
-                            note.copy(favorite = note.favorite.not())
-                        } else {
-                            note
-                        }
+                _notes.value = _notes.value.map { note ->
+                    if (updatedNote.documentPath == note.documentPath) {
+                        note.copy(favorite = updatedNote.favorite)
+                    } else {
+                        note
                     }
                 }
             }
@@ -118,20 +114,10 @@ class HomeViewModel @Inject constructor(
     fun favoriteNote(homeNote: HomeNote) {
         viewModelScope.launch {
             try {
-                isHandlingLocalFavoriteAction = true
                 noteRepository.favoriteNote(homeNote)
-                _notes.value = _notes.value.map { note ->
-                    if (homeNote.documentPath == note.documentPath) {
-                        note.copy(favorite = note.favorite.not())
-                    } else {
-                        note
-                    }
-                }
                 noteHandler.notifyNoteFavorited(homeNote.copy(favorite = homeNote.favorite.not()))
             } catch (e: Exception) {
                 e.printStackTrace()
-            } finally {
-                isHandlingLocalFavoriteAction = false
             }
         }
     }

@@ -38,7 +38,7 @@ import java.util.UUID
 import javax.inject.Inject
 
 class DefaultNoteRepository @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val remoteConfigRepository: RemoteConfigRepository,
     private val profileRepository: ProfileRepository,
     private val firestore: FirebaseFirestore,

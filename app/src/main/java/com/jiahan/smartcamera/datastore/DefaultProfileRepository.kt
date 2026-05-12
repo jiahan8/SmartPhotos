@@ -42,7 +42,7 @@ private object PreferencesKeys {
 }
 
 class DefaultProfileRepository @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
     private val remoteConfigRepository: RemoteConfigRepository,

@@ -24,8 +24,8 @@ object Util {
     }
 
     fun createVideoThumbnail(context: Context, videoUri: Uri): Bitmap? {
+        val retriever = MediaMetadataRetriever()
         return try {
-            val retriever = MediaMetadataRetriever()
             retriever.setDataSource(context, videoUri)
 
             // Get video dimensions for better quality thumbnails
@@ -47,18 +47,17 @@ object Util {
             val scaledHeight = (height * scaleFactor).toInt()
 
             // Get frame at specified time
-            val bitmap = retriever.getScaledFrameAtTime(
+            retriever.getScaledFrameAtTime(
                 VIDEO_THUMBNAIL_TIME_MICROSECONDS,
                 MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
                 scaledWidth,
                 scaledHeight
             )
-
-            retriever.release()
-            bitmap
         } catch (e: Exception) {
             e.printStackTrace()
             null
+        } finally {
+            retriever.release()
         }
     }
 }

@@ -38,8 +38,6 @@ class SearchViewModel @Inject constructor(
     private val _currentPlaceholderIndex = MutableStateFlow(0)
     val currentPlaceholderIndex = _currentPlaceholderIndex.asStateFlow()
 
-    private var isHandlingLocalFavoriteAction = false
-
     init {
         viewModelScope.launch {
             searchQuery
@@ -59,13 +57,11 @@ class SearchViewModel @Inject constructor(
         }
         viewModelScope.launch {
             noteHandler.noteFavoritedEvent.collect { updatedNote ->
-                if (!isHandlingLocalFavoriteAction) {
-                    _notes.value = _notes.value.map { note ->
-                        if (updatedNote.documentPath == note.documentPath) {
-                            note.copy(favorite = note.favorite.not())
-                        } else {
-                            note
-                        }
+                _notes.value = _notes.value.map { note ->
+                    if (updatedNote.documentPath == note.documentPath) {
+                        note.copy(favorite = updatedNote.favorite)
+                    } else {
+                        note
                     }
                 }
             }
@@ -114,20 +110,10 @@ class SearchViewModel @Inject constructor(
     fun favoriteNote(homeNote: HomeNote) {
         viewModelScope.launch {
             try {
-                isHandlingLocalFavoriteAction = true
                 noteRepository.favoriteNote(homeNote)
-                _notes.value = _notes.value.map { note ->
-                    if (homeNote.documentPath == note.documentPath) {
-                        note.copy(favorite = note.favorite.not())
-                    } else {
-                        note
-                    }
-                }
                 noteHandler.notifyNoteFavorited(homeNote.copy(favorite = homeNote.favorite.not()))
             } catch (e: Exception) {
                 e.printStackTrace()
-            } finally {
-                isHandlingLocalFavoriteAction = false
             }
         }
     }
