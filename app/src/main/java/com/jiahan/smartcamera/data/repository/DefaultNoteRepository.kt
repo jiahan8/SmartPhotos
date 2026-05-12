@@ -11,6 +11,9 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.storage
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.database.dao.NoteDao
+import com.jiahan.smartcamera.database.data.toDatabaseNote
+import com.jiahan.smartcamera.database.data.toHomeNote
 import com.jiahan.smartcamera.datastore.ProfileRepository
 import com.jiahan.smartcamera.domain.DetectedLabel
 import com.jiahan.smartcamera.domain.DetectedObject
@@ -26,6 +29,8 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.io.ByteArrayOutputStream
@@ -37,6 +42,7 @@ class DefaultNoteRepository @Inject constructor(
     private val remoteConfigRepository: RemoteConfigRepository,
     private val profileRepository: ProfileRepository,
     private val firestore: FirebaseFirestore,
+    private val noteDao: NoteDao,
 ) : NoteRepository {
 
     companion object {
@@ -172,12 +178,18 @@ class DefaultNoteRepository @Inject constructor(
 
     override suspend fun deleteNote(documentPath: String) {
         noteCollectionReference?.document(documentPath)?.delete()?.await()
+        noteDao.deleteNote(documentPath)
     }
 
     override suspend fun favoriteNote(homeNote: HomeNote) {
+        val newFavoriteStatus = homeNote.favorite.not()
         noteCollectionReference?.document(homeNote.documentPath)
-            ?.update(FIELD_FAVORITE, homeNote.favorite.not())
-            ?.await()
+            ?.update(FIELD_FAVORITE, newFavoriteStatus)
+        if (newFavoriteStatus) {
+            noteDao.upsertNotes(listOf(homeNote.copy(favorite = true).toDatabaseNote()))
+        } else {
+            noteDao.deleteNote(homeNote.documentPath)
+        }
     }
 
     override suspend fun searchFavoriteNotes(query: String): List<HomeNote> {
@@ -400,5 +412,55 @@ class DefaultNoteRepository @Inject constructor(
                 }
             }.awaitAll().filterNotNull().toMap()
         }
+    }
+
+    override suspend fun syncFavoriteNotes() {
+        val favorites = fetchAllFavoritesFromFirestore()
+        noteDao.syncFavoriteNotes(favorites.map { it.toDatabaseNote() })
+    }
+
+    private suspend fun fetchAllFavoritesFromFirestore(): List<HomeNote> {
+        noteCollectionReference?.let { ref ->
+            val snapshot = ref
+                .whereEqualTo(FIELD_FAVORITE, true)
+                .orderBy(FIELD_CREATED, Query.Direction.DESCENDING)
+                .get()
+                .await()
+            val userIds = snapshot.documents.mapNotNull { it.getString(FIELD_USER_ID) }.distinct()
+            val userDocumentsMap = getUserDocumentsInBatch(userIds)
+            return snapshot.documents.mapNotNull { document ->
+                val userId = document.getString(FIELD_USER_ID) ?: return@mapNotNull null
+                val userDocument = userDocumentsMap[userId] ?: return@mapNotNull null
+                getHomeNote(document, userDocument)
+            }
+        }
+        return emptyList()
+    }
+
+    override fun getFavoriteNotesStream(query: String): Flow<List<HomeNote>> =
+        noteDao.getFavoriteNotes().map { notes ->
+            val homeNotes = notes.map { it.toHomeNote() }
+            if (query.isEmpty()) homeNotes else homeNotes.filter { it.matchesQuery(query) }
+        }
+
+    private fun HomeNote.matchesQuery(query: String): Boolean {
+        if (text?.contains(query, ignoreCase = true) == true) return true
+        return mediaList?.any { media ->
+            media.generatedText?.any {
+                it.contains(query, ignoreCase = true)
+            } == true ||
+                    media.generatedObjects?.any {
+                        it.objectName.contains(
+                            query,
+                            ignoreCase = true
+                        )
+                    } == true ||
+                    media.generatedLabels?.any {
+                        it.label.contains(
+                            query,
+                            ignoreCase = true
+                        )
+                    } == true
+        } == true
     }
 }

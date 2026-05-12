@@ -4,6 +4,7 @@ import android.net.Uri
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.domain.NoteMediaDetail
+import kotlinx.coroutines.flow.Flow
 
 interface NoteRepository {
     suspend fun getNotes(page: Int = 0, pageSize: Int = 10): List<HomeNote>
@@ -15,4 +16,6 @@ interface NoteRepository {
     suspend fun getNote(documentPath: String): HomeNote
     suspend fun quickUploadMediaToFirebase(uriList: List<Uri>)
     suspend fun uploadMediaToFirebase(noteMediaDetailList: List<NoteMediaDetail>): List<MediaDetail>
+    fun getFavoriteNotesStream(query: String): Flow<List<HomeNote>>
+    suspend fun syncFavoriteNotes()
 }

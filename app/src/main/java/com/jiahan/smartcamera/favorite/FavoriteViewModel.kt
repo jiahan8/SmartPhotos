@@ -10,12 +10,16 @@ import com.jiahan.smartcamera.util.AppConstants.DEBOUNCE_MS
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-@OptIn(FlowPreview::class)
+@OptIn(FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class FavoriteViewModel @Inject constructor(
     private val noteRepository: NoteRepository,
@@ -23,65 +27,34 @@ class FavoriteViewModel @Inject constructor(
     private val noteHandler: NoteHandler
 ) : ViewModel() {
 
-    private val _notes = MutableStateFlow<List<HomeNote>>(emptyList())
-    val notes = _notes.asStateFlow()
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading = _isLoading.asStateFlow()
+    private val _isSyncing = MutableStateFlow(false)
     private val _isRefreshing = MutableStateFlow(false)
     val refreshing = _isRefreshing.asStateFlow()
-    private val _isLoadingMore = MutableStateFlow(false)
-    val isLoadingMore = _isLoadingMore.asStateFlow()
+    val isLoadingMore = MutableStateFlow(false).asStateFlow()
     private val _noteToDelete = MutableStateFlow<HomeNote?>(null)
     val noteToDelete = _noteToDelete.asStateFlow()
 
+    val notes = _searchQuery
+        .debounce(DEBOUNCE_MS)
+        .flatMapLatest { query -> noteRepository.getFavoriteNotesStream(query) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList(),
+        )
+
+    val isLoading = combine(_isSyncing, notes) { syncing, notesList ->
+        syncing && notesList.isEmpty()
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = true,
+    )
+
     init {
-        viewModelScope.launch {
-            searchQuery
-                .debounce(DEBOUNCE_MS)
-                .collect { query ->
-                    searchNotes()
-                }
-        }
-        viewModelScope.launch {
-            noteHandler.noteDeletedEvent.collect { documentPath ->
-                _notes.value = _notes.value.filter { it.documentPath != documentPath }
-            }
-        }
-        viewModelScope.launch {
-            noteHandler.noteFavoritedEvent.collect { updatedNote ->
-                _notes.value = if (updatedNote.favorite) {
-                    if (_notes.value.none { it.documentPath == updatedNote.documentPath }) {
-                        val mutableList = _notes.value.toMutableList()
-
-                        val insertIndex = mutableList.indexOfFirst {
-                            it.createdDate?.let { existingTime ->
-                                updatedNote.createdDate != null && updatedNote.createdDate > existingTime
-                            } == true
-                        }
-
-                        if (insertIndex != -1) {
-                            mutableList.add(insertIndex, updatedNote)
-                            mutableList
-                        } else {
-                            mutableList.add(updatedNote)
-                            mutableList
-                        }
-                    } else {
-                        _notes.value.map { note ->
-                            if (updatedNote.documentPath == note.documentPath) {
-                                note.copy(favorite = note.favorite.not())
-                            } else {
-                                note
-                            }
-                        }
-                    }
-                } else {
-                    _notes.value.filter { it.documentPath != updatedNote.documentPath }
-                }
-            }
-        }
+        viewModelScope.launch { syncNotes() }
     }
 
     fun updateSearchQuery(query: String) {
@@ -91,22 +64,20 @@ class FavoriteViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             _isRefreshing.value = true
-            searchNotes()
+            syncNotes()
             _isRefreshing.value = false
         }
     }
 
-    private suspend fun searchNotes() {
+    private suspend fun syncNotes() {
         try {
-            _isLoading.value = true
-            _notes.value = noteRepository.searchFavoriteNotes(
-                query = _searchQuery.value,
-            )
+            _isSyncing.value = true
+            noteRepository.syncFavoriteNotes()
             analyticsRepository.logFavoriteSearchCustomEvent(_searchQuery.value)
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
-            _isLoading.value = false
+            _isSyncing.value = false
         }
     }
 
@@ -114,7 +85,6 @@ class FavoriteViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 noteRepository.deleteNote(documentPath)
-                _notes.value = _notes.value.filter { it.documentPath != documentPath }
                 noteHandler.notifyNoteDeleted(documentPath)
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -126,20 +96,12 @@ class FavoriteViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 noteRepository.favoriteNote(homeNote)
-                _notes.value = _notes.value.map { note ->
-                    if (homeNote.documentPath == note.documentPath) {
-                        note.copy(favorite = note.favorite.not())
-                    } else {
-                        note
-                    }
-                }
                 noteHandler.notifyNoteFavorited(homeNote.copy(favorite = homeNote.favorite.not()))
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
     }
-
 
     fun setNoteToDelete(note: HomeNote?) {
         _noteToDelete.value = note

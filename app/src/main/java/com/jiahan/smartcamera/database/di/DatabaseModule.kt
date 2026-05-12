@@ -2,6 +2,7 @@ package com.jiahan.smartcamera.database.di
 
 import android.content.Context
 import com.jiahan.smartcamera.database.AppDatabase
+import com.jiahan.smartcamera.database.dao.NoteDao
 import com.jiahan.smartcamera.database.dao.PhotoDao
 import dagger.Module
 import dagger.Provides
@@ -23,5 +24,10 @@ internal class DatabaseModule {
     @Provides
     fun providePhotoDAO(appDatabase: AppDatabase): PhotoDao {
         return appDatabase.photoDao()
+    }
+
+    @Provides
+    fun provideNoteDao(appDatabase: AppDatabase): NoteDao {
+        return appDatabase.noteDao()
     }
 }
