@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -51,6 +52,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.Screen
 import com.jiahan.smartcamera.util.Util.formatDateTime
@@ -143,7 +145,10 @@ fun NotePreviewScreen(
                     ) {
                         note.profilePictureUrl?.let {
                             AsyncImage(
-                                model = it,
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(it)
+                                    .crossfade(true)
+                                    .build(),
                                 contentDescription = "Profile Picture",
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
@@ -205,37 +210,45 @@ fun NotePreviewScreen(
                         }
                     }
 
-                    val list = note.mediaList
-                    if (!list.isNullOrEmpty()) {
+                    note.mediaList?.takeIf { it.isNotEmpty() }?.let { mediaList ->
                         LazyRow(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 8.dp),
                             contentPadding = PaddingValues(start = 56.dp, end = 8.dp)
                         ) {
-                            items(list.size) { index ->
-                                val mediaDetail = list[index]
+                            items(
+                                count = mediaList.size,
+                                key = { index ->
+                                    val media = mediaList[index]
+                                    "${index}_${if (media.isVideo) media.videoUrl else media.photoUrl}"
+                                }
+                            ) { index ->
+                                val mediaDetail = mediaList[index]
                                 Box(
                                     modifier = Modifier
                                         .padding(end = 8.dp)
                                         .clickable {
-                                            if (list[index].isVideo) {
+                                            if (mediaList[index].isVideo) {
                                                 navController.navigate(
                                                     Screen.VideoPreview.createRemoteRoute(
-                                                        list[index].videoUrl.toString()
+                                                        mediaList[index].videoUrl.toString()
                                                     )
                                                 )
                                             } else {
                                                 navController.navigate(
                                                     Screen.PhotoPreview.createRemoteRoute(
-                                                        list[index].photoUrl.toString()
+                                                        mediaList[index].photoUrl.toString()
                                                     )
                                                 )
                                             }
                                         }
                                 ) {
                                     AsyncImage(
-                                        model = if (mediaDetail.isVideo) mediaDetail.thumbnailUrl else mediaDetail.photoUrl,
+                                        model = ImageRequest.Builder(LocalContext.current)
+                                            .data(if (mediaDetail.isVideo) mediaDetail.thumbnailUrl else mediaDetail.photoUrl)
+                                            .crossfade(true)
+                                            .build(),
                                         modifier = Modifier
                                             .height(256.dp)
                                             .width(220.dp)

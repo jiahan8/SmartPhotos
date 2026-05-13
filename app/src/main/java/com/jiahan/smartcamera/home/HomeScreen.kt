@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,6 +60,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.Screen
 import com.jiahan.smartcamera.domain.HomeNote
@@ -310,16 +312,19 @@ fun HomeItem(
                 .fillMaxWidth()
                 .padding(start = 16.dp, end = 16.dp, top = 16.dp)
         ) {
-            note.profilePictureUrl?.let { profileUrl ->
+            note.profilePictureUrl?.let { profilePictureUrl ->
                 AsyncImage(
-                    model = profileUrl,
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(profilePictureUrl)
+                        .crossfade(true)
+                        .build(),
                     contentDescription = "Profile Picture",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
                         .clickable {
-                            callbacks.onProfilePictureClick(profileUrl)
+                            callbacks.onProfilePictureClick(profilePictureUrl)
                         }
                 )
             } ?: Image(
@@ -461,7 +466,10 @@ private fun MediaItem(
             }
     ) {
         AsyncImage(
-            model = imageUrl,
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(imageUrl)
+                .crossfade(true)
+                .build(),
             modifier = Modifier
                 .height(256.dp)
                 .width(220.dp)
