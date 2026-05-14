@@ -10,7 +10,6 @@ import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
-import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.datastore.ProfileRepository
 import com.jiahan.smartcamera.datastore.UserPreferences
 import com.jiahan.smartcamera.domain.HomeNote
@@ -38,7 +37,6 @@ import javax.inject.Inject
 
 @HiltViewModel
 class NoteViewModel @Inject constructor(
-    private val remoteConfigRepository: RemoteConfigRepository,
     private val noteRepository: NoteRepository,
     profileRepository: ProfileRepository,
     private val analyticsRepository: AnalyticsRepository,
@@ -94,7 +92,6 @@ class NoteViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            remoteConfigRepository.fetchAndActivateConfig()
             combine(
                 _uploading,
                 _postText,

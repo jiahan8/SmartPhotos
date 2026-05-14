@@ -41,7 +41,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -52,7 +51,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.Screen
 import com.jiahan.smartcamera.util.Util.formatDateTime
@@ -145,10 +143,7 @@ fun NotePreviewScreen(
                     ) {
                         note.profilePictureUrl?.let {
                             AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .data(it)
-                                    .crossfade(true)
-                                    .build(),
+                                model = it,
                                 contentDescription = "Profile Picture",
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
@@ -245,10 +240,7 @@ fun NotePreviewScreen(
                                         }
                                 ) {
                                     AsyncImage(
-                                        model = ImageRequest.Builder(LocalContext.current)
-                                            .data(if (mediaDetail.isVideo) mediaDetail.thumbnailUrl else mediaDetail.photoUrl)
-                                            .crossfade(true)
-                                            .build(),
+                                        model = if (mediaDetail.isVideo) mediaDetail.thumbnailUrl else mediaDetail.photoUrl,
                                         modifier = Modifier
                                             .height(256.dp)
                                             .width(220.dp)

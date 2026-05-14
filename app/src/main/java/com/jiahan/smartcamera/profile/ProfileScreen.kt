@@ -71,7 +71,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.Screen
 import com.jiahan.smartcamera.common.CustomSnackbarHost
@@ -328,10 +327,7 @@ fun ProfileScreen(
             ) {
                 profilePictureUrl?.let {
                     AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(it)
-                            .crossfade(true)
-                            .build(),
+                        model = it,
                         contentDescription = "Profile Picture",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier

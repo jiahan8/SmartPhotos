@@ -3,7 +3,6 @@ package com.jiahan.smartcamera.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.data.repository.NoteRepository
-import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.util.AppConstants.DEFAULT_PAGE_SIZE
@@ -15,7 +14,6 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val remoteConfigRepository: RemoteConfigRepository,
     private val noteRepository: NoteRepository,
     private val noteHandler: NoteHandler
 ) : ViewModel() {
@@ -36,11 +34,8 @@ class HomeViewModel @Inject constructor(
     private var hasMoreData = true
 
     init {
-        viewModelScope.launch {
-            remoteConfigRepository.fetchAndActivateConfig()
-            launch { fetchNotes(initialLoading = true) }
-            launch { noteHandler.noteAddedEvent.collect { fetchNotes(initialLoading = true) } }
-        }
+        viewModelScope.launch { fetchNotes(initialLoading = true) }
+        viewModelScope.launch { noteHandler.noteAddedEvent.collect { fetchNotes(initialLoading = true) } }
         viewModelScope.launch {
             noteHandler.noteDeletedEvent.collect { documentPath ->
                 _notes.value = _notes.value.filter { it.documentPath != documentPath }

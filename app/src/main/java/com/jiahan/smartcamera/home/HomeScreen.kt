@@ -50,7 +50,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -60,7 +59,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.Screen
 import com.jiahan.smartcamera.domain.HomeNote
@@ -314,10 +312,7 @@ fun HomeItem(
         ) {
             note.profilePictureUrl?.let { profilePictureUrl ->
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(profilePictureUrl)
-                        .crossfade(true)
-                        .build(),
+                    model = profilePictureUrl,
                     contentDescription = "Profile Picture",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
@@ -466,10 +461,7 @@ private fun MediaItem(
             }
     ) {
         AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(imageUrl)
-                .crossfade(true)
-                .build(),
+            model = imageUrl,
             modifier = Modifier
                 .height(256.dp)
                 .width(220.dp)

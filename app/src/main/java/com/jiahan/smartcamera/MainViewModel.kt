@@ -2,6 +2,7 @@ package com.jiahan.smartcamera
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.datastore.ProfileRepository
 import com.jiahan.smartcamera.util.AppConstants.STATE_FLOW_TIMEOUT_MS
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,6 +16,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
+    private val remoteConfigRepository: RemoteConfigRepository,
     profileRepository: ProfileRepository
 ) : ViewModel() {
 
@@ -37,6 +39,7 @@ class MainViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            remoteConfigRepository.fetchAndActivateConfig()
             _startDestination.value =
                 if (profileRepository.firebaseUser != null && profileRepository.firebaseUser?.isEmailVerified == true)
                     Screen.Home.route
