@@ -1,6 +1,4 @@
-## Photo App
-
-**Tech Stack**:
+## Photo App Tech Stack
 
 ### Architecture & Patterns
 * MVVM architecture
@@ -16,10 +14,11 @@
 * Language Switching
 * Splash Screen
 
-### Data & Storage
+### Storage
+* Firebase Firestore
+* Firebase Storage
 * Room (Local Database)
 * DataStore (Preferences)
-* Firebase Firestore (Cloud Database)
 
 ### Networking & Backend
 * Firebase Authentication
@@ -27,13 +26,13 @@
 * Firebase Analytics
 * Firebase Crashlytics
 * Firebase Cloud Messaging (Push Notifications)
-* Firebase Storage
 * Firebase A/B Testing
+* Firebase Cloud Functions
 
 ### Machine Learning & AI
-* ML Kit Text Recognition (Multiple Languages: English, Japanese, Chinese)
-* ML Kit Image Labeling
-* GenAI Image Description
+* Google Cloud Vision API (Text Detection)
+* Google Cloud Vision API (Label Detection)
+* Google Cloud Vision API (Object Localization)
 
 ### Media & Images
 * Coil (Image Loading)
@@ -51,5 +50,17 @@
 
 ### Development Tools
 * Kotlin Symbol Processing (KSP)
-* Proguard (Code Obfuscation)
+* ProGuard (Code Obfuscation)
 * Build Configuration Management
+
+### Architecture Overview
+SmartPhotos follows the **MVVM (Model-View-ViewModel)** architecture pattern, combined with a clean layered structure to ensure separation of concerns, testability, and scalability.
+
+### Layers
+| Layer | Responsibility | Key Technologies |
+|---|---|---|
+| **UI** | Render screens, handle user interactions | Jetpack Compose, Material Design 3 |
+| **ViewModel** | Hold & manage UI state, expose data as Flow/StateFlow | ViewModel, Kotlin Flow, Coroutines |
+| **Repository** | Abstract data sources, coordinate remote/local sync | Kotlin Coroutines |
+| **Remote** | Network calls, cloud storage, authentication | Firebase, Google Cloud Vision API |
+| **Local** | Offline caching, user preferences | Room, DataStore |
