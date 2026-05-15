@@ -183,7 +183,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     ) { padding ->
-                        NavHost(
+                        if (isAppReady) NavHost(
                             navController = navController,
                             startDestination = startDestination,
                             modifier = Modifier.padding()
@@ -319,7 +319,7 @@ class MainActivity : ComponentActivity() {
                                         type = NavType.StringType
                                     }
                                 )
-                            ) { backStackEntry ->
+                            ) {
                                 NotePreviewScreen(
                                     navController = navController
                                 )

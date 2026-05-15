@@ -57,10 +57,10 @@
 SmartPhotos follows the **MVVM (Model-View-ViewModel)** architecture pattern, combined with a clean layered structure to ensure separation of concerns, testability, and scalability.
 
 ### Layers
-| Layer | Responsibility | Key Technologies |
-|---|---|---|
-| **UI** | Render screens, handle user interactions | Jetpack Compose, Material Design 3 |
-| **ViewModel** | Hold & manage UI state, expose data as Flow/StateFlow | ViewModel, Kotlin Flow, Coroutines |
-| **Repository** | Abstract data sources, coordinate remote/local sync | Kotlin Coroutines |
-| **Remote** | Network calls, cloud storage, authentication | Firebase, Google Cloud Vision API |
-| **Local** | Offline caching, user preferences | Room, DataStore |
+| Layer          | Responsibility                                        | Key Technologies                   |
+|----------------|-------------------------------------------------------|------------------------------------|
+| **UI**         | Render screens, handle user interactions              | Jetpack Compose, Material Design 3 |
+| **ViewModel**  | Hold & manage UI state, expose data as Flow/StateFlow | ViewModel, Kotlin Flow, Coroutines |
+| **Repository** | Abstract data sources, coordinate remote/local sync   | Kotlin Coroutines                  |
+| **Remote**     | Network calls, cloud storage, authentication          | Firebase, Google Cloud Vision API  |
+| **Local**      | Offline caching, user preferences                     | Room, DataStore                    |

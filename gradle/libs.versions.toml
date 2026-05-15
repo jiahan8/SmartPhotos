@@ -34,7 +34,7 @@ firebaseMessaging = "25.0.2"
 firebaseInAppmessagingDisplay = "25.1.4"
 firebaseFirestore = "26.3.0"
 firebaseAuth = "24.1.0"
-exoplayer = "1.10.0"
+exoplayer = "1.10.1"
 coreSplashScreen = "1.2.0"
 
 [libraries]
