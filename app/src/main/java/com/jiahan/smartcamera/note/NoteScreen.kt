@@ -371,7 +371,7 @@ fun NoteScreen(
                                         modifier = Modifier
                                             .height(212.dp)
                                             .maskClip(MaterialTheme.shapes.extraLarge),
-                                        contentDescription = stringResource(R.string.cd_image),
+                                        contentDescription = stringResource(R.string.cd_note_photo),
                                         contentScale = ContentScale.Crop,
                                         onError = {
                                             it.result.throwable.printStackTrace()
@@ -448,7 +448,7 @@ fun NoteScreen(
 
                             Icon(
                                 painter = painterResource(R.drawable.photo_camera),
-                                contentDescription = stringResource(R.string.take_photo),
+                                contentDescription = stringResource(R.string.cd_take_photo),
                                 modifier = Modifier
                                     .padding(start = 16.dp)
                                     .clickable(enabled = !isUploading) {

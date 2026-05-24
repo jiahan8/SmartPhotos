@@ -103,18 +103,20 @@
     <string name="info_updated_failure">プロフィールを更新できませんでした。もう一度お試しください。</string>
 
     <!-- Content descriptions (accessibility) -->
-    <string name="cd_back">戻る</string>
+    <string name="cd_back">前の画面に戻る</string>
     <string name="cd_profile_picture">プロフィール写真</string>
-    <string name="cd_background_image">背景画像</string>
-    <string name="cd_image">画像</string>
-    <string name="cd_selected_image">選択した画像</string>
+    <string name="cd_app_logo">スマートフォトのアプリロゴ</string>
+    <string name="cd_note_photo">ノートの写真</string>
+    <string name="cd_selected_photo">選択した写真</string>
     <string name="cd_play_video">動画を再生</string>
     <string name="cd_remove_image">画像を削除</string>
-    <string name="cd_clear_field">フィールドをクリア</string>
-    <string name="cd_choose_photos">写真を選択</string>
+    <string name="cd_clear_field">テキストをクリア</string>
+    <string name="cd_choose_photos">複数の写真を選択</string>
     <string name="cd_choose_photo">写真を選択</string>
+    <string name="cd_take_photo">写真を撮る</string>
     <string name="cd_take_video">動画を撮影</string>
-    <string name="cd_menu">メニュー</string>
+    <string name="cd_marked_as_favorite">お気に入りに登録済み</string>
+    <string name="cd_open_settings">設定を開く</string>
     <string name="cd_hide_password">パスワードを非表示</string>
     <string name="cd_show_password">パスワードを表示</string>
 </resources>

@@ -100,7 +100,7 @@ fun AuthScreen(
             ) {
                 AsyncImage(
                     model = R.mipmap.ic_launcher,
-                    contentDescription = stringResource(R.string.cd_background_image),
+                    contentDescription = stringResource(R.string.cd_app_logo),
                     contentScale = ContentScale.Crop,
                 )
 

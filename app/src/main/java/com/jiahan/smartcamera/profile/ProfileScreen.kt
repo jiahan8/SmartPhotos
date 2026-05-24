@@ -303,7 +303,7 @@ fun ProfileScreen(
                     IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
                         Icon(
                             imageVector = Icons.Rounded.Menu,
-                            contentDescription = stringResource(R.string.cd_menu)
+                            contentDescription = stringResource(R.string.cd_open_settings)
                         )
                     }
                 }

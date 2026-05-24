@@ -186,7 +186,7 @@ fun SettingsScreen(
                 Icon(
                     painter = painterResource(R.drawable.dark_mode),
                     modifier = Modifier.padding(end = 12.dp),
-                    contentDescription = stringResource(R.string.dark_theme)
+                    contentDescription = null
                 )
                 Text(
                     text = stringResource(R.string.dark_theme),
@@ -231,7 +231,7 @@ fun SettingsScreen(
                 Icon(
                     painter = painterResource(R.drawable.translate),
                     modifier = Modifier.padding(end = 12.dp),
-                    contentDescription = stringResource(R.string.language)
+                    contentDescription = null
                 )
                 Text(
                     text = stringResource(R.string.language),

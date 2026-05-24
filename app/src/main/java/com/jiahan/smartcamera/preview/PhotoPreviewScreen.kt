@@ -168,7 +168,7 @@ fun PhotoPreviewScreen(
             }
             AsyncImage(
                 model = model,
-                contentDescription = stringResource(R.string.cd_selected_image),
+                contentDescription = stringResource(R.string.cd_selected_photo),
                 modifier = Modifier
                     .fillMaxSize()
                     .onSizeChanged { composableSize = it } // Update the composable size

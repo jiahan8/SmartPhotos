@@ -103,18 +103,20 @@
     <string name="info_updated_failure">Couldn\'t update your profile. Please try again.</string>
 
     <!-- Content descriptions (accessibility) -->
-    <string name="cd_back">Back</string>
+    <string name="cd_back">Navigate back</string>
     <string name="cd_profile_picture">Profile picture</string>
-    <string name="cd_background_image">Background image</string>
-    <string name="cd_image">Image</string>
-    <string name="cd_selected_image">Selected image</string>
+    <string name="cd_app_logo">Smart Photos app logo</string>
+    <string name="cd_note_photo">Note photo</string>
+    <string name="cd_selected_photo">Selected photo</string>
     <string name="cd_play_video">Play video</string>
     <string name="cd_remove_image">Remove image</string>
-    <string name="cd_clear_field">Clear field</string>
+    <string name="cd_clear_field">Clear text</string>
     <string name="cd_choose_photos">Choose photos</string>
     <string name="cd_choose_photo">Choose photo</string>
-    <string name="cd_take_video">Take video</string>
-    <string name="cd_menu">Menu</string>
+    <string name="cd_take_photo">Take a photo</string>
+    <string name="cd_take_video">Record a video</string>
+    <string name="cd_marked_as_favorite">Marked as favorite</string>
+    <string name="cd_open_settings">Open settings</string>
     <string name="cd_hide_password">Hide password</string>
     <string name="cd_show_password">Show password</string>
 </resources>

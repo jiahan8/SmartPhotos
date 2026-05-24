@@ -263,7 +263,7 @@ fun NotePreviewScreen(
                                                 .height(256.dp)
                                                 .width(220.dp)
                                                 .clip(MaterialTheme.shapes.medium),
-                                            contentDescription = stringResource(R.string.cd_image),
+                                            contentDescription = stringResource(R.string.cd_note_photo),
                                             contentScale = ContentScale.Crop,
                                             onError = {
                                                 it.result.throwable.printStackTrace()

@@ -154,7 +154,7 @@ class MainActivity : ComponentActivity() {
                                                     AnimatedIcon(
                                                         selected = selected,
                                                         imageVector = icon,
-                                                        contentDescription = stringResource(screen.titleResId)
+                                                        contentDescription = null
                                                     )
                                                 }
                                             },
@@ -412,7 +412,7 @@ sealed class Screen(
 private fun AnimatedIcon(
     selected: Boolean,
     imageVector: ImageVector,
-    contentDescription: String
+    contentDescription: String?
 ) {
     val transition = updateTransition(targetState = selected, label = "IconTransition")
     val scale by transition.animateFloat(

@@ -379,7 +379,7 @@ fun HomeItem(
                     if (note.favorite) {
                         Icon(
                             imageVector = Icons.Rounded.Favorite,
-                            contentDescription = stringResource(R.string.favorite),
+                            contentDescription = stringResource(R.string.cd_marked_as_favorite),
                             modifier = Modifier
                                 .size(16.dp)
                                 .clickable(
@@ -483,7 +483,7 @@ private fun MediaItem(
                 .height(256.dp)
                 .width(220.dp)
                 .clip(MaterialTheme.shapes.medium),
-            contentDescription = stringResource(R.string.cd_image),
+            contentDescription = stringResource(R.string.cd_note_photo),
             contentScale = ContentScale.Crop,
             onError = {
                 it.result.throwable.printStackTrace()
