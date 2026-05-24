@@ -7,6 +7,7 @@ import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.datastore.ProfileRepository
 import com.jiahan.smartcamera.util.AppConstants.MAX_DISPLAY_NAME_LENGTH
 import com.jiahan.smartcamera.util.AppConstants.MAX_USERNAME_LENGTH
+import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ResourceProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,11 +15,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+sealed interface AuthUiState {
+    data object Idle : AuthUiState
+    data object Loading : AuthUiState
+    data class Error(val message: String, val showResendButton: Boolean = false) : AuthUiState
+    data class Info(val message: String, val showResendButton: Boolean = false) : AuthUiState
+}
+
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val profileRepository: ProfileRepository,
     private val analyticsRepository: AnalyticsRepository,
-    private val resourceProvider: ResourceProvider
+    private val resourceProvider: ResourceProvider,
+    private val errorHandler: ErrorHandler
 ) : ViewModel() {
 
     private val _email = MutableStateFlow("")
@@ -32,12 +41,11 @@ class AuthViewModel @Inject constructor(
 
     private val _isPasswordVisible = MutableStateFlow(false)
     val passwordVisible = _isPasswordVisible.asStateFlow()
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading = _isLoading.asStateFlow()
-    private val _errorMessage = MutableStateFlow("")
-    val errorMessage = _errorMessage.asStateFlow()
     private val _isLoginMode = MutableStateFlow(true)
     val isLoginMode = _isLoginMode.asStateFlow()
+
+    private val _authUiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
+    val authUiState = _authUiState.asStateFlow()
 
     private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
     val navigationEvent = _navigationEvent.asStateFlow()
@@ -66,7 +74,7 @@ class AuthViewModel @Inject constructor(
     fun toggleAuthMode() {
         _isLoginMode.value = !_isLoginMode.value
         clearFields()
-        _errorMessage.value = ""
+        _authUiState.value = AuthUiState.Idle
     }
 
     private fun clearFields() {
@@ -78,39 +86,46 @@ class AuthViewModel @Inject constructor(
 
     fun signIn() {
         val trimmedEmail = email.value.trim()
-
         if (trimmedEmail.isBlank() || password.value.isBlank()) {
-            _errorMessage.value = resourceProvider.getString(R.string.email_password_empty)
+            _authUiState.value = AuthUiState.Error(
+                resourceProvider.getString(R.string.email_password_empty)
+            )
             return
         }
 
         viewModelScope.launch {
-            _isLoading.value = true
-            _errorMessage.value = ""
+            _authUiState.value = AuthUiState.Loading
 
-            try {
-                val result = profileRepository.signIn(trimmedEmail, password.value)
-                if (result.isSuccess) {
-                    if (profileRepository.isEmailVerified()) {
-                        profileRepository.updateLocalUserProfile(
-                            username = profileRepository.getUser()?.username ?: "",
-                            profilePictureUrl = profileRepository.getUser()?.profilePicture,
-                        )
-                        _navigationEvent.value = NavigationEvent.NavigateToHome
-                    } else {
-                        _errorMessage.value =
-                            resourceProvider.getString(R.string.email_not_verified)
-                    }
-                } else {
-                    _errorMessage.value = result.exceptionOrNull()?.localizedMessage
-                        ?: resourceProvider.getString(R.string.login_failure)
+            profileRepository.signIn(trimmedEmail, password.value)
+                .onSuccess {
+                    profileRepository.isEmailVerified()
+                        .onSuccess { verified ->
+                            if (verified) {
+                                val user = profileRepository.getUser().getOrNull()
+                                profileRepository.updateLocalUserProfile(
+                                    username = user?.username ?: "",
+                                    profilePictureUrl = user?.profilePicture,
+                                )
+                                _navigationEvent.value = NavigationEvent.NavigateToHome
+                                _authUiState.value = AuthUiState.Idle
+                            } else {
+                                _authUiState.value = AuthUiState.Error(
+                                    message = resourceProvider.getString(R.string.email_not_verified),
+                                    showResendButton = true
+                                )
+                            }
+                        }
+                        .onFailure { e ->
+                            errorHandler.logError(e)
+                            _authUiState.value = AuthUiState.Error(errorHandler.getErrorMessage(e))
+                        }
                 }
-            } catch (e: Exception) {
-                _errorMessage.value =
-                    e.localizedMessage ?: resourceProvider.getString(R.string.error_occurred)
-            } finally {
-                _isLoading.value = false
-            }
+                .onFailure { e ->
+                    _authUiState.value = AuthUiState.Error(
+                        message = e.localizedMessage
+                            ?: resourceProvider.getString(R.string.login_failure)
+                    )
+                }
         }
     }
 
@@ -120,27 +135,28 @@ class AuthViewModel @Inject constructor(
         val trimmedUsername = username.value.trim()
 
         if (trimmedEmail.isBlank() || password.value.isBlank()) {
-            _errorMessage.value = resourceProvider.getString(R.string.email_password_empty)
+            _authUiState.value = AuthUiState.Error(
+                resourceProvider.getString(R.string.email_password_empty)
+            )
             return
         }
-
         if (trimmedDisplayName.isBlank() || trimmedUsername.isBlank()) {
-            _errorMessage.value = resourceProvider.getString(R.string.all_fields_required)
+            _authUiState.value = AuthUiState.Error(
+                resourceProvider.getString(R.string.all_fields_required)
+            )
             return
         }
-
-        when (val result = validateDisplayName(trimmedDisplayName)) {
+        when (val r = validateDisplayName(trimmedDisplayName)) {
             is ValidationResult.Error -> {
-                _errorMessage.value = resourceProvider.getString(result.messageResId)
+                _authUiState.value = AuthUiState.Error(resourceProvider.getString(r.messageResId))
                 return
             }
 
             else -> {}
         }
-
-        when (val result = validateUsername(trimmedUsername)) {
+        when (val r = validateUsername(trimmedUsername)) {
             is ValidationResult.Error -> {
-                _errorMessage.value = resourceProvider.getString(result.messageResId)
+                _authUiState.value = AuthUiState.Error(resourceProvider.getString(r.messageResId))
                 return
             }
 
@@ -148,110 +164,113 @@ class AuthViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            _isLoading.value = true
-            _errorMessage.value = ""
+            _authUiState.value = AuthUiState.Loading
 
-            try {
-                if (!profileRepository.isUsernameAvailable(trimmedUsername)) {
-                    throw Exception(resourceProvider.getString(R.string.username_not_available))
+            profileRepository.isUsernameAvailable(trimmedUsername)
+                .onSuccess { available ->
+                    if (!available) {
+                        _authUiState.value = AuthUiState.Error(
+                            resourceProvider.getString(R.string.username_not_available)
+                        )
+                        return@onSuccess
+                    }
+                    profileRepository.signUp(
+                        email = trimmedEmail,
+                        metadata = password.value,
+                        displayName = trimmedDisplayName,
+                        username = trimmedUsername
+                    ).onSuccess {
+                        _authUiState.value = AuthUiState.Info(
+                            message = resourceProvider.getString(R.string.verification_email_sent),
+                            showResendButton = true
+                        )
+                    }.onFailure { e ->
+                        _authUiState.value = AuthUiState.Error(
+                            message = e.localizedMessage
+                                ?: resourceProvider.getString(R.string.sign_up_failure)
+                        )
+                    }
                 }
-
-                val result = profileRepository.signUp(
-                    email = trimmedEmail,
-                    metadata = password.value,
-                    displayName = trimmedDisplayName,
-                    username = trimmedUsername
-                )
-                if (result.isSuccess) {
-                    _errorMessage.value =
-                        resourceProvider.getString(R.string.verification_email_sent)
-                } else {
-                    _errorMessage.value = result.exceptionOrNull()?.localizedMessage
-                        ?: resourceProvider.getString(R.string.sign_up_failure)
+                .onFailure { e ->
+                    errorHandler.logError(e)
+                    _authUiState.value = AuthUiState.Error(errorHandler.getErrorMessage(e))
                 }
-            } catch (e: Exception) {
-                _errorMessage.value =
-                    e.localizedMessage ?: resourceProvider.getString(R.string.error_occurred)
-            } finally {
-                _isLoading.value = false
-            }
         }
     }
 
     fun resetPassword() {
         val trimmedEmail = email.value.trim()
-
         if (trimmedEmail.isBlank()) {
-            _errorMessage.value = resourceProvider.getString(R.string.enter_email)
+            _authUiState.value = AuthUiState.Error(
+                resourceProvider.getString(R.string.enter_email)
+            )
             return
         }
 
         viewModelScope.launch {
-            _isLoading.value = true
-            _errorMessage.value = ""
+            _authUiState.value = AuthUiState.Loading
 
-            try {
-                if (!profileRepository.isEmailRegistered(trimmedEmail)) {
-                    throw Exception(resourceProvider.getString(R.string.email_not_registered))
+            profileRepository.isEmailRegistered(trimmedEmail)
+                .onSuccess { registered ->
+                    if (!registered) {
+                        _authUiState.value = AuthUiState.Error(
+                            resourceProvider.getString(R.string.email_not_registered)
+                        )
+                        return@onSuccess
+                    }
+                    profileRepository.resetPassword(trimmedEmail)
+                        .onSuccess {
+                            _authUiState.value = AuthUiState.Info(
+                                resourceProvider.getString(R.string.password_reset_email_sent)
+                            )
+                        }
+                        .onFailure { e ->
+                            _authUiState.value = AuthUiState.Error(
+                                message = e.localizedMessage
+                                    ?: resourceProvider.getString(R.string.password_reset_failure)
+                            )
+                        }
                 }
-
-                val result = profileRepository.resetPassword(trimmedEmail)
-                if (result.isSuccess) {
-                    _errorMessage.value =
-                        resourceProvider.getString(R.string.password_reset_email_sent)
-                } else {
-                    _errorMessage.value =
-                        result.exceptionOrNull()?.localizedMessage
-                            ?: resourceProvider.getString(R.string.password_reset_failure)
+                .onFailure { e ->
+                    errorHandler.logError(e)
+                    _authUiState.value = AuthUiState.Error(errorHandler.getErrorMessage(e))
                 }
-            } catch (e: Exception) {
-                _errorMessage.value =
-                    e.localizedMessage ?: resourceProvider.getString(R.string.error_occurred)
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    private fun validateUsername(username: String): ValidationResult {
-        return when {
-            username.length > MAX_USERNAME_LENGTH ->
-                ValidationResult.Error(R.string.username_too_long)
-
-            !username.matches(Regex("^[a-zA-Z0-9._]+$")) ->
-                ValidationResult.Error(R.string.username_invalid_characters)
-
-            else -> ValidationResult.Success
-        }
-    }
-
-    private fun validateDisplayName(displayName: String): ValidationResult {
-        return when {
-            displayName.length > MAX_DISPLAY_NAME_LENGTH ->
-                ValidationResult.Error(R.string.name_too_long)
-
-            else -> ValidationResult.Success
         }
     }
 
     fun resendVerificationEmail() {
         viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                profileRepository.sendEmailVerification()
-                _errorMessage.value = resourceProvider.getString(R.string.verification_email_resent)
-            } catch (e: Exception) {
-                _errorMessage.value =
-                    e.localizedMessage ?: resourceProvider.getString(R.string.error_occurred)
-            } finally {
-                _isLoading.value = false
-            }
+            _authUiState.value = AuthUiState.Loading
+            profileRepository.sendEmailVerification()
+                .onSuccess {
+                    _authUiState.value = AuthUiState.Info(
+                        message = resourceProvider.getString(R.string.verification_email_resent),
+                        showResendButton = true
+                    )
+                }
+                .onFailure { e ->
+                    errorHandler.logError(e)
+                    _authUiState.value = AuthUiState.Error(errorHandler.getErrorMessage(e))
+                }
         }
     }
 
     fun navigationEventConsumed() {
         _navigationEvent.value = null
     }
+
+    private fun validateUsername(username: String): ValidationResult =
+        when {
+            username.length > MAX_USERNAME_LENGTH -> ValidationResult.Error(R.string.username_too_long)
+            !username.matches(Regex("^[a-zA-Z0-9._]+$")) -> ValidationResult.Error(R.string.username_invalid_characters)
+            else -> ValidationResult.Success
+        }
+
+    private fun validateDisplayName(displayName: String): ValidationResult =
+        when {
+            displayName.length > MAX_DISPLAY_NAME_LENGTH -> ValidationResult.Error(R.string.name_too_long)
+            else -> ValidationResult.Success
+        }
 
     sealed class NavigationEvent {
         object NavigateToHome : NavigationEvent()

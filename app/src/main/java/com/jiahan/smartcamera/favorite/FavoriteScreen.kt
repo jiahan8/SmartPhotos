@@ -64,7 +64,7 @@ fun FavoriteScreen(
     val notes by viewModel.notes.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    val isRefreshing by viewModel.refreshing.collectAsStateWithLifecycle()
+    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val isLoadingMore by viewModel.isLoadingMore.collectAsStateWithLifecycle()
     val noteToDelete by viewModel.noteToDelete.collectAsStateWithLifecycle()
 
@@ -133,7 +133,7 @@ fun FavoriteScreen(
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Rounded.Search,
-                        contentDescription = "Search",
+                        contentDescription = stringResource(R.string.search),
                         modifier = Modifier
                             .padding(start = 8.dp)
                             .size(20.dp)
@@ -144,7 +144,7 @@ fun FavoriteScreen(
                         IconButton(onClick = { viewModel.updateSearchQuery("") }) {
                             Icon(
                                 imageVector = Icons.Rounded.Clear,
-                                contentDescription = "Clear field",
+                                contentDescription = stringResource(R.string.cd_clear_field),
                                 modifier = Modifier
                                     .padding(end = 8.dp)
                                     .size(20.dp)

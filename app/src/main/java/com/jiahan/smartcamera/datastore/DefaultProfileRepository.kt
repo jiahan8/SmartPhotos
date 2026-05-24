@@ -19,6 +19,7 @@ import com.google.firebase.storage.storage
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
+import com.jiahan.smartcamera.util.safeCall
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -49,11 +50,8 @@ class DefaultProfileRepository @Inject constructor(
 ) : ProfileRepository {
 
     companion object {
-        // Collection names
         private const val COLLECTION_USER = "user"
         private const val COLLECTION_MEMBER = "member"
-
-        // Field names
         private const val FIELD_EMAIL = "email"
         private const val FIELD_METADATA = "metadata"
         private const val FIELD_DISPLAY_NAME = "display_name"
@@ -64,83 +62,53 @@ class DefaultProfileRepository @Inject constructor(
     }
 
     private val userDocumentReference: DocumentReference?
-        get() = auth.uid?.let { id ->
-            firestore.collection(COLLECTION_USER).document(id)
-        }
+        get() = auth.uid?.let { id -> firestore.collection(COLLECTION_USER).document(id) }
     private val memberDocumentReference: DocumentReference?
-        get() = auth.uid?.let { id ->
-            firestore.collection(COLLECTION_MEMBER).document(id)
-        }
+        get() = auth.uid?.let { id -> firestore.collection(COLLECTION_MEMBER).document(id) }
 
     override val userPreferencesFlow: Flow<UserPreferences> = context.dataStore.data
         .catch { exception ->
-            // dataStore.data throws an IOException when an error is encountered when reading data
-            if (exception is IOException) {
-                emit(emptyPreferences())
-            } else {
-                throw exception
-            }
+            if (exception is IOException) emit(emptyPreferences()) else throw exception
         }.map { preferences ->
-            // Get our dark theme value, defaulting to false if not set:
-            val isDarkTheme = preferences[PreferencesKeys.IS_DARK_THEME] == true
-            val username = preferences[PreferencesKeys.USERNAME].toString()
-            val profilePicture = preferences[PreferencesKeys.PROFILE_PICTURE]
             UserPreferences(
-                isDarkTheme = isDarkTheme,
-                username = username,
-                profilePicture = profilePicture
+                isDarkTheme = preferences[PreferencesKeys.IS_DARK_THEME] == true,
+                username = preferences[PreferencesKeys.USERNAME].toString(),
+                profilePicture = preferences[PreferencesKeys.PROFILE_PICTURE]
             )
         }
 
-    override suspend fun updateDarkThemeVisibility(isDarkTheme: Boolean) {
+    override suspend fun updateDarkThemeVisibility(isDarkTheme: Boolean): Result<Unit> = safeCall {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.IS_DARK_THEME] = isDarkTheme
         }
     }
 
-    override suspend fun updateLocalUserProfile(username: String, profilePictureUrl: String?) {
+    override suspend fun updateLocalUserProfile(
+        username: String,
+        profilePictureUrl: String?
+    ): Result<Unit> = safeCall {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.USERNAME] = username
-            profilePictureUrl?.let {
-                preferences[PreferencesKeys.PROFILE_PICTURE] = profilePictureUrl
-            } ?: run {
-                preferences.remove(PreferencesKeys.PROFILE_PICTURE)
-            }
+            profilePictureUrl?.let { preferences[PreferencesKeys.PROFILE_PICTURE] = it }
+                ?: preferences.remove(PreferencesKeys.PROFILE_PICTURE)
         }
     }
 
     override val firebaseUser: FirebaseUser?
         get() = auth.currentUser
 
-    override suspend fun getUser(): User? {
-        return try {
-            val snapshot = userDocumentReference?.get()?.await()
-            snapshot?.let {
-                getUserProfile(it)
-            }
-        } catch (e: Exception) {
-            throw Exception(e.localizedMessage)
-        }
+    override suspend fun getUser(): Result<User?> = safeCall {
+        val snapshot = userDocumentReference?.get()?.await()
+        snapshot?.let { getUserProfile(it) }
     }
 
-    override suspend fun getUser(userId: String): User? {
-        return try {
-            val snapshot = firestore.collection(COLLECTION_USER).document(userId).get().await()
-            snapshot?.let {
-                getUserProfile(it)
-            }
-        } catch (e: Exception) {
-            throw Exception(e.localizedMessage)
-        }
+    override suspend fun getUser(userId: String): Result<User?> = safeCall {
+        val snapshot = firestore.collection(COLLECTION_USER).document(userId).get().await()
+        snapshot?.let { getUserProfile(it) }
     }
 
-    override suspend fun signIn(email: String, metadata: String): Result<FirebaseUser?> {
-        return try {
-            val result = auth.signInWithEmailAndPassword(email, metadata).await()
-            Result.success(result.user)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+    override suspend fun signIn(email: String, metadata: String): Result<FirebaseUser?> = safeCall {
+        auth.signInWithEmailAndPassword(email, metadata).await().user
     }
 
     override suspend fun signUp(
@@ -148,21 +116,58 @@ class DefaultProfileRepository @Inject constructor(
         metadata: String,
         displayName: String,
         username: String
-    ): Result<FirebaseUser?> {
-        return try {
-            val result = auth.createUserWithEmailAndPassword(email, metadata).await()
-            updateFirebaseUserProfile(
-                displayName = displayName,
-                profilePictureUri = null,
-                deleteProfilePicture = false
+    ): Result<FirebaseUser?> = safeCall {
+        val result = auth.createUserWithEmailAndPassword(email, metadata).await()
+        updateFirebaseUserProfile(
+            displayName = displayName,
+            profilePictureUri = null,
+            deleteProfilePicture = false
+        )
+        result.user?.sendEmailVerification()?.await()
+        createUserProfile(metadata = metadata, username = username)
+        result.user
+    }
+
+    override suspend fun createUserProfile(
+        metadata: String,
+        username: String
+    ): Result<Unit> = safeCall {
+        val firebaseUser = auth.currentUser
+        if (firebaseUser != null && isUsernameAvailable(username).getOrDefault(false)) {
+            val userProfile = createUserProfileMap(firebaseUser, metadata, username)
+            val memberProfile = createUserProfileMap(firebaseUser, username)
+            updateUserAndMemberDocuments(
+                userOperation = { userDocumentReference?.set(userProfile)?.await() },
+                memberOperation = { memberDocumentReference?.set(memberProfile)?.await() }
             )
-            result.user?.sendEmailVerification()?.await()
-            createUserProfile(metadata = metadata, username = username)
-            Result.success(result.user)
-        } catch (e: Exception) {
-            Result.failure(e)
         }
     }
+
+    private fun createUserProfileMap(
+        firebaseUser: FirebaseUser,
+        metadata: String,
+        username: String
+    ): Map<String, Any?> = hashMapOf(
+        FIELD_EMAIL to firebaseUser.email,
+        FIELD_METADATA to metadata,
+        FIELD_DISPLAY_NAME to firebaseUser.displayName,
+        FIELD_USERNAME to username,
+        FIELD_PROFILE_PICTURE to null,
+        FIELD_CREATED to FieldValue.serverTimestamp(),
+        FIELD_USER_ID to firebaseUser.uid
+    )
+
+    private fun createUserProfileMap(
+        firebaseUser: FirebaseUser,
+        username: String
+    ): Map<String, Any?> = hashMapOf(
+        FIELD_EMAIL to firebaseUser.email,
+        FIELD_DISPLAY_NAME to firebaseUser.displayName,
+        FIELD_USERNAME to username,
+        FIELD_PROFILE_PICTURE to null,
+        FIELD_CREATED to FieldValue.serverTimestamp(),
+        FIELD_USER_ID to firebaseUser.uid
+    )
 
     override suspend fun updateUserProfile(
         displayName: String?,
@@ -170,7 +175,7 @@ class DefaultProfileRepository @Inject constructor(
         profilePictureUri: Uri?,
         profilePictureUrl: String?,
         deleteProfilePicture: Boolean
-    ) {
+    ): Result<Unit> = safeCall {
         updateFirebaseUserProfile(
             displayName = displayName,
             profilePictureUri = profilePictureUri,
@@ -184,74 +189,16 @@ class DefaultProfileRepository @Inject constructor(
         )
     }
 
-    override suspend fun createUserProfile(
-        metadata: String,
-        username: String
-    ) {
-        val firebaseUser = auth.currentUser
-        if (firebaseUser != null && isUsernameAvailable(username)) {
-            val userProfile = createUserProfileMap(firebaseUser, metadata, username)
-            val memberProfile = createUserProfileMap(firebaseUser, username)
-            updateUserAndMemberDocuments(
-                userOperation = {
-                    userDocumentReference?.set(userProfile)?.await()
-                    Unit
-                },
-                memberOperation = {
-                    memberDocumentReference?.set(memberProfile)?.await()
-                    Unit
-                }
-            )
-        }
-    }
-
-    private fun createUserProfileMap(
-        firebaseUser: FirebaseUser,
-        metadata: String,
-        username: String
-    ): Map<String, Any?> {
-        return hashMapOf(
-            FIELD_EMAIL to firebaseUser.email,
-            FIELD_METADATA to metadata,
-            FIELD_DISPLAY_NAME to firebaseUser.displayName,
-            FIELD_USERNAME to username,
-            FIELD_PROFILE_PICTURE to null,
-            FIELD_CREATED to FieldValue.serverTimestamp(),
-            FIELD_USER_ID to firebaseUser.uid
-        )
-    }
-
-    private fun createUserProfileMap(
-        firebaseUser: FirebaseUser,
-        username: String
-    ): Map<String, Any?> {
-        return hashMapOf(
-            FIELD_EMAIL to firebaseUser.email,
-            FIELD_DISPLAY_NAME to firebaseUser.displayName,
-            FIELD_USERNAME to username,
-            FIELD_PROFILE_PICTURE to null,
-            FIELD_CREATED to FieldValue.serverTimestamp(),
-            FIELD_USER_ID to firebaseUser.uid
-        )
-    }
-
     override suspend fun updateFirebaseUserProfile(
         displayName: String?,
         profilePictureUri: Uri?,
         deleteProfilePicture: Boolean
-    ) {
+    ): Result<Unit> = safeCall {
         auth.currentUser?.updateProfile(
             userProfileChangeRequest {
-                displayName?.let {
-                    this.displayName = displayName
-                }
-                if (deleteProfilePicture) {
-                    photoUri = null
-                } else {
-                    profilePictureUri?.let {
-                        photoUri = profilePictureUri
-                    }
-                }
+                displayName?.let { this.displayName = it }
+                if (deleteProfilePicture) photoUri = null
+                else profilePictureUri?.let { photoUri = it }
             }
         )?.await()
     }
@@ -261,24 +208,13 @@ class DefaultProfileRepository @Inject constructor(
         username: String?,
         profilePictureUrl: String?,
         deleteProfilePicture: Boolean
-    ) {
-        val updates = buildProfileUpdateMap(
-            displayName = displayName,
-            username = username,
-            profilePictureUrl = profilePictureUrl,
-            deleteProfilePicture = deleteProfilePicture
-        )
-
+    ): Result<Unit> = safeCall {
+        val updates =
+            buildProfileUpdateMap(displayName, username, profilePictureUrl, deleteProfilePicture)
         if (updates.isNotEmpty()) {
             updateUserAndMemberDocuments(
-                userOperation = {
-                    userDocumentReference?.update(updates)?.await()
-                    Unit
-                },
-                memberOperation = {
-                    memberDocumentReference?.update(updates)?.await()
-                    Unit
-                }
+                userOperation = { userDocumentReference?.update(updates)?.await() },
+                memberOperation = { memberDocumentReference?.update(updates)?.await() }
             )
         }
     }
@@ -292,65 +228,42 @@ class DefaultProfileRepository @Inject constructor(
         val updates = mutableMapOf<String, Any?>()
         displayName?.let { updates[FIELD_DISPLAY_NAME] = it }
         username?.let { updates[FIELD_USERNAME] = it }
-        if (deleteProfilePicture) {
-            updates[FIELD_PROFILE_PICTURE] = null
-        } else {
-            profilePictureUrl?.let { updates[FIELD_PROFILE_PICTURE] = it }
-        }
+        if (deleteProfilePicture) updates[FIELD_PROFILE_PICTURE] = null
+        else profilePictureUrl?.let { updates[FIELD_PROFILE_PICTURE] = it }
         return updates
     }
 
     private suspend fun updateUserAndMemberDocuments(
-        userOperation: suspend () -> Unit?,
-        memberOperation: suspend () -> Unit?
+        userOperation: suspend () -> Unit,
+        memberOperation: suspend () -> Unit
     ) {
         coroutineScope {
-            val userDeferred = async {
-                runCatching { userOperation() }
-            }
-            val memberDeferred = async {
-                runCatching { memberOperation() }
-            }
+            val userDeferred = async { safeCall { userOperation() } }
+            val memberDeferred = async { safeCall { memberOperation() } }
             userDeferred.await()
             memberDeferred.await()
         }
     }
 
-    override suspend fun uploadMediaToFirebase(uri: Uri): String? {
+    override suspend fun uploadMediaToFirebase(uri: Uri): Result<String?> = safeCall {
         val storage = Firebase.storage(remoteConfigRepository.getStorageUrl())
         val storageFolder = remoteConfigRepository.getStorageFolderName()
-        return coroutineScope {
-            try {
-                val mediaId = UUID.randomUUID().toString()
-                val extension = EXTENSION_JPG
-                val storageRef =
-                    storage.reference.child("$storageFolder/$mediaId$extension")
-
-                storageRef.putFile(uri).await()
-                val mediaUrl = storageRef.downloadUrl.await().toString()
-                mediaUrl
-            } catch (e: Exception) {
-                e.printStackTrace()
-                null
-            }
-        }
+        val mediaId = UUID.randomUUID().toString()
+        val storageRef = storage.reference.child("$storageFolder/$mediaId$EXTENSION_JPG")
+        storageRef.putFile(uri).await()
+        storageRef.downloadUrl.await().toString()
     }
 
-    override suspend fun signOut() {
+    override suspend fun signOut(): Result<Unit> = safeCall {
         auth.signOut()
     }
 
-    override suspend fun resetPassword(email: String): Result<Unit> {
-        return try {
-            auth.sendPasswordResetEmail(email).await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+    override suspend fun resetPassword(email: String): Result<Unit> = safeCall {
+        auth.sendPasswordResetEmail(email).await()
     }
 
-    override suspend fun isUsernameAvailable(username: String): Boolean {
-        return firestore.collection(COLLECTION_MEMBER)
+    override suspend fun isUsernameAvailable(username: String): Result<Boolean> = safeCall {
+        firestore.collection(COLLECTION_MEMBER)
             .whereEqualTo(FIELD_USERNAME, username)
             .limit(1)
             .get()
@@ -358,8 +271,8 @@ class DefaultProfileRepository @Inject constructor(
             .isEmpty
     }
 
-    override suspend fun isEmailRegistered(email: String): Boolean {
-        return !firestore.collection(COLLECTION_MEMBER)
+    override suspend fun isEmailRegistered(email: String): Result<Boolean> = safeCall {
+        !firestore.collection(COLLECTION_MEMBER)
             .whereEqualTo(FIELD_EMAIL, email)
             .limit(1)
             .get()
@@ -367,27 +280,20 @@ class DefaultProfileRepository @Inject constructor(
             .isEmpty
     }
 
-    override suspend fun isEmailVerified(): Boolean {
-        return try {
-            auth.currentUser?.reload()?.await()
-            return auth.currentUser?.isEmailVerified == true
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
-        }
+    override suspend fun isEmailVerified(): Result<Boolean> = safeCall {
+        auth.currentUser?.reload()?.await()
+        auth.currentUser?.isEmailVerified == true
     }
 
-    override suspend fun sendEmailVerification() {
+    override suspend fun sendEmailVerification(): Result<Unit> = safeCall {
         auth.currentUser?.sendEmailVerification()?.await()
     }
 
-    override suspend fun deleteAccount() {
+    override suspend fun deleteAccount(): Result<Unit> = safeCall {
         auth.currentUser?.delete()?.await()
     }
 
-    private fun getUserProfile(
-        userDocumentSnapshot: DocumentSnapshot
-    ): User {
+    private fun getUserProfile(userDocumentSnapshot: DocumentSnapshot): User {
         return User(
             email = userDocumentSnapshot.getString(FIELD_EMAIL) ?: "",
             metadata = userDocumentSnapshot.getString(FIELD_METADATA) ?: "",

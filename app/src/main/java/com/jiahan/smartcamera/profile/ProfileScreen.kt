@@ -204,7 +204,7 @@ fun ProfileScreen(
                     Icon(
                         painter = painterResource(R.drawable.photo_library),
                         modifier = Modifier.padding(end = 12.dp),
-                        contentDescription = "Choose photo"
+                        contentDescription = stringResource(R.string.cd_choose_photo)
                     )
                     Text(
                         text = stringResource(R.string.choose_from_library),
@@ -229,7 +229,7 @@ fun ProfileScreen(
                     Icon(
                         painter = painterResource(R.drawable.photo_camera),
                         modifier = Modifier.padding(end = 12.dp),
-                        contentDescription = "Take photo"
+                        contentDescription = stringResource(R.string.take_photo)
                     )
                     Text(
                         text = stringResource(R.string.take_photo),
@@ -249,7 +249,7 @@ fun ProfileScreen(
                         Icon(
                             painter = painterResource(R.drawable.delete),
                             modifier = Modifier.padding(end = 12.dp),
-                            contentDescription = "Delete",
+                            contentDescription = stringResource(R.string.delete),
                             tint = MaterialTheme.colorScheme.error
                         )
                         Text(
@@ -303,7 +303,7 @@ fun ProfileScreen(
                     IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
                         Icon(
                             imageVector = Icons.Rounded.Menu,
-                            contentDescription = "Menu"
+                            contentDescription = stringResource(R.string.cd_menu)
                         )
                     }
                 }
@@ -328,7 +328,7 @@ fun ProfileScreen(
                 profilePictureUrl?.let {
                     AsyncImage(
                         model = it,
-                        contentDescription = "Profile Picture",
+                        contentDescription = stringResource(R.string.cd_profile_picture),
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .size(88.dp)
@@ -342,7 +342,7 @@ fun ProfileScreen(
                     )
                 } ?: Image(
                     imageVector = Icons.Rounded.AccountCircle,
-                    contentDescription = "Profile Picture",
+                    contentDescription = stringResource(R.string.cd_profile_picture),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(88.dp)
@@ -392,7 +392,7 @@ fun ProfileScreen(
                                 IconButton(onClick = { viewModel.updateDisplayNameText("") }) {
                                     Icon(
                                         imageVector = Icons.Rounded.Clear,
-                                        contentDescription = "Clear field",
+                                        contentDescription = stringResource(R.string.cd_clear_field),
                                         modifier = Modifier
                                             .size(16.dp)
                                     )
@@ -425,7 +425,7 @@ fun ProfileScreen(
                                 IconButton(onClick = { viewModel.updateUsernameText("") }) {
                                     Icon(
                                         imageVector = Icons.Rounded.Clear,
-                                        contentDescription = "Clear field",
+                                        contentDescription = stringResource(R.string.cd_clear_field),
                                         modifier = Modifier
                                             .size(16.dp)
                                     )

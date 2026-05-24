@@ -16,6 +16,7 @@ import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.NoteMediaDetail
 import com.jiahan.smartcamera.util.AppConstants.MAX_POST_TEXT_LENGTH
 import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
+import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_MP4
 import com.jiahan.smartcamera.util.FileConstants.FILE_PROVIDER_AUTHORITY
@@ -23,6 +24,7 @@ import com.jiahan.smartcamera.util.FileConstants.PREFIX_PHOTO
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_VIDEO
 import com.jiahan.smartcamera.util.ResourceProvider
 import com.jiahan.smartcamera.util.Util.createVideoThumbnail
+import com.jiahan.smartcamera.util.safeCall
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -35,21 +37,25 @@ import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
 
+sealed interface UploadUiState {
+    data object Idle : UploadUiState
+    data object Uploading : UploadUiState
+    data object Success : UploadUiState
+    data class Error(val message: String) : UploadUiState
+}
+
 @HiltViewModel
 class NoteViewModel @Inject constructor(
     private val noteRepository: NoteRepository,
     profileRepository: ProfileRepository,
     private val analyticsRepository: AnalyticsRepository,
     private val noteHandler: NoteHandler,
-    private val resourceProvider: ResourceProvider
+    private val resourceProvider: ResourceProvider,
+    private val errorHandler: ErrorHandler
 ) : ViewModel() {
 
-    private val _uploading = MutableStateFlow(false)
-    val uploading = _uploading.asStateFlow()
-    private val _uploadSuccess = MutableStateFlow(false)
-    val uploadSuccess = _uploadSuccess.asStateFlow()
-    private val _uploadError = MutableStateFlow(false)
-    val uploadError = _uploadError.asStateFlow()
+    private val _uploadUiState = MutableStateFlow<UploadUiState>(UploadUiState.Idle)
+    val uploadUiState = _uploadUiState.asStateFlow()
     private val _postTextError = MutableStateFlow<String?>(null)
     val postTextError = _postTextError.asStateFlow()
     private val _postButtonEnabled = MutableStateFlow(false)
@@ -93,12 +99,12 @@ class NoteViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             combine(
-                _uploading,
+                _uploadUiState,
                 _postText,
                 _mediaList,
                 _postTextError
-            ) { uploading, postText, uriList, postTextError ->
-                !uploading && (postText.isNotBlank() || uriList.isNotEmpty()) && postTextError == null
+            ) { uploadState, postText, uriList, postTextError ->
+                uploadState !is UploadUiState.Uploading && (postText.isNotBlank() || uriList.isNotEmpty()) && postTextError == null
             }.collect {
                 _postButtonEnabled.value = it
             }
@@ -107,41 +113,36 @@ class NoteViewModel @Inject constructor(
 
     fun uploadPost(text: String, mediaList: List<NoteMediaDetail>) {
         viewModelScope.launch {
-            try {
-                _uploading.value = true
-                val mediaDetailList = noteRepository.uploadMediaToFirebase(mediaList)
-
-                noteRepository.addNote(
-                    HomeNote(
-                        text = text,
-                        mediaList = mediaDetailList,
-                        documentPath = "",
-                        username = ""
+            _uploadUiState.value = UploadUiState.Uploading
+            noteRepository.uploadMediaToFirebase(mediaList)
+                .onSuccess { mediaDetailList ->
+                    noteRepository.addNote(
+                        HomeNote(
+                            text = text,
+                            mediaList = mediaDetailList,
+                            documentPath = "",
+                            username = ""
+                        )
                     )
-                )
-                _uploadSuccess.value = true
-                noteHandler.notifyNoteAdded()
-            } catch (e: Exception) {
-                e.printStackTrace()
-                _uploading.value = false
-                _uploadSuccess.value = false
-                _uploadError.value = true
-            } finally {
-                _uploading.value = false
-            }
+                        .onSuccess {
+                            noteHandler.notifyNoteAdded()
+                            _uploadUiState.value = UploadUiState.Success
+                        }
+                        .onFailure { e ->
+                            errorHandler.logError(e)
+                            _uploadUiState.value =
+                                UploadUiState.Error(errorHandler.getErrorMessage(e))
+                        }
+                }
+                .onFailure { e ->
+                    errorHandler.logError(e)
+                    _uploadUiState.value = UploadUiState.Error(errorHandler.getErrorMessage(e))
+                }
         }
     }
 
-    fun resetUploadSuccess() {
-        _uploadSuccess.value = false
-    }
-
-    fun resetUploadError() {
-        _uploadError.value = false
-    }
-
-    fun resetUploading() {
-        _uploading.value = false
+    fun resetUploadState() {
+        _uploadUiState.value = UploadUiState.Idle
     }
 
     fun createImageUri(context: Context): Uri? {
@@ -152,12 +153,7 @@ class NoteViewModel @Inject constructor(
             EXTENSION_JPG,
             storageDir
         )
-
-        return getUriForFile(
-            context,
-            FILE_PROVIDER_AUTHORITY,
-            imageFile
-        )
+        return getUriForFile(context, FILE_PROVIDER_AUTHORITY, imageFile)
     }
 
     fun createVideoUri(context: Context): Uri? {
@@ -168,12 +164,7 @@ class NoteViewModel @Inject constructor(
             EXTENSION_MP4,
             storageDir
         )
-
-        return getUriForFile(
-            context,
-            FILE_PROVIDER_AUTHORITY,
-            videoFile
-        )
+        return getUriForFile(context, FILE_PROVIDER_AUTHORITY, videoFile)
     }
 
     fun updatePostText(text: String) {
@@ -188,7 +179,7 @@ class NoteViewModel @Inject constructor(
                 noteRepository.quickUploadMediaToFirebase(uriList)
             }
             val newMediaDetailList = uriList.mapNotNull { uri ->
-                try {
+                safeCall {
                     val isVideo = context.contentResolver.getType(uri)?.startsWith("video/") == true
 
                     val bitmap = if (isVideo) getVideoThumbnail(context, uri) else null
@@ -199,10 +190,7 @@ class NoteViewModel @Inject constructor(
                         thumbnailBitmap = if (isVideo) bitmap else null,
                         isVideo = isVideo
                     )
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    null
-                }
+                }.onFailure { e -> errorHandler.logError(e) }.getOrNull()
             }
 
             _mediaList.value = newMediaDetailList + _mediaList.value
@@ -249,9 +237,7 @@ class NoteViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         // Clean up bitmap cache to prevent memory leaks
-        _videoThumbnails.values.forEach { bitmap ->
-            bitmap?.recycle()
-        }
+        _videoThumbnails.values.forEach { bitmap -> bitmap?.recycle() }
         _videoThumbnails.clear()
     }
 }

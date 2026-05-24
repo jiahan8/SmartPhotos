@@ -18,6 +18,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.res.stringResource
+import com.jiahan.smartcamera.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,7 +53,7 @@ fun PhotoPreviewScreen(
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.cd_back)
                         )
                     }
                 },
@@ -166,7 +168,7 @@ fun PhotoPreviewScreen(
             }
             AsyncImage(
                 model = model,
-                contentDescription = "Selected Image",
+                contentDescription = stringResource(R.string.cd_selected_image),
                 modifier = Modifier
                     .fillMaxSize()
                     .onSizeChanged { composableSize = it } // Update the composable size

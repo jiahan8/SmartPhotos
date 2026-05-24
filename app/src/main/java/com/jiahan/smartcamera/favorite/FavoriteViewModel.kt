@@ -7,6 +7,7 @@ import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.util.AppConstants.DEBOUNCE_MS
+import com.jiahan.smartcamera.util.ErrorHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,14 +25,15 @@ import javax.inject.Inject
 class FavoriteViewModel @Inject constructor(
     private val noteRepository: NoteRepository,
     private val analyticsRepository: AnalyticsRepository,
-    private val noteHandler: NoteHandler
+    private val noteHandler: NoteHandler,
+    private val errorHandler: ErrorHandler
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
     private val _isSyncing = MutableStateFlow(false)
     private val _isRefreshing = MutableStateFlow(false)
-    val refreshing = _isRefreshing.asStateFlow()
+    val isRefreshing = _isRefreshing.asStateFlow()
     val isLoadingMore = MutableStateFlow(false).asStateFlow()
     private val _noteToDelete = MutableStateFlow<HomeNote?>(null)
     val noteToDelete = _noteToDelete.asStateFlow()
@@ -70,36 +72,28 @@ class FavoriteViewModel @Inject constructor(
     }
 
     private suspend fun syncNotes() {
-        try {
-            _isSyncing.value = true
-            noteRepository.syncFavoriteNotes()
-            analyticsRepository.logFavoriteSearchCustomEvent(_searchQuery.value)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        } finally {
-            _isSyncing.value = false
-        }
+        _isSyncing.value = true
+        noteRepository.syncFavoriteNotes()
+            .onSuccess { analyticsRepository.logFavoriteSearchCustomEvent(_searchQuery.value) }
+            .onFailure { e -> errorHandler.logError(e) }
+        _isSyncing.value = false
     }
 
     fun deleteNote(documentPath: String) {
         viewModelScope.launch {
-            try {
-                noteRepository.deleteNote(documentPath)
-                noteHandler.notifyNoteDeleted(documentPath)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+            noteRepository.deleteNote(documentPath)
+                .onSuccess { noteHandler.notifyNoteDeleted(documentPath) }
+                .onFailure { e -> errorHandler.logError(e) }
         }
     }
 
     fun favoriteNote(homeNote: HomeNote) {
         viewModelScope.launch {
-            try {
-                noteRepository.favoriteNote(homeNote)
-                noteHandler.notifyNoteFavorited(homeNote.copy(favorite = homeNote.favorite.not()))
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+            noteRepository.favoriteNote(homeNote)
+                .onSuccess {
+                    noteHandler.notifyNoteFavorited(homeNote.copy(favorite = homeNote.favorite.not()))
+                }
+                .onFailure { e -> errorHandler.logError(e) }
         }
     }
 

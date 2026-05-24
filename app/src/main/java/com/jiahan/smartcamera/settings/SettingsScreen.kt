@@ -60,19 +60,20 @@ fun SettingsScreen(
     val packageName = remember { context.packageName }
     val locale = ConfigurationCompat.getLocales(configuration).get(0)
     val snackbarHostState = remember { SnackbarHostState() }
-    val isErrorSnackBar by viewModel.isErrorSnackBar.collectAsStateWithLifecycle()
 
     val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
     val navigationEvent by viewModel.navigationEvent.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val dialogState by viewModel.dialogState.collectAsStateWithLifecycle()
-    val actionError by viewModel.isActionError.collectAsStateWithLifecycle()
+
+    val isLoading = uiState is SettingsUiState.Loading
+    val isErrorSnackBar = uiState is SettingsUiState.Error
 
     val actionFailureMessage = stringResource(R.string.action_failure)
 
     LaunchedEffect(navigationEvent) {
         when (navigationEvent) {
-            is SettingsViewModel.NavigationEvent.NavigateToAuth -> {
+            is NavigationEvent.NavigateToAuth -> {
                 navController.navigate(Screen.Auth.route) {
                     popUpTo(0) { inclusive = true }
                 }
@@ -83,16 +84,15 @@ fun SettingsScreen(
         }
     }
 
-    LaunchedEffect(actionError) {
-        if (actionError) {
-            viewModel.updateErrorSnackBar(true)
+    LaunchedEffect(uiState) {
+        if (uiState is SettingsUiState.Error) {
             snackbarHostState.showSnackbar(actionFailureMessage, duration = SnackbarDuration.Short)
             viewModel.resetActionError()
         }
     }
 
     when (dialogState) {
-        is SettingsViewModel.DialogState.Logout -> {
+        is DialogState.Logout -> {
             AlertDialog(
                 onDismissRequest = { viewModel.dismissDialog() },
                 title = { Text(stringResource(R.string.log_out)) },
@@ -115,7 +115,7 @@ fun SettingsScreen(
             )
         }
 
-        is SettingsViewModel.DialogState.DeleteAccount -> {
+        is DialogState.DeleteAccount -> {
             AlertDialog(
                 onDismissRequest = { viewModel.dismissDialog() },
                 title = { Text(stringResource(R.string.delete_account)) },
@@ -154,7 +154,7 @@ fun SettingsScreen(
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.cd_back)
                         )
                     }
                 }
@@ -186,7 +186,7 @@ fun SettingsScreen(
                 Icon(
                     painter = painterResource(R.drawable.dark_mode),
                     modifier = Modifier.padding(end = 12.dp),
-                    contentDescription = "Dark theme"
+                    contentDescription = stringResource(R.string.dark_theme)
                 )
                 Text(
                     text = stringResource(R.string.dark_theme),
@@ -231,7 +231,7 @@ fun SettingsScreen(
                 Icon(
                     painter = painterResource(R.drawable.translate),
                     modifier = Modifier.padding(end = 12.dp),
-                    contentDescription = "Language"
+                    contentDescription = stringResource(R.string.language)
                 )
                 Text(
                     text = stringResource(R.string.language),

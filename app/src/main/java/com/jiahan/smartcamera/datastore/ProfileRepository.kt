@@ -8,11 +8,11 @@ import kotlin.Boolean
 
 interface ProfileRepository {
     val userPreferencesFlow: Flow<UserPreferences>
-    suspend fun updateDarkThemeVisibility(isDarkTheme: Boolean)
-    suspend fun updateLocalUserProfile(username: String, profilePictureUrl: String?)
+    suspend fun updateDarkThemeVisibility(isDarkTheme: Boolean): Result<Unit>
+    suspend fun updateLocalUserProfile(username: String, profilePictureUrl: String?): Result<Unit>
     val firebaseUser: FirebaseUser?
-    suspend fun getUser(): User?
-    suspend fun getUser(userId: String): User?
+    suspend fun getUser(): Result<User?>
+    suspend fun getUser(userId: String): Result<User?>
     suspend fun signIn(email: String, metadata: String): Result<FirebaseUser?>
     suspend fun signUp(
         email: String,
@@ -21,7 +21,7 @@ interface ProfileRepository {
         username: String
     ): Result<FirebaseUser?>
 
-    suspend fun createUserProfile(metadata: String, username: String)
+    suspend fun createUserProfile(metadata: String, username: String): Result<Unit>
 
     suspend fun updateUserProfile(
         displayName: String?,
@@ -29,28 +29,28 @@ interface ProfileRepository {
         profilePictureUri: Uri?,
         profilePictureUrl: String?,
         deleteProfilePicture: Boolean = false
-    )
+    ): Result<Unit>
 
     suspend fun updateFirebaseUserProfile(
         displayName: String?,
         profilePictureUri: Uri?,
         deleteProfilePicture: Boolean
-    )
+    ): Result<Unit>
 
     suspend fun updateDatabaseUserProfile(
         displayName: String?,
         username: String?,
         profilePictureUrl: String?,
         deleteProfilePicture: Boolean = false
-    )
+    ): Result<Unit>
 
-    suspend fun uploadMediaToFirebase(uri: Uri): String?
+    suspend fun uploadMediaToFirebase(uri: Uri): Result<String?>
 
-    suspend fun signOut()
+    suspend fun signOut(): Result<Unit>
     suspend fun resetPassword(email: String): Result<Unit>
-    suspend fun isUsernameAvailable(username: String): Boolean
-    suspend fun isEmailRegistered(email: String): Boolean
-    suspend fun isEmailVerified(): Boolean
-    suspend fun sendEmailVerification()
-    suspend fun deleteAccount()
+    suspend fun isUsernameAvailable(username: String): Result<Boolean>
+    suspend fun isEmailRegistered(email: String): Result<Boolean>
+    suspend fun isEmailVerified(): Result<Boolean>
+    suspend fun sendEmailVerification(): Result<Unit>
+    suspend fun deleteAccount(): Result<Unit>
 }

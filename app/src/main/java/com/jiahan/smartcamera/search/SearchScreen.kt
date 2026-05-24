@@ -71,11 +71,9 @@ fun SearchScreen(
     val pullToRefreshState = rememberPullToRefreshState()
     val listState = rememberLazyListState()
 
-    val notes by viewModel.notes.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    val isRefreshing by viewModel.refreshing.collectAsStateWithLifecycle()
-    val isLoadingMore by viewModel.isLoadingMore.collectAsStateWithLifecycle()
+    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val noteToDelete by viewModel.noteToDelete.collectAsStateWithLifecycle()
 
     val placeholderOptions =
@@ -126,7 +124,8 @@ fun SearchScreen(
 
     LaunchedEffect(scrollToTop) {
         scrollToTop?.let {
-            if (notes.isNotEmpty()) {
+            val notes = (uiState as? SearchUiState.Success)?.notes
+            if (notes?.isNotEmpty() == true) {
                 listState.animateScrollToItem(0)
                 onScrollToTopConsumed()
             }
@@ -172,7 +171,7 @@ fun SearchScreen(
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Rounded.Search,
-                        contentDescription = "Search",
+                        contentDescription = stringResource(R.string.search),
                         modifier = Modifier
                             .padding(start = 8.dp)
                             .size(20.dp)
@@ -183,7 +182,7 @@ fun SearchScreen(
                         IconButton(onClick = { viewModel.updateSearchQuery("") }) {
                             Icon(
                                 imageVector = Icons.Rounded.Clear,
-                                contentDescription = "Clear field",
+                                contentDescription = stringResource(R.string.cd_clear_field),
                                 modifier = Modifier
                                     .padding(end = 8.dp)
                                     .size(20.dp)
@@ -206,18 +205,8 @@ fun SearchScreen(
             )
         }
     ) { padding ->
-        when {
-            isLoading ->
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        strokeWidth = 1.5.dp
-                    )
-                }
-
-            notes.isEmpty() ->
+        when (val state = uiState) {
+            is SearchUiState.Idle ->
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -225,71 +214,82 @@ fun SearchScreen(
                     Text(stringResource(R.string.no_results_found))
                 }
 
-            else ->
-                PullToRefreshBox(
-                    modifier = Modifier.padding(
-                        top = padding.calculateTopPadding(),
-                        start = padding.calculateStartPadding(LayoutDirection.Ltr),
-                        end = padding.calculateEndPadding(LayoutDirection.Ltr)
-                    ),
-                    state = pullToRefreshState,
-                    isRefreshing = isRefreshing,
-                    onRefresh = onRefresh,
+            is SearchUiState.Loading ->
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(top = 8.dp, bottom = 76.dp)
-                    ) {
-                        items(
-                            count = notes.size,
-                            key = { index -> notes[index].documentPath }
-                        ) { index ->
-                            val note = notes[index]
-                            HomeItem(
-                                note = note,
-                                onTap = {
-                                    navController.navigate(
-                                        Screen.NotePreview.createRoute(note.documentPath)
-                                    )
-                                },
-                                onDoubleTap = {
-                                    viewModel.favoriteNote(note)
-                                },
-                                onLongPress = {
-                                    viewModel.setNoteToDelete(note)
-                                },
-                                onPhotoClick = { url ->
-                                    navController.navigate(
-                                        Screen.PhotoPreview.createRemoteRoute(url)
-                                    )
-                                },
-                                onVideoClick = { url ->
-                                    navController.navigate(
-                                        Screen.VideoPreview.createRemoteRoute(url)
-                                    )
-                                },
-                                onProfilePictureClick = { url ->
-                                    navController.navigate(
-                                        Screen.PhotoPreview.createRemoteRoute(url)
-                                    )
-                                }
-                            )
-                        }
+                    CircularProgressIndicator(strokeWidth = 1.5.dp)
+                }
 
-                        if (isLoadingMore) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(32.dp),
-                                        strokeWidth = 1.5.dp
-                                    )
-                                }
+            is SearchUiState.Error ->
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(state.message)
+                }
+
+            is SearchUiState.Success ->
+                if (state.notes.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(stringResource(R.string.no_results_found))
+                    }
+                } else {
+                    PullToRefreshBox(
+                        modifier = Modifier.padding(
+                            top = padding.calculateTopPadding(),
+                            start = padding.calculateStartPadding(LayoutDirection.Ltr),
+                            end = padding.calculateEndPadding(LayoutDirection.Ltr)
+                        ),
+                        state = pullToRefreshState,
+                        isRefreshing = isRefreshing,
+                        onRefresh = onRefresh,
+                    ) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(top = 8.dp, bottom = 76.dp)
+                        ) {
+                            items(
+                                count = state.notes.size,
+                                key = { index -> state.notes[index].documentPath }
+                            ) { index ->
+                                val note = state.notes[index]
+                                HomeItem(
+                                    note = note,
+                                    onTap = {
+                                        navController.navigate(
+                                            Screen.NotePreview.createRoute(note.documentPath)
+                                        )
+                                    },
+                                    onDoubleTap = { viewModel.favoriteNote(note) },
+                                    onLongPress = { viewModel.setNoteToDelete(note) },
+                                    onPhotoClick = { url ->
+                                        navController.navigate(
+                                            Screen.PhotoPreview.createRemoteRoute(
+                                                url
+                                            )
+                                        )
+                                    },
+                                    onVideoClick = { url ->
+                                        navController.navigate(
+                                            Screen.VideoPreview.createRemoteRoute(
+                                                url
+                                            )
+                                        )
+                                    },
+                                    onProfilePictureClick = { url ->
+                                        navController.navigate(
+                                            Screen.PhotoPreview.createRemoteRoute(
+                                                url
+                                            )
+                                        )
+                                    }
+                                )
                             }
                         }
                     }

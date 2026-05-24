@@ -98,9 +98,8 @@ fun NoteScreen(
     val photoUri by viewModel.photoUri.collectAsStateWithLifecycle()
     val videoUri by viewModel.videoUri.collectAsStateWithLifecycle()
     val mediaList by viewModel.mediaList.collectAsStateWithLifecycle()
-    val isUploading by viewModel.uploading.collectAsStateWithLifecycle()
-    val uploadSuccess by viewModel.uploadSuccess.collectAsStateWithLifecycle()
-    val uploadError by viewModel.uploadError.collectAsStateWithLifecycle()
+    val uploadUiState by viewModel.uploadUiState.collectAsStateWithLifecycle()
+    val isUploading = uploadUiState is UploadUiState.Uploading
     val postTextError by viewModel.postTextError.collectAsStateWithLifecycle()
     val buttonEnabled by viewModel.postButtonEnabled.collectAsStateWithLifecycle()
     val isErrorSnackBar by viewModel.isErrorSnackBar.collectAsStateWithLifecycle()
@@ -192,22 +191,26 @@ fun NoteScreen(
         }
     }
 
-    LaunchedEffect(uploadSuccess) {
-        if (uploadSuccess) {
-            keyboardController?.hide()
-            viewModel.updateErrorSnackBar(false)
-            viewModel.resetUploadSuccess()
-            viewModel.resetUploading()
-            navController.popBackStack()
-        }
-    }
+    LaunchedEffect(uploadUiState) {
+        when (uploadUiState) {
+            is UploadUiState.Success -> {
+                keyboardController?.hide()
+                viewModel.updateErrorSnackBar(false)
+                viewModel.resetUploadState()
+                navController.popBackStack()
+            }
 
-    LaunchedEffect(uploadError) {
-        if (uploadError) {
-            keyboardController?.hide()
-            viewModel.updateErrorSnackBar(true)
-            snackbarHostState.showSnackbar(postFailureMessage, duration = SnackbarDuration.Short)
-            viewModel.resetUploadError()
+            is UploadUiState.Error -> {
+                keyboardController?.hide()
+                viewModel.updateErrorSnackBar(true)
+                snackbarHostState.showSnackbar(
+                    postFailureMessage,
+                    duration = SnackbarDuration.Short
+                )
+                viewModel.resetUploadState()
+            }
+
+            else -> {}
         }
     }
 
@@ -257,7 +260,7 @@ fun NoteScreen(
                     profilePicture?.let { profilePicture ->
                         AsyncImage(
                             model = profilePicture,
-                            contentDescription = "Profile Picture",
+                            contentDescription = stringResource(R.string.cd_profile_picture),
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .size(38.dp)
@@ -268,7 +271,7 @@ fun NoteScreen(
                         )
                     } ?: Image(
                         imageVector = Icons.Rounded.AccountCircle,
-                        contentDescription = "Profile Picture",
+                        contentDescription = stringResource(R.string.cd_profile_picture),
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .size(38.dp)
@@ -325,7 +328,7 @@ fun NoteScreen(
                                     if (postText.isNotBlank() && !isUploading) {
                                         Icon(
                                             imageVector = Icons.Rounded.Clear,
-                                            contentDescription = "Clear field",
+                                            contentDescription = stringResource(R.string.cd_clear_field),
                                             modifier = Modifier
                                                 .padding(end = 12.dp)
                                                 .size(16.dp)
@@ -368,7 +371,7 @@ fun NoteScreen(
                                         modifier = Modifier
                                             .height(212.dp)
                                             .maskClip(MaterialTheme.shapes.extraLarge),
-                                        contentDescription = "Image",
+                                        contentDescription = stringResource(R.string.cd_image),
                                         contentScale = ContentScale.Crop,
                                         onError = {
                                             it.result.throwable.printStackTrace()
@@ -378,7 +381,7 @@ fun NoteScreen(
                                     if (noteMediaDetail.isVideo)
                                         Icon(
                                             imageVector = Icons.Rounded.PlayArrow,
-                                            contentDescription = "Play Video",
+                                            contentDescription = stringResource(R.string.cd_play_video),
                                             modifier = Modifier
                                                 .align(Alignment.Center)
                                                 .size(52.dp)
@@ -393,7 +396,7 @@ fun NoteScreen(
 
                                     Icon(
                                         imageVector = Icons.Rounded.Close,
-                                        contentDescription = "Remove Image",
+                                        contentDescription = stringResource(R.string.cd_remove_image),
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)
                                             .padding(8.dp)
@@ -428,7 +431,7 @@ fun NoteScreen(
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.photo_library),
-                                contentDescription = "Choose photos",
+                                contentDescription = stringResource(R.string.cd_choose_photos),
                                 modifier = Modifier
                                     .clickable(enabled = !isUploading) {
                                         libraryLauncher.launch(
@@ -445,7 +448,7 @@ fun NoteScreen(
 
                             Icon(
                                 painter = painterResource(R.drawable.photo_camera),
-                                contentDescription = "Take Photo",
+                                contentDescription = stringResource(R.string.take_photo),
                                 modifier = Modifier
                                     .padding(start = 16.dp)
                                     .clickable(enabled = !isUploading) {
@@ -465,7 +468,7 @@ fun NoteScreen(
 
                             Icon(
                                 painter = painterResource(R.drawable.smart_display),
-                                contentDescription = "Take Video",
+                                contentDescription = stringResource(R.string.cd_take_video),
                                 modifier = Modifier
                                     .padding(start = 16.dp)
                                     .clickable(enabled = !isUploading) {

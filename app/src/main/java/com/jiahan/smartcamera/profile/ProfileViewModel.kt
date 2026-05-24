@@ -11,6 +11,7 @@ import com.jiahan.smartcamera.datastore.ProfileRepository
 import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.AppConstants.MAX_DISPLAY_NAME_LENGTH
 import com.jiahan.smartcamera.util.AppConstants.MAX_USERNAME_LENGTH
+import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
 import com.jiahan.smartcamera.util.FileConstants.FILE_PROVIDER_AUTHORITY
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_PHOTO
@@ -25,7 +26,8 @@ import javax.inject.Inject
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val profileRepository: ProfileRepository,
-    private val resourceProvider: ResourceProvider
+    private val resourceProvider: ResourceProvider,
+    private val errorHandler: ErrorHandler
 ) : ViewModel() {
 
     private val _user = MutableStateFlow<User?>(null)
@@ -73,7 +75,7 @@ class ProfileViewModel @Inject constructor(
 
     private fun loadUserProfile() {
         viewModelScope.launch {
-            _user.value = profileRepository.getUser()
+            _user.value = profileRepository.getUser().getOrNull()
             _email.value = _user.value?.email ?: ""
             _displayName.value = _user.value?.displayName ?: ""
             _username.value = _user.value?.username ?: ""
@@ -132,34 +134,41 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
 
-            try {
-                if (trimmedUsername != _user.value?.username &&
-                    !profileRepository.isUsernameAvailable(trimmedUsername)
-                ) {
+            if (trimmedUsername != _user.value?.username) {
+                val available = profileRepository.isUsernameAvailable(trimmedUsername)
+                    .getOrElse { e ->
+                        errorHandler.logError(e)
+                        _errorMessage.value = errorHandler.getErrorMessage(e)
+                        _updateError.value = true
+                        _isLoading.value = false
+                        return@launch
+                    }
+                if (!available) {
                     _usernameErrorMessage.value =
                         resourceProvider.getString(R.string.username_not_available)
                     _isErrorFree.value = false
+                    _isLoading.value = false
                     return@launch
                 }
+            }
 
-                profileRepository.updateUserProfile(
-                    displayName = trimmedDisplayName,
-                    username = trimmedUsername,
-                    profilePictureUri = null,
-                    profilePictureUrl = null,
-                    deleteProfilePicture = false
-                )
+            profileRepository.updateUserProfile(
+                displayName = trimmedDisplayName,
+                username = trimmedUsername,
+                profilePictureUri = null,
+                profilePictureUrl = null,
+                deleteProfilePicture = false
+            ).onSuccess {
                 loadUserProfile()
                 _isFormChanged.value = false
                 _updateSuccess.value = true
-            } catch (e: Exception) {
-                _errorMessage.value =
-                    e.localizedMessage ?: resourceProvider.getString(R.string.error_occurred)
+            }.onFailure { e ->
+                errorHandler.logError(e)
+                _errorMessage.value = errorHandler.getErrorMessage(e)
                 _updateSuccess.value = false
                 _updateError.value = true
-            } finally {
-                _isLoading.value = false
             }
+            _isLoading.value = false
         }
     }
 
@@ -192,24 +201,29 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             _isUploading.value = true
             _showBottomSheet.value = false
-            try {
-                val profilePictureUrl = profileRepository.uploadMediaToFirebase(profilePictureUri)
-                profileRepository.updateUserProfile(
-                    displayName = null,
-                    username = null,
-                    profilePictureUri = profilePictureUri,
-                    profilePictureUrl = profilePictureUrl,
-                    deleteProfilePicture = false
-                )
-                loadUserProfile()
-                _uploadSuccess.value = true
-            } catch (e: Exception) {
-                e.printStackTrace()
-                _uploadSuccess.value = false
-                _updateError.value = true
-            } finally {
-                _isUploading.value = false
-            }
+            profileRepository.uploadMediaToFirebase(profilePictureUri)
+                .onSuccess { profilePictureUrl ->
+                    profileRepository.updateUserProfile(
+                        displayName = null,
+                        username = null,
+                        profilePictureUri = profilePictureUri,
+                        profilePictureUrl = profilePictureUrl,
+                        deleteProfilePicture = false
+                    ).onSuccess {
+                        loadUserProfile()
+                        _uploadSuccess.value = true
+                    }.onFailure { e ->
+                        errorHandler.logError(e)
+                        _uploadSuccess.value = false
+                        _updateError.value = true
+                    }
+                }
+                .onFailure { e ->
+                    errorHandler.logError(e)
+                    _uploadSuccess.value = false
+                    _updateError.value = true
+                }
+            _isUploading.value = false
         }
     }
 
@@ -217,23 +231,21 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             _isUploading.value = true
             _showBottomSheet.value = false
-            try {
-                profileRepository.updateUserProfile(
-                    displayName = null,
-                    username = null,
-                    profilePictureUri = null,
-                    profilePictureUrl = null,
-                    deleteProfilePicture = true
-                )
+            profileRepository.updateUserProfile(
+                displayName = null,
+                username = null,
+                profilePictureUri = null,
+                profilePictureUrl = null,
+                deleteProfilePicture = true
+            ).onSuccess {
                 loadUserProfile()
                 _uploadSuccess.value = true
-            } catch (e: Exception) {
-                e.printStackTrace()
+            }.onFailure { e ->
+                errorHandler.logError(e)
                 _uploadSuccess.value = false
                 _updateError.value = true
-            } finally {
-                _isUploading.value = false
             }
+            _isUploading.value = false
         }
     }
 

@@ -64,8 +64,8 @@ fun AuthScreen(
     val displayName by viewModel.displayName.collectAsStateWithLifecycle()
     val username by viewModel.username.collectAsStateWithLifecycle()
     val passwordVisible by viewModel.passwordVisible.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+    val authUiState by viewModel.authUiState.collectAsStateWithLifecycle()
+    val isLoading = authUiState is AuthUiState.Loading
     val isLoginMode by viewModel.isLoginMode.collectAsStateWithLifecycle()
     val navigationEvent by viewModel.navigationEvent.collectAsStateWithLifecycle()
 
@@ -100,7 +100,7 @@ fun AuthScreen(
             ) {
                 AsyncImage(
                     model = R.mipmap.ic_launcher,
-                    contentDescription = "Background image",
+                    contentDescription = stringResource(R.string.cd_background_image),
                     contentScale = ContentScale.Crop,
                 )
 
@@ -182,21 +182,31 @@ fun AuthScreen(
                             else
                                 painterResource(R.drawable.visibility_off),
                             contentDescription = if (passwordVisible)
-                                "Hide password"
+                                stringResource(R.string.cd_hide_password)
                             else
-                                "Show password"
+                                stringResource(R.string.cd_show_password)
                         )
                     }
                 )
 
-                if (errorMessage.isNotEmpty()) {
-                    Text(
-                        text = errorMessage,
+                when (val state = authUiState) {
+                    is AuthUiState.Error -> Text(
+                        text = state.message,
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
                     )
+
+                    is AuthUiState.Info -> Text(
+                        text = state.message,
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    else -> {}
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -247,9 +257,11 @@ fun AuthScreen(
                     }
                 }
 
-                if (errorMessage.contains(stringResource(R.string.verification_email_sent)) ||
-                    errorMessage.contains(stringResource(R.string.email_not_verified))
-                ) {
+                val currentState = authUiState
+                val showResendButton =
+                    (currentState is AuthUiState.Error && currentState.showResendButton) ||
+                            (currentState is AuthUiState.Info && currentState.showResendButton)
+                if (showResendButton) {
                     TextButton(onClick = { viewModel.resendVerificationEmail() }) {
                         Text(stringResource(R.string.resend_verification_email))
                     }

@@ -80,9 +80,8 @@ fun HomeScreen(
     val pullToRefreshState = rememberPullToRefreshState()
     val listState = rememberLazyListState()
 
-    val notes by viewModel.notes.collectAsStateWithLifecycle()
-    val isInitialLoading by viewModel.isInitialLoading.collectAsStateWithLifecycle()
-    val isRefreshing by viewModel.refreshing.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val isLoadingMore by viewModel.isLoadingMore.collectAsStateWithLifecycle()
     val noteToDelete by viewModel.noteToDelete.collectAsStateWithLifecycle()
 
@@ -105,7 +104,8 @@ fun HomeScreen(
 
     LaunchedEffect(scrollToTop) {
         scrollToTop?.let {
-            if (notes.isNotEmpty()) {
+            val notes = (uiState as? HomeUiState.Success)?.notes
+            if (notes?.isNotEmpty() == true) {
                 listState.animateScrollToItem(0)
                 onScrollToTopConsumed()
             }
@@ -149,95 +149,104 @@ fun HomeScreen(
             )
         }
     ) { padding ->
-        when {
-            isInitialLoading ->
+        when (val state = uiState) {
+            is HomeUiState.Loading ->
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(
-                        strokeWidth = 1.5.dp
-                    )
+                    CircularProgressIndicator(strokeWidth = 1.5.dp)
                 }
 
-            notes.isEmpty() ->
+            is HomeUiState.Error ->
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(stringResource(R.string.no_notes_found))
+                    Text(state.message)
                 }
 
-            else ->
-                PullToRefreshBox(
-                    modifier = Modifier.padding(
-                        top = padding.calculateTopPadding(),
-                        start = padding.calculateStartPadding(LayoutDirection.Ltr),
-                        end = padding.calculateEndPadding(LayoutDirection.Ltr)
-                    ),
-                    state = pullToRefreshState,
-                    isRefreshing = isRefreshing,
-                    onRefresh = onRefresh,
-                ) {
-                    LazyColumn(
-                        state = listState,
+            is HomeUiState.Success ->
+                if (state.notes.isEmpty()) {
+                    Box(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(top = 8.dp, bottom = 76.dp)
+                        contentAlignment = Alignment.Center
                     ) {
-                        items(
-                            count = notes.size,
-                            key = { index -> notes[index].documentPath }
-                        ) { index ->
-                            val note = notes[index]
-                            HomeItem(
-                                note = note,
-                                onTap = {
-                                    navController.navigate(
-                                        Screen.NotePreview.createRoute(note.documentPath)
-                                    )
-                                },
-                                onDoubleTap = {
-                                    viewModel.favoriteNote(note)
-                                },
-                                onLongPress = {
-                                    viewModel.setNoteToDelete(note)
-                                },
-                                onPhotoClick = { url ->
-                                    navController.navigate(
-                                        Screen.PhotoPreview.createRemoteRoute(url)
-                                    )
-                                },
-                                onVideoClick = { url ->
-                                    navController.navigate(
-                                        Screen.VideoPreview.createRemoteRoute(url)
-                                    )
-                                },
-                                onProfilePictureClick = { url ->
-                                    navController.navigate(
-                                        Screen.PhotoPreview.createRemoteRoute(url)
-                                    )
-                                }
-                            )
+                        Text(stringResource(R.string.no_notes_found))
+                    }
+                } else {
+                    PullToRefreshBox(
+                        modifier = Modifier.padding(
+                            top = padding.calculateTopPadding(),
+                            start = padding.calculateStartPadding(LayoutDirection.Ltr),
+                            end = padding.calculateEndPadding(LayoutDirection.Ltr)
+                        ),
+                        state = pullToRefreshState,
+                        isRefreshing = isRefreshing,
+                        onRefresh = onRefresh,
+                    ) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(top = 8.dp, bottom = 76.dp)
+                        ) {
+                            items(
+                                count = state.notes.size,
+                                key = { index -> state.notes[index].documentPath }
+                            ) { index ->
+                                val note = state.notes[index]
+                                HomeItem(
+                                    note = note,
+                                    onTap = {
+                                        navController.navigate(
+                                            Screen.NotePreview.createRoute(note.documentPath)
+                                        )
+                                    },
+                                    onDoubleTap = { viewModel.favoriteNote(note) },
+                                    onLongPress = { viewModel.setNoteToDelete(note) },
+                                    onPhotoClick = { url ->
+                                        navController.navigate(
+                                            Screen.PhotoPreview.createRemoteRoute(
+                                                url
+                                            )
+                                        )
+                                    },
+                                    onVideoClick = { url ->
+                                        navController.navigate(
+                                            Screen.VideoPreview.createRemoteRoute(
+                                                url
+                                            )
+                                        )
+                                    },
+                                    onProfilePictureClick = { url ->
+                                        navController.navigate(
+                                            Screen.PhotoPreview.createRemoteRoute(
+                                                url
+                                            )
+                                        )
+                                    }
+                                )
 
-                            if (index >= notes.size - 1 && !isLoadingMore) {
-                                LaunchedEffect(key1 = Unit) {
-                                    viewModel.loadMoreNotes()
+                                if (index >= state.notes.size - 1 && !isLoadingMore) {
+                                    LaunchedEffect(key1 = Unit) {
+                                        viewModel.loadMoreNotes()
+                                    }
                                 }
                             }
-                        }
 
-                        if (isLoadingMore) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(32.dp),
-                                        strokeWidth = 1.5.dp
-                                    )
+                            if (isLoadingMore) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(32.dp),
+                                            strokeWidth = 1.5.dp
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -313,7 +322,7 @@ fun HomeItem(
             note.profilePictureUrl?.let { profilePictureUrl ->
                 AsyncImage(
                     model = profilePictureUrl,
-                    contentDescription = "Profile Picture",
+                    contentDescription = stringResource(R.string.cd_profile_picture),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(38.dp)
@@ -324,7 +333,7 @@ fun HomeItem(
                 )
             } ?: Image(
                 imageVector = Icons.Rounded.AccountCircle,
-                contentDescription = "Profile Picture",
+                contentDescription = stringResource(R.string.cd_profile_picture),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(38.dp)
@@ -362,7 +371,7 @@ fun HomeItem(
                     if (note.favorite) {
                         Icon(
                             imageVector = Icons.Rounded.Favorite,
-                            contentDescription = "Favorite",
+                            contentDescription = stringResource(R.string.favorite),
                             modifier = Modifier
                                 .size(16.dp)
                                 .clickable(
@@ -466,7 +475,7 @@ private fun MediaItem(
                 .height(256.dp)
                 .width(220.dp)
                 .clip(MaterialTheme.shapes.medium),
-            contentDescription = "Image",
+            contentDescription = stringResource(R.string.cd_image),
             contentScale = ContentScale.Crop,
             onError = {
                 it.result.throwable.printStackTrace()
@@ -476,7 +485,7 @@ private fun MediaItem(
         if (isVideo) {
             Icon(
                 imageVector = Icons.Rounded.PlayArrow,
-                contentDescription = "Play Video",
+                contentDescription = stringResource(R.string.cd_play_video),
                 modifier = Modifier
                     .align(Alignment.Center)
                     .size(52.dp)

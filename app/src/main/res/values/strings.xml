@@ -101,4 +101,20 @@
     <string name="username_empty">Username cannot be empty</string>
     <string name="info_updated_success">Info updated successfully</string>
     <string name="info_updated_failure">Couldn\'t update your profile. Please try again.</string>
+
+    <!-- Content descriptions (accessibility) -->
+    <string name="cd_back">Back</string>
+    <string name="cd_profile_picture">Profile picture</string>
+    <string name="cd_background_image">Background image</string>
+    <string name="cd_image">Image</string>
+    <string name="cd_selected_image">Selected image</string>
+    <string name="cd_play_video">Play video</string>
+    <string name="cd_remove_image">Remove image</string>
+    <string name="cd_clear_field">Clear field</string>
+    <string name="cd_choose_photos">Choose photos</string>
+    <string name="cd_choose_photo">Choose photo</string>
+    <string name="cd_take_video">Take video</string>
+    <string name="cd_menu">Menu</string>
+    <string name="cd_hide_password">Hide password</string>
+    <string name="cd_show_password">Show password</string>
 </resources>

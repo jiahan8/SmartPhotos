@@ -23,6 +23,8 @@ import com.jiahan.smartcamera.domain.NoteMediaDetail
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_MP4
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_THUMBNAIL
+import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.safeCall
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -43,6 +45,7 @@ class DefaultNoteRepository @Inject constructor(
     private val profileRepository: ProfileRepository,
     private val firestore: FirebaseFirestore,
     private val noteDao: NoteDao,
+    private val errorHandler: ErrorHandler,
 ) : NoteRepository {
 
     companion object {
@@ -82,61 +85,46 @@ class DefaultNoteRepository @Inject constructor(
                 .collection(COLLECTION_NOTE)
         }
 
-    override suspend fun getNotes(page: Int, pageSize: Int): List<HomeNote> {
+    override suspend fun getNotes(page: Int, pageSize: Int): Result<List<HomeNote>> = safeCall {
         noteCollectionReference?.let { ref ->
-            try {
-                val baseQuery = ref
-                    .orderBy(FIELD_CREATED, Query.Direction.DESCENDING)
-                    .limit(pageSize.toLong())
+            val baseQuery = ref
+                .orderBy(FIELD_CREATED, Query.Direction.DESCENDING)
+                .limit(pageSize.toLong())
 
-                val snapshot = if (page == 0) {
-                    // First page - reset pagination state
-                    pageToLastVisibleDocument.clear()
-                    baseQuery.get().await()
+            val snapshot = if (page == 0) {
+                // First page - reset pagination state
+                pageToLastVisibleDocument.clear()
+                baseQuery.get().await()
+            } else {
+                // Get the last document from the previous page
+                val lastVisibleDoc = pageToLastVisibleDocument[page - 1]
+
+                if (lastVisibleDoc != null) {
+                    // Use startAfter with the last document from previous page
+                    baseQuery.startAfter(lastVisibleDoc).get().await()
                 } else {
-                    // Get the last document from the previous page
-                    val lastVisibleDoc = pageToLastVisibleDocument[page - 1]
-
-                    if (lastVisibleDoc != null) {
-                        // Use startAfter with the last document from previous page
-                        baseQuery.startAfter(lastVisibleDoc).get().await()
-                    } else {
-                        // Fallback if we somehow don't have the previous page document
-                        baseQuery.get().await()
-                    }
+                    // Fallback if we somehow don't have the previous page document
+                    baseQuery.get().await()
                 }
-
-                // Store the last visible document for the current page
-                if (snapshot.documents.isNotEmpty()) {
-                    pageToLastVisibleDocument[page] = snapshot.documents.last()
-                }
-
-                val userIds = snapshot.documents.mapNotNull {
-                    it.getString(FIELD_USER_ID)
-                }.distinct()
-                val userDocumentsMap = getUserDocumentsInBatch(userIds)
-                return snapshot.documents.map { document ->
-                    val userId = document.getString(FIELD_USER_ID) as String
-                    val userDocument = userDocumentsMap[userId]
-                    if (userDocument != null) {
-                        getHomeNote(
-                            noteDocumentSnapshot = document,
-                            userDocumentSnapshot = userDocument
-                        )
-                    } else {
-                        HomeNote(documentPath = "", username = "")
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                return emptyList()
             }
-        }
-        return emptyList()
+
+            if (snapshot.documents.isNotEmpty()) {
+                pageToLastVisibleDocument[page] = snapshot.documents.last()
+            }
+
+            val userIds = snapshot.documents.mapNotNull { it.getString(FIELD_USER_ID) }.distinct()
+            val userDocumentsMap = getUserDocumentsInBatch(userIds)
+            snapshot.documents.map { document ->
+                val userId = document.getString(FIELD_USER_ID) as String
+                userDocumentsMap[userId]?.let { getHomeNote(document, it) }
+                    ?: HomeNote(documentPath = "", username = "")
+            }
+        } ?: emptyList()
     }
 
-    override suspend fun addNote(homeNote: HomeNote) {
-        val userId = profileRepository.firebaseUser?.uid ?: return
+    override suspend fun addNote(homeNote: HomeNote): Result<Unit> = safeCall {
+        val userId = profileRepository.firebaseUser?.uid
+            ?: throw IllegalStateException("User is not authenticated")
         noteCollectionReference?.add(
             hashMapOf(
                 FIELD_TEXT to homeNote.text,
@@ -148,40 +136,30 @@ class DefaultNoteRepository @Inject constructor(
         )?.await()
     }
 
-    override suspend fun searchNotes(query: String): List<HomeNote> {
+    override suspend fun searchNotes(query: String): Result<List<HomeNote>> = safeCall {
         noteCollectionReference?.let { ref ->
             val snapshot = ref
                 .orderBy(FIELD_CREATED, Query.Direction.DESCENDING)
                 .get()
                 .await()
-            val userIds = snapshot.documents.mapNotNull {
-                it.getString(FIELD_USER_ID)
-            }.distinct()
+            val userIds = snapshot.documents.mapNotNull { it.getString(FIELD_USER_ID) }.distinct()
             val userDocumentsMap = getUserDocumentsInBatch(userIds)
-            return snapshot.documents
+            snapshot.documents
                 .filter { document -> matchesSearchQuery(document, query) }
                 .map { document ->
                     val userId = document.getString(FIELD_USER_ID) as String
-                    val userDocument = userDocumentsMap[userId]
-                    if (userDocument != null) {
-                        getHomeNote(
-                            noteDocumentSnapshot = document,
-                            userDocumentSnapshot = userDocument
-                        )
-                    } else {
-                        HomeNote(documentPath = "", username = "")
-                    }
+                    userDocumentsMap[userId]?.let { getHomeNote(document, it) }
+                        ?: HomeNote(documentPath = "", username = "")
                 }
-        }
-        return emptyList()
+        } ?: emptyList()
     }
 
-    override suspend fun deleteNote(documentPath: String) {
+    override suspend fun deleteNote(documentPath: String): Result<Unit> = safeCall {
         noteCollectionReference?.document(documentPath)?.delete()?.await()
         noteDao.deleteNote(documentPath)
     }
 
-    override suspend fun favoriteNote(homeNote: HomeNote) {
+    override suspend fun favoriteNote(homeNote: HomeNote): Result<Unit> = safeCall {
         val newFavoriteStatus = homeNote.favorite.not()
         noteCollectionReference?.document(homeNote.documentPath)
             ?.update(FIELD_FAVORITE, newFavoriteStatus)
@@ -192,74 +170,43 @@ class DefaultNoteRepository @Inject constructor(
         }
     }
 
-    override suspend fun searchFavoriteNotes(query: String): List<HomeNote> {
+    override suspend fun searchFavoriteNotes(query: String): Result<List<HomeNote>> = safeCall {
         noteCollectionReference?.let { ref ->
             val snapshot = ref
                 .whereEqualTo(FIELD_FAVORITE, true)
                 .orderBy(FIELD_CREATED, Query.Direction.DESCENDING)
                 .get()
                 .await()
-            val userIds = snapshot.documents.mapNotNull {
-                it.getString(FIELD_USER_ID)
-            }.distinct()
+            val userIds = snapshot.documents.mapNotNull { it.getString(FIELD_USER_ID) }.distinct()
             val userDocumentsMap = getUserDocumentsInBatch(userIds)
-            return snapshot.documents
+            snapshot.documents
                 .filter { document -> matchesSearchQuery(document, query) }
                 .map { document ->
                     val userId = document.getString(FIELD_USER_ID) as String
-                    val userDocument = userDocumentsMap[userId]
-                    if (userDocument != null) {
-                        getHomeNote(
-                            noteDocumentSnapshot = document,
-                            userDocumentSnapshot = userDocument
-                        )
-                    } else {
-                        HomeNote(documentPath = "", username = "")
-                    }
+                    userDocumentsMap[userId]?.let { getHomeNote(document, it) }
+                        ?: HomeNote(documentPath = "", username = "")
                 }
-        }
-        return emptyList()
+        } ?: emptyList()
     }
 
-    override suspend fun getNote(documentPath: String): HomeNote {
+    override suspend fun getNote(documentPath: String): Result<HomeNote> = safeCall {
         noteCollectionReference?.let { ref ->
             val noteDocument = ref.document(documentPath).get().await()
             val userDocument =
                 getUserDocumentSnapshot(noteDocument.getString(FIELD_USER_ID) as String)
-            return getHomeNote(
-                noteDocumentSnapshot = noteDocument,
-                userDocumentSnapshot = userDocument
-            )
-        }
-        return HomeNote(documentPath = "", username = "")
+            getHomeNote(noteDocument, userDocument)
+        } ?: HomeNote(documentPath = "", username = "")
     }
 
-    override suspend fun quickUploadMediaToFirebase(uriList: List<Uri>) {
-        val storage = Firebase.storage(remoteConfigRepository.getStorageUrl())
-        val cacheStorageFolder = remoteConfigRepository.getStorageCacheFolderName()
-
-        // Fire-and-forget: launches uploads in background without waiting
-        uriList.forEach { uri ->
-            @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
-            GlobalScope.launch(Dispatchers.IO) {
-                try {
-                    val mediaId = UUID.randomUUID().toString()
-                    val storageRef = storage.reference.child("$cacheStorageFolder/$mediaId")
-                    storageRef.putFile(uri).await()
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }
-        }
-    }
-
-    override suspend fun uploadMediaToFirebase(noteMediaDetailList: List<NoteMediaDetail>): List<MediaDetail> {
+    override suspend fun uploadMediaToFirebase(
+        noteMediaDetailList: List<NoteMediaDetail>
+    ): Result<List<MediaDetail>> = safeCall {
         val storage = Firebase.storage(remoteConfigRepository.getStorageUrl())
         val storageFolder = remoteConfigRepository.getStorageFolderName()
-        return coroutineScope {
+        coroutineScope {
             noteMediaDetailList.map { noteMediaDetail ->
                 async(Dispatchers.IO) {
-                    try {
+                    safeCall {
                         val mediaId = UUID.randomUUID().toString()
                         val extension =
                             if (noteMediaDetail.isVideo) EXTENSION_MP4 else EXTENSION_JPG
@@ -267,9 +214,9 @@ class DefaultNoteRepository @Inject constructor(
                             storage.reference.child("$storageFolder/$mediaId$extension")
 
                         val mediaUri = noteMediaDetail.photoUri ?: noteMediaDetail.videoUri
-                        if (mediaUri == null) {
-                            throw IllegalStateException(context.getString(R.string.no_media_available))
-                        }
+                        ?: throw IllegalStateException(
+                            context.getString(R.string.no_media_available)
+                        )
 
                         storageRef.putFile(mediaUri).await()
                         val mediaUrl = storageRef.downloadUrl.await().toString()
@@ -293,130 +240,51 @@ class DefaultNoteRepository @Inject constructor(
                             thumbnailUrl = thumbnailUrl,
                             isVideo = noteMediaDetail.isVideo
                         )
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        null
-                    }
+                    }.onFailure { e -> errorHandler.logError(e) }.getOrNull()
                 }
             }.awaitAll().filterNotNull()
+        }
+    }
+
+    override suspend fun syncFavoriteNotes(): Result<Unit> = safeCall {
+        val favorites = fetchAllFavoritesFromFirestore()
+        noteDao.syncFavoriteNotes(favorites.map { it.toDatabaseNote() })
+    }
+
+    /** Fire-and-forget — no Result returned; errors logged internally. */
+    override suspend fun quickUploadMediaToFirebase(uriList: List<Uri>) {
+        val storage = Firebase.storage(remoteConfigRepository.getStorageUrl())
+        val cacheStorageFolder = remoteConfigRepository.getStorageCacheFolderName()
+        uriList.forEach { uri ->
+            @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
+            GlobalScope.launch(Dispatchers.IO) {
+                safeCall {
+                    val mediaId = UUID.randomUUID().toString()
+                    val storageRef = storage.reference.child("$cacheStorageFolder/$mediaId")
+                    storageRef.putFile(uri).await()
+                }.onFailure { e -> errorHandler.logError(e) }
+            }
         }
     }
 
     private suspend fun getUserDocumentSnapshot(userId: String) =
         firestore.collection(COLLECTION_USER).document(userId).get().await()
 
-    private fun getHomeNote(
-        noteDocumentSnapshot: DocumentSnapshot,
-        userDocumentSnapshot: DocumentSnapshot
-    ) = HomeNote(
-        text = noteDocumentSnapshot.getString(FIELD_TEXT),
-        createdDate = noteDocumentSnapshot.getDate(FIELD_CREATED),
-        documentPath = noteDocumentSnapshot.id,
-        favorite = noteDocumentSnapshot.getBoolean(FIELD_FAVORITE) == true,
-        mediaList = (noteDocumentSnapshot.get(FIELD_MEDIA_LIST) as? List<*>)?.mapNotNull { item ->
-            val mediaMap = item as? Map<*, *> ?: return@mapNotNull null
-            parseMediaDetail(mediaMap)
-        },
-        username = userDocumentSnapshot.getString(FIELD_USERNAME) ?: "",
-        profilePictureUrl = userDocumentSnapshot.getString(FIELD_PROFILE_PICTURE)
-    )
-
-    private fun parseMediaDetail(mediaMap: Map<*, *>): MediaDetail = MediaDetail(
-        photoUrl = mediaMap[FIELD_PHOTO_URL] as? String,
-        videoUrl = mediaMap[FIELD_VIDEO_URL] as? String,
-        thumbnailUrl = mediaMap[FIELD_THUMBNAIL_URL] as? String,
-        isVideo = mediaMap[FIELD_VIDEO] as? Boolean == true,
-        generatedText = (mediaMap[FIELD_GENERATED_TEXT] as? List<*>)?.mapNotNull { it as? String },
-        generatedObjects = parseDetectedObjects(mediaMap[FIELD_GENERATED_OBJECTS] as? List<*>),
-        generatedLabels = parseDetectedLabels(mediaMap[FIELD_GENERATED_LABELS] as? List<*>)
-    )
-
-    private fun parseDetectedObjects(objectsList: List<*>?): List<DetectedObject>? {
-        return objectsList?.mapNotNull { objectItem ->
-            val objectMap = objectItem as? Map<*, *>
-            val objectValue = objectMap?.get(FIELD_OBJECT) as? String
-            val scoreValue = objectMap?.get(FIELD_SCORE) as? Double
-            if (objectValue != null && scoreValue != null) {
-                DetectedObject(objectName = objectValue, score = scoreValue)
-            } else null
-        }
-    }
-
-    private fun parseDetectedLabels(labelsList: List<*>?): List<DetectedLabel>? {
-        return labelsList?.mapNotNull { labelItem ->
-            val labelMap = labelItem as? Map<*, *>
-            val labelValue = labelMap?.get(FIELD_LABEL) as? String
-            val scoreValue = labelMap?.get(FIELD_SCORE) as? Double
-            if (labelValue != null && scoreValue != null) {
-                DetectedLabel(label = labelValue, score = scoreValue)
-            } else null
-        }
-    }
-
-    private fun matchesSearchQuery(document: DocumentSnapshot, query: String): Boolean {
-        // Check if the main note text contains the query
-        val noteText = document.getString(FIELD_TEXT) ?: ""
-        if (noteText.contains(query, ignoreCase = true)) {
-            return true
-        }
-
-        // Check if any media item's generated content contains the query
-        val mediaList = document.get(FIELD_MEDIA_LIST) as? List<*>
-        return mediaList?.any { item ->
-            matchesMediaSearchQuery(item as? Map<*, *>, query)
-        } == true
-    }
-
-    private fun matchesMediaSearchQuery(mediaMap: Map<*, *>?, query: String): Boolean {
-        if (mediaMap == null) return false
-
-        // Check generatedText array
-        val generatedText = mediaMap[FIELD_GENERATED_TEXT] as? List<*>
-        if (generatedText?.any { text ->
-                (text as? String)?.contains(query, ignoreCase = true) == true
-            } == true) {
-            return true
-        }
-
-        // Check generatedObjects - look in "object" field values
-        val generatedObjects = mediaMap[FIELD_GENERATED_OBJECTS] as? List<*>
-        if (generatedObjects?.any { objectItem ->
-                val objectMap = objectItem as? Map<*, *>
-                val objectValue = objectMap?.get(FIELD_OBJECT) as? String
-                objectValue?.contains(query, ignoreCase = true) == true
-            } == true) {
-            return true
-        }
-
-        // Check generatedLabels - look in "label" field values
-        val generatedLabels = mediaMap[FIELD_GENERATED_LABELS] as? List<*>
-        return generatedLabels?.any { labelItem ->
-            val labelMap = labelItem as? Map<*, *>
-            val labelValue = labelMap?.get(FIELD_LABEL) as? String
-            labelValue?.contains(query, ignoreCase = true) == true
-        } == true
-    }
-
-    private suspend fun getUserDocumentsInBatch(userIds: List<String>): Map<String, DocumentSnapshot> {
+    /**
+     * Fetches user documents in parallel.
+     * A single failed lookup is silently skipped (partial-result tolerance).
+     */
+    private suspend fun getUserDocumentsInBatch(
+        userIds: List<String>
+    ): Map<String, DocumentSnapshot> {
         if (userIds.isEmpty()) return emptyMap()
         return coroutineScope {
             userIds.map { userId ->
                 async {
-                    try {
-                        val document = getUserDocumentSnapshot(userId)
-                        userId to document
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        null
-                    }
+                    safeCall { userId to getUserDocumentSnapshot(userId) }.getOrNull()
                 }
             }.awaitAll().filterNotNull().toMap()
         }
-    }
-
-    override suspend fun syncFavoriteNotes() {
-        val favorites = fetchAllFavoritesFromFirestore()
-        noteDao.syncFavoriteNotes(favorites.map { it.toDatabaseNote() })
     }
 
     private suspend fun fetchAllFavoritesFromFirestore(): List<HomeNote> {
@@ -443,12 +311,78 @@ class DefaultNoteRepository @Inject constructor(
             if (query.isEmpty()) homeNotes else homeNotes.filter { it.matchesQuery(query) }
         }
 
+    private fun getHomeNote(
+        noteDocumentSnapshot: DocumentSnapshot,
+        userDocumentSnapshot: DocumentSnapshot
+    ) = HomeNote(
+        text = noteDocumentSnapshot.getString(FIELD_TEXT),
+        createdDate = noteDocumentSnapshot.getDate(FIELD_CREATED),
+        documentPath = noteDocumentSnapshot.id,
+        favorite = noteDocumentSnapshot.getBoolean(FIELD_FAVORITE) == true,
+        mediaList = (noteDocumentSnapshot.get(FIELD_MEDIA_LIST) as? List<*>)?.mapNotNull { item ->
+            (item as? Map<*, *>)?.let { parseMediaDetail(it) }
+        },
+        username = userDocumentSnapshot.getString(FIELD_USERNAME) ?: "",
+        profilePictureUrl = userDocumentSnapshot.getString(FIELD_PROFILE_PICTURE)
+    )
+
+    private fun parseMediaDetail(mediaMap: Map<*, *>) = MediaDetail(
+        photoUrl = mediaMap[FIELD_PHOTO_URL] as? String,
+        videoUrl = mediaMap[FIELD_VIDEO_URL] as? String,
+        thumbnailUrl = mediaMap[FIELD_THUMBNAIL_URL] as? String,
+        isVideo = mediaMap[FIELD_VIDEO] as? Boolean == true,
+        generatedText = (mediaMap[FIELD_GENERATED_TEXT] as? List<*>)?.mapNotNull { it as? String },
+        generatedObjects = parseDetectedObjects(mediaMap[FIELD_GENERATED_OBJECTS] as? List<*>),
+        generatedLabels = parseDetectedLabels(mediaMap[FIELD_GENERATED_LABELS] as? List<*>)
+    )
+
+    private fun parseDetectedObjects(objectsList: List<*>?): List<DetectedObject>? =
+        objectsList?.mapNotNull { objectItem ->
+            val map = objectItem as? Map<*, *>
+            val name = map?.get(FIELD_OBJECT) as? String
+            val score = map?.get(FIELD_SCORE) as? Double
+            if (name != null && score != null) DetectedObject(name, score) else null
+        }
+
+    private fun parseDetectedLabels(labelsList: List<*>?): List<DetectedLabel>? =
+        labelsList?.mapNotNull { labelItem ->
+            val map = labelItem as? Map<*, *>
+            val label = map?.get(FIELD_LABEL) as? String
+            val score = map?.get(FIELD_SCORE) as? Double
+            if (label != null && score != null) DetectedLabel(label, score) else null
+        }
+
+    private fun matchesSearchQuery(document: DocumentSnapshot, query: String): Boolean {
+        if (document.getString(FIELD_TEXT)?.contains(query, ignoreCase = true) == true) return true
+        val mediaList = document.get(FIELD_MEDIA_LIST) as? List<*>
+        return mediaList?.any { matchesMediaSearchQuery(it as? Map<*, *>, query) } == true
+    }
+
+    private fun matchesMediaSearchQuery(mediaMap: Map<*, *>?, query: String): Boolean {
+        if (mediaMap == null) return false
+        val generatedText = mediaMap[FIELD_GENERATED_TEXT] as? List<*>
+        if (generatedText?.any {
+                (it as? String)?.contains(
+                    query,
+                    ignoreCase = true
+                ) == true
+            } == true) return true
+        val generatedObjects = mediaMap[FIELD_GENERATED_OBJECTS] as? List<*>
+        if (generatedObjects?.any {
+                (it as? Map<*, *>)?.get(FIELD_OBJECT)?.toString()
+                    ?.contains(query, ignoreCase = true) == true
+            } == true) return true
+        val generatedLabels = mediaMap[FIELD_GENERATED_LABELS] as? List<*>
+        return generatedLabels?.any {
+            (it as? Map<*, *>)?.get(FIELD_LABEL)?.toString()
+                ?.contains(query, ignoreCase = true) == true
+        } == true
+    }
+
     private fun HomeNote.matchesQuery(query: String): Boolean {
         if (text?.contains(query, ignoreCase = true) == true) return true
         return mediaList?.any { media ->
-            media.generatedText?.any {
-                it.contains(query, ignoreCase = true)
-            } == true ||
+            media.generatedText?.any { it.contains(query, ignoreCase = true) } == true ||
                     media.generatedObjects?.any {
                         it.objectName.contains(
                             query,
