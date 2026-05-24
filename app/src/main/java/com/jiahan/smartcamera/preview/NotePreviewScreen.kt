@@ -31,12 +31,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import com.jiahan.smartcamera.common.CustomSnackbarHost
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
@@ -62,8 +66,13 @@ fun NotePreviewScreen(
     viewModel: NotePreviewViewModel = hiltViewModel()
 ) {
     val scrollState = rememberScrollState()
+    val snackbarHostState = remember { SnackbarHostState() }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val noteToDelete by viewModel.noteToDelete.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.actionError.collect { message -> snackbarHostState.showSnackbar(message) }
+    }
 
     noteToDelete?.let { note ->
         AlertDialog(
@@ -109,7 +118,8 @@ fun NotePreviewScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { CustomSnackbarHost(snackbarHostState, isError = true) }
     ) { padding ->
         when (val state = uiState) {
             is NotePreviewUiState.Loading ->

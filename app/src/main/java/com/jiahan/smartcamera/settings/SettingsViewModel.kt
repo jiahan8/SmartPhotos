@@ -56,6 +56,7 @@ class SettingsViewModel @Inject constructor(
     fun updateDarkThemeVisibility(showDarkTheme: Boolean) {
         viewModelScope.launch {
             profileRepository.updateDarkThemeVisibility(showDarkTheme)
+                .onFailure { e -> errorHandler.logError(e) }
         }
     }
 

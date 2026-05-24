@@ -23,6 +23,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -32,7 +33,9 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
+import com.jiahan.smartcamera.common.CustomSnackbarHost
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -60,6 +63,7 @@ fun FavoriteScreen(
 ) {
     val pullToRefreshState = rememberPullToRefreshState()
     val listState = rememberLazyListState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val notes by viewModel.notes.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
@@ -67,6 +71,10 @@ fun FavoriteScreen(
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val isLoadingMore by viewModel.isLoadingMore.collectAsStateWithLifecycle()
     val noteToDelete by viewModel.noteToDelete.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.actionError.collect { message -> snackbarHostState.showSnackbar(message) }
+    }
 
     val onRefresh: () -> Unit = { viewModel.refresh() }
 
@@ -159,7 +167,8 @@ fun FavoriteScreen(
                     focusedIndicatorColor = Color.Transparent,
                 )
             )
-        }
+        },
+        snackbarHost = { CustomSnackbarHost(snackbarHostState, isError = true) }
     ) { padding ->
         when {
             isLoading ->

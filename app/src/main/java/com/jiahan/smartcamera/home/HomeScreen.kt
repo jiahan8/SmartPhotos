@@ -32,6 +32,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -43,6 +44,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
+import com.jiahan.smartcamera.common.CustomSnackbarHost
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -79,6 +81,7 @@ fun HomeScreen(
 ) {
     val pullToRefreshState = rememberPullToRefreshState()
     val listState = rememberLazyListState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
@@ -110,6 +113,10 @@ fun HomeScreen(
                 onScrollToTopConsumed()
             }
         }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.actionError.collect { message -> snackbarHostState.showSnackbar(message) }
     }
 
     noteToDelete?.let { note ->
@@ -147,7 +154,8 @@ fun HomeScreen(
                     )
                 }
             )
-        }
+        },
+        snackbarHost = { CustomSnackbarHost(snackbarHostState, isError = true) }
     ) { padding ->
         when (val state = uiState) {
             is HomeUiState.Loading ->

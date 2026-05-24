@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.datastore.ProfileRepository
 import com.jiahan.smartcamera.util.AppConstants.STATE_FLOW_TIMEOUT_MS
+import com.jiahan.smartcamera.util.ErrorHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -17,6 +18,7 @@ import javax.inject.Inject
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val remoteConfigRepository: RemoteConfigRepository,
+    private val errorHandler: ErrorHandler,
     profileRepository: ProfileRepository
 ) : ViewModel() {
 
@@ -40,6 +42,7 @@ class MainViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             remoteConfigRepository.fetchAndActivateConfig()
+                .onFailure { e -> errorHandler.logError(e) }
             _startDestination.value =
                 if (profileRepository.firebaseUser != null && profileRepository.firebaseUser?.isEmailVerified == true)
                     Screen.Home.route

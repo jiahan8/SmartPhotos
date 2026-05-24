@@ -101,11 +101,16 @@ class AuthViewModel @Inject constructor(
                     profileRepository.isEmailVerified()
                         .onSuccess { verified ->
                             if (verified) {
-                                val user = profileRepository.getUser().getOrNull()
-                                profileRepository.updateLocalUserProfile(
-                                    username = user?.username ?: "",
-                                    profilePictureUrl = user?.profilePicture,
-                                )
+                                profileRepository.getUser()
+                                    .onSuccess { user ->
+                                        profileRepository.updateLocalUserProfile(
+                                            username = user?.username ?: "",
+                                            profilePictureUrl = user?.profilePicture,
+                                        )
+                                    }
+                                    .onFailure { e ->
+                                        errorHandler.logError(e)
+                                    }
                                 _navigationEvent.value = NavigationEvent.NavigateToHome
                                 _authUiState.value = AuthUiState.Idle
                             } else {
@@ -121,9 +126,9 @@ class AuthViewModel @Inject constructor(
                         }
                 }
                 .onFailure { e ->
+                    errorHandler.logError(e)
                     _authUiState.value = AuthUiState.Error(
-                        message = e.localizedMessage
-                            ?: resourceProvider.getString(R.string.login_failure)
+                        message = errorHandler.getErrorMessage(e)
                     )
                 }
         }
@@ -185,9 +190,9 @@ class AuthViewModel @Inject constructor(
                             showResendButton = true
                         )
                     }.onFailure { e ->
+                        errorHandler.logError(e)
                         _authUiState.value = AuthUiState.Error(
-                            message = e.localizedMessage
-                                ?: resourceProvider.getString(R.string.sign_up_failure)
+                            message = errorHandler.getErrorMessage(e)
                         )
                     }
                 }
@@ -225,9 +230,9 @@ class AuthViewModel @Inject constructor(
                             )
                         }
                         .onFailure { e ->
+                            errorHandler.logError(e)
                             _authUiState.value = AuthUiState.Error(
-                                message = e.localizedMessage
-                                    ?: resourceProvider.getString(R.string.password_reset_failure)
+                                message = errorHandler.getErrorMessage(e)
                             )
                         }
                 }

@@ -9,7 +9,9 @@ import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.util.ErrorHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -34,6 +36,8 @@ class NotePreviewViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
     private val _noteToDelete = MutableStateFlow<HomeNote?>(null)
     val noteToDelete = _noteToDelete.asStateFlow()
+    private val _actionError = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val actionError = _actionError.asSharedFlow()
 
     init {
         loadNote(documentPath)
@@ -55,7 +59,10 @@ class NotePreviewViewModel @Inject constructor(
         viewModelScope.launch {
             noteRepository.deleteNote(documentPath)
                 .onSuccess { noteHandler.notifyNoteDeleted(documentPath) }
-                .onFailure { e -> errorHandler.logError(e) }
+                .onFailure { e ->
+                    errorHandler.logError(e)
+                    _actionError.tryEmit(errorHandler.getErrorMessage(e))
+                }
         }
     }
 
@@ -67,7 +74,10 @@ class NotePreviewViewModel @Inject constructor(
                     _uiState.value = NotePreviewUiState.Success(toggled)
                     noteHandler.notifyNoteFavorited(toggled)
                 }
-                .onFailure { e -> errorHandler.logError(e) }
+                .onFailure { e ->
+                    errorHandler.logError(e)
+                    _actionError.tryEmit(errorHandler.getErrorMessage(e))
+                }
         }
     }
 

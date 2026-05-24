@@ -10,7 +10,9 @@ import com.jiahan.smartcamera.util.AppConstants.DEBOUNCE_MS
 import com.jiahan.smartcamera.util.ErrorHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
@@ -42,6 +44,8 @@ class SearchViewModel @Inject constructor(
     val noteToDelete = _noteToDelete.asStateFlow()
     private val _currentPlaceholderIndex = MutableStateFlow(0)
     val currentPlaceholderIndex = _currentPlaceholderIndex.asStateFlow()
+    private val _actionError = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val actionError = _actionError.asSharedFlow()
 
     init {
         viewModelScope.launch {
@@ -104,7 +108,10 @@ class SearchViewModel @Inject constructor(
                     updateSuccessNotes { it.filter { note -> note.documentPath != documentPath } }
                     noteHandler.notifyNoteDeleted(documentPath)
                 }
-                .onFailure { e -> errorHandler.logError(e) }
+                .onFailure { e ->
+                    errorHandler.logError(e)
+                    _actionError.tryEmit(errorHandler.getErrorMessage(e))
+                }
         }
     }
 
@@ -114,7 +121,10 @@ class SearchViewModel @Inject constructor(
                 .onSuccess {
                     noteHandler.notifyNoteFavorited(homeNote.copy(favorite = homeNote.favorite.not()))
                 }
-                .onFailure { e -> errorHandler.logError(e) }
+                .onFailure { e ->
+                    errorHandler.logError(e)
+                    _actionError.tryEmit(errorHandler.getErrorMessage(e))
+                }
         }
     }
 

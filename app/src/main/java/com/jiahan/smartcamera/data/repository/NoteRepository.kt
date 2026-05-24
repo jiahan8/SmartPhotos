@@ -22,8 +22,6 @@ interface NoteRepository {
     suspend fun favoriteNote(homeNote: HomeNote): Result<Unit>
     suspend fun searchFavoriteNotes(query: String): Result<List<HomeNote>>
     suspend fun getNote(documentPath: String): Result<HomeNote>
-
-    /** Fire-and-forget pre-upload; errors are logged internally. */
     suspend fun quickUploadMediaToFirebase(uriList: List<Uri>)
     suspend fun uploadMediaToFirebase(noteMediaDetailList: List<NoteMediaDetail>): Result<List<MediaDetail>>
     fun getFavoriteNotesStream(query: String): Flow<List<HomeNote>>

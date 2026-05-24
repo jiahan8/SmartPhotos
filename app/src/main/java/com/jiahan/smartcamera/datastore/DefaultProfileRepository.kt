@@ -122,9 +122,9 @@ class DefaultProfileRepository @Inject constructor(
             displayName = displayName,
             profilePictureUri = null,
             deleteProfilePicture = false
-        )
+        ).getOrThrow()
         result.user?.sendEmailVerification()?.await()
-        createUserProfile(metadata = metadata, username = username)
+        createUserProfile(metadata = metadata, username = username).getOrThrow()
         result.user
     }
 
@@ -180,13 +180,13 @@ class DefaultProfileRepository @Inject constructor(
             displayName = displayName,
             profilePictureUri = profilePictureUri,
             deleteProfilePicture = deleteProfilePicture
-        )
+        ).getOrThrow()
         updateDatabaseUserProfile(
             displayName = displayName,
             username = username,
             profilePictureUrl = profilePictureUrl,
             deleteProfilePicture = deleteProfilePicture
-        )
+        ).getOrThrow()
     }
 
     override suspend fun updateFirebaseUserProfile(
@@ -240,8 +240,8 @@ class DefaultProfileRepository @Inject constructor(
         coroutineScope {
             val userDeferred = async { safeCall { userOperation() } }
             val memberDeferred = async { safeCall { memberOperation() } }
-            userDeferred.await()
-            memberDeferred.await()
+            userDeferred.await().getOrThrow()
+            memberDeferred.await().getOrThrow()
         }
     }
 

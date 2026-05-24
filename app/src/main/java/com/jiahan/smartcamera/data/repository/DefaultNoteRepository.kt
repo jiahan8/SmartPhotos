@@ -25,9 +25,10 @@ import com.jiahan.smartcamera.util.FileConstants.EXTENSION_MP4
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_THUMBNAIL
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.safeCall
+import com.jiahan.smartcamera.data.di.ApplicationScope
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -46,6 +47,7 @@ class DefaultNoteRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val noteDao: NoteDao,
     private val errorHandler: ErrorHandler,
+    @param:ApplicationScope private val applicationScope: CoroutineScope,
 ) : NoteRepository {
 
     companion object {
@@ -256,8 +258,7 @@ class DefaultNoteRepository @Inject constructor(
         val storage = Firebase.storage(remoteConfigRepository.getStorageUrl())
         val cacheStorageFolder = remoteConfigRepository.getStorageCacheFolderName()
         uriList.forEach { uri ->
-            @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
-            GlobalScope.launch(Dispatchers.IO) {
+            applicationScope.launch(Dispatchers.IO) {
                 safeCall {
                     val mediaId = UUID.randomUUID().toString()
                     val storageRef = storage.reference.child("$cacheStorageFolder/$mediaId")

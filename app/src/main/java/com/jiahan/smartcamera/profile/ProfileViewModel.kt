@@ -75,15 +75,22 @@ class ProfileViewModel @Inject constructor(
 
     private fun loadUserProfile() {
         viewModelScope.launch {
-            _user.value = profileRepository.getUser().getOrNull()
-            _email.value = _user.value?.email ?: ""
-            _displayName.value = _user.value?.displayName ?: ""
-            _username.value = _user.value?.username ?: ""
-            _profilePictureUrl.value = _user.value?.profilePicture
-            profileRepository.updateLocalUserProfile(
-                username = _user.value?.username ?: "",
-                profilePictureUrl = _user.value?.profilePicture
-            )
+            profileRepository.getUser()
+                .onSuccess { user ->
+                    _user.value = user
+                    _email.value = user?.email ?: ""
+                    _displayName.value = user?.displayName ?: ""
+                    _username.value = user?.username ?: ""
+                    _profilePictureUrl.value = user?.profilePicture
+                    profileRepository.updateLocalUserProfile(
+                        username = user?.username ?: "",
+                        profilePictureUrl = user?.profilePicture
+                    )
+                }
+                .onFailure { e ->
+                    errorHandler.logError(e)
+                    _errorMessage.value = errorHandler.getErrorMessage(e)
+                }
         }
     }
 

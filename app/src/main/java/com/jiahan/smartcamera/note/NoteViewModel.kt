@@ -174,10 +174,9 @@ class NoteViewModel @Inject constructor(
     }
 
     fun updateUriList(context: Context, uriList: List<Uri>) {
+        viewModelScope.launch { noteRepository.quickUploadMediaToFirebase(uriList) }
+
         viewModelScope.launch {
-            viewModelScope.launch {
-                noteRepository.quickUploadMediaToFirebase(uriList)
-            }
             val newMediaDetailList = uriList.mapNotNull { uri ->
                 safeCall {
                     val isVideo = context.contentResolver.getType(uri)?.startsWith("video/") == true

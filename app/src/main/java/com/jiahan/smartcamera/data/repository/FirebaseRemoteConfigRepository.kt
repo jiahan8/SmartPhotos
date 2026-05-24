@@ -3,6 +3,7 @@ package com.jiahan.smartcamera.data.repository
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.remoteConfigSettings
 import com.jiahan.smartcamera.util.AppConstants.REMOTE_CONFIG_FETCH_INTERVAL_SECONDS
+import com.jiahan.smartcamera.util.safeCall
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -33,7 +34,7 @@ class FirebaseRemoteConfigRepository @Inject constructor(
         )
     }
 
-    override suspend fun fetchAndActivateConfig() {
+    override suspend fun fetchAndActivateConfig(): Result<Unit> = safeCall {
         remoteConfig.fetchAndActivate().await()
     }
 
