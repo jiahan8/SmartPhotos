@@ -5,10 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.datastore.ProfileRepository
-import com.jiahan.smartcamera.util.AppConstants.MAX_DISPLAY_NAME_LENGTH
-import com.jiahan.smartcamera.util.AppConstants.MAX_USERNAME_LENGTH
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ResourceProvider
+import com.jiahan.smartcamera.util.ValidationResult
+import com.jiahan.smartcamera.util.validateDisplayName
+import com.jiahan.smartcamera.util.validateUsername
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -264,25 +265,7 @@ class AuthViewModel @Inject constructor(
         _navigationEvent.value = null
     }
 
-    private fun validateUsername(username: String): ValidationResult =
-        when {
-            username.length > MAX_USERNAME_LENGTH -> ValidationResult.Error(R.string.username_too_long)
-            !username.matches(Regex("^[a-zA-Z0-9._]+$")) -> ValidationResult.Error(R.string.username_invalid_characters)
-            else -> ValidationResult.Success
-        }
-
-    private fun validateDisplayName(displayName: String): ValidationResult =
-        when {
-            displayName.length > MAX_DISPLAY_NAME_LENGTH -> ValidationResult.Error(R.string.name_too_long)
-            else -> ValidationResult.Success
-        }
-
     sealed class NavigationEvent {
         object NavigateToHome : NavigationEvent()
     }
-}
-
-sealed class ValidationResult {
-    object Success : ValidationResult()
-    data class Error(val messageResId: Int) : ValidationResult()
 }

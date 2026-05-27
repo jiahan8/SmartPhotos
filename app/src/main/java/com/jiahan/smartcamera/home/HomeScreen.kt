@@ -44,7 +44,6 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
-import com.jiahan.smartcamera.common.CustomSnackbarHost
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,10 +62,11 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.Screen
+import com.jiahan.smartcamera.common.CustomSnackbarHost
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
-import com.jiahan.smartcamera.util.Util.formatDateTime
 import com.jiahan.smartcamera.util.pairwise
+import com.jiahan.smartcamera.util.toFormattedDateTime
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
@@ -309,7 +309,7 @@ fun HomeItem(
     val surfaceVariantColor = MaterialTheme.colorScheme.surfaceVariant
 
     val formattedDate = remember(note.createdDate) {
-        note.createdDate?.time?.let { formatDateTime(it) } ?: ""
+        note.createdDate?.time?.toFormattedDateTime() ?: ""
     }
 
     Column(

@@ -24,6 +24,7 @@ interface NoteRepository {
     suspend fun getNote(documentPath: String): Result<HomeNote>
     suspend fun quickUploadMediaToFirebase(uriList: List<Uri>)
     suspend fun uploadMediaToFirebase(noteMediaDetailList: List<NoteMediaDetail>): Result<List<MediaDetail>>
+    suspend fun buildLocalMediaDetails(uriList: List<Uri>): Result<List<NoteMediaDetail>>
     fun getFavoriteNotesStream(query: String): Flow<List<HomeNote>>
     suspend fun syncFavoriteNotes(): Result<Unit>
 }

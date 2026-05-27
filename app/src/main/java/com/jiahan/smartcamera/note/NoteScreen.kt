@@ -136,7 +136,7 @@ fun NoteScreen(
     val libraryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia()
     ) { uriList ->
-        viewModel.updateUriList(context = context, uriList = uriList)
+        viewModel.updateUriList(uriList = uriList)
     }
 
     val pictureLauncher = rememberLauncherForActivityResult(
@@ -144,7 +144,7 @@ fun NoteScreen(
     ) { success ->
         if (success) {
             photoUri?.let { uri ->
-                viewModel.updateUriList(context = context, uriList = listOf(uri))
+                viewModel.updateUriList(uriList = listOf(uri))
             }
         } else {
             photoUri?.let { uri ->
@@ -159,7 +159,7 @@ fun NoteScreen(
     ) { success ->
         if (success) {
             videoUri?.let { uri ->
-                viewModel.updateUriList(context = context, uriList = listOf(uri))
+                viewModel.updateUriList(uriList = listOf(uri))
             }
         } else {
             videoUri?.let { uri ->

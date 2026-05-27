@@ -57,7 +57,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.Screen
-import com.jiahan.smartcamera.util.Util.formatDateTime
+import com.jiahan.smartcamera.util.toFormattedDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -205,7 +205,7 @@ fun NotePreviewScreen(
                                     )
 
                                     Text(
-                                        text = note.createdDate?.time?.let { (formatDateTime(it)) }
+                                        text = note.createdDate?.time?.let { (it.toFormattedDateTime()) }
                                             ?: "",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,

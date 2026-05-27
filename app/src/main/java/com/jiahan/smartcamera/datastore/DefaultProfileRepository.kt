@@ -133,7 +133,7 @@ class DefaultProfileRepository @Inject constructor(
         username: String
     ): Result<Unit> = safeCall {
         val firebaseUser = auth.currentUser
-        if (firebaseUser != null && isUsernameAvailable(username).getOrDefault(false)) {
+        if (firebaseUser != null && isUsernameAvailable(username).getOrThrow()) {
             val userProfile = createUserProfileMap(firebaseUser, metadata, username)
             val memberProfile = createUserProfileMap(firebaseUser, username)
             updateUserAndMemberDocuments(
@@ -209,28 +209,18 @@ class DefaultProfileRepository @Inject constructor(
         profilePictureUrl: String?,
         deleteProfilePicture: Boolean
     ): Result<Unit> = safeCall {
-        val updates =
-            buildProfileUpdateMap(displayName, username, profilePictureUrl, deleteProfilePicture)
+        val updates = mutableMapOf<String, Any?>()
+        displayName?.let { updates[FIELD_DISPLAY_NAME] = it }
+        username?.let { updates[FIELD_USERNAME] = it }
+        if (deleteProfilePicture) updates[FIELD_PROFILE_PICTURE] = null
+        else profilePictureUrl?.let { updates[FIELD_PROFILE_PICTURE] = it }
+
         if (updates.isNotEmpty()) {
             updateUserAndMemberDocuments(
                 userOperation = { userDocumentReference?.update(updates)?.await() },
                 memberOperation = { memberDocumentReference?.update(updates)?.await() }
             )
         }
-    }
-
-    private fun buildProfileUpdateMap(
-        displayName: String?,
-        username: String?,
-        profilePictureUrl: String?,
-        deleteProfilePicture: Boolean
-    ): Map<String, Any?> {
-        val updates = mutableMapOf<String, Any?>()
-        displayName?.let { updates[FIELD_DISPLAY_NAME] = it }
-        username?.let { updates[FIELD_USERNAME] = it }
-        if (deleteProfilePicture) updates[FIELD_PROFILE_PICTURE] = null
-        else profilePictureUrl?.let { updates[FIELD_PROFILE_PICTURE] = it }
-        return updates
     }
 
     private suspend fun updateUserAndMemberDocuments(

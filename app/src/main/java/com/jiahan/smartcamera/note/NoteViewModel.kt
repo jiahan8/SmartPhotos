@@ -1,9 +1,7 @@
 package com.jiahan.smartcamera.note
 
 import android.content.Context
-import android.graphics.Bitmap
 import android.net.Uri
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.core.content.FileProvider.getUriForFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -23,8 +21,6 @@ import com.jiahan.smartcamera.util.FileConstants.FILE_PROVIDER_AUTHORITY
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_PHOTO
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_VIDEO
 import com.jiahan.smartcamera.util.ResourceProvider
-import com.jiahan.smartcamera.util.Util.createVideoThumbnail
-import com.jiahan.smartcamera.util.safeCall
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -71,7 +67,6 @@ class NoteViewModel @Inject constructor(
     val videoUri = _videoUri.asStateFlow()
     private val _mediaList = MutableStateFlow<List<NoteMediaDetail>>(emptyList())
     val mediaList = _mediaList.asStateFlow()
-    private val _videoThumbnails = mutableStateMapOf<Uri, Bitmap?>()
 
     private val _currentPlaceholderIndex = MutableStateFlow(0)
     val currentPlaceholderIndex = _currentPlaceholderIndex.asStateFlow()
@@ -170,29 +165,21 @@ class NoteViewModel @Inject constructor(
     fun updatePostText(text: String) {
         _postText.value = text
         analyticsRepository.logNoteCustomEvent(text)
-        validatePostText(text)
+        _postTextError.value = when {
+            text.length > MAX_POST_TEXT_LENGTH -> resourceProvider.getString(R.string.post_validation)
+            else -> null
+        }
     }
 
-    fun updateUriList(context: Context, uriList: List<Uri>) {
+    fun updateUriList(uriList: List<Uri>) {
         viewModelScope.launch { noteRepository.quickUploadMediaToFirebase(uriList) }
 
         viewModelScope.launch {
-            val newMediaDetailList = uriList.mapNotNull { uri ->
-                safeCall {
-                    val isVideo = context.contentResolver.getType(uri)?.startsWith("video/") == true
-
-                    val bitmap = if (isVideo) getVideoThumbnail(context, uri) else null
-
-                    NoteMediaDetail(
-                        photoUri = if (!isVideo) uri else null,
-                        videoUri = if (isVideo) uri else null,
-                        thumbnailBitmap = if (isVideo) bitmap else null,
-                        isVideo = isVideo
-                    )
-                }.onFailure { e -> errorHandler.logError(e) }.getOrNull()
-            }
-
-            _mediaList.value = newMediaDetailList + _mediaList.value
+            noteRepository.buildLocalMediaDetails(uriList)
+                .onSuccess { newMediaDetailList ->
+                    _mediaList.value = newMediaDetailList + _mediaList.value
+                }
+                .onFailure { e -> errorHandler.logError(e) }
         }
     }
 
@@ -220,23 +207,12 @@ class NoteViewModel @Inject constructor(
         _currentPlaceholderIndex.value = index
     }
 
-    private fun validatePostText(text: String) {
-        _postTextError.value = when {
-            text.length > MAX_POST_TEXT_LENGTH -> resourceProvider.getString(R.string.post_validation)
-            else -> null
-        }
-    }
-
-    private fun getVideoThumbnail(context: Context, uri: Uri): Bitmap? {
-        return _videoThumbnails.getOrPut(uri) {
-            createVideoThumbnail(context, uri)
-        }
-    }
 
     override fun onCleared() {
         super.onCleared()
-        // Clean up bitmap cache to prevent memory leaks
-        _videoThumbnails.values.forEach { bitmap -> bitmap?.recycle() }
-        _videoThumbnails.clear()
+        // Recycle any video thumbnail bitmaps to prevent memory leaks
+        _mediaList.value
+            .mapNotNull { it.thumbnailBitmap }
+            .forEach { it.recycle() }
     }
 }

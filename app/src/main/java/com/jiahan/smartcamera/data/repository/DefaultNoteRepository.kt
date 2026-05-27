@@ -24,6 +24,7 @@ import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_MP4
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_THUMBNAIL
 import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.createVideoThumbnail
 import com.jiahan.smartcamera.util.safeCall
 import com.jiahan.smartcamera.data.di.ApplicationScope
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -253,6 +254,23 @@ class DefaultNoteRepository @Inject constructor(
         noteDao.syncFavoriteNotes(favorites.map { it.toDatabaseNote() })
     }
 
+    override suspend fun buildLocalMediaDetails(uriList: List<Uri>): Result<List<NoteMediaDetail>> =
+        safeCall {
+            uriList.mapNotNull { uri ->
+                safeCall {
+                    val isVideo =
+                        context.contentResolver.getType(uri)?.startsWith("video/") == true
+                    val bitmap = if (isVideo) createVideoThumbnail(context, uri) else null
+                    NoteMediaDetail(
+                        photoUri = if (!isVideo) uri else null,
+                        videoUri = if (isVideo) uri else null,
+                        thumbnailBitmap = if (isVideo) bitmap else null,
+                        isVideo = isVideo
+                    )
+                }.onFailure { e -> errorHandler.logError(e) }.getOrNull()
+            }
+        }
+
     /** Fire-and-forget — no Result returned; errors logged internally. */
     override suspend fun quickUploadMediaToFirebase(uriList: List<Uri>) {
         val storage = Firebase.storage(remoteConfigRepository.getStorageUrl())
@@ -273,7 +291,7 @@ class DefaultNoteRepository @Inject constructor(
 
     /**
      * Fetches user documents in parallel.
-     * A single failed lookup is silently skipped (partial-result tolerance).
+     * A single failed lookup is logged and skipped (partial-result tolerance).
      */
     private suspend fun getUserDocumentsInBatch(
         userIds: List<String>
@@ -282,7 +300,9 @@ class DefaultNoteRepository @Inject constructor(
         return coroutineScope {
             userIds.map { userId ->
                 async {
-                    safeCall { userId to getUserDocumentSnapshot(userId) }.getOrNull()
+                    safeCall { userId to getUserDocumentSnapshot(userId) }
+                        .onFailure { e -> errorHandler.logError(e) }
+                        .getOrNull()
                 }
             }.awaitAll().filterNotNull().toMap()
         }
@@ -309,7 +329,24 @@ class DefaultNoteRepository @Inject constructor(
     override fun getFavoriteNotesStream(query: String): Flow<List<HomeNote>> =
         noteDao.getFavoriteNotes().map { notes ->
             val homeNotes = notes.map { it.toHomeNote() }
-            if (query.isEmpty()) homeNotes else homeNotes.filter { it.matchesQuery(query) }
+            if (query.isEmpty()) homeNotes
+            else homeNotes.filter { note ->
+                note.text?.contains(query, ignoreCase = true) == true ||
+                        note.mediaList?.any { media ->
+                            media.generatedText?.any {
+                                it.contains(
+                                    query,
+                                    ignoreCase = true
+                                )
+                            } == true ||
+                                    media.generatedObjects?.any {
+                                        it.objectName.contains(query, ignoreCase = true)
+                                    } == true ||
+                                    media.generatedLabels?.any {
+                                        it.label.contains(query, ignoreCase = true)
+                                    } == true
+                        } == true
+            }
         }
 
     private fun getHomeNote(
@@ -333,69 +370,42 @@ class DefaultNoteRepository @Inject constructor(
         thumbnailUrl = mediaMap[FIELD_THUMBNAIL_URL] as? String,
         isVideo = mediaMap[FIELD_VIDEO] as? Boolean == true,
         generatedText = (mediaMap[FIELD_GENERATED_TEXT] as? List<*>)?.mapNotNull { it as? String },
-        generatedObjects = parseDetectedObjects(mediaMap[FIELD_GENERATED_OBJECTS] as? List<*>),
-        generatedLabels = parseDetectedLabels(mediaMap[FIELD_GENERATED_LABELS] as? List<*>)
-    )
-
-    private fun parseDetectedObjects(objectsList: List<*>?): List<DetectedObject>? =
-        objectsList?.mapNotNull { objectItem ->
+        generatedObjects = (mediaMap[FIELD_GENERATED_OBJECTS] as? List<*>)?.mapNotNull { objectItem ->
             val map = objectItem as? Map<*, *>
             val name = map?.get(FIELD_OBJECT) as? String
             val score = map?.get(FIELD_SCORE) as? Double
             if (name != null && score != null) DetectedObject(name, score) else null
-        }
-
-    private fun parseDetectedLabels(labelsList: List<*>?): List<DetectedLabel>? =
-        labelsList?.mapNotNull { labelItem ->
+        },
+        generatedLabels = (mediaMap[FIELD_GENERATED_LABELS] as? List<*>)?.mapNotNull { labelItem ->
             val map = labelItem as? Map<*, *>
             val label = map?.get(FIELD_LABEL) as? String
             val score = map?.get(FIELD_SCORE) as? Double
             if (label != null && score != null) DetectedLabel(label, score) else null
         }
+    )
 
     private fun matchesSearchQuery(document: DocumentSnapshot, query: String): Boolean {
         if (document.getString(FIELD_TEXT)?.contains(query, ignoreCase = true) == true) return true
         val mediaList = document.get(FIELD_MEDIA_LIST) as? List<*>
-        return mediaList?.any { matchesMediaSearchQuery(it as? Map<*, *>, query) } == true
-    }
-
-    private fun matchesMediaSearchQuery(mediaMap: Map<*, *>?, query: String): Boolean {
-        if (mediaMap == null) return false
-        val generatedText = mediaMap[FIELD_GENERATED_TEXT] as? List<*>
-        if (generatedText?.any {
-                (it as? String)?.contains(
-                    query,
-                    ignoreCase = true
-                ) == true
-            } == true) return true
-        val generatedObjects = mediaMap[FIELD_GENERATED_OBJECTS] as? List<*>
-        if (generatedObjects?.any {
-                (it as? Map<*, *>)?.get(FIELD_OBJECT)?.toString()
+        return mediaList?.any { item ->
+            val mediaMap = item as? Map<*, *> ?: return@any false
+            val generatedText = mediaMap[FIELD_GENERATED_TEXT] as? List<*>
+            if (generatedText?.any {
+                    (it as? String)?.contains(
+                        query,
+                        ignoreCase = true
+                    ) == true
+                } == true) return@any true
+            val generatedObjects = mediaMap[FIELD_GENERATED_OBJECTS] as? List<*>
+            if (generatedObjects?.any {
+                    (it as? Map<*, *>)?.get(FIELD_OBJECT)?.toString()
+                        ?.contains(query, ignoreCase = true) == true
+                } == true) return@any true
+            val generatedLabels = mediaMap[FIELD_GENERATED_LABELS] as? List<*>
+            generatedLabels?.any {
+                (it as? Map<*, *>)?.get(FIELD_LABEL)?.toString()
                     ?.contains(query, ignoreCase = true) == true
-            } == true) return true
-        val generatedLabels = mediaMap[FIELD_GENERATED_LABELS] as? List<*>
-        return generatedLabels?.any {
-            (it as? Map<*, *>)?.get(FIELD_LABEL)?.toString()
-                ?.contains(query, ignoreCase = true) == true
-        } == true
-    }
-
-    private fun HomeNote.matchesQuery(query: String): Boolean {
-        if (text?.contains(query, ignoreCase = true) == true) return true
-        return mediaList?.any { media ->
-            media.generatedText?.any { it.contains(query, ignoreCase = true) } == true ||
-                    media.generatedObjects?.any {
-                        it.objectName.contains(
-                            query,
-                            ignoreCase = true
-                        )
-                    } == true ||
-                    media.generatedLabels?.any {
-                        it.label.contains(
-                            query,
-                            ignoreCase = true
-                        )
-                    } == true
+            } == true
         } == true
     }
 }

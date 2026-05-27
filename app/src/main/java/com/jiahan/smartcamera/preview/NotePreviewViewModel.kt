@@ -40,10 +40,6 @@ class NotePreviewViewModel @Inject constructor(
     val actionError = _actionError.asSharedFlow()
 
     init {
-        loadNote(documentPath)
-    }
-
-    private fun loadNote(documentPath: String) {
         viewModelScope.launch {
             _uiState.value = NotePreviewUiState.Loading
             noteRepository.getNote(documentPath)
