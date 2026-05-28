@@ -1,31 +1,25 @@
 package com.jiahan.smartcamera.profile
 
-import android.content.Context
 import android.net.Uri
-import androidx.core.content.FileProvider.getUriForFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.data.repository.AuthRepository
+import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.ErrorHandler
-import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
-import com.jiahan.smartcamera.util.FileConstants.FILE_PROVIDER_AUTHORITY
-import com.jiahan.smartcamera.util.FileConstants.PREFIX_PHOTO
 import com.jiahan.smartcamera.util.ResourceProvider
 import com.jiahan.smartcamera.util.ValidationResult
 import com.jiahan.smartcamera.util.validateDisplayName
 import com.jiahan.smartcamera.util.validateUsername
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.io.File
 import javax.inject.Inject
 
 sealed class ProfileEvent {
@@ -39,9 +33,9 @@ class ProfileViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val authRepository: AuthRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
+    private val mediaFileRepository: MediaFileRepository,
     private val resourceProvider: ResourceProvider,
     private val errorHandler: ErrorHandler,
-    @param:ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _user = MutableStateFlow<User?>(null)
@@ -234,19 +228,14 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun createImageUri(): Uri? {
-        val timeStamp = System.currentTimeMillis()
-        val storageDir = context.cacheDir
-        val imageFile = File.createTempFile("$PREFIX_PHOTO${timeStamp}", EXTENSION_JPG, storageDir)
-        return getUriForFile(context, FILE_PROVIDER_AUTHORITY, imageFile)
-    }
+    fun createImageUri(): Uri? = mediaFileRepository.createImageUri()
 
     fun updatePhotoUri(uri: Uri?) {
         _photoUri.value = uri
     }
 
     fun cancelPhotoCapture(uri: Uri) {
-        context.contentResolver.delete(uri, null, null)
+        mediaFileRepository.deleteUri(uri)
         _photoUri.value = null
     }
 

@@ -3,10 +3,12 @@ package com.jiahan.smartcamera.data.di
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.DefaultAuthRepository
+import com.jiahan.smartcamera.data.repository.DefaultMediaFileRepository
 import com.jiahan.smartcamera.data.repository.DefaultNoteRepository
 import com.jiahan.smartcamera.data.repository.DefaultUserRepository
 import com.jiahan.smartcamera.data.repository.FirebaseAnalyticsRepository
 import com.jiahan.smartcamera.data.repository.FirebaseRemoteConfigRepository
+import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
@@ -57,4 +59,10 @@ abstract class DataModule {
     abstract fun bindUserPreferencesRepository(
         defaultUserPreferencesRepository: DefaultUserPreferencesRepository
     ): UserPreferencesRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMediaFileRepository(
+        defaultMediaFileRepository: DefaultMediaFileRepository
+    ): MediaFileRepository
 }
