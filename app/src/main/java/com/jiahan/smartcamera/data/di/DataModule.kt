@@ -10,8 +10,8 @@ import com.jiahan.smartcamera.data.repository.FirebaseRemoteConfigRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
-import com.jiahan.smartcamera.datastore.DefaultUserPreferencesRepository
-import com.jiahan.smartcamera.datastore.UserPreferencesRepository
+import com.jiahan.smartcamera.data.datastore.DefaultUserPreferencesRepository
+import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn

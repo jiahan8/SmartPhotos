@@ -46,7 +46,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.Screen
+import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.home.HomeItem
 import com.jiahan.smartcamera.util.pairwise
 import kotlinx.coroutines.flow.distinctUntilChanged

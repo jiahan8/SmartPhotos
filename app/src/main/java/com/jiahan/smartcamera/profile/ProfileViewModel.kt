@@ -8,22 +8,31 @@ import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
-import com.jiahan.smartcamera.datastore.UserPreferencesRepository
+import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.domain.User
-import com.jiahan.smartcamera.util.AppConstants.MAX_DISPLAY_NAME_LENGTH
-import com.jiahan.smartcamera.util.AppConstants.MAX_USERNAME_LENGTH
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
 import com.jiahan.smartcamera.util.FileConstants.FILE_PROVIDER_AUTHORITY
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_PHOTO
 import com.jiahan.smartcamera.util.ResourceProvider
 import com.jiahan.smartcamera.util.ValidationResult
+import com.jiahan.smartcamera.util.validateDisplayName
+import com.jiahan.smartcamera.util.validateUsername
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
+
+sealed class ProfileEvent {
+    object UpdateSuccess : ProfileEvent()
+    object UploadSuccess : ProfileEvent()
+    object UpdateError : ProfileEvent()
+}
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
@@ -31,7 +40,8 @@ class ProfileViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val resourceProvider: ResourceProvider,
-    private val errorHandler: ErrorHandler
+    private val errorHandler: ErrorHandler,
+    @param:ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _user = MutableStateFlow<User?>(null)
@@ -60,18 +70,15 @@ class ProfileViewModel @Inject constructor(
     val isLoading = _isLoading.asStateFlow()
     private val _isUploading = MutableStateFlow(false)
     val isUploading = _isUploading.asStateFlow()
-    private val _updateSuccess = MutableStateFlow(false)
-    val updateSuccess = _updateSuccess.asStateFlow()
-    private val _uploadSuccess = MutableStateFlow(false)
-    val uploadSuccess = _uploadSuccess.asStateFlow()
-    private val _updateError = MutableStateFlow(false)
-    val updateError = _updateError.asStateFlow()
     private val _dialogState = MutableStateFlow<DialogState>(DialogState.None)
     val dialogState = _dialogState.asStateFlow()
     private val _isErrorSnackBar = MutableStateFlow(false)
     val isErrorSnackBar = _isErrorSnackBar.asStateFlow()
     private val _showBottomSheet = MutableStateFlow(false)
     val showBottomSheet = _showBottomSheet.asStateFlow()
+
+    private val _events = MutableSharedFlow<ProfileEvent>(extraBufferCapacity = 1)
+    val events = _events.asSharedFlow()
 
     init {
         loadUserProfile()
@@ -100,19 +107,21 @@ class ProfileViewModel @Inject constructor(
 
     fun updateDisplayNameText(text: String) {
         _displayName.value = text
-        _displayNameErrorMessage.value = when (val result = validateDisplayName(text.trim())) {
-            is ValidationResult.Error -> resourceProvider.getString(result.messageResId)
-            else -> null
-        }
+        _displayNameErrorMessage.value =
+            when (val result = validateDisplayName(text.trim(), requireNonBlank = true)) {
+                is ValidationResult.Error -> resourceProvider.getString(result.messageResId)
+                else -> null
+            }
         checkFormChanges()
     }
 
     fun updateUsernameText(text: String) {
         _username.value = text
-        _usernameErrorMessage.value = when (val result = validateUsername(text.trim())) {
-            is ValidationResult.Error -> resourceProvider.getString(result.messageResId)
-            else -> null
-        }
+        _usernameErrorMessage.value =
+            when (val result = validateUsername(text.trim(), requireNonBlank = true)) {
+                is ValidationResult.Error -> resourceProvider.getString(result.messageResId)
+                else -> null
+            }
         checkFormChanges()
     }
 
@@ -144,7 +153,7 @@ class ProfileViewModel @Inject constructor(
                     .getOrElse { e ->
                         errorHandler.logError(e)
                         _errorMessage.value = errorHandler.getErrorMessage(e)
-                        _updateError.value = true
+                        _events.tryEmit(ProfileEvent.UpdateError)
                         _isLoading.value = false
                         return@launch
                     }
@@ -166,33 +175,13 @@ class ProfileViewModel @Inject constructor(
             ).onSuccess {
                 loadUserProfile()
                 _isFormChanged.value = false
-                _updateSuccess.value = true
+                _events.tryEmit(ProfileEvent.UpdateSuccess)
             }.onFailure { e ->
                 errorHandler.logError(e)
                 _errorMessage.value = errorHandler.getErrorMessage(e)
-                _updateSuccess.value = false
-                _updateError.value = true
+                _events.tryEmit(ProfileEvent.UpdateError)
             }
             _isLoading.value = false
-        }
-    }
-
-    private fun validateUsername(username: String): ValidationResult {
-        return when {
-            username.isBlank() -> ValidationResult.Error(R.string.username_empty)
-            username.length > MAX_USERNAME_LENGTH -> ValidationResult.Error(R.string.username_too_long)
-            !username.matches(Regex("^[a-zA-Z0-9._]+$")) ->
-                ValidationResult.Error(R.string.username_invalid_characters)
-
-            else -> ValidationResult.Success
-        }
-    }
-
-    private fun validateDisplayName(displayName: String): ValidationResult {
-        return when {
-            displayName.isBlank() -> ValidationResult.Error(R.string.name_empty)
-            displayName.length > MAX_DISPLAY_NAME_LENGTH -> ValidationResult.Error(R.string.name_too_long)
-            else -> ValidationResult.Success
         }
     }
 
@@ -210,17 +199,15 @@ class ProfileViewModel @Inject constructor(
                         deleteProfilePicture = false
                     ).onSuccess {
                         loadUserProfile()
-                        _uploadSuccess.value = true
+                        _events.tryEmit(ProfileEvent.UploadSuccess)
                     }.onFailure { e ->
                         errorHandler.logError(e)
-                        _uploadSuccess.value = false
-                        _updateError.value = true
+                        _events.tryEmit(ProfileEvent.UpdateError)
                     }
                 }
                 .onFailure { e ->
                     errorHandler.logError(e)
-                    _uploadSuccess.value = false
-                    _updateError.value = true
+                    _events.tryEmit(ProfileEvent.UpdateError)
                 }
             _isUploading.value = false
         }
@@ -238,17 +225,16 @@ class ProfileViewModel @Inject constructor(
                 deleteProfilePicture = true
             ).onSuccess {
                 loadUserProfile()
-                _uploadSuccess.value = true
+                _events.tryEmit(ProfileEvent.UploadSuccess)
             }.onFailure { e ->
                 errorHandler.logError(e)
-                _uploadSuccess.value = false
-                _updateError.value = true
+                _events.tryEmit(ProfileEvent.UpdateError)
             }
             _isUploading.value = false
         }
     }
 
-    fun createImageUri(context: Context): Uri? {
+    fun createImageUri(): Uri? {
         val timeStamp = System.currentTimeMillis()
         val storageDir = context.cacheDir
         val imageFile = File.createTempFile("$PREFIX_PHOTO${timeStamp}", EXTENSION_JPG, storageDir)
@@ -259,16 +245,9 @@ class ProfileViewModel @Inject constructor(
         _photoUri.value = uri
     }
 
-    fun resetUpdateSuccess() {
-        _updateSuccess.value = false
-    }
-
-    fun resetUploadSuccess() {
-        _uploadSuccess.value = false
-    }
-
-    fun resetUpdateError() {
-        _updateError.value = false
+    fun cancelPhotoCapture(uri: Uri) {
+        context.contentResolver.delete(uri, null, null)
+        _photoUri.value = null
     }
 
     fun showDeletePictureDialog() {

@@ -1,6 +1,5 @@
 package com.jiahan.smartcamera
 
-import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,12 +15,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Create
-import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -38,7 +31,6 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -49,16 +41,15 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
-import com.jiahan.smartcamera.Screen.Search.SEARCH_DEEP_LINK_URI_PATTERN
 import com.jiahan.smartcamera.auth.AuthScreen
 import com.jiahan.smartcamera.favorite.FavoriteScreen
 import com.jiahan.smartcamera.home.HomeScreen
+import com.jiahan.smartcamera.navigation.Screen
+import com.jiahan.smartcamera.navigation.Screen.Search.SEARCH_DEEP_LINK_URI_PATTERN
 import com.jiahan.smartcamera.note.NoteScreen
 import com.jiahan.smartcamera.preview.NotePreviewScreen
 import com.jiahan.smartcamera.preview.PhotoPreviewScreen
-import com.jiahan.smartcamera.preview.PhotoSource
 import com.jiahan.smartcamera.preview.VideoPreviewScreen
-import com.jiahan.smartcamera.preview.VideoSource
 import com.jiahan.smartcamera.profile.ProfileScreen
 import com.jiahan.smartcamera.search.SearchScreen
 import com.jiahan.smartcamera.settings.SettingsScreen
@@ -153,8 +144,7 @@ class MainActivity : ComponentActivity() {
                                                 screen.icon?.let { icon ->
                                                     AnimatedIcon(
                                                         selected = selected,
-                                                        imageVector = icon,
-                                                        contentDescription = null
+                                                        imageVector = icon
                                                     )
                                                 }
                                             },
@@ -246,33 +236,8 @@ class MainActivity : ComponentActivity() {
                                         type = NavType.StringType
                                     }
                                 )
-                            ) { backStackEntry ->
-                                val type =
-                                    backStackEntry.arguments?.getString(Screen.PhotoPreview.TYPE_ARG)
-                                val source =
-                                    backStackEntry.arguments?.getString(Screen.PhotoPreview.SOURCE_ARG)
-                                        ?.replace("%25", "%")
-
-                                if (type != null && source != null) {
-                                    val photoSource = when (type) {
-                                        Screen.PhotoPreview.TYPE_LOCAL -> PhotoSource.LocalUri(
-                                            source.toUri()
-                                        )
-
-                                        Screen.PhotoPreview.TYPE_REMOTE -> PhotoSource.RemoteUrl(
-                                            source
-                                        )
-
-                                        else -> null
-                                    }
-
-                                    photoSource?.let {
-                                        PhotoPreviewScreen(
-                                            photoSource = it,
-                                            navController = navController
-                                        )
-                                    }
-                                }
+                            ) {
+                                PhotoPreviewScreen(navController = navController)
                             }
                             composable(
                                 route = Screen.VideoPreview.route,
@@ -284,33 +249,8 @@ class MainActivity : ComponentActivity() {
                                         type = NavType.StringType
                                     }
                                 )
-                            ) { backStackEntry ->
-                                val type =
-                                    backStackEntry.arguments?.getString(Screen.VideoPreview.TYPE_ARG)
-                                val source =
-                                    backStackEntry.arguments?.getString(Screen.VideoPreview.SOURCE_ARG)
-                                        ?.replace("%25", "%")
-
-                                if (type != null && source != null) {
-                                    val videoSource = when (type) {
-                                        Screen.VideoPreview.TYPE_LOCAL -> VideoSource.LocalUri(
-                                            source.toUri()
-                                        )
-
-                                        Screen.VideoPreview.TYPE_REMOTE -> VideoSource.RemoteUrl(
-                                            source
-                                        )
-
-                                        else -> null
-                                    }
-
-                                    videoSource?.let {
-                                        VideoPreviewScreen(
-                                            videoSource = it,
-                                            navController = navController
-                                        )
-                                    }
-                                }
+                            ) {
+                                VideoPreviewScreen(navController = navController)
                             }
                             composable(
                                 route = Screen.NotePreview.route,
@@ -327,7 +267,9 @@ class MainActivity : ComponentActivity() {
                             composable(route = Screen.Auth.route) {
                                 AuthScreen(
                                     navController = navController,
-                                    mainViewModel = viewModel
+                                    onNavigateToHome = {
+                                        viewModel.updateStartDestination(Screen.Home.route)
+                                    }
                                 )
                             }
                             composable(route = Screen.Profile.route) {
@@ -348,71 +290,11 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-sealed class Screen(
-    val route: String,
-    val titleResId: Int,
-    val icon: ImageVector?
-) {
-    object Home : Screen("home", R.string.home, Icons.Outlined.Home)
-    object Search : Screen("search", R.string.search, Icons.Outlined.Search) {
-        const val SEARCH_DEEP_LINK_URI_PATTERN = "live://jiahan8.github.io/search"
-    }
-
-    object Note : Screen("note", R.string.note, Icons.Outlined.Create)
-    object Favorite : Screen("favorite", R.string.favorite, Icons.Outlined.FavoriteBorder)
-    object ImagePreview : Screen(
-        route = "image?uri={uri}&text={text}&detect={detect}",
-        titleResId = R.string.photo,
-        icon = Icons.Outlined.Search
-    ) {
-        const val URI_ARG = "uri"
-        const val TEXT_ARG = "text"
-        const val DETECT_ARG = "detect"
-        const val IMAGE_DEEP_LINK_URI_PATTERN =
-            "live://jiahan8.github.io/image?uri={$URI_ARG}&text={$TEXT_ARG}&detect={$DETECT_ARG}"
-
-        fun createRoute(imageUri: String, text: String, detect: Boolean = false) =
-            "image?uri=$imageUri&text=$text&detect=$detect"
-    }
-
-    object PhotoPreview : Screen("photo/{type}/{source}", R.string.photo, null) {
-        const val TYPE_ARG = "type"
-        const val SOURCE_ARG = "source"
-
-        const val TYPE_LOCAL = "local"
-        const val TYPE_REMOTE = "remote"
-
-        fun createLocalRoute(uri: String) = "photo/$TYPE_LOCAL/${Uri.encode(uri)}"
-        fun createRemoteRoute(url: String) = "photo/$TYPE_REMOTE/${Uri.encode(url)}"
-    }
-
-    object VideoPreview : Screen("video/{type}/{source}", R.string.video, null) {
-        const val TYPE_ARG = "type"
-        const val SOURCE_ARG = "source"
-
-        const val TYPE_LOCAL = "local"
-        const val TYPE_REMOTE = "remote"
-
-        fun createLocalRoute(uri: String) = "video/$TYPE_LOCAL/${Uri.encode(uri)}"
-        fun createRemoteRoute(url: String) = "video/$TYPE_REMOTE/${Uri.encode(url)}"
-    }
-
-    object NotePreview : Screen("notepreview/{id}", R.string.note_preview, null) {
-        const val ID_ARG = "id"
-
-        fun createRoute(id: String) = "notepreview/$id"
-    }
-
-    object Auth : Screen("auth", R.string.authentication, null)
-    object Profile : Screen("profile", R.string.profile, Icons.Outlined.Person)
-    object Settings : Screen("settings", R.string.settings, null)
-}
 
 @Composable
 private fun AnimatedIcon(
     selected: Boolean,
-    imageVector: ImageVector,
-    contentDescription: String?
+    imageVector: ImageVector
 ) {
     val transition = updateTransition(targetState = selected, label = "IconTransition")
     val scale by transition.animateFloat(
@@ -435,7 +317,7 @@ private fun AnimatedIcon(
 
     Icon(
         imageVector = imageVector,
-        contentDescription = contentDescription,
+        contentDescription = null,
         modifier = Modifier.scale(scale),
         tint = color
     )

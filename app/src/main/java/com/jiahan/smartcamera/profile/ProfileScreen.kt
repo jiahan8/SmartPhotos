@@ -72,7 +72,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.Screen
+import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.common.CustomSnackbarHost
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,9 +99,6 @@ fun ProfileScreen(
     val isFormChanged by viewModel.isFormChanged.collectAsStateWithLifecycle()
     val isSaving by viewModel.isLoading.collectAsStateWithLifecycle()
     val isUploading by viewModel.isUploading.collectAsStateWithLifecycle()
-    val updateSuccess by viewModel.updateSuccess.collectAsStateWithLifecycle()
-    val uploadSuccess by viewModel.uploadSuccess.collectAsStateWithLifecycle()
-    val updateError by viewModel.updateError.collectAsStateWithLifecycle()
     val dialogState by viewModel.dialogState.collectAsStateWithLifecycle()
     val photoUri by viewModel.photoUri.collectAsStateWithLifecycle()
 
@@ -129,14 +126,9 @@ fun ProfileScreen(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         if (success) {
-            photoUri?.let { uri ->
-                viewModel.uploadProfilePicture(uri)
-            }
+            photoUri?.let { uri -> viewModel.uploadProfilePicture(uri) }
         } else {
-            photoUri?.let { uri ->
-                context.contentResolver.delete(uri, null, null)
-                viewModel.updatePhotoUri(null)
-            }
+            photoUri?.let { uri -> viewModel.cancelPhotoCapture(uri) }
         }
     }
 
@@ -145,36 +137,31 @@ fun ProfileScreen(
     ) { isGranted ->
         hasCameraPermission = isGranted
         if (isGranted) {
-            val uri = viewModel.createImageUri(context)
+            val uri = viewModel.createImageUri()
             viewModel.updatePhotoUri(uri)
             uri?.let { pictureLauncher.launch(it) }
         }
     }
 
-    LaunchedEffect(updateSuccess) {
-        if (updateSuccess) {
-            viewModel.updateErrorSnackBar(false)
-            viewModel.updateBottomSheetVisibility(false)
-            snackbarHostState.showSnackbar(updateSuccessMessage, duration = SnackbarDuration.Short)
-            viewModel.resetUpdateSuccess()
-        }
-    }
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                ProfileEvent.UpdateSuccess, ProfileEvent.UploadSuccess -> {
+                    viewModel.updateErrorSnackBar(false)
+                    snackbarHostState.showSnackbar(
+                        updateSuccessMessage,
+                        duration = SnackbarDuration.Short
+                    )
+                }
 
-    LaunchedEffect(uploadSuccess) {
-        if (uploadSuccess) {
-            viewModel.updateErrorSnackBar(false)
-            viewModel.updateBottomSheetVisibility(false)
-            snackbarHostState.showSnackbar(updateSuccessMessage, duration = SnackbarDuration.Short)
-            viewModel.resetUploadSuccess()
-        }
-    }
-
-    LaunchedEffect(updateError) {
-        if (updateError) {
-            viewModel.updateErrorSnackBar(true)
-            viewModel.updateBottomSheetVisibility(false)
-            snackbarHostState.showSnackbar(updateFailureMessage, duration = SnackbarDuration.Short)
-            viewModel.resetUpdateError()
+                ProfileEvent.UpdateError -> {
+                    viewModel.updateErrorSnackBar(true)
+                    snackbarHostState.showSnackbar(
+                        updateFailureMessage,
+                        duration = SnackbarDuration.Short
+                    )
+                }
+            }
         }
     }
 
@@ -216,7 +203,7 @@ fun ProfileScreen(
                         .fillMaxWidth()
                         .clickable {
                             if (hasCameraPermission) {
-                                val uri = viewModel.createImageUri(context)
+                                val uri = viewModel.createImageUri()
                                 viewModel.updatePhotoUri(uri)
                                 uri?.let { pictureLauncher.launch(it) }
                             } else {

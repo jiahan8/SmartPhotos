@@ -47,6 +47,7 @@ import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -73,7 +74,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.Screen
+import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.common.CustomSnackbarHost
 import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_PLACEHOLDER_ROTATION_DELAY_MS
 import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_TRANSITION_DELAY_MS
@@ -104,16 +105,16 @@ fun NoteScreen(
     val buttonEnabled by viewModel.postButtonEnabled.collectAsStateWithLifecycle()
     val isErrorSnackBar by viewModel.isErrorSnackBar.collectAsStateWithLifecycle()
 
-    val placeholderOptions =
-        listOf(
-            stringResource(R.string.whats_new),
-            stringResource(R.string.create_note),
-            stringResource(R.string.write_this_moment),
-            stringResource(R.string.whats_on_mind),
-            stringResource(R.string.write_a_thought)
-        )
+    // Placeholder cycling is pure UI animation state — not shared via ViewModel
+    val placeholderOptions = listOf(
+        stringResource(R.string.whats_new),
+        stringResource(R.string.create_note),
+        stringResource(R.string.write_this_moment),
+        stringResource(R.string.whats_on_mind),
+        stringResource(R.string.write_a_thought)
+    )
     val placeholderList = remember { placeholderOptions }
-    val currentPlaceholderIndex by viewModel.currentPlaceholderIndex.collectAsStateWithLifecycle()
+    var currentPlaceholderIndex by remember { mutableIntStateOf(0) }
     val placeholder = placeholderList[currentPlaceholderIndex]
     var isTransitioning by remember { mutableStateOf(false) }
     val placeholderAlpha by animateFloatAsState(
@@ -143,14 +144,10 @@ fun NoteScreen(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         if (success) {
-            photoUri?.let { uri ->
-                viewModel.updateUriList(uriList = listOf(uri))
-            }
+            photoUri?.let { uri -> viewModel.updateUriList(uriList = listOf(uri)) }
         } else {
-            photoUri?.let { uri ->
-                context.contentResolver.delete(uri, null, null)
-                viewModel.updatePhotoUri(null)
-            }
+            // Delegate temp-file deletion to the ViewModel (it owns the context)
+            photoUri?.let { uri -> viewModel.cancelPhotoCapture(uri) }
         }
     }
 
@@ -158,14 +155,10 @@ fun NoteScreen(
         contract = ActivityResultContracts.CaptureVideo()
     ) { success ->
         if (success) {
-            videoUri?.let { uri ->
-                viewModel.updateUriList(uriList = listOf(uri))
-            }
+            videoUri?.let { uri -> viewModel.updateUriList(uriList = listOf(uri)) }
         } else {
-            videoUri?.let { uri ->
-                context.contentResolver.delete(uri, null, null)
-                viewModel.updateVideoUri(null)
-            }
+            // Delegate temp-file deletion to the ViewModel (it owns the context)
+            videoUri?.let { uri -> viewModel.cancelVideoCapture(uri) }
         }
     }
 
@@ -174,7 +167,7 @@ fun NoteScreen(
     ) { isGranted ->
         hasCameraPermission = isGranted
         if (isGranted) {
-            val uri = viewModel.createImageUri(context)
+            val uri = viewModel.createImageUri()
             viewModel.updatePhotoUri(uri)
             uri?.let { pictureLauncher.launch(it) }
         }
@@ -185,7 +178,7 @@ fun NoteScreen(
     ) { isGranted ->
         hasCameraPermission = isGranted
         if (isGranted) {
-            val uri = viewModel.createVideoUri(context)
+            val uri = viewModel.createVideoUri()
             viewModel.updateVideoUri(uri)
             uri?.let { videoLauncher.launch(it) }
         }
@@ -219,7 +212,7 @@ fun NoteScreen(
             delay(TEXT_FIELD_PLACEHOLDER_ROTATION_DELAY_MS)
             isTransitioning = true
             delay(TEXT_FIELD_TRANSITION_DELAY_MS)
-            viewModel.updateCurrentPlaceholderIndex((currentPlaceholderIndex + 1) % placeholderList.size)
+            currentPlaceholderIndex = (currentPlaceholderIndex + 1) % placeholderList.size
             isTransitioning = false
             delay(TEXT_FIELD_TRANSITION_DELAY_MS)
         }
@@ -277,15 +270,11 @@ fun NoteScreen(
                             .size(38.dp)
                             .clip(CircleShape),
                         colorFilter = ColorFilter.tint(
-                            MaterialTheme.colorScheme.onSurface.copy(
-                                alpha = 0.7f
-                            )
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
                     )
 
-                    Column(
-                        modifier = Modifier.padding(start = 16.dp)
-                    ) {
+                    Column(modifier = Modifier.padding(start = 16.dp)) {
                         Text(
                             text = username,
                             style = MaterialTheme.typography.bodyMedium.copy(
@@ -310,9 +299,7 @@ fun NoteScreen(
                             enabled = !isUploading,
                             decorationBox = { innerTextField ->
                                 Row {
-                                    Box(
-                                        modifier = Modifier.weight(1f)
-                                    ) {
+                                    Box(modifier = Modifier.weight(1f)) {
                                         innerTextField()
                                         if (postText.isBlank()) {
                                             Text(
@@ -332,9 +319,7 @@ fun NoteScreen(
                                             modifier = Modifier
                                                 .padding(end = 12.dp)
                                                 .size(16.dp)
-                                                .clickable {
-                                                    viewModel.updatePostText("")
-                                                },
+                                                .clickable { viewModel.updatePostText("") },
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
@@ -357,11 +342,15 @@ fun NoteScreen(
                                     modifier = Modifier.clickable {
                                         if (noteMediaDetail.isVideo) {
                                             navController.navigate(
-                                                Screen.VideoPreview.createLocalRoute(noteMediaDetail.videoUri.toString())
+                                                Screen.VideoPreview.createLocalRoute(
+                                                    noteMediaDetail.videoUri.toString()
+                                                )
                                             )
                                         } else {
                                             navController.navigate(
-                                                Screen.PhotoPreview.createLocalRoute(noteMediaDetail.photoUri.toString())
+                                                Screen.PhotoPreview.createLocalRoute(
+                                                    noteMediaDetail.photoUri.toString()
+                                                )
                                             )
                                         }
                                     }
@@ -373,9 +362,7 @@ fun NoteScreen(
                                             .maskClip(MaterialTheme.shapes.extraLarge),
                                         contentDescription = stringResource(R.string.cd_note_photo),
                                         contentScale = ContentScale.Crop,
-                                        onError = {
-                                            it.result.throwable.printStackTrace()
-                                        }
+                                        onError = { it.result.throwable.printStackTrace() }
                                     )
 
                                     if (noteMediaDetail.isVideo)
@@ -407,9 +394,7 @@ fun NoteScreen(
                                                     alpha = 0.7f
                                                 )
                                             )
-                                            .clickable {
-                                                viewModel.removeUriFromList(index)
-                                            }
+                                            .clickable { viewModel.removeUriFromList(index) }
                                             .padding(3.dp),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -432,17 +417,13 @@ fun NoteScreen(
                             Icon(
                                 painter = painterResource(R.drawable.photo_library),
                                 contentDescription = stringResource(R.string.cd_choose_photos),
-                                modifier = Modifier
-                                    .clickable(enabled = !isUploading) {
-                                        libraryLauncher.launch(
-                                            PickVisualMediaRequest(
-                                                PickVisualMedia.ImageAndVideo
-                                            )
-                                        )
-                                    },
-                                tint = if (isUploading) MaterialTheme.colorScheme.onSurface.copy(
-                                    alpha = 0.38f
-                                )
+                                modifier = Modifier.clickable(enabled = !isUploading) {
+                                    libraryLauncher.launch(
+                                        PickVisualMediaRequest(PickVisualMedia.ImageAndVideo)
+                                    )
+                                },
+                                tint = if (isUploading)
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                                 else MaterialTheme.colorScheme.onSurface
                             )
 
@@ -453,16 +434,15 @@ fun NoteScreen(
                                     .padding(start = 16.dp)
                                     .clickable(enabled = !isUploading) {
                                         if (hasCameraPermission) {
-                                            val uri = viewModel.createImageUri(context)
+                                            val uri = viewModel.createImageUri()
                                             viewModel.updatePhotoUri(uri)
                                             uri?.let { pictureLauncher.launch(it) }
                                         } else {
                                             photoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                                         }
                                     },
-                                tint = if (isUploading) MaterialTheme.colorScheme.onSurface.copy(
-                                    alpha = 0.38f
-                                )
+                                tint = if (isUploading)
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                                 else MaterialTheme.colorScheme.onSurface
                             )
 
@@ -473,30 +453,22 @@ fun NoteScreen(
                                     .padding(start = 16.dp)
                                     .clickable(enabled = !isUploading) {
                                         if (hasCameraPermission) {
-                                            val uri = viewModel.createVideoUri(context)
+                                            val uri = viewModel.createVideoUri()
                                             viewModel.updateVideoUri(uri)
                                             uri?.let { videoLauncher.launch(it) }
                                         } else {
                                             videoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                                         }
                                     },
-                                tint = if (isUploading) MaterialTheme.colorScheme.onSurface.copy(
-                                    alpha = 0.38f
-                                )
+                                tint = if (isUploading)
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                                 else MaterialTheme.colorScheme.onSurface
                             )
 
                             Spacer(modifier = Modifier.weight(1f))
 
                             TextButton(
-                                onClick = {
-                                    if (postTextError == null) {
-                                        viewModel.uploadPost(
-                                            text = postText.trim(),
-                                            mediaList = mediaList
-                                        )
-                                    }
-                                },
+                                onClick = { viewModel.uploadPost() },
                                 enabled = buttonEnabled
                             ) {
                                 Text(text = stringResource(R.string.post))
@@ -514,9 +486,7 @@ fun NoteScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(
-                        strokeWidth = 1.5.dp
-                    )
+                    CircularProgressIndicator(strokeWidth = 1.5.dp)
                 }
             }
         }

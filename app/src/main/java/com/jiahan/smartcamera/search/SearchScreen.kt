@@ -35,6 +35,7 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -51,7 +52,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.Screen
+import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.home.HomeItem
 import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_PLACEHOLDER_ROTATION_DELAY_MS
 import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_TRANSITION_DELAY_MS
@@ -89,7 +90,7 @@ fun SearchScreen(
             stringResource(R.string.look_up)
         )
     val placeholderList = remember { placeholderOptions }
-    val currentPlaceholderIndex by viewModel.currentPlaceholderIndex.collectAsStateWithLifecycle()
+    var currentPlaceholderIndex by remember { mutableIntStateOf(0) }
     val placeholder = placeholderList[currentPlaceholderIndex]
     var isTransitioning by remember { mutableStateOf(false) }
     val placeholderAlpha by animateFloatAsState(
@@ -121,7 +122,7 @@ fun SearchScreen(
                 delay(TEXT_FIELD_PLACEHOLDER_ROTATION_DELAY_MS)
                 isTransitioning = true
                 delay(TEXT_FIELD_TRANSITION_DELAY_MS)
-                viewModel.updateCurrentPlaceholderIndex((currentPlaceholderIndex + 1) % placeholderList.size)
+                currentPlaceholderIndex = (currentPlaceholderIndex + 1) % placeholderList.size
                 isTransitioning = false
                 delay(TEXT_FIELD_TRANSITION_DELAY_MS)
             }

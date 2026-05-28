@@ -56,7 +56,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.Screen
+import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.util.toFormattedDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)

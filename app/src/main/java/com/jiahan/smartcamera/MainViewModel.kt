@@ -4,8 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
-import com.jiahan.smartcamera.datastore.UserPreferencesRepository
-import com.jiahan.smartcamera.util.AppConstants.STATE_FLOW_TIMEOUT_MS
+import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
+import com.jiahan.smartcamera.navigation.Screen
+import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,7 +38,7 @@ class MainViewModel @Inject constructor(
         .map { it.isDarkTheme }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(STATE_FLOW_TIMEOUT_MS),
+            started = SharingStarted.WhileSubscribed(STATEFLOW_WHILE_SUBSCRIBED_MS),
             initialValue = false
         )
 

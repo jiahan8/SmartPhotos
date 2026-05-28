@@ -21,7 +21,8 @@ class FirebaseRemoteConfigRepository @Inject constructor(
 
     init {
         val configSettings = remoteConfigSettings {
-            minimumFetchIntervalInSeconds = REMOTE_CONFIG_FETCH_INTERVAL_SECONDS // for release mode
+            minimumFetchIntervalInSeconds =
+                REMOTE_CONFIG_FETCH_INTERVAL_SECONDS // applied unconditionally; Firebase itself overrides to 0 in debug/emulator environments
         }
 
         remoteConfig.setConfigSettingsAsync(configSettings)

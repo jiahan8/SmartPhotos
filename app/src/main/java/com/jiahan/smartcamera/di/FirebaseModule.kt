@@ -1,4 +1,4 @@
-package com.jiahan.smartcamera.data.di
+package com.jiahan.smartcamera.di
 
 import com.google.firebase.Firebase
 import com.google.firebase.analytics.FirebaseAnalytics

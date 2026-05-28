@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
@@ -42,9 +43,10 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PhotoPreviewScreen(
-    photoSource: PhotoSource,
-    navController: NavHostController
+    navController: NavHostController,
+    viewModel: PhotoPreviewViewModel = hiltViewModel()
 ) {
+    val photoSource = viewModel.photoSource ?: return
     Scaffold(
         topBar = {
             TopAppBar(

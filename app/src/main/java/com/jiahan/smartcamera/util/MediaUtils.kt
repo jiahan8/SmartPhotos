@@ -9,9 +9,18 @@ import com.jiahan.smartcamera.util.AppConstants.VIDEO_THUMBNAIL_DEFAULT_WIDTH
 import com.jiahan.smartcamera.util.AppConstants.VIDEO_THUMBNAIL_DIMENSION
 import com.jiahan.smartcamera.util.AppConstants.VIDEO_THUMBNAIL_TIME_MICROSECONDS
 
+/**
+ * Extracts a scaled thumbnail [Bitmap] from the video at [videoUri].
+ *
+ * The frame is taken at [VIDEO_THUMBNAIL_TIME_MICROSECONDS] and scaled so the
+ * longest edge equals [VIDEO_THUMBNAIL_DIMENSION], preserving aspect ratio.
+ *
+ * Any exception is propagated to the caller; wrap this call in [safeCall] when
+ * using from a repository.
+ */
 fun createVideoThumbnail(context: Context, videoUri: Uri): Bitmap? {
     val retriever = MediaMetadataRetriever()
-    return try {
+    try {
         retriever.setDataSource(context, videoUri)
 
         // Get video dimensions for better quality thumbnails
@@ -33,15 +42,12 @@ fun createVideoThumbnail(context: Context, videoUri: Uri): Bitmap? {
         val scaledHeight = (height * scaleFactor).toInt()
 
         // Get frame at specified time
-        retriever.getScaledFrameAtTime(
+        return retriever.getScaledFrameAtTime(
             VIDEO_THUMBNAIL_TIME_MICROSECONDS,
             MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
             scaledWidth,
             scaledHeight
         )
-    } catch (e: Exception) {
-        e.printStackTrace()
-        null
     } finally {
         retriever.release()
     }

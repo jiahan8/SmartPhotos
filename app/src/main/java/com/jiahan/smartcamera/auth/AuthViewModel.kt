@@ -6,7 +6,7 @@ import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
-import com.jiahan.smartcamera.datastore.UserPreferencesRepository
+import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ResourceProvider
 import com.jiahan.smartcamera.util.ValidationResult
@@ -80,6 +80,10 @@ class AuthViewModel @Inject constructor(
         _isLoginMode.value = !_isLoginMode.value
         clearFields()
         _authUiState.value = AuthUiState.Idle
+    }
+
+    fun submit() {
+        if (_isLoginMode.value) signIn() else signUp()
     }
 
     private fun clearFields() {

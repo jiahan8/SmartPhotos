@@ -22,8 +22,7 @@ object AppConstants {
     // Debounce delays
     const val DEBOUNCE_MS = 300L
 
-    // StateFlow
-    const val STATE_FLOW_TIMEOUT_MS = 5000L
+    // StateFlow — shared timeout for SharingStarted.WhileSubscribed
     const val STATEFLOW_WHILE_SUBSCRIBED_MS = 5000L
 
     // Remote Config

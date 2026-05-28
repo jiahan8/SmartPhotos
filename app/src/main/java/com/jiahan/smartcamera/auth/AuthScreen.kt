@@ -46,15 +46,14 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.jiahan.smartcamera.MainViewModel
 import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.Screen
+import com.jiahan.smartcamera.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthScreen(
     navController: NavController,
-    mainViewModel: MainViewModel,
+    onNavigateToHome: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val scrollState = rememberScrollState()
@@ -72,7 +71,7 @@ fun AuthScreen(
     LaunchedEffect(navigationEvent) {
         when (navigationEvent) {
             is AuthViewModel.NavigationEvent.NavigateToHome -> {
-                mainViewModel.updateStartDestination(Screen.Home.route)
+                onNavigateToHome()
                 navController.navigate(Screen.Home.route) {
                     popUpTo(0) { inclusive = true }
                 }
@@ -160,13 +159,7 @@ fun AuthScreen(
                         imeAction = ImeAction.Done
                     ),
                     keyboardActions = KeyboardActions(
-                        onDone = {
-                            if (isLoginMode) {
-                                viewModel.signIn()
-                            } else {
-                                viewModel.signUp()
-                            }
-                        }
+                        onDone = { viewModel.submit() }
                     ),
                     leadingIcon = { Icon(Icons.Rounded.Lock, contentDescription = null) },
                     trailingIcon = {
@@ -212,13 +205,7 @@ fun AuthScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Button(
-                    onClick = {
-                        if (isLoginMode) {
-                            viewModel.signIn()
-                        } else {
-                            viewModel.signUp()
-                        }
-                    },
+                    onClick = { viewModel.submit() },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp),

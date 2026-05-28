@@ -3,7 +3,7 @@ package com.jiahan.smartcamera.data.repository
 import android.net.Uri
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
-import com.jiahan.smartcamera.domain.NoteMediaDetail
+import com.jiahan.smartcamera.note.NoteMediaDetail
 import kotlinx.coroutines.flow.Flow
 
 /**

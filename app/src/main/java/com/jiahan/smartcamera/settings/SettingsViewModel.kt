@@ -3,7 +3,7 @@ package com.jiahan.smartcamera.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.data.repository.AuthRepository
-import com.jiahan.smartcamera.datastore.UserPreferencesRepository
+import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.util.AppConstants.AUTH_ACTION_DELAY_MS
 import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
@@ -31,6 +31,7 @@ sealed class DialogState {
 
 sealed class NavigationEvent {
     object NavigateToAuth : NavigationEvent()
+    object OpenLanguageSettings : NavigationEvent()
 }
 
 @HiltViewModel
@@ -108,6 +109,10 @@ class SettingsViewModel @Inject constructor(
 
     fun navigationEventConsumed() {
         _navigationEvent.value = null
+    }
+
+    fun openLanguageSettings() {
+        _navigationEvent.value = NavigationEvent.OpenLanguageSettings
     }
 
     fun resetActionError() {

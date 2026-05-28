@@ -42,8 +42,6 @@ class SearchViewModel @Inject constructor(
     val isRefreshing = _isRefreshing.asStateFlow()
     private val _noteToDelete = MutableStateFlow<HomeNote?>(null)
     val noteToDelete = _noteToDelete.asStateFlow()
-    private val _currentPlaceholderIndex = MutableStateFlow(0)
-    val currentPlaceholderIndex = _currentPlaceholderIndex.asStateFlow()
     private val _actionError = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val actionError = _actionError.asSharedFlow()
 
@@ -133,9 +131,6 @@ class SearchViewModel @Inject constructor(
         _noteToDelete.value = note
     }
 
-    fun updateCurrentPlaceholderIndex(index: Int) {
-        _currentPlaceholderIndex.value = index
-    }
 
     private fun updateSuccessNotes(transform: (List<HomeNote>) -> List<HomeNote>) {
         val current = _uiState.value as? SearchUiState.Success ?: return

@@ -7,6 +7,7 @@ import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.util.AppConstants.DEBOUNCE_MS
+import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
@@ -47,7 +48,7 @@ class FavoriteViewModel @Inject constructor(
         .flatMapLatest { query -> noteRepository.getFavoriteNotesStream(query) }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
+            started = SharingStarted.WhileSubscribed(STATEFLOW_WHILE_SUBSCRIBED_MS),
             initialValue = emptyList(),
         )
 
@@ -55,7 +56,7 @@ class FavoriteViewModel @Inject constructor(
         syncing && notesList.isEmpty()
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
+        started = SharingStarted.WhileSubscribed(STATEFLOW_WHILE_SUBSCRIBED_MS),
         initialValue = true,
     )
 

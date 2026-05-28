@@ -1,4 +1,4 @@
-package com.jiahan.smartcamera.data.di
+package com.jiahan.smartcamera.di
 
 import com.jiahan.smartcamera.note.NoteHandler
 import dagger.Module

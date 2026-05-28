@@ -1,4 +1,4 @@
-package com.jiahan.smartcamera.datastore
+package com.jiahan.smartcamera.data.datastore
 
 import kotlinx.coroutines.flow.Flow
 

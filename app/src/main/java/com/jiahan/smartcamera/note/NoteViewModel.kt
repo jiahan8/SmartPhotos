@@ -6,12 +6,11 @@ import androidx.core.content.FileProvider.getUriForFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.data.datastore.UserPreferences
+import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
-import com.jiahan.smartcamera.datastore.UserPreferencesRepository
-import com.jiahan.smartcamera.datastore.UserPreferences
 import com.jiahan.smartcamera.domain.HomeNote
-import com.jiahan.smartcamera.domain.NoteMediaDetail
 import com.jiahan.smartcamera.util.AppConstants.MAX_POST_TEXT_LENGTH
 import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
@@ -22,6 +21,7 @@ import com.jiahan.smartcamera.util.FileConstants.PREFIX_PHOTO
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_VIDEO
 import com.jiahan.smartcamera.util.ResourceProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -47,7 +47,8 @@ class NoteViewModel @Inject constructor(
     private val analyticsRepository: AnalyticsRepository,
     private val noteHandler: NoteHandler,
     private val resourceProvider: ResourceProvider,
-    private val errorHandler: ErrorHandler
+    private val errorHandler: ErrorHandler,
+    @param:ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uploadUiState = MutableStateFlow<UploadUiState>(UploadUiState.Idle)
@@ -67,9 +68,6 @@ class NoteViewModel @Inject constructor(
     val videoUri = _videoUri.asStateFlow()
     private val _mediaList = MutableStateFlow<List<NoteMediaDetail>>(emptyList())
     val mediaList = _mediaList.asStateFlow()
-
-    private val _currentPlaceholderIndex = MutableStateFlow(0)
-    val currentPlaceholderIndex = _currentPlaceholderIndex.asStateFlow()
 
     private val userPreferences = userPreferencesRepository.userPreferencesFlow
         .distinctUntilChanged()
@@ -106,10 +104,12 @@ class NoteViewModel @Inject constructor(
         }
     }
 
-    fun uploadPost(text: String, mediaList: List<NoteMediaDetail>) {
+    fun uploadPost() {
+        val text = _postText.value.trim()
+        val media = _mediaList.value
         viewModelScope.launch {
             _uploadUiState.value = UploadUiState.Uploading
-            noteRepository.uploadMediaToFirebase(mediaList)
+            noteRepository.uploadMediaToFirebase(media)
                 .onSuccess { mediaDetailList ->
                     noteRepository.addNote(
                         HomeNote(
@@ -140,7 +140,7 @@ class NoteViewModel @Inject constructor(
         _uploadUiState.value = UploadUiState.Idle
     }
 
-    fun createImageUri(context: Context): Uri? {
+    fun createImageUri(): Uri? {
         val timeStamp = System.currentTimeMillis()
         val storageDir = context.cacheDir
         val imageFile = File.createTempFile(
@@ -151,7 +151,7 @@ class NoteViewModel @Inject constructor(
         return getUriForFile(context, FILE_PROVIDER_AUTHORITY, imageFile)
     }
 
-    fun createVideoUri(context: Context): Uri? {
+    fun createVideoUri(): Uri? {
         val timeStamp = System.currentTimeMillis()
         val storageDir = context.cacheDir
         val videoFile = File.createTempFile(
@@ -160,6 +160,16 @@ class NoteViewModel @Inject constructor(
             storageDir
         )
         return getUriForFile(context, FILE_PROVIDER_AUTHORITY, videoFile)
+    }
+
+    fun cancelPhotoCapture(uri: Uri) {
+        context.contentResolver.delete(uri, null, null)
+        _photoUri.value = null
+    }
+
+    fun cancelVideoCapture(uri: Uri) {
+        context.contentResolver.delete(uri, null, null)
+        _videoUri.value = null
     }
 
     fun updatePostText(text: String) {
@@ -201,9 +211,5 @@ class NoteViewModel @Inject constructor(
 
     fun updateErrorSnackBar(isError: Boolean) {
         _isErrorSnackBar.value = isError
-    }
-
-    fun updateCurrentPlaceholderIndex(index: Int) {
-        _currentPlaceholderIndex.value = index
     }
 }

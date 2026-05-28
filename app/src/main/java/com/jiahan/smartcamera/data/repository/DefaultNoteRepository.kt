@@ -19,14 +19,14 @@ import com.jiahan.smartcamera.domain.DetectedLabel
 import com.jiahan.smartcamera.domain.DetectedObject
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
-import com.jiahan.smartcamera.domain.NoteMediaDetail
+import com.jiahan.smartcamera.note.NoteMediaDetail
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_MP4
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_THUMBNAIL
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.createVideoThumbnail
 import com.jiahan.smartcamera.util.safeCall
-import com.jiahan.smartcamera.data.di.ApplicationScope
+import com.jiahan.smartcamera.di.ApplicationScope
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

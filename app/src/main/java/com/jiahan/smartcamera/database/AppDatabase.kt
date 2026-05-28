@@ -27,7 +27,7 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
 
-        // For Singleton instantiation
+        // Manually guarded singleton — Hilt's @Singleton in DatabaseModule delegates here
         @Volatile
         private var instance: AppDatabase? = null
 
@@ -37,7 +37,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        // Create and pre-populate the database
+        // Create the database
         private fun buildDatabase(context: Context): AppDatabase {
             return Room.databaseBuilder(context, AppDatabase::class.java, DATABASE_NAME).build()
         }
