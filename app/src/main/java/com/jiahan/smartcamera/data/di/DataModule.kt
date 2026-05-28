@@ -1,13 +1,17 @@
 package com.jiahan.smartcamera.data.di
 
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
+import com.jiahan.smartcamera.data.repository.AuthRepository
+import com.jiahan.smartcamera.data.repository.DefaultAuthRepository
 import com.jiahan.smartcamera.data.repository.DefaultNoteRepository
+import com.jiahan.smartcamera.data.repository.DefaultUserRepository
 import com.jiahan.smartcamera.data.repository.FirebaseAnalyticsRepository
 import com.jiahan.smartcamera.data.repository.FirebaseRemoteConfigRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
-import com.jiahan.smartcamera.datastore.DefaultProfileRepository
-import com.jiahan.smartcamera.datastore.ProfileRepository
+import com.jiahan.smartcamera.data.repository.UserRepository
+import com.jiahan.smartcamera.datastore.DefaultUserPreferencesRepository
+import com.jiahan.smartcamera.datastore.UserPreferencesRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -38,7 +42,19 @@ abstract class DataModule {
 
     @Binds
     @Singleton
-    abstract fun bindProfileRepository(
-        defaultProfileRepository: DefaultProfileRepository
-    ): ProfileRepository
+    abstract fun bindAuthRepository(
+        defaultAuthRepository: DefaultAuthRepository
+    ): AuthRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindUserRepository(
+        defaultUserRepository: DefaultUserRepository
+    ): UserRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindUserPreferencesRepository(
+        defaultUserPreferencesRepository: DefaultUserPreferencesRepository
+    ): UserPreferencesRepository
 }

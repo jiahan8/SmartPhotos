@@ -2,8 +2,9 @@ package com.jiahan.smartcamera
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
-import com.jiahan.smartcamera.datastore.ProfileRepository
+import com.jiahan.smartcamera.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.util.AppConstants.STATE_FLOW_TIMEOUT_MS
 import com.jiahan.smartcamera.util.ErrorHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,7 +20,8 @@ import javax.inject.Inject
 class MainViewModel @Inject constructor(
     private val remoteConfigRepository: RemoteConfigRepository,
     private val errorHandler: ErrorHandler,
-    profileRepository: ProfileRepository
+    private val authRepository: AuthRepository,
+    userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
 
     private val _isAppReady = MutableStateFlow(false)
@@ -31,7 +33,7 @@ class MainViewModel @Inject constructor(
     private val _scrollToTop = MutableStateFlow<Long?>(null)
     val scrollToTop = _scrollToTop.asStateFlow()
 
-    val isDarkTheme = profileRepository.userPreferencesFlow
+    val isDarkTheme = userPreferencesRepository.userPreferencesFlow
         .map { it.isDarkTheme }
         .stateIn(
             scope = viewModelScope,
@@ -44,7 +46,7 @@ class MainViewModel @Inject constructor(
             remoteConfigRepository.fetchAndActivateConfig()
                 .onFailure { e -> errorHandler.logError(e) }
             _startDestination.value =
-                if (profileRepository.firebaseUser != null && profileRepository.firebaseUser?.isEmailVerified == true)
+                if (authRepository.currentUserId != null && authRepository.isCurrentUserEmailVerified)
                     Screen.Home.route
                 else
                     Screen.Auth.route

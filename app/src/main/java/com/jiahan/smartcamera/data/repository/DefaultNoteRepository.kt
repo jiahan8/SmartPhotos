@@ -9,12 +9,12 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.storage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.database.dao.NoteDao
 import com.jiahan.smartcamera.database.data.toDatabaseNote
 import com.jiahan.smartcamera.database.data.toHomeNote
-import com.jiahan.smartcamera.datastore.ProfileRepository
 import com.jiahan.smartcamera.domain.DetectedLabel
 import com.jiahan.smartcamera.domain.DetectedObject
 import com.jiahan.smartcamera.domain.HomeNote
@@ -36,15 +36,20 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
-import java.io.ByteArrayOutputStream
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 class DefaultNoteRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val remoteConfigRepository: RemoteConfigRepository,
-    private val profileRepository: ProfileRepository,
+    private val authRepository: AuthRepository,
     private val firestore: FirebaseFirestore,
     private val noteDao: NoteDao,
     private val errorHandler: ErrorHandler,
@@ -80,15 +85,34 @@ class DefaultNoteRepository @Inject constructor(
         private const val FIELD_SCORE = "score"
     }
 
-    private val pageToLastVisibleDocument = mutableMapOf<Int, DocumentSnapshot>()
+    private val storage: FirebaseStorage by lazy {
+        Firebase.storage(remoteConfigRepository.getStorageUrl())
+    }
+    private val storageFolder: String by lazy { remoteConfigRepository.getStorageFolderName() }
+    private val cacheStorageFolder: String by lazy { remoteConfigRepository.getStorageCacheFolderName() }
+
+    private val paginationMutex = Mutex()
+    private val pageToLastVisibleDocument = ConcurrentHashMap<Int, DocumentSnapshot>()
+
+    @Volatile
+    private var lastKnownUserId: String? = null
+
     private val noteCollectionReference: CollectionReference?
-        get() = profileRepository.firebaseUser?.uid?.let { id ->
+        get() = authRepository.currentUserId?.let { id ->
             firestore.collection(COLLECTION_USER)
                 .document(id)
                 .collection(COLLECTION_NOTE)
         }
 
     override suspend fun getNotes(page: Int, pageSize: Int): Result<List<HomeNote>> = safeCall {
+        val currentUserId = authRepository.currentUserId
+        paginationMutex.withLock {
+            if (currentUserId != lastKnownUserId) {
+                pageToLastVisibleDocument.clear()
+                lastKnownUserId = currentUserId
+            }
+        }
+
         noteCollectionReference?.let { ref ->
             val baseQuery = ref
                 .orderBy(FIELD_CREATED, Query.Direction.DESCENDING)
@@ -96,17 +120,13 @@ class DefaultNoteRepository @Inject constructor(
 
             val snapshot = if (page == 0) {
                 // First page - reset pagination state
-                pageToLastVisibleDocument.clear()
+                paginationMutex.withLock { pageToLastVisibleDocument.clear() }
                 baseQuery.get().await()
             } else {
-                // Get the last document from the previous page
                 val lastVisibleDoc = pageToLastVisibleDocument[page - 1]
-
                 if (lastVisibleDoc != null) {
-                    // Use startAfter with the last document from previous page
                     baseQuery.startAfter(lastVisibleDoc).get().await()
                 } else {
-                    // Fallback if we somehow don't have the previous page document
                     baseQuery.get().await()
                 }
             }
@@ -126,7 +146,7 @@ class DefaultNoteRepository @Inject constructor(
     }
 
     override suspend fun addNote(homeNote: HomeNote): Result<Unit> = safeCall {
-        val userId = profileRepository.firebaseUser?.uid
+        val userId = authRepository.currentUserId
             ?: throw IllegalStateException("User is not authenticated")
         noteCollectionReference?.add(
             hashMapOf(
@@ -165,7 +185,7 @@ class DefaultNoteRepository @Inject constructor(
     override suspend fun favoriteNote(homeNote: HomeNote): Result<Unit> = safeCall {
         val newFavoriteStatus = homeNote.favorite.not()
         noteCollectionReference?.document(homeNote.documentPath)
-            ?.update(FIELD_FAVORITE, newFavoriteStatus)
+            ?.update(FIELD_FAVORITE, newFavoriteStatus)?.await()
         if (newFavoriteStatus) {
             noteDao.upsertNotes(listOf(homeNote.copy(favorite = true).toDatabaseNote()))
         } else {
@@ -173,24 +193,6 @@ class DefaultNoteRepository @Inject constructor(
         }
     }
 
-    override suspend fun searchFavoriteNotes(query: String): Result<List<HomeNote>> = safeCall {
-        noteCollectionReference?.let { ref ->
-            val snapshot = ref
-                .whereEqualTo(FIELD_FAVORITE, true)
-                .orderBy(FIELD_CREATED, Query.Direction.DESCENDING)
-                .get()
-                .await()
-            val userIds = snapshot.documents.mapNotNull { it.getString(FIELD_USER_ID) }.distinct()
-            val userDocumentsMap = getUserDocumentsInBatch(userIds)
-            snapshot.documents
-                .filter { document -> matchesSearchQuery(document, query) }
-                .map { document ->
-                    val userId = document.getString(FIELD_USER_ID) as String
-                    userDocumentsMap[userId]?.let { getHomeNote(document, it) }
-                        ?: HomeNote(documentPath = "", username = "")
-                }
-        } ?: emptyList()
-    }
 
     override suspend fun getNote(documentPath: String): Result<HomeNote> = safeCall {
         noteCollectionReference?.let { ref ->
@@ -204,8 +206,6 @@ class DefaultNoteRepository @Inject constructor(
     override suspend fun uploadMediaToFirebase(
         noteMediaDetailList: List<NoteMediaDetail>
     ): Result<List<MediaDetail>> = safeCall {
-        val storage = Firebase.storage(remoteConfigRepository.getStorageUrl())
-        val storageFolder = remoteConfigRepository.getStorageFolderName()
         coroutineScope {
             noteMediaDetailList.map { noteMediaDetail ->
                 async(Dispatchers.IO) {
@@ -224,16 +224,11 @@ class DefaultNoteRepository @Inject constructor(
                         storageRef.putFile(mediaUri).await()
                         val mediaUrl = storageRef.downloadUrl.await().toString()
 
-                        val thumbnailUrl = noteMediaDetail.thumbnailBitmap?.let {
+                        val thumbnailUrl = noteMediaDetail.thumbnailUri?.let { thumbUri ->
                             val thumbnailId = PREFIX_THUMBNAIL + UUID.randomUUID().toString()
                             val thumbnailRef =
                                 storage.reference.child("$storageFolder/$thumbnailId$EXTENSION_JPG")
-
-                            ByteArrayOutputStream().use { baos ->
-                                it.compress(Bitmap.CompressFormat.JPEG, 90, baos)
-                                thumbnailRef.putBytes(baos.toByteArray()).await()
-                            }
-
+                            thumbnailRef.putFile(thumbUri).await()
                             thumbnailRef.downloadUrl.await().toString()
                         }
 
@@ -256,25 +251,42 @@ class DefaultNoteRepository @Inject constructor(
 
     override suspend fun buildLocalMediaDetails(uriList: List<Uri>): Result<List<NoteMediaDetail>> =
         safeCall {
-            uriList.mapNotNull { uri ->
-                safeCall {
-                    val isVideo =
-                        context.contentResolver.getType(uri)?.startsWith("video/") == true
-                    val bitmap = if (isVideo) createVideoThumbnail(context, uri) else null
-                    NoteMediaDetail(
-                        photoUri = if (!isVideo) uri else null,
-                        videoUri = if (isVideo) uri else null,
-                        thumbnailBitmap = if (isVideo) bitmap else null,
-                        isVideo = isVideo
-                    )
-                }.onFailure { e -> errorHandler.logError(e) }.getOrNull()
+            withContext(Dispatchers.IO) {
+                uriList.mapNotNull { uri ->
+                    safeCall {
+                        val isVideo =
+                            context.contentResolver.getType(uri)?.startsWith("video/") == true
+                        val thumbnailUri = if (isVideo) {
+                            createVideoThumbnail(context, uri)?.let { saveBitmapAsTempFile(it) }
+                        } else null
+                        NoteMediaDetail(
+                            photoUri = if (!isVideo) uri else null,
+                            videoUri = if (isVideo) uri else null,
+                            thumbnailUri = thumbnailUri,
+                            isVideo = isVideo
+                        )
+                    }.onFailure { e -> errorHandler.logError(e) }.getOrNull()
+                }
             }
         }
 
+    private fun saveBitmapAsTempFile(bitmap: Bitmap): Uri? {
+        return try {
+            val file = File.createTempFile("thumbnail_", ".jpg", context.cacheDir)
+            FileOutputStream(file).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
+            }
+            Uri.fromFile(file)
+        } catch (e: Exception) {
+            errorHandler.logError(e)
+            null
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
     /** Fire-and-forget — no Result returned; errors logged internally. */
     override suspend fun quickUploadMediaToFirebase(uriList: List<Uri>) {
-        val storage = Firebase.storage(remoteConfigRepository.getStorageUrl())
-        val cacheStorageFolder = remoteConfigRepository.getStorageCacheFolderName()
         uriList.forEach { uri ->
             applicationScope.launch(Dispatchers.IO) {
                 safeCall {
@@ -354,7 +366,7 @@ class DefaultNoteRepository @Inject constructor(
         userDocumentSnapshot: DocumentSnapshot
     ) = HomeNote(
         text = noteDocumentSnapshot.getString(FIELD_TEXT),
-        createdDate = noteDocumentSnapshot.getDate(FIELD_CREATED),
+        createdDate = noteDocumentSnapshot.getDate(FIELD_CREATED)?.toInstant(),
         documentPath = noteDocumentSnapshot.id,
         favorite = noteDocumentSnapshot.getBoolean(FIELD_FAVORITE) == true,
         mediaList = (noteDocumentSnapshot.get(FIELD_MEDIA_LIST) as? List<*>)?.mapNotNull { item ->

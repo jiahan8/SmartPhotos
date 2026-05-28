@@ -367,7 +367,7 @@ fun NoteScreen(
                                     }
                                 ) {
                                     AsyncImage(
-                                        model = if (noteMediaDetail.isVideo) noteMediaDetail.thumbnailBitmap else noteMediaDetail.photoUri,
+                                        model = if (noteMediaDetail.isVideo) noteMediaDetail.thumbnailUri else noteMediaDetail.photoUri,
                                         modifier = Modifier
                                             .height(212.dp)
                                             .maskClip(MaterialTheme.shapes.extraLarge),

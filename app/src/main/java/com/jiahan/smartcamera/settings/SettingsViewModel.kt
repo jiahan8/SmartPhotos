@@ -2,7 +2,8 @@ package com.jiahan.smartcamera.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jiahan.smartcamera.datastore.ProfileRepository
+import com.jiahan.smartcamera.data.repository.AuthRepository
+import com.jiahan.smartcamera.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.util.AppConstants.AUTH_ACTION_DELAY_MS
 import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
@@ -34,7 +35,8 @@ sealed class NavigationEvent {
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val profileRepository: ProfileRepository,
+    private val authRepository: AuthRepository,
+    private val userPreferencesRepository: UserPreferencesRepository,
     private val errorHandler: ErrorHandler
 ) : ViewModel() {
 
@@ -45,7 +47,7 @@ class SettingsViewModel @Inject constructor(
     private val _dialogState = MutableStateFlow<DialogState>(DialogState.None)
     val dialogState = _dialogState.asStateFlow()
 
-    val isDarkTheme = profileRepository.userPreferencesFlow
+    val isDarkTheme = userPreferencesRepository.userPreferencesFlow
         .map { it.isDarkTheme }
         .stateIn(
             scope = viewModelScope,
@@ -55,7 +57,7 @@ class SettingsViewModel @Inject constructor(
 
     fun updateDarkThemeVisibility(showDarkTheme: Boolean) {
         viewModelScope.launch {
-            profileRepository.updateDarkThemeVisibility(showDarkTheme)
+            userPreferencesRepository.updateDarkThemeVisibility(showDarkTheme)
                 .onFailure { e -> errorHandler.logError(e) }
         }
     }
@@ -63,7 +65,7 @@ class SettingsViewModel @Inject constructor(
     fun signOut() {
         viewModelScope.launch {
             _uiState.value = SettingsUiState.Loading
-            val result = profileRepository.signOut()
+            val result = authRepository.signOut()
             result.onFailure { e ->
                 errorHandler.logError(e)
                 _uiState.value = SettingsUiState.Error(errorHandler.getErrorMessage(e))
@@ -79,7 +81,7 @@ class SettingsViewModel @Inject constructor(
     fun deleteAccount() {
         viewModelScope.launch {
             _uiState.value = SettingsUiState.Loading
-            val result = profileRepository.deleteAccount()
+            val result = authRepository.deleteAccount()
             result.onFailure { e ->
                 errorHandler.logError(e)
                 _uiState.value = SettingsUiState.Error(errorHandler.getErrorMessage(e))

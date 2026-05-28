@@ -309,7 +309,7 @@ fun HomeItem(
     val surfaceVariantColor = MaterialTheme.colorScheme.surfaceVariant
 
     val formattedDate = remember(note.createdDate) {
-        note.createdDate?.time?.toFormattedDateTime() ?: ""
+        note.createdDate?.toEpochMilli()?.toFormattedDateTime() ?: ""
     }
 
     Column(

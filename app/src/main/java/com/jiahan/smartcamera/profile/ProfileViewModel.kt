@@ -6,7 +6,9 @@ import androidx.core.content.FileProvider.getUriForFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.datastore.ProfileRepository
+import com.jiahan.smartcamera.data.repository.AuthRepository
+import com.jiahan.smartcamera.data.repository.UserRepository
+import com.jiahan.smartcamera.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.AppConstants.MAX_DISPLAY_NAME_LENGTH
 import com.jiahan.smartcamera.util.AppConstants.MAX_USERNAME_LENGTH
@@ -25,7 +27,9 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val profileRepository: ProfileRepository,
+    private val userRepository: UserRepository,
+    private val authRepository: AuthRepository,
+    private val userPreferencesRepository: UserPreferencesRepository,
     private val resourceProvider: ResourceProvider,
     private val errorHandler: ErrorHandler
 ) : ViewModel() {
@@ -75,14 +79,14 @@ class ProfileViewModel @Inject constructor(
 
     private fun loadUserProfile() {
         viewModelScope.launch {
-            profileRepository.getUser()
+            userRepository.getUser()
                 .onSuccess { user ->
                     _user.value = user
                     _email.value = user?.email ?: ""
                     _displayName.value = user?.displayName ?: ""
                     _username.value = user?.username ?: ""
                     _profilePictureUrl.value = user?.profilePicture
-                    profileRepository.updateLocalUserProfile(
+                    userPreferencesRepository.updateLocalUserProfile(
                         username = user?.username ?: "",
                         profilePictureUrl = user?.profilePicture
                     )
@@ -97,10 +101,7 @@ class ProfileViewModel @Inject constructor(
     fun updateDisplayNameText(text: String) {
         _displayName.value = text
         _displayNameErrorMessage.value = when (val result = validateDisplayName(text.trim())) {
-            is ValidationResult.Error -> {
-                resourceProvider.getString(result.messageResId)
-            }
-
+            is ValidationResult.Error -> resourceProvider.getString(result.messageResId)
             else -> null
         }
         checkFormChanges()
@@ -109,10 +110,7 @@ class ProfileViewModel @Inject constructor(
     fun updateUsernameText(text: String) {
         _username.value = text
         _usernameErrorMessage.value = when (val result = validateUsername(text.trim())) {
-            is ValidationResult.Error -> {
-                resourceProvider.getString(result.messageResId)
-            }
-
+            is ValidationResult.Error -> resourceProvider.getString(result.messageResId)
             else -> null
         }
         checkFormChanges()
@@ -142,7 +140,7 @@ class ProfileViewModel @Inject constructor(
             _isLoading.value = true
 
             if (trimmedUsername != _user.value?.username) {
-                val available = profileRepository.isUsernameAvailable(trimmedUsername)
+                val available = authRepository.isUsernameAvailable(trimmedUsername)
                     .getOrElse { e ->
                         errorHandler.logError(e)
                         _errorMessage.value = errorHandler.getErrorMessage(e)
@@ -159,7 +157,7 @@ class ProfileViewModel @Inject constructor(
                 }
             }
 
-            profileRepository.updateUserProfile(
+            userRepository.updateUserProfile(
                 displayName = trimmedDisplayName,
                 username = trimmedUsername,
                 profilePictureUri = null,
@@ -182,10 +180,7 @@ class ProfileViewModel @Inject constructor(
     private fun validateUsername(username: String): ValidationResult {
         return when {
             username.isBlank() -> ValidationResult.Error(R.string.username_empty)
-
-            username.length > MAX_USERNAME_LENGTH ->
-                ValidationResult.Error(R.string.username_too_long)
-
+            username.length > MAX_USERNAME_LENGTH -> ValidationResult.Error(R.string.username_too_long)
             !username.matches(Regex("^[a-zA-Z0-9._]+$")) ->
                 ValidationResult.Error(R.string.username_invalid_characters)
 
@@ -196,10 +191,7 @@ class ProfileViewModel @Inject constructor(
     private fun validateDisplayName(displayName: String): ValidationResult {
         return when {
             displayName.isBlank() -> ValidationResult.Error(R.string.name_empty)
-
-            displayName.length > MAX_DISPLAY_NAME_LENGTH ->
-                ValidationResult.Error(R.string.name_too_long)
-
+            displayName.length > MAX_DISPLAY_NAME_LENGTH -> ValidationResult.Error(R.string.name_too_long)
             else -> ValidationResult.Success
         }
     }
@@ -208,9 +200,9 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             _isUploading.value = true
             _showBottomSheet.value = false
-            profileRepository.uploadMediaToFirebase(profilePictureUri)
+            userRepository.uploadProfilePicture(profilePictureUri)
                 .onSuccess { profilePictureUrl ->
-                    profileRepository.updateUserProfile(
+                    userRepository.updateUserProfile(
                         displayName = null,
                         username = null,
                         profilePictureUri = profilePictureUri,
@@ -238,7 +230,7 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             _isUploading.value = true
             _showBottomSheet.value = false
-            profileRepository.updateUserProfile(
+            userRepository.updateUserProfile(
                 displayName = null,
                 username = null,
                 profilePictureUri = null,
@@ -259,17 +251,8 @@ class ProfileViewModel @Inject constructor(
     fun createImageUri(context: Context): Uri? {
         val timeStamp = System.currentTimeMillis()
         val storageDir = context.cacheDir
-        val imageFile = File.createTempFile(
-            "$PREFIX_PHOTO${timeStamp}",
-            EXTENSION_JPG,
-            storageDir
-        )
-
-        return getUriForFile(
-            context,
-            FILE_PROVIDER_AUTHORITY,
-            imageFile
-        )
+        val imageFile = File.createTempFile("$PREFIX_PHOTO${timeStamp}", EXTENSION_JPG, storageDir)
+        return getUriForFile(context, FILE_PROVIDER_AUTHORITY, imageFile)
     }
 
     fun updatePhotoUri(uri: Uri?) {

@@ -8,7 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
-import com.jiahan.smartcamera.datastore.ProfileRepository
+import com.jiahan.smartcamera.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.datastore.UserPreferences
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.NoteMediaDetail
@@ -43,7 +43,7 @@ sealed interface UploadUiState {
 @HiltViewModel
 class NoteViewModel @Inject constructor(
     private val noteRepository: NoteRepository,
-    profileRepository: ProfileRepository,
+    userPreferencesRepository: UserPreferencesRepository,
     private val analyticsRepository: AnalyticsRepository,
     private val noteHandler: NoteHandler,
     private val resourceProvider: ResourceProvider,
@@ -71,7 +71,7 @@ class NoteViewModel @Inject constructor(
     private val _currentPlaceholderIndex = MutableStateFlow(0)
     val currentPlaceholderIndex = _currentPlaceholderIndex.asStateFlow()
 
-    private val userPreferences = profileRepository.userPreferencesFlow
+    private val userPreferences = userPreferencesRepository.userPreferencesFlow
         .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
@@ -205,14 +205,5 @@ class NoteViewModel @Inject constructor(
 
     fun updateCurrentPlaceholderIndex(index: Int) {
         _currentPlaceholderIndex.value = index
-    }
-
-
-    override fun onCleared() {
-        super.onCleared()
-        // Recycle any video thumbnail bitmaps to prevent memory leaks
-        _mediaList.value
-            .mapNotNull { it.thumbnailBitmap }
-            .forEach { it.recycle() }
     }
 }

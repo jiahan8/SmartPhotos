@@ -1,15 +1,14 @@
 package com.jiahan.smartcamera.domain
 
-import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize
-import java.util.Date
+import java.time.Instant
 
 @Parcelize
 data class HomeNote(
     val text: String? = null,
-    val createdDate: Date? = null,
+    val createdDate: Instant? = null,
     val documentPath: String,
     val favorite: Boolean = false,
     val mediaList: List<MediaDetail>? = null,
@@ -44,6 +43,6 @@ data class DetectedLabel(
 data class NoteMediaDetail(
     val photoUri: Uri? = null,
     val videoUri: Uri? = null,
-    val thumbnailBitmap: Bitmap? = null,
+    val thumbnailUri: Uri? = null,
     val isVideo: Boolean = false
 ) : Parcelable

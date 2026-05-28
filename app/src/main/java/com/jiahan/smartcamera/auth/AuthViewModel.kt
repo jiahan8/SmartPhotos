@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
-import com.jiahan.smartcamera.datastore.ProfileRepository
+import com.jiahan.smartcamera.data.repository.AuthRepository
+import com.jiahan.smartcamera.data.repository.UserRepository
+import com.jiahan.smartcamera.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ResourceProvider
 import com.jiahan.smartcamera.util.ValidationResult
@@ -25,7 +27,9 @@ sealed interface AuthUiState {
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val profileRepository: ProfileRepository,
+    private val authRepository: AuthRepository,
+    private val userRepository: UserRepository,
+    private val userPreferencesRepository: UserPreferencesRepository,
     private val analyticsRepository: AnalyticsRepository,
     private val resourceProvider: ResourceProvider,
     private val errorHandler: ErrorHandler
@@ -97,21 +101,19 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _authUiState.value = AuthUiState.Loading
 
-            profileRepository.signIn(trimmedEmail, password.value)
+            authRepository.signIn(trimmedEmail, password.value)
                 .onSuccess {
-                    profileRepository.isEmailVerified()
+                    authRepository.checkEmailVerified()
                         .onSuccess { verified ->
                             if (verified) {
-                                profileRepository.getUser()
+                                userRepository.getUser()
                                     .onSuccess { user ->
-                                        profileRepository.updateLocalUserProfile(
+                                        userPreferencesRepository.updateLocalUserProfile(
                                             username = user?.username ?: "",
                                             profilePictureUrl = user?.profilePicture,
                                         )
                                     }
-                                    .onFailure { e ->
-                                        errorHandler.logError(e)
-                                    }
+                                    .onFailure { e -> errorHandler.logError(e) }
                                 _navigationEvent.value = NavigationEvent.NavigateToHome
                                 _authUiState.value = AuthUiState.Idle
                             } else {
@@ -128,9 +130,8 @@ class AuthViewModel @Inject constructor(
                 }
                 .onFailure { e ->
                     errorHandler.logError(e)
-                    _authUiState.value = AuthUiState.Error(
-                        message = errorHandler.getErrorMessage(e)
-                    )
+                    _authUiState.value =
+                        AuthUiState.Error(message = errorHandler.getErrorMessage(e))
                 }
         }
     }
@@ -172,7 +173,7 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _authUiState.value = AuthUiState.Loading
 
-            profileRepository.isUsernameAvailable(trimmedUsername)
+            authRepository.isUsernameAvailable(trimmedUsername)
                 .onSuccess { available ->
                     if (!available) {
                         _authUiState.value = AuthUiState.Error(
@@ -180,9 +181,9 @@ class AuthViewModel @Inject constructor(
                         )
                         return@onSuccess
                     }
-                    profileRepository.signUp(
+                    authRepository.signUp(
                         email = trimmedEmail,
-                        metadata = password.value,
+                        password = password.value,
                         displayName = trimmedDisplayName,
                         username = trimmedUsername
                     ).onSuccess {
@@ -216,7 +217,7 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _authUiState.value = AuthUiState.Loading
 
-            profileRepository.isEmailRegistered(trimmedEmail)
+            authRepository.isEmailRegistered(trimmedEmail)
                 .onSuccess { registered ->
                     if (!registered) {
                         _authUiState.value = AuthUiState.Error(
@@ -224,7 +225,7 @@ class AuthViewModel @Inject constructor(
                         )
                         return@onSuccess
                     }
-                    profileRepository.resetPassword(trimmedEmail)
+                    authRepository.resetPassword(trimmedEmail)
                         .onSuccess {
                             _authUiState.value = AuthUiState.Info(
                                 resourceProvider.getString(R.string.password_reset_email_sent)
@@ -247,7 +248,7 @@ class AuthViewModel @Inject constructor(
     fun resendVerificationEmail() {
         viewModelScope.launch {
             _authUiState.value = AuthUiState.Loading
-            profileRepository.sendEmailVerification()
+            authRepository.sendEmailVerification()
                 .onSuccess {
                     _authUiState.value = AuthUiState.Info(
                         message = resourceProvider.getString(R.string.verification_email_resent),
