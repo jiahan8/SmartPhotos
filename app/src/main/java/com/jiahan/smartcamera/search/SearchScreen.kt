@@ -50,9 +50,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavController
 import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.home.HomeItem
 import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_PLACEHOLDER_ROTATION_DELAY_MS
 import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_TRANSITION_DELAY_MS
@@ -66,7 +64,9 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
-    navController: NavController,
+    onNavigateToNotePreview: (documentPath: String) -> Unit,
+    onNavigateToPhotoPreview: (url: String) -> Unit,
+    onNavigateToVideoPreview: (url: String) -> Unit,
     viewModel: SearchViewModel = hiltViewModel(),
     onScrollDirectionChanged: (Boolean) -> Unit = {},
     scrollToTop: Long?,
@@ -273,32 +273,18 @@ fun SearchScreen(
                                 HomeItem(
                                     note = note,
                                     onTap = {
-                                        navController.navigate(
-                                            Screen.NotePreview.createRoute(note.documentPath)
-                                        )
+                                        onNavigateToNotePreview(note.documentPath)
                                     },
                                     onDoubleTap = { viewModel.favoriteNote(note) },
                                     onLongPress = { viewModel.setNoteToDelete(note) },
                                     onPhotoClick = { url ->
-                                        navController.navigate(
-                                            Screen.PhotoPreview.createRemoteRoute(
-                                                url
-                                            )
-                                        )
+                                        onNavigateToPhotoPreview(url)
                                     },
                                     onVideoClick = { url ->
-                                        navController.navigate(
-                                            Screen.VideoPreview.createRemoteRoute(
-                                                url
-                                            )
-                                        )
+                                        onNavigateToVideoPreview(url)
                                     },
                                     onProfilePictureClick = { url ->
-                                        navController.navigate(
-                                            Screen.PhotoPreview.createRemoteRoute(
-                                                url
-                                            )
-                                        )
+                                        onNavigateToPhotoPreview(url)
                                     }
                                 )
                             }

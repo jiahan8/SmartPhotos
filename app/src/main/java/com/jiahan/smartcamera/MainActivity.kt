@@ -4,57 +4,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.updateTransition
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.stringResource
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
-import androidx.navigation.navDeepLink
-import com.jiahan.smartcamera.auth.AuthScreen
-import com.jiahan.smartcamera.favorite.FavoriteScreen
-import com.jiahan.smartcamera.home.HomeScreen
-import com.jiahan.smartcamera.navigation.Screen
-import com.jiahan.smartcamera.navigation.Screen.Search.SEARCH_DEEP_LINK_URI_PATTERN
-import com.jiahan.smartcamera.note.NoteScreen
-import com.jiahan.smartcamera.preview.NotePreviewScreen
-import com.jiahan.smartcamera.preview.PhotoPreviewScreen
-import com.jiahan.smartcamera.preview.VideoPreviewScreen
-import com.jiahan.smartcamera.profile.ProfileScreen
-import com.jiahan.smartcamera.search.SearchScreen
-import com.jiahan.smartcamera.settings.SettingsScreen
-import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
-import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
+import androidx.compose.runtime.getValue
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -75,11 +27,8 @@ class MainActivity : ComponentActivity() {
             val fadeOut = splashScreenView.view.animate()
                 .alpha(0f)
                 .setDuration(fadeOutDuration)
-                .withEndAction {
-                    splashScreenView.remove()
-                }
+                .withEndAction { splashScreenView.remove() }
 
-            // Start animations together
             scaleAnim.start()
             fadeOut.start()
         }
@@ -93,232 +42,19 @@ class MainActivity : ComponentActivity() {
             val showBottomBar by viewModel.showBottomBar.collectAsStateWithLifecycle()
             val scrollToTop by viewModel.scrollToTop.collectAsStateWithLifecycle()
 
-            splashScreen.setKeepOnScreenCondition {
-                !isAppReady
-            }
+            splashScreen.setKeepOnScreenCondition { !isAppReady }
 
-            SmartCameraTheme(
-                darkTheme = isDarkTheme
-            ) {
-                val view = LocalView.current
-                if (!view.isInEditMode) {
-                    SideEffect {
-                        WindowCompat.getInsetsController(window, window.decorView).apply {
-                            isAppearanceLightStatusBars = !isDarkTheme
-                            isAppearanceLightNavigationBars = !isDarkTheme
-                        }
-                    }
-                }
-                val navController = rememberNavController()
-                val items = listOf(
-                    Screen.Home,
-                    Screen.Search,
-                    Screen.Note,
-                    Screen.Favorite,
-                    Screen.Profile
-                )
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentDestination = navBackStackEntry?.destination
-                val currentRoute = currentDestination?.route
-                val isBottomBarVisible = remember(currentRoute, showBottomBar) {
-                    (currentRoute in items.map { it.route }) && showBottomBar
-                }
-
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    Scaffold(
-                        bottomBar = {
-                            AnimatedVisibility(
-                                visible = isBottomBarVisible,
-                                enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
-                                exit = fadeOut() + slideOutVertically(targetOffsetY = { it })
-                            ) {
-                                NavigationBar {
-                                    items.forEach { screen ->
-                                        val selected = currentDestination?.route == screen.route
-
-                                        NavigationBarItem(
-                                            icon = {
-                                                screen.icon?.let { icon ->
-                                                    AnimatedIcon(
-                                                        selected = selected,
-                                                        imageVector = icon
-                                                    )
-                                                }
-                                            },
-                                            label = { Text(stringResource(screen.titleResId)) },
-                                            selected = currentDestination?.route == screen.route,
-                                            onClick = {
-                                                if (currentDestination?.route == screen.route) {
-                                                    when (screen.route) {
-                                                        Screen.Home.route -> viewModel.triggerScrollToTop()
-                                                        Screen.Search.route -> viewModel.triggerScrollToTop()
-                                                        Screen.Favorite.route -> viewModel.triggerScrollToTop()
-                                                    }
-                                                } else {
-                                                    navController.navigate(screen.route) {
-                                                        popUpTo(navController.graph.startDestinationId) {
-                                                            saveState = true
-                                                        }
-                                                        launchSingleTop = true
-                                                        restoreState = true
-                                                    }
-                                                }
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    ) { padding ->
-                        if (isAppReady) NavHost(
-                            navController = navController,
-                            startDestination = startDestination,
-                            modifier = Modifier.padding()
-                        ) {
-                            composable(Screen.Home.route) {
-                                HomeScreen(
-                                    navController = navController,
-                                    onScrollDirectionChanged = { isScrollingUp ->
-                                        viewModel.updateBottomBarVisibility(isScrollingUp)
-                                    },
-                                    scrollToTop = scrollToTop,
-                                    onScrollToTopConsumed = {
-                                        viewModel.consumeScrollToTopEvent()
-                                    }
-                                )
-                            }
-                            composable(
-                                route = Screen.Search.route,
-                                deepLinks = listOf(
-                                    navDeepLink {
-                                        uriPattern = SEARCH_DEEP_LINK_URI_PATTERN
-                                    }
-                                )
-                            ) {
-                                SearchScreen(
-                                    navController = navController,
-                                    onScrollDirectionChanged = { isScrollingUp ->
-                                        viewModel.updateBottomBarVisibility(isScrollingUp)
-                                    },
-                                    scrollToTop = scrollToTop,
-                                    onScrollToTopConsumed = {
-                                        viewModel.consumeScrollToTopEvent()
-                                    }
-                                )
-                            }
-                            composable(route = Screen.Note.route) {
-                                NoteScreen(
-                                    navController = navController
-                                )
-                            }
-                            composable(route = Screen.Favorite.route) {
-                                FavoriteScreen(
-                                    navController = navController,
-                                    onScrollDirectionChanged = { isScrollingUp ->
-                                        viewModel.updateBottomBarVisibility(isScrollingUp)
-                                    },
-                                    scrollToTop = scrollToTop,
-                                    onScrollToTopConsumed = {
-                                        viewModel.consumeScrollToTopEvent()
-                                    }
-                                )
-                            }
-                            composable(
-                                route = Screen.PhotoPreview.route,
-                                arguments = listOf(
-                                    navArgument(Screen.PhotoPreview.TYPE_ARG) {
-                                        type = NavType.StringType
-                                    },
-                                    navArgument(Screen.PhotoPreview.SOURCE_ARG) {
-                                        type = NavType.StringType
-                                    }
-                                )
-                            ) {
-                                PhotoPreviewScreen(navController = navController)
-                            }
-                            composable(
-                                route = Screen.VideoPreview.route,
-                                arguments = listOf(
-                                    navArgument(Screen.VideoPreview.TYPE_ARG) {
-                                        type = NavType.StringType
-                                    },
-                                    navArgument(Screen.VideoPreview.SOURCE_ARG) {
-                                        type = NavType.StringType
-                                    }
-                                )
-                            ) {
-                                VideoPreviewScreen(navController = navController)
-                            }
-                            composable(
-                                route = Screen.NotePreview.route,
-                                arguments = listOf(
-                                    navArgument(Screen.NotePreview.ID_ARG) {
-                                        type = NavType.StringType
-                                    }
-                                )
-                            ) {
-                                NotePreviewScreen(
-                                    navController = navController
-                                )
-                            }
-                            composable(route = Screen.Auth.route) {
-                                AuthScreen(
-                                    navController = navController,
-                                    onNavigateToHome = {
-                                        viewModel.updateStartDestination(Screen.Home.route)
-                                    }
-                                )
-                            }
-                            composable(route = Screen.Profile.route) {
-                                ProfileScreen(
-                                    navController = navController
-                                )
-                            }
-                            composable(route = Screen.Settings.route) {
-                                SettingsScreen(
-                                    navController = navController
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+            SmartPhotosApp(
+                isDarkTheme = isDarkTheme,
+                isAppReady = isAppReady,
+                startDestination = startDestination,
+                showBottomBar = showBottomBar,
+                scrollToTop = scrollToTop,
+                onScrollDirectionChanged = viewModel::updateBottomBarVisibility,
+                onScrollToTopConsumed = viewModel::consumeScrollToTopEvent,
+                onTriggerScrollToTop = viewModel::triggerScrollToTop,
+                onUpdateStartDestination = viewModel::updateStartDestination,
+            )
         }
     }
-}
-
-
-@Composable
-private fun AnimatedIcon(
-    selected: Boolean,
-    imageVector: ImageVector
-) {
-    val transition = updateTransition(targetState = selected, label = "IconTransition")
-    val scale by transition.animateFloat(
-        label = "IconScale",
-        transitionSpec = {
-            if (targetState) {
-                spring(dampingRatio = 0.2f, stiffness = 100f)
-            } else {
-                tween(durationMillis = ANIMATION_DURATION_SHORT_MS)
-            }
-        }
-    ) { isSelected ->
-        if (isSelected) 1.2f else 1f
-    }
-
-    val color = if (selected)
-        MaterialTheme.colorScheme.primary
-    else
-        MaterialTheme.colorScheme.onSurfaceVariant
-
-    Icon(
-        imageVector = imageVector,
-        contentDescription = null,
-        modifier = Modifier.scale(scale),
-        tint = color
-    )
 }

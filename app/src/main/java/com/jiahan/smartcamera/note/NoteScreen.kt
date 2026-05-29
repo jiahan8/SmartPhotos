@@ -71,10 +71,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.common.CustomSnackbarHost
 import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_PLACEHOLDER_ROTATION_DELAY_MS
 import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_TRANSITION_DELAY_MS
@@ -84,7 +82,9 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoteScreen(
-    navController: NavController,
+    onBack: () -> Unit,
+    onNavigateToPhotoPreview: (uri: String) -> Unit,
+    onNavigateToVideoPreview: (uri: String) -> Unit,
     viewModel: NoteViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -190,7 +190,7 @@ fun NoteScreen(
                 keyboardController?.hide()
                 viewModel.updateErrorSnackBar(false)
                 viewModel.resetUploadState()
-                navController.popBackStack()
+                onBack()
             }
 
             is UploadUiState.Error -> {
@@ -341,16 +341,12 @@ fun NoteScreen(
                                 Box(
                                     modifier = Modifier.clickable {
                                         if (noteMediaDetail.isVideo) {
-                                            navController.navigate(
-                                                Screen.VideoPreview.createLocalRoute(
-                                                    noteMediaDetail.videoUri.toString()
-                                                )
+                                            onNavigateToVideoPreview(
+                                                noteMediaDetail.videoUri.toString()
                                             )
                                         } else {
-                                            navController.navigate(
-                                                Screen.PhotoPreview.createLocalRoute(
-                                                    noteMediaDetail.photoUri.toString()
-                                                )
+                                            onNavigateToPhotoPreview(
+                                                noteMediaDetail.photoUri.toString()
                                             )
                                         }
                                     }

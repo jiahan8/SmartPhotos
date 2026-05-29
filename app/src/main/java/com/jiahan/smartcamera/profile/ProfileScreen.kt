@@ -69,16 +69,15 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.common.CustomSnackbarHost
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    navController: NavController,
+    onNavigateToSettings: () -> Unit,
+    onNavigateToPhotoPreview: (url: String) -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -287,7 +286,7 @@ fun ProfileScreen(
                     )
                 },
                 actions = {
-                    IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
+                    IconButton(onClick = onNavigateToSettings) {
                         Icon(
                             imageVector = Icons.Rounded.Menu,
                             contentDescription = stringResource(R.string.cd_open_settings)
@@ -321,9 +320,7 @@ fun ProfileScreen(
                             .size(88.dp)
                             .clip(CircleShape)
                             .clickable {
-                                navController.navigate(
-                                    Screen.PhotoPreview.createRemoteRoute(it)
-                                )
+                                onNavigateToPhotoPreview(it)
                             },
                         alignment = Alignment.Center
                     )

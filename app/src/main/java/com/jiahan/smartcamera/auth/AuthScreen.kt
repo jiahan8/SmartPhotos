@@ -44,15 +44,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthScreen(
-    navController: NavController,
     onNavigateToHome: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
@@ -72,9 +69,6 @@ fun AuthScreen(
         when (navigationEvent) {
             is AuthViewModel.NavigationEvent.NavigateToHome -> {
                 onNavigateToHome()
-                navController.navigate(Screen.Home.route) {
-                    popUpTo(0) { inclusive = true }
-                }
                 viewModel.navigationEventConsumed()
             }
 

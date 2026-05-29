@@ -28,12 +28,11 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
-import androidx.navigation.NavHostController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VideoPreviewScreen(
-    navController: NavHostController,
+    onBack: () -> Unit,
     viewModel: VideoPreviewViewModel = hiltViewModel()
 ) {
     val videoSource = viewModel.videoSource ?: return
@@ -59,7 +58,7 @@ fun VideoPreviewScreen(
             TopAppBar(
                 title = {},
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.cd_back)

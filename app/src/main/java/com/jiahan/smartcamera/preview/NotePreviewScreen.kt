@@ -53,16 +53,16 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.util.toFormattedDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotePreviewScreen(
-    navController: NavController,
+    onBack: () -> Unit,
+    onNavigateToPhotoPreview: (url: String) -> Unit,
+    onNavigateToVideoPreview: (url: String) -> Unit,
     viewModel: NotePreviewViewModel = hiltViewModel()
 ) {
     val scrollState = rememberScrollState()
@@ -84,7 +84,7 @@ fun NotePreviewScreen(
                     onClick = {
                         viewModel.deleteNote(note.documentPath)
                         viewModel.setNoteToDelete(null)
-                        navController.popBackStack()
+                        onBack()
                     }
                 ) {
                     Text(stringResource(R.string.delete))
@@ -110,7 +110,7 @@ fun NotePreviewScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.cd_back)
@@ -168,9 +168,7 @@ fun NotePreviewScreen(
                                         .size(38.dp)
                                         .clip(CircleShape)
                                         .clickable {
-                                            navController.navigate(
-                                                Screen.PhotoPreview.createRemoteRoute(it)
-                                            )
+                                            onNavigateToPhotoPreview(it)
                                         }
                                 )
                             } ?: Image(
@@ -244,16 +242,12 @@ fun NotePreviewScreen(
                                             .padding(end = 8.dp)
                                             .clickable {
                                                 if (mediaList[index].isVideo) {
-                                                    navController.navigate(
-                                                        Screen.VideoPreview.createRemoteRoute(
-                                                            mediaList[index].videoUrl.toString()
-                                                        )
+                                                    onNavigateToVideoPreview(
+                                                        mediaList[index].videoUrl.toString()
                                                     )
                                                 } else {
-                                                    navController.navigate(
-                                                        Screen.PhotoPreview.createRemoteRoute(
-                                                            mediaList[index].photoUrl.toString()
-                                                        )
+                                                    onNavigateToPhotoPreview(
+                                                        mediaList[index].photoUrl.toString()
                                                     )
                                                 }
                                             }
