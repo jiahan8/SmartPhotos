@@ -1,7 +1,5 @@
 package com.jiahan.smartcamera.search
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -35,12 +33,8 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import com.jiahan.smartcamera.common.CustomSnackbarHost
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -51,15 +45,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.common.CustomSnackbarHost
+import com.jiahan.smartcamera.common.rememberCyclingPlaceholder
 import com.jiahan.smartcamera.home.HomeItem
-import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_PLACEHOLDER_ROTATION_DELAY_MS
-import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_TRANSITION_DELAY_MS
-import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_TRANSITION_FADE_DURATION_MS
 import com.jiahan.smartcamera.util.pairwise
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,22 +72,14 @@ fun SearchScreen(
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val noteToDelete by viewModel.noteToDelete.collectAsStateWithLifecycle()
 
-    val placeholderOptions =
-        listOf(
+    val (placeholder, placeholderAlpha) = rememberCyclingPlaceholder(
+        options = listOf(
             stringResource(R.string.search_notes_photos),
             stringResource(R.string.find_photos),
             stringResource(R.string.find_notes),
             stringResource(R.string.what_you_looking_for),
             stringResource(R.string.look_up)
         )
-    val placeholderList = remember { placeholderOptions }
-    var currentPlaceholderIndex by remember { mutableIntStateOf(0) }
-    val placeholder = placeholderList[currentPlaceholderIndex]
-    var isTransitioning by remember { mutableStateOf(false) }
-    val placeholderAlpha by animateFloatAsState(
-        targetValue = if (isTransitioning) 0f else 1f,
-        animationSpec = tween(durationMillis = TEXT_FIELD_TRANSITION_FADE_DURATION_MS),
-        label = "placeholderAlpha"
     )
 
     val onRefresh: () -> Unit = { viewModel.refresh() }
@@ -117,19 +100,7 @@ fun SearchScreen(
     }
 
     LaunchedEffect(Unit) {
-        launch {
-            while (true) {
-                delay(TEXT_FIELD_PLACEHOLDER_ROTATION_DELAY_MS)
-                isTransitioning = true
-                delay(TEXT_FIELD_TRANSITION_DELAY_MS)
-                currentPlaceholderIndex = (currentPlaceholderIndex + 1) % placeholderList.size
-                isTransitioning = false
-                delay(TEXT_FIELD_TRANSITION_DELAY_MS)
-            }
-        }
-        launch {
-            viewModel.actionError.collect { message -> snackbarHostState.showSnackbar(message) }
-        }
+        viewModel.actionError.collect { message -> snackbarHostState.showSnackbar(message) }
     }
 
     LaunchedEffect(scrollToTop) {

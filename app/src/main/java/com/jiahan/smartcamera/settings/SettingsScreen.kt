@@ -61,7 +61,6 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
-    val navigationEvent by viewModel.navigationEvent.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val dialogState by viewModel.dialogState.collectAsStateWithLifecycle()
 
@@ -70,25 +69,20 @@ fun SettingsScreen(
 
     val actionFailureMessage = stringResource(R.string.action_failure)
 
-    LaunchedEffect(navigationEvent) {
-        when (navigationEvent) {
-            is NavigationEvent.NavigateToAuth -> {
-                onNavigateToAuth()
-                viewModel.navigationEventConsumed()
-            }
-
-            is NavigationEvent.OpenLanguageSettings -> {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    val intent = Intent(Settings.ACTION_APP_LOCALE_SETTINGS)
-                    intent.data = android.net.Uri.fromParts("package", packageName, null)
-                    context.startActivity(intent)
-                } else {
-                    context.startActivity(Intent(Settings.ACTION_LOCALE_SETTINGS))
+    LaunchedEffect(Unit) {
+        viewModel.navigationEvent.collect { event ->
+            when (event) {
+                SettingsNavigationEvent.NavigateToAuth -> onNavigateToAuth()
+                SettingsNavigationEvent.OpenLanguageSettings -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        val intent = Intent(Settings.ACTION_APP_LOCALE_SETTINGS)
+                        intent.data = android.net.Uri.fromParts("package", packageName, null)
+                        context.startActivity(intent)
+                    } else {
+                        context.startActivity(Intent(Settings.ACTION_LOCALE_SETTINGS))
+                    }
                 }
-                viewModel.navigationEventConsumed()
             }
-
-            null -> {}
         }
     }
 
@@ -100,7 +94,7 @@ fun SettingsScreen(
     }
 
     when (dialogState) {
-        is DialogState.Logout -> {
+        is SettingsDialogState.Logout -> {
             AlertDialog(
                 onDismissRequest = { viewModel.dismissDialog() },
                 title = { Text(stringResource(R.string.log_out)) },
@@ -123,7 +117,7 @@ fun SettingsScreen(
             )
         }
 
-        is DialogState.DeleteAccount -> {
+        is SettingsDialogState.DeleteAccount -> {
             AlertDialog(
                 onDismissRequest = { viewModel.dismissDialog() },
                 title = { Text(stringResource(R.string.delete_account)) },

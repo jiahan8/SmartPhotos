@@ -41,11 +41,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,16 +65,12 @@ fun AuthScreen(
     val authUiState by viewModel.authUiState.collectAsStateWithLifecycle()
     val isLoading = authUiState is AuthUiState.Loading
     val isLoginMode by viewModel.isLoginMode.collectAsStateWithLifecycle()
-    val navigationEvent by viewModel.navigationEvent.collectAsStateWithLifecycle()
 
-    LaunchedEffect(navigationEvent) {
-        when (navigationEvent) {
-            is AuthViewModel.NavigationEvent.NavigateToHome -> {
-                onNavigateToHome()
-                viewModel.navigationEventConsumed()
+    LaunchedEffect(Unit) {
+        viewModel.navigationEvent.collect { event ->
+            when (event) {
+                is AuthNavigationEvent.NavigateToHome -> onNavigateToHome()
             }
-
-            null -> {}
         }
     }
 
@@ -247,6 +245,48 @@ fun AuthScreen(
                         Text(stringResource(R.string.resend_verification_email))
                     }
                 }
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true, name = "Auth – Login mode")
+@Composable
+private fun AuthScreenLoginPreview() {
+    SmartCameraTheme {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            OutlinedTextField(
+                value = "user@example.com",
+                onValueChange = {},
+                label = { Text("Email") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Rounded.Email, contentDescription = null) }
+            )
+            OutlinedTextField(
+                value = "••••••••",
+                onValueChange = {},
+                label = { Text("Password") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                leadingIcon = { Icon(Icons.Rounded.Lock, contentDescription = null) }
+            )
+            Button(
+                onClick = {},
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+            ) {
+                Text("Login", style = MaterialTheme.typography.bodyLarge)
             }
         }
     }

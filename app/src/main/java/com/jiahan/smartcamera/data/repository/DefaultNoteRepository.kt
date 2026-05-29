@@ -137,10 +137,9 @@ class DefaultNoteRepository @Inject constructor(
 
             val userIds = snapshot.documents.mapNotNull { it.getString(FIELD_USER_ID) }.distinct()
             val userDocumentsMap = getUserDocumentsInBatch(userIds)
-            snapshot.documents.map { document ->
-                val userId = document.getString(FIELD_USER_ID) as String
+            snapshot.documents.mapNotNull { document ->
+                val userId = document.getString(FIELD_USER_ID) ?: return@mapNotNull null
                 userDocumentsMap[userId]?.let { getHomeNote(document, it) }
-                    ?: HomeNote(documentPath = "", username = "")
             }
         } ?: emptyList()
     }
@@ -169,10 +168,9 @@ class DefaultNoteRepository @Inject constructor(
             val userDocumentsMap = getUserDocumentsInBatch(userIds)
             snapshot.documents
                 .filter { document -> matchesSearchQuery(document, query) }
-                .map { document ->
-                    val userId = document.getString(FIELD_USER_ID) as String
+                .mapNotNull { document ->
+                    val userId = document.getString(FIELD_USER_ID) ?: return@mapNotNull null
                     userDocumentsMap[userId]?.let { getHomeNote(document, it) }
-                        ?: HomeNote(documentPath = "", username = "")
                 }
         } ?: emptyList()
     }
@@ -197,10 +195,11 @@ class DefaultNoteRepository @Inject constructor(
     override suspend fun getNote(documentPath: String): Result<HomeNote> = safeCall {
         noteCollectionReference?.let { ref ->
             val noteDocument = ref.document(documentPath).get().await()
-            val userDocument =
-                getUserDocumentSnapshot(noteDocument.getString(FIELD_USER_ID) as String)
+            val userId = noteDocument.getString(FIELD_USER_ID)
+                ?: throw IllegalStateException("Note $documentPath has no user_id")
+            val userDocument = getUserDocumentSnapshot(userId)
             getHomeNote(noteDocument, userDocument)
-        } ?: HomeNote(documentPath = "", username = "")
+        } ?: throw IllegalStateException("User is not authenticated")
     }
 
     override suspend fun uploadMediaToFirebase(

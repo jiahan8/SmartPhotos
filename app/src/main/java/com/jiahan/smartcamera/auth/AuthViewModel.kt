@@ -13,8 +13,10 @@ import com.jiahan.smartcamera.util.ValidationResult
 import com.jiahan.smartcamera.util.validateDisplayName
 import com.jiahan.smartcamera.util.validateUsername
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -23,6 +25,10 @@ sealed interface AuthUiState {
     data object Loading : AuthUiState
     data class Error(val message: String, val showResendButton: Boolean = false) : AuthUiState
     data class Info(val message: String, val showResendButton: Boolean = false) : AuthUiState
+}
+
+sealed interface AuthNavigationEvent {
+    data object NavigateToHome : AuthNavigationEvent
 }
 
 @HiltViewModel
@@ -52,8 +58,8 @@ class AuthViewModel @Inject constructor(
     private val _authUiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val authUiState = _authUiState.asStateFlow()
 
-    private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
-    val navigationEvent = _navigationEvent.asStateFlow()
+    private val _navigationEvent = Channel<AuthNavigationEvent>(Channel.BUFFERED)
+    val navigationEvent = _navigationEvent.receiveAsFlow()
 
     fun updateEmailText(text: String) {
         _email.value = text
@@ -118,7 +124,7 @@ class AuthViewModel @Inject constructor(
                                         )
                                     }
                                     .onFailure { e -> errorHandler.logError(e) }
-                                _navigationEvent.value = NavigationEvent.NavigateToHome
+                                _navigationEvent.trySend(AuthNavigationEvent.NavigateToHome)
                                 _authUiState.value = AuthUiState.Idle
                             } else {
                                 _authUiState.value = AuthUiState.Error(
@@ -264,13 +270,5 @@ class AuthViewModel @Inject constructor(
                     _authUiState.value = AuthUiState.Error(errorHandler.getErrorMessage(e))
                 }
         }
-    }
-
-    fun navigationEventConsumed() {
-        _navigationEvent.value = null
-    }
-
-    sealed class NavigationEvent {
-        object NavigateToHome : NavigationEvent()
     }
 }

@@ -82,7 +82,7 @@ fun ProfileScreen(
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
-    val isErrorSnackBar by viewModel.isErrorSnackBar.collectAsStateWithLifecycle()
+    var isErrorSnackBar by remember { mutableStateOf(false) }
     val bottomSheetState = rememberModalBottomSheetState()
     val showBottomSheet by viewModel.showBottomSheet.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
@@ -146,7 +146,7 @@ fun ProfileScreen(
         viewModel.events.collect { event ->
             when (event) {
                 ProfileEvent.UpdateSuccess, ProfileEvent.UploadSuccess -> {
-                    viewModel.updateErrorSnackBar(false)
+                    isErrorSnackBar = false
                     snackbarHostState.showSnackbar(
                         updateSuccessMessage,
                         duration = SnackbarDuration.Short
@@ -154,7 +154,7 @@ fun ProfileScreen(
                 }
 
                 ProfileEvent.UpdateError -> {
-                    viewModel.updateErrorSnackBar(true)
+                    isErrorSnackBar = true
                     snackbarHostState.showSnackbar(
                         updateFailureMessage,
                         duration = SnackbarDuration.Short
@@ -250,7 +250,7 @@ fun ProfileScreen(
     }
 
     when (dialogState) {
-        is ProfileViewModel.DialogState.DeletePicture -> {
+        is ProfileDialogState.DeletePicture -> {
             AlertDialog(
                 onDismissRequest = { viewModel.dismissDialog() },
                 title = { Text(stringResource(R.string.delete_picture)) },

@@ -41,6 +41,7 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
@@ -56,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
@@ -63,6 +65,7 @@ import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.CustomSnackbarHost
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
+import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import com.jiahan.smartcamera.util.pairwise
 import com.jiahan.smartcamera.util.toFormattedDateTime
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -117,6 +120,20 @@ fun HomeScreen(
 
     LaunchedEffect(Unit) {
         viewModel.actionError.collect { message -> snackbarHostState.showSnackbar(message) }
+    }
+
+    val shouldLoadMore by remember {
+        derivedStateOf {
+            val notes = (uiState as? HomeUiState.Success)?.notes ?: return@derivedStateOf false
+            if (notes.isEmpty()) return@derivedStateOf false
+            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+            lastVisible != null && lastVisible >= notes.size - 1
+        }
+    }
+    LaunchedEffect(shouldLoadMore) {
+        if (shouldLoadMore && !isLoadingMore) {
+            viewModel.loadMoreNotes()
+        }
     }
 
     noteToDelete?.let { note ->
@@ -196,7 +213,7 @@ fun HomeScreen(
                         LazyColumn(
                             state = listState,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(top = 8.dp, bottom = 76.dp)
+                            contentPadding = PaddingValues(top = 8.dp, bottom = 8.dp)
                         ) {
                             items(
                                 count = state.notes.size,
@@ -220,12 +237,6 @@ fun HomeScreen(
                                         onNavigateToPhotoPreview(url)
                                     }
                                 )
-
-                                if (index >= state.notes.size - 1 && !isLoadingMore) {
-                                    LaunchedEffect(key1 = Unit) {
-                                        viewModel.loadMoreNotes()
-                                    }
-                                }
                             }
 
                             if (isLoadingMore) {
@@ -430,25 +441,9 @@ private fun MediaItem(
     surfaceVariantColor: Color,
     onSurfaceVariantColor: Color
 ) {
-    val isVideo = remember(mediaDetail) {
-        mediaDetail.isVideo
-    }
-
-    val imageUrl = remember(mediaDetail) {
-        if (isVideo) {
-            mediaDetail.thumbnailUrl
-        } else {
-            mediaDetail.photoUrl
-        }
-    }
-
-    val mediaUrl = remember(mediaDetail) {
-        if (isVideo) {
-            mediaDetail.videoUrl
-        } else {
-            mediaDetail.photoUrl
-        }
-    }
+    val isVideo = mediaDetail.isVideo
+    val imageUrl = if (isVideo) mediaDetail.thumbnailUrl else mediaDetail.photoUrl
+    val mediaUrl = if (isVideo) mediaDetail.videoUrl else mediaDetail.photoUrl
 
     Box(
         modifier = Modifier
@@ -488,5 +483,53 @@ private fun MediaItem(
                 tint = onSurfaceVariantColor
             )
         }
+    }
+}
+
+@Preview(showBackground = true, name = "HomeItem – text only")
+@Composable
+private fun HomeItemPreview() {
+    SmartCameraTheme {
+        HomeItem(
+            note = HomeNote(
+                documentPath = "preview/1",
+                username = "john_doe",
+                text = "Hello, this is a preview note with some sample text that wraps across multiple lines.",
+                mediaList = null,
+                profilePictureUrl = null,
+                favorite = false,
+                createdDate = null
+            ),
+            onTap = {},
+            onDoubleTap = {},
+            onLongPress = {},
+            onPhotoClick = {},
+            onVideoClick = {},
+            onProfilePictureClick = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "HomeItem – favorited")
+@Composable
+private fun HomeItemFavoritedPreview() {
+    SmartCameraTheme {
+        HomeItem(
+            note = HomeNote(
+                documentPath = "preview/2",
+                username = "jane_doe",
+                text = "This note is marked as a favourite.",
+                mediaList = null,
+                profilePictureUrl = null,
+                favorite = true,
+                createdDate = null
+            ),
+            onTap = {},
+            onDoubleTap = {},
+            onLongPress = {},
+            onPhotoClick = {},
+            onVideoClick = {},
+            onProfilePictureClick = {}
+        )
     }
 }

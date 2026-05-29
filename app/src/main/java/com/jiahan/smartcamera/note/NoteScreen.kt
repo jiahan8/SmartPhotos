@@ -6,8 +6,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -47,7 +45,6 @@ import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -74,10 +71,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.CustomSnackbarHost
-import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_PLACEHOLDER_ROTATION_DELAY_MS
-import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_TRANSITION_DELAY_MS
-import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_TRANSITION_FADE_DURATION_MS
-import kotlinx.coroutines.delay
+import com.jiahan.smartcamera.common.rememberCyclingPlaceholder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,24 +97,17 @@ fun NoteScreen(
     val isUploading = uploadUiState is UploadUiState.Uploading
     val postTextError by viewModel.postTextError.collectAsStateWithLifecycle()
     val buttonEnabled by viewModel.postButtonEnabled.collectAsStateWithLifecycle()
-    val isErrorSnackBar by viewModel.isErrorSnackBar.collectAsStateWithLifecycle()
 
-    // Placeholder cycling is pure UI animation state — not shared via ViewModel
-    val placeholderOptions = listOf(
-        stringResource(R.string.whats_new),
-        stringResource(R.string.create_note),
-        stringResource(R.string.write_this_moment),
-        stringResource(R.string.whats_on_mind),
-        stringResource(R.string.write_a_thought)
-    )
-    val placeholderList = remember { placeholderOptions }
-    var currentPlaceholderIndex by remember { mutableIntStateOf(0) }
-    val placeholder = placeholderList[currentPlaceholderIndex]
-    var isTransitioning by remember { mutableStateOf(false) }
-    val placeholderAlpha by animateFloatAsState(
-        targetValue = if (isTransitioning) 0f else 1f,
-        animationSpec = tween(durationMillis = TEXT_FIELD_TRANSITION_FADE_DURATION_MS),
-        label = "placeholderAlpha"
+    var isErrorSnackBar by remember { mutableStateOf(false) }
+
+    val (placeholder, placeholderAlpha) = rememberCyclingPlaceholder(
+        options = listOf(
+            stringResource(R.string.whats_new),
+            stringResource(R.string.create_note),
+            stringResource(R.string.write_this_moment),
+            stringResource(R.string.whats_on_mind),
+            stringResource(R.string.write_a_thought)
+        )
     )
 
     val postFailureMessage = stringResource(R.string.post_failure)
@@ -188,14 +175,14 @@ fun NoteScreen(
         when (uploadUiState) {
             is UploadUiState.Success -> {
                 keyboardController?.hide()
-                viewModel.updateErrorSnackBar(false)
+                isErrorSnackBar = false
                 viewModel.resetUploadState()
                 onBack()
             }
 
             is UploadUiState.Error -> {
                 keyboardController?.hide()
-                viewModel.updateErrorSnackBar(true)
+                isErrorSnackBar = true
                 snackbarHostState.showSnackbar(
                     postFailureMessage,
                     duration = SnackbarDuration.Short
@@ -208,14 +195,7 @@ fun NoteScreen(
     }
 
     LaunchedEffect(Unit) {
-        while (true) {
-            delay(TEXT_FIELD_PLACEHOLDER_ROTATION_DELAY_MS)
-            isTransitioning = true
-            delay(TEXT_FIELD_TRANSITION_DELAY_MS)
-            currentPlaceholderIndex = (currentPlaceholderIndex + 1) % placeholderList.size
-            isTransitioning = false
-            delay(TEXT_FIELD_TRANSITION_DELAY_MS)
-        }
+        focusRequester.requestFocus()
     }
 
     Scaffold(
@@ -469,10 +449,6 @@ fun NoteScreen(
                             ) {
                                 Text(text = stringResource(R.string.post))
                             }
-                        }
-
-                        LaunchedEffect(Unit) {
-                            focusRequester.requestFocus()
                         }
                     }
                 }

@@ -22,10 +22,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-sealed class ProfileEvent {
-    object UpdateSuccess : ProfileEvent()
-    object UploadSuccess : ProfileEvent()
-    object UpdateError : ProfileEvent()
+sealed interface ProfileEvent {
+    data object UpdateSuccess : ProfileEvent
+    data object UploadSuccess : ProfileEvent
+    data object UpdateError : ProfileEvent
+}
+
+sealed interface ProfileDialogState {
+    data object None : ProfileDialogState
+    data object DeletePicture : ProfileDialogState
 }
 
 @HiltViewModel
@@ -64,10 +69,8 @@ class ProfileViewModel @Inject constructor(
     val isLoading = _isLoading.asStateFlow()
     private val _isUploading = MutableStateFlow(false)
     val isUploading = _isUploading.asStateFlow()
-    private val _dialogState = MutableStateFlow<DialogState>(DialogState.None)
+    private val _dialogState = MutableStateFlow<ProfileDialogState>(ProfileDialogState.None)
     val dialogState = _dialogState.asStateFlow()
-    private val _isErrorSnackBar = MutableStateFlow(false)
-    val isErrorSnackBar = _isErrorSnackBar.asStateFlow()
     private val _showBottomSheet = MutableStateFlow(false)
     val showBottomSheet = _showBottomSheet.asStateFlow()
 
@@ -240,23 +243,14 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun showDeletePictureDialog() {
-        _dialogState.value = DialogState.DeletePicture
+        _dialogState.value = ProfileDialogState.DeletePicture
     }
 
     fun dismissDialog() {
-        _dialogState.value = DialogState.None
-    }
-
-    fun updateErrorSnackBar(isError: Boolean) {
-        _isErrorSnackBar.value = isError
+        _dialogState.value = ProfileDialogState.None
     }
 
     fun updateBottomSheetVisibility(showBottomSheet: Boolean) {
         _showBottomSheet.value = showBottomSheet
-    }
-
-    sealed class DialogState {
-        object None : DialogState()
-        object DeletePicture : DialogState()
     }
 }

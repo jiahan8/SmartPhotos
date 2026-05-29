@@ -49,8 +49,6 @@ class NoteViewModel @Inject constructor(
     val postTextError = _postTextError.asStateFlow()
     private val _postButtonEnabled = MutableStateFlow(false)
     val postButtonEnabled = _postButtonEnabled.asStateFlow()
-    private val _isErrorSnackBar = MutableStateFlow(false)
-    val isErrorSnackBar = _isErrorSnackBar.asStateFlow()
 
     private val _postText = MutableStateFlow("")
     val postText = _postText.asStateFlow()
@@ -181,9 +179,5 @@ class NoteViewModel @Inject constructor(
 
     fun updateVideoUri(uri: Uri?) {
         _videoUri.value = uri
-    }
-
-    fun updateErrorSnackBar(isError: Boolean) {
-        _isErrorSnackBar.value = isError
     }
 }
