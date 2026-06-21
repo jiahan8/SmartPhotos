@@ -13,3 +13,8 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Firebase CLI cache & logs (keep rules/config tracked, ignore generated artifacts)
+.firebase/
+firebase-debug.log
+firebase-debug.*.log

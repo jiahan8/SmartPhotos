@@ -13,6 +13,7 @@ import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_PLACEHOLDER_ROTATION_
 import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_TRANSITION_DELAY_MS
 import com.jiahan.smartcamera.util.AppConstants.TEXT_FIELD_TRANSITION_FADE_DURATION_MS
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Remembers a cycling animated placeholder. Returns a [Pair] of the current placeholder
@@ -34,12 +35,12 @@ fun rememberCyclingPlaceholder(options: List<String>): Pair<String, Float> {
     // Use Unit key — options are resolved from resources and won't change within a session.
     LaunchedEffect(Unit) {
         while (true) {
-            delay(TEXT_FIELD_PLACEHOLDER_ROTATION_DELAY_MS)
+            delay(TEXT_FIELD_PLACEHOLDER_ROTATION_DELAY_MS.milliseconds)
             isTransitioning = true
-            delay(TEXT_FIELD_TRANSITION_DELAY_MS)
+            delay(TEXT_FIELD_TRANSITION_DELAY_MS.milliseconds)
             currentIndex = (currentIndex + 1) % options.size
             isTransitioning = false
-            delay(TEXT_FIELD_TRANSITION_DELAY_MS)
+            delay(TEXT_FIELD_TRANSITION_DELAY_MS.milliseconds)
         }
     }
 

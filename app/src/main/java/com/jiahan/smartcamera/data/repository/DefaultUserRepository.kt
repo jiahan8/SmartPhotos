@@ -95,8 +95,11 @@ class DefaultUserRepository @Inject constructor(
     }
 
     override suspend fun uploadProfilePicture(uri: Uri): Result<String?> = safeCall {
+        val userId = auth.uid
+            ?: throw IllegalStateException("User is not authenticated")
         val mediaId = UUID.randomUUID().toString()
-        val storageRef = storage.reference.child("$storageFolder/$mediaId$EXTENSION_JPG")
+        val storageRef =
+            storage.reference.child("$storageFolder/$userId/$mediaId$EXTENSION_JPG")
         storageRef.putFile(uri).await()
         storageRef.downloadUrl.await().toString()
     }

@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -44,7 +45,7 @@ class FavoriteViewModel @Inject constructor(
     val actionError = _actionError.asSharedFlow()
 
     val notes = _searchQuery
-        .debounce(DEBOUNCE_MS)
+        .debounce(DEBOUNCE_MS.milliseconds)
         .flatMapLatest { query -> noteRepository.getFavoriteNotesStream(query) }
         .stateIn(
             scope = viewModelScope,

@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 sealed interface SearchUiState {
     data object Idle : SearchUiState
@@ -48,7 +49,7 @@ class SearchViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             searchQuery
-                .debounce(DEBOUNCE_MS)
+                .debounce(DEBOUNCE_MS.milliseconds)
                 .collect { query ->
                     if (query.isBlank()) {
                         _uiState.value = SearchUiState.Idle

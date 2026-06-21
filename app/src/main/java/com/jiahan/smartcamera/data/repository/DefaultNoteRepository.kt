@@ -90,6 +90,8 @@ class DefaultNoteRepository @Inject constructor(
     }
     private val storageFolder: String by lazy { remoteConfigRepository.getStorageFolderName() }
     private val cacheStorageFolder: String by lazy { remoteConfigRepository.getStorageCacheFolderName() }
+    private fun userScopedPath(folder: String, userId: String, fileName: String) =
+        "$folder/$userId/$fileName"
 
     private val paginationMutex = Mutex()
     private val pageToLastVisibleDocument = ConcurrentHashMap<Int, DocumentSnapshot>()
@@ -205,6 +207,8 @@ class DefaultNoteRepository @Inject constructor(
     override suspend fun uploadMediaToFirebase(
         noteMediaDetailList: List<NoteMediaDetail>
     ): Result<List<MediaDetail>> = safeCall {
+        val userId = authRepository.currentUserId
+            ?: throw IllegalStateException("User is not authenticated")
         coroutineScope {
             noteMediaDetailList.map { noteMediaDetail ->
                 async(Dispatchers.IO) {
@@ -213,7 +217,9 @@ class DefaultNoteRepository @Inject constructor(
                         val extension =
                             if (noteMediaDetail.isVideo) EXTENSION_MP4 else EXTENSION_JPG
                         val storageRef =
-                            storage.reference.child("$storageFolder/$mediaId$extension")
+                            storage.reference.child(
+                                userScopedPath(storageFolder, userId, "$mediaId$extension")
+                            )
 
                         val mediaUri = noteMediaDetail.photoUri ?: noteMediaDetail.videoUri
                         ?: throw IllegalStateException(
@@ -226,7 +232,13 @@ class DefaultNoteRepository @Inject constructor(
                         val thumbnailUrl = noteMediaDetail.thumbnailUri?.let { thumbUri ->
                             val thumbnailId = PREFIX_THUMBNAIL + UUID.randomUUID().toString()
                             val thumbnailRef =
-                                storage.reference.child("$storageFolder/$thumbnailId$EXTENSION_JPG")
+                                storage.reference.child(
+                                    userScopedPath(
+                                        storageFolder,
+                                        userId,
+                                        "$thumbnailId$EXTENSION_JPG"
+                                    )
+                                )
                             thumbnailRef.putFile(thumbUri).await()
                             thumbnailRef.downloadUrl.await().toString()
                         }
@@ -286,11 +298,13 @@ class DefaultNoteRepository @Inject constructor(
 
     /** Fire-and-forget — no Result returned; errors logged internally. */
     override suspend fun quickUploadMediaToFirebase(uriList: List<Uri>) {
+        val userId = authRepository.currentUserId ?: return
         uriList.forEach { uri ->
             applicationScope.launch(Dispatchers.IO) {
                 safeCall {
                     val mediaId = UUID.randomUUID().toString()
-                    val storageRef = storage.reference.child("$cacheStorageFolder/$mediaId")
+                    val storageRef =
+                        storage.reference.child(userScopedPath(cacheStorageFolder, userId, mediaId))
                     storageRef.putFile(uri).await()
                 }.onFailure { e -> errorHandler.logError(e) }
             }
@@ -380,7 +394,7 @@ class DefaultNoteRepository @Inject constructor(
         videoUrl = mediaMap[FIELD_VIDEO_URL] as? String,
         thumbnailUrl = mediaMap[FIELD_THUMBNAIL_URL] as? String,
         isVideo = mediaMap[FIELD_VIDEO] as? Boolean == true,
-        generatedText = (mediaMap[FIELD_GENERATED_TEXT] as? List<*>)?.mapNotNull { it as? String },
+        generatedText = (mediaMap[FIELD_GENERATED_TEXT] as? List<*>)?.filterIsInstance<String>(),
         generatedObjects = (mediaMap[FIELD_GENERATED_OBJECTS] as? List<*>)?.mapNotNull { objectItem ->
             val map = objectItem as? Map<*, *>
             val name = map?.get(FIELD_OBJECT) as? String

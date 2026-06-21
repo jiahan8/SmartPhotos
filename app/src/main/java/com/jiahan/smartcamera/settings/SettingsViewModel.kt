@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 sealed interface SettingsUiState {
     data object Idle : SettingsUiState
@@ -74,7 +75,7 @@ class SettingsViewModel @Inject constructor(
                 _uiState.value = SettingsUiState.Error(errorHandler.getErrorMessage(e))
             }
             if (result.isSuccess) {
-                delay(AUTH_ACTION_DELAY_MS)
+                delay(AUTH_ACTION_DELAY_MS.milliseconds)
                 _navigationEvent.trySend(SettingsNavigationEvent.NavigateToAuth)
                 _uiState.value = SettingsUiState.Idle
             }
@@ -90,7 +91,7 @@ class SettingsViewModel @Inject constructor(
                 _uiState.value = SettingsUiState.Error(errorHandler.getErrorMessage(e))
             }
             if (result.isSuccess) {
-                delay(AUTH_ACTION_DELAY_MS)
+                delay(AUTH_ACTION_DELAY_MS.milliseconds)
                 _navigationEvent.trySend(SettingsNavigationEvent.NavigateToAuth)
                 _uiState.value = SettingsUiState.Idle
             }
