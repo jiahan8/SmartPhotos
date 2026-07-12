@@ -93,6 +93,12 @@ roborazzi {
     outputDir.set(layout.projectDirectory.dir("src/test/screenshots"))
 }
 
+ksp {
+    // Export Room schema JSON per version to app/schemas, used as the source of truth
+    // for writing and testing future Room migrations.
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
 
     implementation(libs.androidx.core.ktx)

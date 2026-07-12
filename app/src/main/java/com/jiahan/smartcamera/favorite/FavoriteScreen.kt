@@ -69,7 +69,6 @@ fun FavoriteScreen(
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
-    val isLoadingMore by viewModel.isLoadingMore.collectAsStateWithLifecycle()
     val noteToDelete by viewModel.noteToDelete.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
@@ -231,22 +230,6 @@ fun FavoriteScreen(
                                     onNavigateToPhotoPreview(url)
                                 }
                             )
-                        }
-
-                        if (isLoadingMore) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(32.dp),
-                                        strokeWidth = 1.5.dp
-                                    )
-                                }
-                            }
                         }
                     }
                 }

@@ -193,7 +193,6 @@ class DefaultNoteRepository @Inject constructor(
         }
     }
 
-
     override suspend fun getNote(documentPath: String): Result<HomeNote> = safeCall {
         noteCollectionReference?.let { ref ->
             val noteDocument = ref.document(documentPath).get().await()

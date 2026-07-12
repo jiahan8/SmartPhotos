@@ -127,11 +127,9 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-
     fun setNoteToDelete(note: HomeNote?) {
         _noteToDelete.value = note
     }
-
 
     private fun updateSuccessNotes(transform: (List<HomeNote>) -> List<HomeNote>) {
         val current = _uiState.value as? SearchUiState.Success ?: return

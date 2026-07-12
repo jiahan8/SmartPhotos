@@ -12,6 +12,7 @@ class DefaultAuthRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val userRepository: UserRepository,
 ) : AuthRepository {
+
     companion object {
         private const val COLLECTION_MEMBER = "member"
         private const val FIELD_USERNAME = "username"

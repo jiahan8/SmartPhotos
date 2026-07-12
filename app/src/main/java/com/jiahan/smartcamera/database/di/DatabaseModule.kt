@@ -1,6 +1,7 @@
 package com.jiahan.smartcamera.database.di
 
 import android.content.Context
+import androidx.room.Room
 import com.jiahan.smartcamera.database.AppDatabase
 import com.jiahan.smartcamera.database.dao.NoteDao
 import com.jiahan.smartcamera.database.dao.PhotoDao
@@ -11,22 +12,26 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
+private const val DATABASE_NAME = "photo-database"
+
 @Module
 @InstallIn(SingletonComponent::class)
-internal class DatabaseModule {
+object DatabaseModule {
 
-    @Singleton
     @Provides
+    @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
-        return AppDatabase.getInstance(context)
+        return Room.databaseBuilder(context, AppDatabase::class.java, DATABASE_NAME).build()
     }
 
     @Provides
-    fun providePhotoDAO(appDatabase: AppDatabase): PhotoDao {
+    @Singleton
+    fun providePhotoDao(appDatabase: AppDatabase): PhotoDao {
         return appDatabase.photoDao()
     }
 
     @Provides
+    @Singleton
     fun provideNoteDao(appDatabase: AppDatabase): NoteDao {
         return appDatabase.noteDao()
     }

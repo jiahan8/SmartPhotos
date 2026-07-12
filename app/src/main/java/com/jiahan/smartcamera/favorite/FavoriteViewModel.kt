@@ -38,7 +38,6 @@ class FavoriteViewModel @Inject constructor(
     private val _isSyncing = MutableStateFlow(false)
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing = _isRefreshing.asStateFlow()
-    val isLoadingMore = MutableStateFlow(false).asStateFlow()
     private val _noteToDelete = MutableStateFlow<HomeNote?>(null)
     val noteToDelete = _noteToDelete.asStateFlow()
     private val _actionError = MutableSharedFlow<String>(extraBufferCapacity = 1)

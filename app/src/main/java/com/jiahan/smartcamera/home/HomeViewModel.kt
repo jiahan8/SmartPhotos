@@ -131,7 +131,6 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-
     fun setNoteToDelete(note: HomeNote?) {
         _noteToDelete.value = note
     }
