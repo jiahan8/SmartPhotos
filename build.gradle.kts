@@ -8,4 +8,5 @@ plugins {
     alias(libs.plugins.google.services) apply false
     alias(libs.plugins.parcelize) apply false
     alias(libs.plugins.crashlytics) apply false
+    alias(libs.plugins.roborazzi) apply false
 }

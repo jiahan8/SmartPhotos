@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.google.services)
     alias(libs.plugins.parcelize)
     alias(libs.plugins.crashlytics)
+    alias(libs.plugins.roborazzi)
 }
 
 android {
@@ -20,7 +21,10 @@ android {
         versionCode = 2
         versionName = "2.0"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Custom runner installs HiltTestApplication so instrumented tests can inject the Hilt graph.
+        testInstrumentationRunner = "com.jiahan.smartcamera.HiltTestRunner"
+        // Wipe app data (DataStore/Room/prefs) between tests for full isolation. Requires orchestrator.
+        testInstrumentationRunnerArguments["clearPackageData"] = "true"
 
         javaCompileOptions {
             annotationProcessorOptions {
@@ -32,6 +36,16 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    testOptions {
+        // Each test runs in its own instrumentation process, so a crash or leaked state in one
+        // test cannot affect another. Combined with clearPackageData above for hermetic runs.
+        execution = "ANDROIDX_TEST_ORCHESTRATOR"
+        // Robolectric-backed Compose screenshot tests need access to Android resources on the JVM.
+        unitTests {
+            isIncludeAndroidResources = true
+        }
     }
 
     buildTypes {
@@ -64,6 +78,19 @@ android {
     androidResources {
         generateLocaleConfig = true
     }
+
+    sourceSets {
+        // Tests placed in sharedTest run on both the JVM (Robolectric) and on-device, so Compose
+        // behavior tests and the fakes are written once and executed in both environments.
+        getByName("test").java.srcDir("src/sharedTest/java")
+        getByName("androidTest").java.srcDir("src/sharedTest/java")
+    }
+}
+
+roborazzi {
+    // Store reference screenshots in a VCS-tracked directory (default is the transient build/ dir),
+    // so they are committed and used as the baseline by verifyRoborazziDebug.
+    outputDir.set(layout.projectDirectory.dir("src/test/screenshots"))
 }
 
 dependencies {
@@ -82,10 +109,22 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
     testImplementation(libs.org.json)
+    // Roborazzi + Robolectric: JVM Compose screenshot tests (no emulator required).
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.roborazzi.junit.rule)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.ui.test.junit4)
+    testImplementation(libs.androidx.ui.test.manifest)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
+    androidTestImplementation(libs.hilt.android.testing)
+    kspAndroidTest(libs.hilt.android.compiler)
+    androidTestUtil(libs.androidx.test.orchestrator)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
