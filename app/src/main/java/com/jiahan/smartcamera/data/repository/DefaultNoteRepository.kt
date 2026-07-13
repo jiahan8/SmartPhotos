@@ -27,9 +27,10 @@ import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.createVideoThumbnail
 import com.jiahan.smartcamera.util.safeCall
 import com.jiahan.smartcamera.di.ApplicationScope
+import com.jiahan.smartcamera.di.IoDispatcher
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -54,6 +55,7 @@ class DefaultNoteRepository @Inject constructor(
     private val noteDao: NoteDao,
     private val errorHandler: ErrorHandler,
     @param:ApplicationScope private val applicationScope: CoroutineScope,
+    @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : NoteRepository {
 
     companion object {
@@ -210,7 +212,7 @@ class DefaultNoteRepository @Inject constructor(
             ?: throw IllegalStateException("User is not authenticated")
         coroutineScope {
             noteMediaDetailList.map { noteMediaDetail ->
-                async(Dispatchers.IO) {
+                async(ioDispatcher) {
                     safeCall {
                         val mediaId = UUID.randomUUID().toString()
                         val extension =
@@ -261,7 +263,7 @@ class DefaultNoteRepository @Inject constructor(
 
     override suspend fun buildLocalMediaDetails(uriList: List<Uri>): Result<List<NoteMediaDetail>> =
         safeCall {
-            withContext(Dispatchers.IO) {
+            withContext(ioDispatcher) {
                 uriList.mapNotNull { uri ->
                     safeCall {
                         val isVideo =
@@ -299,7 +301,7 @@ class DefaultNoteRepository @Inject constructor(
     override suspend fun quickUploadMediaToFirebase(uriList: List<Uri>) {
         val userId = authRepository.currentUserId ?: return
         uriList.forEach { uri ->
-            applicationScope.launch(Dispatchers.IO) {
+            applicationScope.launch(ioDispatcher) {
                 safeCall {
                     val mediaId = UUID.randomUUID().toString()
                     val storageRef =

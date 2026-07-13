@@ -9,17 +9,17 @@ import org.json.JSONObject
 
 class DatabaseConverters {
 
-    private companion object {
-        const val PHOTO_URL = "photoUrl"
-        const val VIDEO_URL = "videoUrl"
-        const val THUMBNAIL_URL = "thumbnailUrl"
-        const val IS_VIDEO = "isVideo"
-        const val GENERATED_TEXT = "generatedText"
-        const val GENERATED_OBJECTS = "generatedObjects"
-        const val GENERATED_LABELS = "generatedLabels"
-        const val OBJECT_NAME = "objectName"
-        const val LABEL = "label"
-        const val SCORE = "score"
+    companion object {
+        private const val PHOTO_URL = "photoUrl"
+        private const val VIDEO_URL = "videoUrl"
+        private const val THUMBNAIL_URL = "thumbnailUrl"
+        private const val IS_VIDEO = "isVideo"
+        private const val GENERATED_TEXT = "generatedText"
+        private const val GENERATED_OBJECTS = "generatedObjects"
+        private const val GENERATED_LABELS = "generatedLabels"
+        private const val OBJECT_NAME = "objectName"
+        private const val LABEL = "label"
+        private const val SCORE = "score"
     }
 
     @TypeConverter

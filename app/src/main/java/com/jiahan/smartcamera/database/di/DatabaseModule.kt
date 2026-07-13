@@ -12,11 +12,11 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
-private const val DATABASE_NAME = "photo-database"
-
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
+
+    private const val DATABASE_NAME = "photo-database"
 
     @Provides
     @Singleton
