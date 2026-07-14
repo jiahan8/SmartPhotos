@@ -356,23 +356,7 @@ class DefaultNoteRepository @Inject constructor(
         noteDao.getFavoriteNotes().map { notes ->
             val homeNotes = notes.map { it.toHomeNote() }
             if (query.isEmpty()) homeNotes
-            else homeNotes.filter { note ->
-                note.text?.contains(query, ignoreCase = true) == true ||
-                        note.mediaList?.any { media ->
-                            media.generatedText?.any {
-                                it.contains(
-                                    query,
-                                    ignoreCase = true
-                                )
-                            } == true ||
-                                    media.generatedObjects?.any {
-                                        it.objectName.contains(query, ignoreCase = true)
-                                    } == true ||
-                                    media.generatedLabels?.any {
-                                        it.label.contains(query, ignoreCase = true)
-                                    } == true
-                        } == true
-            }
+            else homeNotes.filter { note -> matchesQuery(note.text, note.mediaList, query) }
         }
 
     private fun getHomeNote(
@@ -411,27 +395,21 @@ class DefaultNoteRepository @Inject constructor(
     )
 
     private fun matchesSearchQuery(document: DocumentSnapshot, query: String): Boolean {
-        if (document.getString(FIELD_TEXT)?.contains(query, ignoreCase = true) == true) return true
-        val mediaList = document.get(FIELD_MEDIA_LIST) as? List<*>
-        return mediaList?.any { item ->
-            val mediaMap = item as? Map<*, *> ?: return@any false
-            val generatedText = mediaMap[FIELD_GENERATED_TEXT] as? List<*>
-            if (generatedText?.any {
-                    (it as? String)?.contains(
-                        query,
-                        ignoreCase = true
-                    ) == true
-                } == true) return@any true
-            val generatedObjects = mediaMap[FIELD_GENERATED_OBJECTS] as? List<*>
-            if (generatedObjects?.any {
-                    (it as? Map<*, *>)?.get(FIELD_OBJECT)?.toString()
-                        ?.contains(query, ignoreCase = true) == true
-                } == true) return@any true
-            val generatedLabels = mediaMap[FIELD_GENERATED_LABELS] as? List<*>
-            generatedLabels?.any {
-                (it as? Map<*, *>)?.get(FIELD_LABEL)?.toString()
-                    ?.contains(query, ignoreCase = true) == true
-            } == true
-        } == true
+        val mediaList = (document.get(FIELD_MEDIA_LIST) as? List<*>)
+            ?.mapNotNull { (it as? Map<*, *>)?.let(::parseMediaDetail) }
+        return matchesQuery(document.getString(FIELD_TEXT), mediaList, query)
     }
+
+    /** Shared text/media match predicate used by both Firestore search and local favorite filtering. */
+    private fun matchesQuery(text: String?, mediaList: List<MediaDetail>?, query: String): Boolean =
+        text?.contains(query, ignoreCase = true) == true ||
+                mediaList?.any { media ->
+                    media.generatedText?.any { it.contains(query, ignoreCase = true) } == true ||
+                            media.generatedObjects?.any {
+                                it.objectName.contains(query, ignoreCase = true)
+                            } == true ||
+                            media.generatedLabels?.any {
+                                it.label.contains(query, ignoreCase = true)
+                            } == true
+                } == true
 }

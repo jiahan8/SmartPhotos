@@ -1,6 +1,7 @@
 package com.jiahan.smartcamera.data.repository
 
 import android.net.Uri
+import com.jiahan.smartcamera.domain.ProfilePictureUpdate
 import com.jiahan.smartcamera.domain.User
 
 interface UserRepository {
@@ -10,9 +11,7 @@ interface UserRepository {
     suspend fun updateUserProfile(
         displayName: String?,
         username: String?,
-        profilePictureUri: Uri?,
-        profilePictureUrl: String?,
-        deleteProfilePicture: Boolean = false
+        profilePicture: ProfilePictureUpdate = ProfilePictureUpdate.Keep
     ): Result<Unit>
 
     suspend fun uploadProfilePicture(uri: Uri): Result<String?>

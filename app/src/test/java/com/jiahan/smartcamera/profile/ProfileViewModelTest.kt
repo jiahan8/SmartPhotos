@@ -142,8 +142,6 @@ class ProfileViewModelTest {
             userRepository.updateUserProfile(
                 any(),
                 any(),
-                any(),
-                any(),
                 any()
             )
         }
@@ -152,7 +150,7 @@ class ProfileViewModelTest {
     @Test
     fun `updateUserProfile success emits UpdateSuccess event`() = runTest {
         viewModel.updateDisplayNameText("Updated Name")
-        coEvery { userRepository.updateUserProfile(any(), any(), any(), any(), any()) } returns
+        coEvery { userRepository.updateUserProfile(any(), any(), any()) } returns
                 Result.success(Unit)
 
         viewModel.events.test {
@@ -166,7 +164,7 @@ class ProfileViewModelTest {
     fun `updateUserProfile username changed checks availability`() = runTest {
         viewModel.updateUsernameText("brandnew")
         coEvery { authRepository.isUsernameAvailable("brandnew") } returns Result.success(true)
-        coEvery { userRepository.updateUserProfile(any(), any(), any(), any(), any()) } returns
+        coEvery { userRepository.updateUserProfile(any(), any(), any()) } returns
                 Result.success(Unit)
 
         viewModel.updateUserProfile()

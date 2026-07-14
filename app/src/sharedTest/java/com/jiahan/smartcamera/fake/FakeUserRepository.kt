@@ -2,6 +2,7 @@ package com.jiahan.smartcamera.fake
 
 import android.net.Uri
 import com.jiahan.smartcamera.data.repository.UserRepository
+import com.jiahan.smartcamera.domain.ProfilePictureUpdate
 import com.jiahan.smartcamera.domain.User
 
 /**
@@ -27,9 +28,7 @@ class FakeUserRepository : UserRepository {
     override suspend fun updateUserProfile(
         displayName: String?,
         username: String?,
-        profilePictureUri: Uri?,
-        profilePictureUrl: String?,
-        deleteProfilePicture: Boolean
+        profilePicture: ProfilePictureUpdate
     ): Result<Unit> {
         updateUserProfileCallCount++
         lastUpdatedDisplayName = displayName

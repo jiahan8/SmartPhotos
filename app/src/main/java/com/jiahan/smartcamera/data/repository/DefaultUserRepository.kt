@@ -11,6 +11,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.storage
+import com.jiahan.smartcamera.domain.ProfilePictureUpdate
 import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
 import com.jiahan.smartcamera.util.safeCall
@@ -77,20 +78,16 @@ class DefaultUserRepository @Inject constructor(
     override suspend fun updateUserProfile(
         displayName: String?,
         username: String?,
-        profilePictureUri: Uri?,
-        profilePictureUrl: String?,
-        deleteProfilePicture: Boolean
+        profilePicture: ProfilePictureUpdate
     ): Result<Unit> = safeCall {
         updateFirebaseUserProfile(
             displayName = displayName,
-            profilePictureUri = profilePictureUri,
-            deleteProfilePicture = deleteProfilePicture
+            profilePicture = profilePicture
         )
         updateDatabaseUserProfile(
             displayName = displayName,
             username = username,
-            profilePictureUrl = profilePictureUrl,
-            deleteProfilePicture = deleteProfilePicture
+            profilePicture = profilePicture
         )
     }
 
@@ -106,14 +103,16 @@ class DefaultUserRepository @Inject constructor(
 
     private suspend fun updateFirebaseUserProfile(
         displayName: String?,
-        profilePictureUri: Uri?,
-        deleteProfilePicture: Boolean
+        profilePicture: ProfilePictureUpdate
     ) {
         auth.currentUser?.updateProfile(
             userProfileChangeRequest {
                 displayName?.let { this.displayName = it }
-                if (deleteProfilePicture) photoUri = null
-                else profilePictureUri?.let { photoUri = it }
+                when (profilePicture) {
+                    is ProfilePictureUpdate.Set -> photoUri = profilePicture.uri
+                    ProfilePictureUpdate.Delete -> photoUri = null
+                    ProfilePictureUpdate.Keep -> Unit
+                }
             }
         )?.await()
     }
@@ -121,14 +120,17 @@ class DefaultUserRepository @Inject constructor(
     private suspend fun updateDatabaseUserProfile(
         displayName: String?,
         username: String?,
-        profilePictureUrl: String?,
-        deleteProfilePicture: Boolean
+        profilePicture: ProfilePictureUpdate
     ) {
-        val updates = mutableMapOf<String, Any?>()
-        displayName?.let { updates[FIELD_DISPLAY_NAME] = it }
-        username?.let { updates[FIELD_USERNAME] = it }
-        if (deleteProfilePicture) updates[FIELD_PROFILE_PICTURE] = null
-        else profilePictureUrl?.let { updates[FIELD_PROFILE_PICTURE] = it }
+        val updates = buildMap {
+            displayName?.let { put(FIELD_DISPLAY_NAME, it) }
+            username?.let { put(FIELD_USERNAME, it) }
+            when (profilePicture) {
+                is ProfilePictureUpdate.Set -> put(FIELD_PROFILE_PICTURE, profilePicture.url)
+                ProfilePictureUpdate.Delete -> put(FIELD_PROFILE_PICTURE, null)
+                ProfilePictureUpdate.Keep -> Unit
+            }
+        }
         if (updates.isNotEmpty()) {
             updateUserAndMemberDocuments(
                 userOperation = { userDocumentReference?.update(updates)?.await() },

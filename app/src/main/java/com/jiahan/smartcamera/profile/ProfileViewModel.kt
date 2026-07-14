@@ -8,6 +8,7 @@ import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
+import com.jiahan.smartcamera.domain.ProfilePictureUpdate
 import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ResourceProvider
@@ -166,9 +167,7 @@ class ProfileViewModel @Inject constructor(
             userRepository.updateUserProfile(
                 displayName = trimmedDisplayName,
                 username = trimmedUsername,
-                profilePictureUri = null,
-                profilePictureUrl = null,
-                deleteProfilePicture = false
+                profilePicture = ProfilePictureUpdate.Keep
             ).onSuccess {
                 loadUserProfile()
                 _isFormChanged.value = false
@@ -188,12 +187,18 @@ class ProfileViewModel @Inject constructor(
             _showBottomSheet.value = false
             userRepository.uploadProfilePicture(profilePictureUri)
                 .onSuccess { profilePictureUrl ->
+                    if (profilePictureUrl == null) {
+                        _events.tryEmit(ProfileEvent.UpdateError)
+                        _isUploading.value = false
+                        return@launch
+                    }
                     userRepository.updateUserProfile(
                         displayName = null,
                         username = null,
-                        profilePictureUri = profilePictureUri,
-                        profilePictureUrl = profilePictureUrl,
-                        deleteProfilePicture = false
+                        profilePicture = ProfilePictureUpdate.Set(
+                            uri = profilePictureUri,
+                            url = profilePictureUrl
+                        )
                     ).onSuccess {
                         loadUserProfile()
                         _events.tryEmit(ProfileEvent.UploadSuccess)
@@ -217,9 +222,7 @@ class ProfileViewModel @Inject constructor(
             userRepository.updateUserProfile(
                 displayName = null,
                 username = null,
-                profilePictureUri = null,
-                profilePictureUrl = null,
-                deleteProfilePicture = true
+                profilePicture = ProfilePictureUpdate.Delete
             ).onSuccess {
                 loadUserProfile()
                 _events.tryEmit(ProfileEvent.UploadSuccess)
