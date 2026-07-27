@@ -89,14 +89,15 @@ fun NoteScreen(
 
     val profilePicture by viewModel.profilePicture.collectAsStateWithLifecycle(null)
     val username by viewModel.username.collectAsStateWithLifecycle("")
-    val postText by viewModel.postText.collectAsStateWithLifecycle()
-    val photoUri by viewModel.photoUri.collectAsStateWithLifecycle()
-    val videoUri by viewModel.videoUri.collectAsStateWithLifecycle()
-    val mediaList by viewModel.mediaList.collectAsStateWithLifecycle()
-    val uploadUiState by viewModel.uploadUiState.collectAsStateWithLifecycle()
-    val isUploading = uploadUiState is UploadUiState.Uploading
-    val postTextError by viewModel.postTextError.collectAsStateWithLifecycle()
-    val buttonEnabled by viewModel.postButtonEnabled.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val postText = uiState.postText
+    val photoUri = uiState.photoUri
+    val videoUri = uiState.videoUri
+    val mediaList = uiState.mediaList
+    val uploadStatus = uiState.uploadStatus
+    val isUploading = uploadStatus is UploadStatus.Uploading
+    val postTextError = uiState.postTextError
+    val postButtonEnabled by viewModel.postButtonEnabled.collectAsStateWithLifecycle()
 
     var isErrorSnackBar by remember { mutableStateOf(false) }
 
@@ -171,16 +172,16 @@ fun NoteScreen(
         }
     }
 
-    LaunchedEffect(uploadUiState) {
-        when (uploadUiState) {
-            is UploadUiState.Success -> {
+    LaunchedEffect(uploadStatus) {
+        when (uploadStatus) {
+            is UploadStatus.Success -> {
                 keyboardController?.hide()
                 isErrorSnackBar = false
                 viewModel.resetUploadState()
                 onBack()
             }
 
-            is UploadUiState.Error -> {
+            is UploadStatus.Error -> {
                 keyboardController?.hide()
                 isErrorSnackBar = true
                 snackbarHostState.showSnackbar(
@@ -445,7 +446,7 @@ fun NoteScreen(
 
                             TextButton(
                                 onClick = { viewModel.uploadPost() },
-                                enabled = buttonEnabled
+                                enabled = postButtonEnabled
                             ) {
                                 Text(text = stringResource(R.string.post))
                             }

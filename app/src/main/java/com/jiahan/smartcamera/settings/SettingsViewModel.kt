@@ -16,14 +16,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 
-sealed interface SettingsUiState {
-    data object Idle : SettingsUiState
-    data object Loading : SettingsUiState
-    data class Error(val message: String) : SettingsUiState
+sealed interface SettingsStatus {
+    data object Idle : SettingsStatus
+    data object Loading : SettingsStatus
+    data class Error(val message: String) : SettingsStatus
 }
 
 sealed interface SettingsDialogState {
@@ -37,6 +38,11 @@ sealed interface SettingsNavigationEvent {
     data object OpenLanguageSettings : SettingsNavigationEvent
 }
 
+data class SettingsUiState(
+    val status: SettingsStatus = SettingsStatus.Idle,
+    val dialogState: SettingsDialogState = SettingsDialogState.None
+)
+
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val authRepository: AuthRepository,
@@ -46,10 +52,8 @@ class SettingsViewModel @Inject constructor(
 
     private val _navigationEvent = Channel<SettingsNavigationEvent>(Channel.BUFFERED)
     val navigationEvent = _navigationEvent.receiveAsFlow()
-    private val _uiState = MutableStateFlow<SettingsUiState>(SettingsUiState.Idle)
+    private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState = _uiState.asStateFlow()
-    private val _dialogState = MutableStateFlow<SettingsDialogState>(SettingsDialogState.None)
-    val dialogState = _dialogState.asStateFlow()
 
     val isDarkTheme = userPreferencesRepository.userPreferencesFlow
         .map { it.isDarkTheme }
@@ -68,46 +72,54 @@ class SettingsViewModel @Inject constructor(
 
     fun signOut() {
         viewModelScope.launch {
-            _uiState.value = SettingsUiState.Loading
+            _uiState.update { it.copy(status = SettingsStatus.Loading) }
             val result = authRepository.signOut()
             result.onFailure { e ->
                 errorHandler.logError(e)
-                _uiState.value = SettingsUiState.Error(errorHandler.getErrorMessage(e))
+                _uiState.update {
+                    it.copy(
+                        status = SettingsStatus.Error(errorHandler.getErrorMessage(e))
+                    )
+                }
             }
             if (result.isSuccess) {
                 delay(AUTH_ACTION_DELAY_MS.milliseconds)
                 _navigationEvent.trySend(SettingsNavigationEvent.NavigateToAuth)
-                _uiState.value = SettingsUiState.Idle
+                _uiState.update { it.copy(status = SettingsStatus.Idle) }
             }
         }
     }
 
     fun deleteAccount() {
         viewModelScope.launch {
-            _uiState.value = SettingsUiState.Loading
+            _uiState.update { it.copy(status = SettingsStatus.Loading) }
             val result = authRepository.deleteAccount()
             result.onFailure { e ->
                 errorHandler.logError(e)
-                _uiState.value = SettingsUiState.Error(errorHandler.getErrorMessage(e))
+                _uiState.update {
+                    it.copy(
+                        status = SettingsStatus.Error(errorHandler.getErrorMessage(e))
+                    )
+                }
             }
             if (result.isSuccess) {
                 delay(AUTH_ACTION_DELAY_MS.milliseconds)
                 _navigationEvent.trySend(SettingsNavigationEvent.NavigateToAuth)
-                _uiState.value = SettingsUiState.Idle
+                _uiState.update { it.copy(status = SettingsStatus.Idle) }
             }
         }
     }
 
     fun showLogoutDialog() {
-        _dialogState.value = SettingsDialogState.Logout
+        _uiState.update { it.copy(dialogState = SettingsDialogState.Logout) }
     }
 
     fun showDeleteAccountDialog() {
-        _dialogState.value = SettingsDialogState.DeleteAccount
+        _uiState.update { it.copy(dialogState = SettingsDialogState.DeleteAccount) }
     }
 
     fun dismissDialog() {
-        _dialogState.value = SettingsDialogState.None
+        _uiState.update { it.copy(dialogState = SettingsDialogState.None) }
     }
 
     fun openLanguageSettings() {
@@ -115,7 +127,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun resetActionError() {
-        _uiState.value = SettingsUiState.Idle
+        _uiState.update { it.copy(status = SettingsStatus.Idle) }
     }
 
 }

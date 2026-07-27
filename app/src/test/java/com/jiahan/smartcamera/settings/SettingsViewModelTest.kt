@@ -55,12 +55,12 @@ class SettingsViewModelTest {
 
     @Test
     fun `initial uiState is Idle`() {
-        assertEquals(SettingsUiState.Idle, viewModel.uiState.value)
+        assertEquals(SettingsStatus.Idle, viewModel.uiState.value.status)
     }
 
     @Test
     fun `initial dialogState is None`() {
-        assertEquals(SettingsDialogState.None, viewModel.dialogState.value)
+        assertEquals(SettingsDialogState.None, viewModel.uiState.value.dialogState)
     }
 
     // -------------------------------------------------------------------------
@@ -85,7 +85,7 @@ class SettingsViewModelTest {
         coEvery { authRepository.signOut() } returns Result.success(Unit)
         viewModel.signOut()
         advanceUntilIdle()
-        assertEquals(SettingsUiState.Idle, viewModel.uiState.value)
+        assertEquals(SettingsStatus.Idle, viewModel.uiState.value.status)
     }
 
     @Test
@@ -97,9 +97,9 @@ class SettingsViewModelTest {
         viewModel.signOut()
         advanceUntilIdle()
 
-        val state = viewModel.uiState.value
-        assertTrue(state is SettingsUiState.Error)
-        assertEquals("sign out failed", (state as SettingsUiState.Error).message)
+        val state = viewModel.uiState.value.status
+        assertTrue(state is SettingsStatus.Error)
+        assertEquals("sign out failed", (state as SettingsStatus.Error).message)
     }
 
     // -------------------------------------------------------------------------
@@ -125,7 +125,7 @@ class SettingsViewModelTest {
             coEvery { authRepository.deleteAccount() } returns Result.success(Unit)
             viewModel.deleteAccount()
             advanceUntilIdle()
-            assertEquals(SettingsUiState.Idle, viewModel.uiState.value)
+            assertEquals(SettingsStatus.Idle, viewModel.uiState.value.status)
         }
 
     @Test
@@ -137,7 +137,7 @@ class SettingsViewModelTest {
         viewModel.deleteAccount()
         advanceUntilIdle()
 
-        assertTrue(viewModel.uiState.value is SettingsUiState.Error)
+        assertTrue(viewModel.uiState.value.status is SettingsStatus.Error)
     }
 
     // -------------------------------------------------------------------------
@@ -147,20 +147,20 @@ class SettingsViewModelTest {
     @Test
     fun `showLogoutDialog sets dialogState to Logout`() {
         viewModel.showLogoutDialog()
-        assertEquals(SettingsDialogState.Logout, viewModel.dialogState.value)
+        assertEquals(SettingsDialogState.Logout, viewModel.uiState.value.dialogState)
     }
 
     @Test
     fun `showDeleteAccountDialog sets dialogState to DeleteAccount`() {
         viewModel.showDeleteAccountDialog()
-        assertEquals(SettingsDialogState.DeleteAccount, viewModel.dialogState.value)
+        assertEquals(SettingsDialogState.DeleteAccount, viewModel.uiState.value.dialogState)
     }
 
     @Test
     fun `dismissDialog resets dialogState to None`() {
         viewModel.showLogoutDialog()
         viewModel.dismissDialog()
-        assertEquals(SettingsDialogState.None, viewModel.dialogState.value)
+        assertEquals(SettingsDialogState.None, viewModel.uiState.value.dialogState)
     }
 
     // -------------------------------------------------------------------------
@@ -186,7 +186,7 @@ class SettingsViewModelTest {
 
         viewModel.resetActionError()
 
-        assertEquals(SettingsUiState.Idle, viewModel.uiState.value)
+        assertEquals(SettingsStatus.Idle, viewModel.uiState.value.status)
     }
 
     @Test
@@ -213,6 +213,6 @@ class SettingsViewModelTest {
 
             verify { errorHandler.logError(exception) }
             // uiState unchanged — no error shown to user
-            assertEquals(SettingsUiState.Idle, viewModel.uiState.value)
+            assertEquals(SettingsStatus.Idle, viewModel.uiState.value.status)
         }
 }

@@ -87,11 +87,6 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
-    val isLoadingMore by viewModel.isLoadingMore.collectAsStateWithLifecycle()
-    val noteToDelete by viewModel.noteToDelete.collectAsStateWithLifecycle()
-
-    val onRefresh: () -> Unit = { viewModel.refresh() }
 
     LaunchedEffect(listState) {
         onScrollDirectionChanged(true)
@@ -110,7 +105,7 @@ fun HomeScreen(
 
     LaunchedEffect(scrollToTop) {
         scrollToTop?.let {
-            val notes = (uiState as? HomeUiState.Success)?.notes
+            val notes = (uiState.content as? HomeContent.Success)?.notes
             if (notes?.isNotEmpty() == true) {
                 listState.animateScrollToItem(0)
                 onScrollToTopConsumed()
@@ -124,19 +119,20 @@ fun HomeScreen(
 
     val shouldLoadMore by remember {
         derivedStateOf {
-            val notes = (uiState as? HomeUiState.Success)?.notes ?: return@derivedStateOf false
+            val notes =
+                (uiState.content as? HomeContent.Success)?.notes ?: return@derivedStateOf false
             if (notes.isEmpty()) return@derivedStateOf false
             val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
             lastVisible != null && lastVisible >= notes.size - 1
         }
     }
     LaunchedEffect(shouldLoadMore) {
-        if (shouldLoadMore && !isLoadingMore) {
+        if (shouldLoadMore && !uiState.isLoadingMore) {
             viewModel.loadMoreNotes()
         }
     }
 
-    noteToDelete?.let { note ->
+    uiState.noteToDelete?.let { note ->
         AlertDialog(
             onDismissRequest = { viewModel.setNoteToDelete(null) },
             title = { Text(stringResource(R.string.delete_note)) },
@@ -174,8 +170,8 @@ fun HomeScreen(
         },
         snackbarHost = { CustomSnackbarHost(snackbarHostState, isError = true) }
     ) { padding ->
-        when (val state = uiState) {
-            is HomeUiState.Loading ->
+        when (val state = uiState.content) {
+            is HomeContent.Loading ->
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -183,7 +179,7 @@ fun HomeScreen(
                     CircularProgressIndicator(strokeWidth = 1.5.dp)
                 }
 
-            is HomeUiState.Error ->
+            is HomeContent.Error ->
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -191,7 +187,7 @@ fun HomeScreen(
                     Text(state.message)
                 }
 
-            is HomeUiState.Success ->
+            is HomeContent.Success ->
                 if (state.notes.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -207,8 +203,8 @@ fun HomeScreen(
                             end = padding.calculateEndPadding(LayoutDirection.Ltr)
                         ),
                         state = pullToRefreshState,
-                        isRefreshing = isRefreshing,
-                        onRefresh = onRefresh,
+                        isRefreshing = uiState.isRefreshing,
+                        onRefresh = { viewModel.refresh() },
                     ) {
                         LazyColumn(
                             state = listState,
@@ -239,7 +235,7 @@ fun HomeScreen(
                                 )
                             }
 
-                            if (isLoadingMore) {
+                            if (uiState.isLoadingMore) {
                                 item {
                                     Box(
                                         modifier = Modifier

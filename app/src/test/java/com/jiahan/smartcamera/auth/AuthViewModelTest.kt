@@ -17,6 +17,8 @@ import io.mockk.unmockkAll
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -71,38 +73,38 @@ class AuthViewModelTest {
     @Test
     fun `updateEmailText updates email StateFlow`() {
         viewModel.updateEmailText("user@example.com")
-        assertEquals("user@example.com", viewModel.email.value)
+        assertEquals("user@example.com", viewModel.uiState.value.email)
     }
 
     @Test
     fun `updatePasswordText updates password StateFlow`() {
         viewModel.updatePasswordText("secret123")
-        assertEquals("secret123", viewModel.password.value)
+        assertEquals("secret123", viewModel.uiState.value.password)
     }
 
     @Test
     fun `updateDisplayNameText updates displayName StateFlow`() {
         viewModel.updateDisplayNameText("Jane Doe")
-        assertEquals("Jane Doe", viewModel.displayName.value)
+        assertEquals("Jane Doe", viewModel.uiState.value.displayName)
     }
 
     @Test
     fun `updateUsernameText updates username StateFlow`() {
         viewModel.updateUsernameText("janedoe")
-        assertEquals("janedoe", viewModel.username.value)
+        assertEquals("janedoe", viewModel.uiState.value.username)
     }
 
     @Test
     fun `updatePasswordVisibility true shows password`() {
         viewModel.updatePasswordVisibility(true)
-        assertTrue(viewModel.passwordVisible.value)
+        assertTrue(viewModel.uiState.value.passwordVisible)
     }
 
     @Test
     fun `updatePasswordVisibility false hides password`() {
         viewModel.updatePasswordVisibility(true)
         viewModel.updatePasswordVisibility(false)
-        assertFalse(viewModel.passwordVisible.value)
+        assertFalse(viewModel.uiState.value.passwordVisible)
     }
 
     // -------------------------------------------------------------------------
@@ -111,9 +113,9 @@ class AuthViewModelTest {
 
     @Test
     fun `toggleAuthMode switches from login to register mode`() {
-        assertTrue(viewModel.isLoginMode.value)
+        assertTrue(viewModel.uiState.value.isLoginMode)
         viewModel.toggleAuthMode()
-        assertFalse(viewModel.isLoginMode.value)
+        assertFalse(viewModel.uiState.value.isLoginMode)
     }
 
     @Test
@@ -125,16 +127,16 @@ class AuthViewModelTest {
 
         viewModel.toggleAuthMode()
 
-        assertEquals("", viewModel.email.value)
-        assertEquals("", viewModel.password.value)
-        assertEquals("", viewModel.displayName.value)
-        assertEquals("", viewModel.username.value)
+        assertEquals("", viewModel.uiState.value.email)
+        assertEquals("", viewModel.uiState.value.password)
+        assertEquals("", viewModel.uiState.value.displayName)
+        assertEquals("", viewModel.uiState.value.username)
     }
 
     @Test
     fun `toggleAuthMode resets authUiState to Idle`() {
         viewModel.toggleAuthMode()
-        assertEquals(AuthUiState.Idle, viewModel.authUiState.value)
+        assertEquals(AuthStatus.Idle, viewModel.uiState.value.status)
     }
 
     // -------------------------------------------------------------------------
@@ -148,7 +150,7 @@ class AuthViewModelTest {
 
         viewModel.signIn()
 
-        assertTrue(viewModel.authUiState.value is AuthUiState.Error)
+        assertTrue(viewModel.uiState.value.status is AuthStatus.Error)
     }
 
     @Test
@@ -158,7 +160,7 @@ class AuthViewModelTest {
 
         viewModel.signIn()
 
-        assertTrue(viewModel.authUiState.value is AuthUiState.Error)
+        assertTrue(viewModel.uiState.value.status is AuthStatus.Error)
     }
 
     // -------------------------------------------------------------------------
@@ -198,7 +200,7 @@ class AuthViewModelTest {
 
         viewModel.signIn()
 
-        assertEquals(AuthUiState.Idle, viewModel.authUiState.value)
+        assertEquals(AuthStatus.Idle, viewModel.uiState.value.status)
     }
 
     @Test
@@ -211,9 +213,9 @@ class AuthViewModelTest {
 
         viewModel.signIn()
 
-        val state = viewModel.authUiState.value
-        assertTrue(state is AuthUiState.Error)
-        assertTrue((state as AuthUiState.Error).showResendButton)
+        val state = viewModel.uiState.value.status
+        assertTrue(state is AuthStatus.Error)
+        assertTrue((state as AuthStatus.Error).showResendButton)
     }
 
     // -------------------------------------------------------------------------
@@ -243,13 +245,13 @@ class AuthViewModelTest {
             userPreferencesRepository.updateLocalUserProfile(any(), any())
         } returns Result.success(Unit)
 
-        vm.authUiState.test {
-            assertEquals(AuthUiState.Idle, awaitItem())        // initial value
+        vm.uiState.map { it.status }.distinctUntilChanged().test {
+            assertEquals(AuthStatus.Idle, awaitItem()) // initial value
             vm.signIn()
-            advanceTimeBy(1.milliseconds)                       // let the launch start; suspends at delay(1s)
-            assertEquals(AuthUiState.Loading, awaitItem())
-            advanceUntilIdle()                                  // complete the delay → signIn finishes
-            assertEquals(AuthUiState.Idle, awaitItem())
+            advanceTimeBy(1.milliseconds) // let the launch start; suspends at delay(1s)
+            assertEquals(AuthStatus.Loading, awaitItem())
+            advanceUntilIdle() // complete the delay → signIn finishes
+            assertEquals(AuthStatus.Idle, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -276,13 +278,13 @@ class AuthViewModelTest {
         coEvery { authRepository.signUp(any(), any(), any(), any()) } returns Result.success(Unit)
         every { resourceProvider.getString(any()) } returns "Verification email sent"
 
-        vm.authUiState.test {
-            assertEquals(AuthUiState.Idle, awaitItem())
+        vm.uiState.map { it.status }.distinctUntilChanged().test {
+            assertEquals(AuthStatus.Idle, awaitItem())
             vm.signUp()
             advanceTimeBy(1.milliseconds)
-            assertEquals(AuthUiState.Loading, awaitItem())
+            assertEquals(AuthStatus.Loading, awaitItem())
             advanceUntilIdle()
-            assertTrue(awaitItem() is AuthUiState.Info)
+            assertTrue(awaitItem() is AuthStatus.Info)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -302,9 +304,9 @@ class AuthViewModelTest {
 
         viewModel.signIn()
 
-        val state = viewModel.authUiState.value
-        assertTrue(state is AuthUiState.Error)
-        assertEquals("Invalid credentials", (state as AuthUiState.Error).message)
+        val state = viewModel.uiState.value.status
+        assertTrue(state is AuthStatus.Error)
+        assertEquals("Invalid credentials", (state as AuthStatus.Error).message)
     }
 
     // -------------------------------------------------------------------------
@@ -320,7 +322,7 @@ class AuthViewModelTest {
 
         viewModel.signUp()
 
-        assertTrue(viewModel.authUiState.value is AuthUiState.Error)
+        assertTrue(viewModel.uiState.value.status is AuthStatus.Error)
     }
 
     @Test
@@ -332,7 +334,7 @@ class AuthViewModelTest {
 
         viewModel.signUp()
 
-        assertTrue(viewModel.authUiState.value is AuthUiState.Error)
+        assertTrue(viewModel.uiState.value.status is AuthStatus.Error)
     }
 
     @Test
@@ -344,7 +346,7 @@ class AuthViewModelTest {
 
         viewModel.signUp()
 
-        assertTrue(viewModel.authUiState.value is AuthUiState.Error)
+        assertTrue(viewModel.uiState.value.status is AuthStatus.Error)
     }
 
     @Test
@@ -356,7 +358,7 @@ class AuthViewModelTest {
 
         viewModel.signUp()
 
-        assertTrue(viewModel.authUiState.value is AuthUiState.Error)
+        assertTrue(viewModel.uiState.value.status is AuthStatus.Error)
     }
 
     @Test
@@ -368,7 +370,7 @@ class AuthViewModelTest {
 
         viewModel.signUp()
 
-        assertTrue(viewModel.authUiState.value is AuthUiState.Error)
+        assertTrue(viewModel.uiState.value.status is AuthStatus.Error)
     }
 
     // -------------------------------------------------------------------------
@@ -386,7 +388,7 @@ class AuthViewModelTest {
 
         viewModel.signUp()
 
-        assertTrue(viewModel.authUiState.value is AuthUiState.Error)
+        assertTrue(viewModel.uiState.value.status is AuthStatus.Error)
     }
 
     // -------------------------------------------------------------------------
@@ -406,9 +408,9 @@ class AuthViewModelTest {
 
         viewModel.signUp()
 
-        val state = viewModel.authUiState.value
-        assertTrue(state is AuthUiState.Info)
-        assertTrue((state as AuthUiState.Info).showResendButton)
+        val state = viewModel.uiState.value.status
+        assertTrue(state is AuthStatus.Info)
+        assertTrue((state as AuthStatus.Info).showResendButton)
     }
 
     // -------------------------------------------------------------------------
@@ -419,7 +421,7 @@ class AuthViewModelTest {
     fun `resetPassword with blank email sets Error state`() = runTest {
         viewModel.updateEmailText("")
         viewModel.resetPassword()
-        assertTrue(viewModel.authUiState.value is AuthUiState.Error)
+        assertTrue(viewModel.uiState.value.status is AuthStatus.Error)
     }
 
     @Test
@@ -431,7 +433,7 @@ class AuthViewModelTest {
 
         viewModel.resetPassword()
 
-        assertTrue(viewModel.authUiState.value is AuthUiState.Error)
+        assertTrue(viewModel.uiState.value.status is AuthStatus.Error)
     }
 
     @Test
@@ -443,7 +445,7 @@ class AuthViewModelTest {
 
         viewModel.resetPassword()
 
-        assertTrue(viewModel.authUiState.value is AuthUiState.Info)
+        assertTrue(viewModel.uiState.value.status is AuthStatus.Info)
     }
 
     // -------------------------------------------------------------------------
@@ -457,9 +459,9 @@ class AuthViewModelTest {
 
         viewModel.resendVerificationEmail()
 
-        val state = viewModel.authUiState.value
-        assertTrue(state is AuthUiState.Info)
-        assertTrue((state as AuthUiState.Info).showResendButton)
+        val state = viewModel.uiState.value.status
+        assertTrue(state is AuthStatus.Info)
+        assertTrue((state as AuthStatus.Info).showResendButton)
     }
 
     @Test
@@ -468,7 +470,7 @@ class AuthViewModelTest {
 
         viewModel.resendVerificationEmail()
 
-        assertTrue(viewModel.authUiState.value is AuthUiState.Error)
+        assertTrue(viewModel.uiState.value.status is AuthStatus.Error)
     }
 
     // -------------------------------------------------------------------------
@@ -477,18 +479,18 @@ class AuthViewModelTest {
 
     @Test
     fun `submit in login mode delegates to signIn`() = runTest {
-        assertTrue(viewModel.isLoginMode.value)
+        assertTrue(viewModel.uiState.value.isLoginMode)
         // signIn with blank fields → Error
         viewModel.submit()
-        assertTrue(viewModel.authUiState.value is AuthUiState.Error)
+        assertTrue(viewModel.uiState.value.status is AuthStatus.Error)
     }
 
     @Test
     fun `submit in register mode delegates to signUp`() = runTest {
         viewModel.toggleAuthMode()
-        assertFalse(viewModel.isLoginMode.value)
+        assertFalse(viewModel.uiState.value.isLoginMode)
         // signUp with blank fields → Error
         viewModel.submit()
-        assertTrue(viewModel.authUiState.value is AuthUiState.Error)
+        assertTrue(viewModel.uiState.value.status is AuthStatus.Error)
     }
 }

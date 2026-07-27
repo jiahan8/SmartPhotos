@@ -74,12 +74,12 @@ class NoteViewModelTest {
 
     @Test
     fun `initial uploadUiState is Idle`() {
-        assertTrue(viewModel.uploadUiState.value is UploadUiState.Idle)
+        assertTrue(viewModel.uiState.value.uploadStatus is UploadStatus.Idle)
     }
 
     @Test
     fun `initial postText is empty`() {
-        assertEquals("", viewModel.postText.value)
+        assertEquals("", viewModel.uiState.value.postText)
     }
 
     @Test
@@ -94,7 +94,7 @@ class NoteViewModelTest {
     @Test
     fun `updatePostText updates postText state`() {
         viewModel.updatePostText("Hello world")
-        assertEquals("Hello world", viewModel.postText.value)
+        assertEquals("Hello world", viewModel.uiState.value.postText)
     }
 
     @Test
@@ -114,14 +114,14 @@ class NoteViewModelTest {
     fun `updatePostText exceeding max length sets postTextError`() {
         val longText = "a".repeat(MAX_POST_TEXT_LENGTH + 1)
         viewModel.updatePostText(longText)
-        assertEquals("Text too long", viewModel.postTextError.value)
+        assertEquals("Text too long", viewModel.uiState.value.postTextError)
     }
 
     @Test
     fun `updatePostText within max length clears postTextError`() {
         viewModel.updatePostText("a".repeat(MAX_POST_TEXT_LENGTH + 1)) // set error
         viewModel.updatePostText("short text")                           // clear error
-        assertNull(viewModel.postTextError.value)
+        assertNull(viewModel.uiState.value.postTextError)
     }
 
     @Test
@@ -154,22 +154,22 @@ class NoteViewModelTest {
         coEvery { noteRepository.quickUploadMediaToFirebase(any()) } returns Unit
 
         viewModel.updateUriList(listOf(mockk(), mockk()))
-        assertEquals(2, viewModel.mediaList.value.size)
+        assertEquals(2, viewModel.uiState.value.mediaList.size)
 
         viewModel.removeUriFromList(0)
-        assertEquals(1, viewModel.mediaList.value.size)
+        assertEquals(1, viewModel.uiState.value.mediaList.size)
     }
 
     @Test
     fun `removeUriFromList out of bounds index does nothing`() = runTest {
         viewModel.removeUriFromList(99)
-        assertEquals(0, viewModel.mediaList.value.size)
+        assertEquals(0, viewModel.uiState.value.mediaList.size)
     }
 
     @Test
     fun `removeUriFromList negative index does nothing`() = runTest {
         viewModel.removeUriFromList(-1)
-        assertEquals(0, viewModel.mediaList.value.size)
+        assertEquals(0, viewModel.uiState.value.mediaList.size)
     }
 
     // -------------------------------------------------------------------------
@@ -184,7 +184,7 @@ class NoteViewModelTest {
         viewModel.uploadPost()
 
         viewModel.resetUploadState()
-        assertTrue(viewModel.uploadUiState.value is UploadUiState.Idle)
+        assertTrue(viewModel.uiState.value.uploadStatus is UploadStatus.Idle)
     }
 
     // -------------------------------------------------------------------------
@@ -195,14 +195,14 @@ class NoteViewModelTest {
     fun `updatePhotoUri stores the uri`() {
         val uri: Uri = mockk()
         viewModel.updatePhotoUri(uri)
-        assertEquals(uri, viewModel.photoUri.value)
+        assertEquals(uri, viewModel.uiState.value.photoUri)
     }
 
     @Test
     fun `updateVideoUri stores the uri`() {
         val uri: Uri = mockk()
         viewModel.updateVideoUri(uri)
-        assertEquals(uri, viewModel.videoUri.value)
+        assertEquals(uri, viewModel.uiState.value.videoUri)
     }
 
     @Test
@@ -211,7 +211,7 @@ class NoteViewModelTest {
         every { mediaFileRepository.deleteUri(uri) } just runs
         viewModel.updatePhotoUri(uri)
         viewModel.cancelPhotoCapture(uri)
-        assertNull(viewModel.photoUri.value)
+        assertNull(viewModel.uiState.value.photoUri)
     }
 
     @Test
@@ -220,7 +220,7 @@ class NoteViewModelTest {
         every { mediaFileRepository.deleteUri(uri) } just runs
         viewModel.updateVideoUri(uri)
         viewModel.cancelVideoCapture(uri)
-        assertNull(viewModel.videoUri.value)
+        assertNull(viewModel.uiState.value.videoUri)
     }
 
     // -------------------------------------------------------------------------
@@ -238,7 +238,7 @@ class NoteViewModelTest {
             viewModel.uploadPost()
             awaitItem() // NoteHandler notified
             // Assert final UI state inside the same coroutine scope to avoid ordering ambiguity
-            assertTrue(viewModel.uploadUiState.value is UploadUiState.Success)
+            assertTrue(viewModel.uiState.value.uploadStatus is UploadStatus.Success)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -252,8 +252,8 @@ class NoteViewModelTest {
 
         viewModel.uploadPost()
 
-        val state = viewModel.uploadUiState.value
-        assertTrue(state is UploadUiState.Error)
-        assertEquals("upload fail", (state as UploadUiState.Error).message)
+        val state = viewModel.uiState.value.uploadStatus
+        assertTrue(state is UploadStatus.Error)
+        assertEquals("upload fail", (state as UploadStatus.Error).message)
     }
 }

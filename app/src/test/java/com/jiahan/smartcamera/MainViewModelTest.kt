@@ -67,7 +67,7 @@ class MainViewModelTest {
 
         val vm = createViewModel()
 
-        assertTrue(vm.isAppReady.value)
+        assertTrue(vm.uiState.value.isAppReady)
     }
 
     @Test
@@ -77,7 +77,7 @@ class MainViewModelTest {
 
         val vm = createViewModel()
 
-        assertEquals(Screen.Home.route, vm.startDestination.value)
+        assertEquals(Screen.Home.route, vm.uiState.value.startDestination)
     }
 
     @Test
@@ -85,7 +85,7 @@ class MainViewModelTest {
 
         val vm = createViewModel()
 
-        assertEquals(Screen.Auth.route, vm.startDestination.value)
+        assertEquals(Screen.Auth.route, vm.uiState.value.startDestination)
     }
 
     @Test
@@ -95,7 +95,7 @@ class MainViewModelTest {
 
         val vm = createViewModel()
 
-        assertEquals(Screen.Auth.route, vm.startDestination.value)
+        assertEquals(Screen.Auth.route, vm.uiState.value.startDestination)
     }
 
     @Test
@@ -106,7 +106,7 @@ class MainViewModelTest {
         val vm = createViewModel()
 
         verify { errorHandler.logError(exception) }
-        assertTrue(vm.isAppReady.value)
+        assertTrue(vm.uiState.value.isAppReady)
     }
 
     // -------------------------------------------------------------------------
@@ -116,7 +116,7 @@ class MainViewModelTest {
     fun `showBottomBar is true by default`() = runTest {
         val vm = createViewModel()
 
-        assertTrue(vm.showBottomBar.value)
+        assertTrue(vm.uiState.value.showBottomBar)
     }
 
     @Test
@@ -125,7 +125,7 @@ class MainViewModelTest {
 
         vm.updateBottomBarVisibility(false)
 
-        assertFalse(vm.showBottomBar.value)
+        assertFalse(vm.uiState.value.showBottomBar)
     }
 
     @Test
@@ -135,7 +135,7 @@ class MainViewModelTest {
         vm.updateBottomBarVisibility(false)
         vm.updateBottomBarVisibility(true)
 
-        assertTrue(vm.showBottomBar.value)
+        assertTrue(vm.uiState.value.showBottomBar)
     }
 
     // -------------------------------------------------------------------------
@@ -147,7 +147,7 @@ class MainViewModelTest {
 
         vm.updateStartDestination(Screen.Home.route)
 
-        assertEquals(Screen.Home.route, vm.startDestination.value)
+        assertEquals(Screen.Home.route, vm.uiState.value.startDestination)
     }
 
     // -------------------------------------------------------------------------
@@ -157,7 +157,7 @@ class MainViewModelTest {
     fun `scrollToTop is null initially`() = runTest {
         val vm = createViewModel()
 
-        assertNull(vm.scrollToTop.value)
+        assertNull(vm.uiState.value.scrollToTop)
     }
 
     @Test
@@ -166,7 +166,7 @@ class MainViewModelTest {
 
         vm.triggerScrollToTop()
 
-        assertNotNull(vm.scrollToTop.value)
+        assertNotNull(vm.uiState.value.scrollToTop)
     }
 
     @Test
@@ -176,6 +176,6 @@ class MainViewModelTest {
         vm.triggerScrollToTop()
         vm.consumeScrollToTopEvent()
 
-        assertNull(vm.scrollToTop.value)
+        assertNull(vm.uiState.value.scrollToTop)
     }
 }

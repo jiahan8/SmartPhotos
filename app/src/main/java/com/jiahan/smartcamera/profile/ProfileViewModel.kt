@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -34,6 +35,23 @@ sealed interface ProfileDialogState {
     data object DeletePicture : ProfileDialogState
 }
 
+data class ProfileUiState(
+    val email: String = "",
+    val displayName: String = "",
+    val username: String = "",
+    val profilePictureUrl: String? = null,
+    val photoUri: Uri? = null,
+    val displayNameErrorMessage: String? = null,
+    val usernameErrorMessage: String? = null,
+    val errorMessage: String? = null,
+    val isErrorFree: Boolean = true,
+    val isFormChanged: Boolean = false,
+    val isLoading: Boolean = false,
+    val isUploading: Boolean = false,
+    val dialogState: ProfileDialogState = ProfileDialogState.None,
+    val showBottomSheet: Boolean = false
+)
+
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val userRepository: UserRepository,
@@ -44,37 +62,10 @@ class ProfileViewModel @Inject constructor(
     private val errorHandler: ErrorHandler,
 ) : ViewModel() {
 
-    private val _user = MutableStateFlow<User?>(null)
-    private val _email = MutableStateFlow("")
-    val email = _email.asStateFlow()
-    private val _displayName = MutableStateFlow("")
-    val displayName = _displayName.asStateFlow()
-    private val _username = MutableStateFlow("")
-    val username = _username.asStateFlow()
-    private val _profilePictureUrl = MutableStateFlow<String?>(null)
-    val profilePictureUrl = _profilePictureUrl.asStateFlow()
-    private val _photoUri = MutableStateFlow<Uri?>(null)
-    val photoUri = _photoUri.asStateFlow()
+    private var user: User? = null
 
-    private val _displayNameErrorMessage = MutableStateFlow<String?>(null)
-    val displayNameErrorMessage = _displayNameErrorMessage.asStateFlow()
-    private val _usernameErrorMessage = MutableStateFlow<String?>(null)
-    val usernameErrorMessage = _usernameErrorMessage.asStateFlow()
-    private val _errorMessage = MutableStateFlow<String?>(null)
-    val errorMessage = _errorMessage.asStateFlow()
-    private val _isErrorFree = MutableStateFlow(true)
-    val isErrorFree = _isErrorFree.asStateFlow()
-    private val _isFormChanged = MutableStateFlow(false)
-    val isFormChanged = _isFormChanged.asStateFlow()
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading = _isLoading.asStateFlow()
-    private val _isUploading = MutableStateFlow(false)
-    val isUploading = _isUploading.asStateFlow()
-    private val _dialogState = MutableStateFlow<ProfileDialogState>(ProfileDialogState.None)
-    val dialogState = _dialogState.asStateFlow()
-    private val _showBottomSheet = MutableStateFlow(false)
-    val showBottomSheet = _showBottomSheet.asStateFlow()
-
+    private val _uiState = MutableStateFlow(ProfileUiState())
+    val uiState = _uiState.asStateFlow()
     private val _events = MutableSharedFlow<ProfileEvent>(extraBufferCapacity = 1)
     val events = _events.asSharedFlow()
 
@@ -85,81 +76,105 @@ class ProfileViewModel @Inject constructor(
     private fun loadUserProfile() {
         viewModelScope.launch {
             userRepository.getUser()
-                .onSuccess { user ->
-                    _user.value = user
-                    _email.value = user?.email ?: ""
-                    _displayName.value = user?.displayName ?: ""
-                    _username.value = user?.username ?: ""
-                    _profilePictureUrl.value = user?.profilePicture
+                .onSuccess { fetchedUser ->
+                    user = fetchedUser
+                    _uiState.update {
+                        it.copy(
+                            email = fetchedUser?.email ?: "",
+                            displayName = fetchedUser?.displayName ?: "",
+                            username = fetchedUser?.username ?: "",
+                            profilePictureUrl = fetchedUser?.profilePicture
+                        )
+                    }
                     userPreferencesRepository.updateLocalUserProfile(
-                        username = user?.username ?: "",
-                        profilePictureUrl = user?.profilePicture
+                        username = fetchedUser?.username ?: "",
+                        profilePictureUrl = fetchedUser?.profilePicture
                     )
                 }
                 .onFailure { e ->
                     errorHandler.logError(e)
-                    _errorMessage.value = errorHandler.getErrorMessage(e)
+                    _uiState.update { it.copy(errorMessage = errorHandler.getErrorMessage(e)) }
                 }
         }
     }
 
     fun updateDisplayNameText(text: String) {
-        _displayName.value = text
-        _displayNameErrorMessage.value =
+        val displayNameErrorMessage =
             when (val result = validateDisplayName(text.trim(), requireNonBlank = true)) {
                 is ValidationResult.Error -> resourceProvider.getString(result.messageResId)
                 else -> null
             }
+        _uiState.update {
+            it.copy(
+                displayName = text,
+                displayNameErrorMessage = displayNameErrorMessage
+            )
+        }
         checkFormChanges()
     }
 
     fun updateUsernameText(text: String) {
-        _username.value = text
-        _usernameErrorMessage.value =
+        val usernameErrorMessage =
             when (val result = validateUsername(text.trim(), requireNonBlank = true)) {
                 is ValidationResult.Error -> resourceProvider.getString(result.messageResId)
                 else -> null
             }
+        _uiState.update { it.copy(username = text, usernameErrorMessage = usernameErrorMessage) }
         checkFormChanges()
     }
 
     private fun checkFormChanges() {
-        _isFormChanged.value = _displayName.value.trim() != _user.value?.displayName ||
-                _username.value.trim() != _user.value?.username
-        _isErrorFree.value =
-            _usernameErrorMessage.value == null && _displayNameErrorMessage.value == null && _errorMessage.value == null
-        _errorMessage.value = null
+        _uiState.update {
+            val isFormChanged = it.displayName.trim() != user?.displayName ||
+                    it.username.trim() != user?.username
+            val isErrorFree =
+                it.usernameErrorMessage == null && it.displayNameErrorMessage == null &&
+                        it.errorMessage == null
+            it.copy(isFormChanged = isFormChanged, isErrorFree = isErrorFree, errorMessage = null)
+        }
     }
 
     fun updateUserProfile() {
-        if (!_isFormChanged.value || !_isErrorFree.value) return
+        val state = _uiState.value
+        if (!state.isFormChanged || !state.isErrorFree) return
 
-        _displayNameErrorMessage.value = null
-        _usernameErrorMessage.value = null
-        _errorMessage.value = null
+        _uiState.update {
+            it.copy(
+                displayNameErrorMessage = null,
+                usernameErrorMessage = null,
+                errorMessage = null
+            )
+        }
 
-        val trimmedDisplayName = displayName.value.trim()
-        val trimmedUsername = username.value.trim()
+        val trimmedDisplayName = state.displayName.trim()
+        val trimmedUsername = state.username.trim()
 
-        if (!_isErrorFree.value) return
+        if (!_uiState.value.isErrorFree) return
 
         viewModelScope.launch {
-            _isLoading.value = true
+            _uiState.update { it.copy(isLoading = true) }
 
-            if (trimmedUsername != _user.value?.username) {
+            if (trimmedUsername != user?.username) {
                 val available = authRepository.isUsernameAvailable(trimmedUsername)
                     .getOrElse { e ->
                         errorHandler.logError(e)
-                        _errorMessage.value = errorHandler.getErrorMessage(e)
+                        _uiState.update {
+                            it.copy(
+                                errorMessage = errorHandler.getErrorMessage(e),
+                                isLoading = false
+                            )
+                        }
                         _events.tryEmit(ProfileEvent.UpdateError)
-                        _isLoading.value = false
                         return@launch
                     }
                 if (!available) {
-                    _usernameErrorMessage.value =
-                        resourceProvider.getString(R.string.username_not_available)
-                    _isErrorFree.value = false
-                    _isLoading.value = false
+                    _uiState.update {
+                        it.copy(
+                            usernameErrorMessage = resourceProvider.getString(R.string.username_not_available),
+                            isErrorFree = false,
+                            isLoading = false
+                        )
+                    }
                     return@launch
                 }
             }
@@ -170,26 +185,25 @@ class ProfileViewModel @Inject constructor(
                 profilePicture = ProfilePictureUpdate.Keep
             ).onSuccess {
                 loadUserProfile()
-                _isFormChanged.value = false
+                _uiState.update { it.copy(isFormChanged = false) }
                 _events.tryEmit(ProfileEvent.UpdateSuccess)
             }.onFailure { e ->
                 errorHandler.logError(e)
-                _errorMessage.value = errorHandler.getErrorMessage(e)
+                _uiState.update { it.copy(errorMessage = errorHandler.getErrorMessage(e)) }
                 _events.tryEmit(ProfileEvent.UpdateError)
             }
-            _isLoading.value = false
+            _uiState.update { it.copy(isLoading = false) }
         }
     }
 
     fun uploadProfilePicture(profilePictureUri: Uri) {
         viewModelScope.launch {
-            _isUploading.value = true
-            _showBottomSheet.value = false
+            _uiState.update { it.copy(isUploading = true, showBottomSheet = false) }
             userRepository.uploadProfilePicture(profilePictureUri)
                 .onSuccess { profilePictureUrl ->
                     if (profilePictureUrl == null) {
                         _events.tryEmit(ProfileEvent.UpdateError)
-                        _isUploading.value = false
+                        _uiState.update { it.copy(isUploading = false) }
                         return@launch
                     }
                     userRepository.updateUserProfile(
@@ -211,14 +225,13 @@ class ProfileViewModel @Inject constructor(
                     errorHandler.logError(e)
                     _events.tryEmit(ProfileEvent.UpdateError)
                 }
-            _isUploading.value = false
+            _uiState.update { it.copy(isUploading = false) }
         }
     }
 
     fun deleteProfilePicture() {
         viewModelScope.launch {
-            _isUploading.value = true
-            _showBottomSheet.value = false
+            _uiState.update { it.copy(isUploading = true, showBottomSheet = false) }
             userRepository.updateUserProfile(
                 displayName = null,
                 username = null,
@@ -230,30 +243,30 @@ class ProfileViewModel @Inject constructor(
                 errorHandler.logError(e)
                 _events.tryEmit(ProfileEvent.UpdateError)
             }
-            _isUploading.value = false
+            _uiState.update { it.copy(isUploading = false) }
         }
     }
 
     fun createImageUri(): Uri? = mediaFileRepository.createImageUri()
 
     fun updatePhotoUri(uri: Uri?) {
-        _photoUri.value = uri
+        _uiState.update { it.copy(photoUri = uri) }
     }
 
     fun cancelPhotoCapture(uri: Uri) {
         mediaFileRepository.deleteUri(uri)
-        _photoUri.value = null
+        _uiState.update { it.copy(photoUri = null) }
     }
 
     fun showDeletePictureDialog() {
-        _dialogState.value = ProfileDialogState.DeletePicture
+        _uiState.update { it.copy(dialogState = ProfileDialogState.DeletePicture) }
     }
 
     fun dismissDialog() {
-        _dialogState.value = ProfileDialogState.None
+        _uiState.update { it.copy(dialogState = ProfileDialogState.None) }
     }
 
     fun updateBottomSheetVisibility(showBottomSheet: Boolean) {
-        _showBottomSheet.value = showBottomSheet
+        _uiState.update { it.copy(showBottomSheet = showBottomSheet) }
     }
 }

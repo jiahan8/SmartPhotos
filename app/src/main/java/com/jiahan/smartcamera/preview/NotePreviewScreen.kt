@@ -68,13 +68,12 @@ fun NotePreviewScreen(
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val noteToDelete by viewModel.noteToDelete.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.actionError.collect { message -> snackbarHostState.showSnackbar(message) }
     }
 
-    noteToDelete?.let { note ->
+    uiState.noteToDelete?.let { note ->
         AlertDialog(
             onDismissRequest = { viewModel.setNoteToDelete(null) },
             title = { Text(stringResource(R.string.delete_note)) },
@@ -121,8 +120,8 @@ fun NotePreviewScreen(
         },
         snackbarHost = { CustomSnackbarHost(snackbarHostState, isError = true) }
     ) { padding ->
-        when (val state = uiState) {
-            is NotePreviewUiState.Loading ->
+        when (val state = uiState.content) {
+            is NotePreviewContent.Loading ->
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -130,7 +129,7 @@ fun NotePreviewScreen(
                     CircularProgressIndicator(strokeWidth = 1.5.dp)
                 }
 
-            is NotePreviewUiState.Error ->
+            is NotePreviewContent.Error ->
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -138,7 +137,7 @@ fun NotePreviewScreen(
                     Text(state.message)
                 }
 
-            is NotePreviewUiState.Success -> {
+            is NotePreviewContent.Success -> {
                 val note = state.note
                 Box(
                     modifier = Modifier

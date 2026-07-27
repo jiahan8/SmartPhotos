@@ -66,10 +66,8 @@ fun FavoriteScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val notes by viewModel.notes.collectAsStateWithLifecycle()
-    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
-    val noteToDelete by viewModel.noteToDelete.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.actionError.collect { message -> snackbarHostState.showSnackbar(message) }
@@ -101,7 +99,7 @@ fun FavoriteScreen(
         }
     }
 
-    noteToDelete?.let { note ->
+    uiState.noteToDelete?.let { note ->
         AlertDialog(
             onDismissRequest = { viewModel.setNoteToDelete(null) },
             title = { Text(stringResource(R.string.delete_note)) },
@@ -129,7 +127,7 @@ fun FavoriteScreen(
     Scaffold(
         topBar = {
             TextField(
-                value = searchQuery,
+                value = uiState.searchQuery,
                 onValueChange = { text -> viewModel.updateSearchQuery(text) },
                 modifier = Modifier
                     .windowInsetsPadding(WindowInsets.statusBars)
@@ -147,7 +145,7 @@ fun FavoriteScreen(
                     )
                 },
                 trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
+                    if (uiState.searchQuery.isNotEmpty()) {
                         IconButton(onClick = { viewModel.updateSearchQuery("") }) {
                             Icon(
                                 imageVector = Icons.Rounded.Clear,
@@ -196,7 +194,7 @@ fun FavoriteScreen(
                         end = padding.calculateEndPadding(LayoutDirection.Ltr)
                     ),
                     state = pullToRefreshState,
-                    isRefreshing = isRefreshing,
+                    isRefreshing = uiState.isRefreshing,
                     onRefresh = onRefresh,
                 ) {
                     LazyColumn(

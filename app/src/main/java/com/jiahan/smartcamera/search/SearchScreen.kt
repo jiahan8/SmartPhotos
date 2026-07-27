@@ -69,8 +69,6 @@ fun SearchScreen(
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
-    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
-    val noteToDelete by viewModel.noteToDelete.collectAsStateWithLifecycle()
 
     val (placeholder, placeholderAlpha) = rememberCyclingPlaceholder(
         options = listOf(
@@ -81,8 +79,6 @@ fun SearchScreen(
             stringResource(R.string.look_up)
         )
     )
-
-    val onRefresh: () -> Unit = { viewModel.refresh() }
 
     LaunchedEffect(listState) {
         onScrollDirectionChanged(true)
@@ -105,7 +101,7 @@ fun SearchScreen(
 
     LaunchedEffect(scrollToTop) {
         scrollToTop?.let {
-            val notes = (uiState as? SearchUiState.Success)?.notes
+            val notes = (uiState.content as? SearchContent.Success)?.notes
             if (notes?.isNotEmpty() == true) {
                 listState.animateScrollToItem(0)
                 onScrollToTopConsumed()
@@ -113,7 +109,7 @@ fun SearchScreen(
         }
     }
 
-    noteToDelete?.let { note ->
+    uiState.noteToDelete?.let { note ->
         AlertDialog(
             onDismissRequest = { viewModel.setNoteToDelete(null) },
             title = { Text(stringResource(R.string.delete_note)) },
@@ -187,8 +183,8 @@ fun SearchScreen(
         },
         snackbarHost = { CustomSnackbarHost(snackbarHostState, isError = true) }
     ) { padding ->
-        when (val state = uiState) {
-            is SearchUiState.Idle ->
+        when (val state = uiState.content) {
+            is SearchContent.Idle ->
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -196,7 +192,7 @@ fun SearchScreen(
                     Text(stringResource(R.string.no_results_found))
                 }
 
-            is SearchUiState.Loading ->
+            is SearchContent.Loading ->
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -204,7 +200,7 @@ fun SearchScreen(
                     CircularProgressIndicator(strokeWidth = 1.5.dp)
                 }
 
-            is SearchUiState.Error ->
+            is SearchContent.Error ->
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -212,7 +208,7 @@ fun SearchScreen(
                     Text(state.message)
                 }
 
-            is SearchUiState.Success ->
+            is SearchContent.Success ->
                 if (state.notes.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -228,8 +224,8 @@ fun SearchScreen(
                             end = padding.calculateEndPadding(LayoutDirection.Ltr)
                         ),
                         state = pullToRefreshState,
-                        isRefreshing = isRefreshing,
-                        onRefresh = onRefresh,
+                        isRefreshing = uiState.isRefreshing,
+                        onRefresh = { viewModel.refresh() },
                     ) {
                         LazyColumn(
                             state = listState,

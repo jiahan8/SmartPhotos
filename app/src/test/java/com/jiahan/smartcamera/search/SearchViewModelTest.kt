@@ -74,7 +74,7 @@ class SearchViewModelTest {
     @Test
     fun `initial uiState is Idle`() = runTest(mainDispatcherRule.testDispatcher) {
         advanceTimeBy((DEBOUNCE_MS + 1).milliseconds) // let debounce fire for empty query
-        assertEquals(SearchUiState.Idle, viewModel.uiState.value)
+        assertEquals(SearchContent.Idle, viewModel.uiState.value.content)
     }
 
     @Test
@@ -91,7 +91,7 @@ class SearchViewModelTest {
         runTest(mainDispatcherRule.testDispatcher) {
             viewModel.updateSearchQuery("  ")
             advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
-            assertEquals(SearchUiState.Idle, viewModel.uiState.value)
+            assertEquals(SearchContent.Idle, viewModel.uiState.value.content)
         }
 
     @Test
@@ -103,9 +103,9 @@ class SearchViewModelTest {
             viewModel.updateSearchQuery("cat")
             advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
 
-            val state = viewModel.uiState.value
-            assertTrue(state is SearchUiState.Success)
-            assertEquals(notes, (state as SearchUiState.Success).notes)
+            val state = viewModel.uiState.value.content
+            assertTrue(state is SearchContent.Success)
+            assertEquals(notes, (state as SearchContent.Success).notes)
         }
 
     @Test
@@ -118,9 +118,9 @@ class SearchViewModelTest {
             viewModel.updateSearchQuery("query")
             advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
 
-            val state = viewModel.uiState.value
-            assertTrue(state is SearchUiState.Error)
-            assertEquals("search failed", (state as SearchUiState.Error).message)
+            val state = viewModel.uiState.value.content
+            assertTrue(state is SearchContent.Error)
+            assertEquals("search failed", (state as SearchContent.Error).message)
         }
 
     @Test
@@ -139,7 +139,7 @@ class SearchViewModelTest {
 
             // Exactly one repository call, and the state reflects the debounced query result
             coVerify(exactly = 1) { noteRepository.searchNotes(any()) }
-            val state = viewModel.uiState.value as SearchUiState.Success
+            val state = viewModel.uiState.value.content as SearchContent.Success
             assertEquals(notes, state.notes)
         }
 
@@ -156,9 +156,9 @@ class SearchViewModelTest {
             viewModel.refresh()
             advanceTimeBy(1.milliseconds)
 
-            val state = viewModel.uiState.value
-            assertTrue(state is SearchUiState.Success)
-            assertEquals(notes, (state as SearchUiState.Success).notes)
+            val state = viewModel.uiState.value.content
+            assertTrue(state is SearchContent.Success)
+            assertEquals(notes, (state as SearchContent.Success).notes)
         }
 
     @Test
@@ -167,7 +167,7 @@ class SearchViewModelTest {
             coEvery { noteRepository.searchNotes(any()) } returns Result.success(emptyList())
             viewModel.refresh()
             advanceTimeBy(1.milliseconds)
-            assertFalse(viewModel.isRefreshing.value)
+            assertFalse(viewModel.uiState.value.isRefreshing)
         }
 
     @Test
@@ -178,18 +178,18 @@ class SearchViewModelTest {
 
             // Debounce path: blank query → Idle
             advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
-            assertEquals(SearchUiState.Idle, viewModel.uiState.value)
+            assertEquals(SearchContent.Idle, viewModel.uiState.value.content)
 
             // Refresh path: blank query still fetches → Success
             viewModel.refresh()
             advanceTimeBy(1.milliseconds)
 
-            val state = viewModel.uiState.value
+            val state = viewModel.uiState.value.content
             assertTrue(
                 "refresh() with a blank query should yield Success, not Idle",
-                state is SearchUiState.Success
+                state is SearchContent.Success
             )
-            assertEquals(notes, (state as SearchUiState.Success).notes)
+            assertEquals(notes, (state as SearchContent.Success).notes)
         }
 
     // -------------------------------------------------------------------------
@@ -206,7 +206,7 @@ class SearchViewModelTest {
             viewModel.deleteNote("doc1")
             advanceTimeBy(1.milliseconds)
 
-            val state = viewModel.uiState.value as SearchUiState.Success
+            val state = viewModel.uiState.value.content as SearchContent.Success
             assertEquals(1, state.notes.size)
             assertEquals("doc2", state.notes.first().documentPath)
         }
@@ -265,14 +265,14 @@ class SearchViewModelTest {
     fun `setNoteToDelete updates state`() {
         val note = makeNote("doc1")
         viewModel.setNoteToDelete(note)
-        assertEquals(note, viewModel.noteToDelete.value)
+        assertEquals(note, viewModel.uiState.value.noteToDelete)
     }
 
     @Test
     fun `setNoteToDelete null clears state`() {
         viewModel.setNoteToDelete(makeNote("doc1"))
         viewModel.setNoteToDelete(null)
-        assertEquals(null, viewModel.noteToDelete.value)
+        assertEquals(null, viewModel.uiState.value.noteToDelete)
     }
 
     // -------------------------------------------------------------------------
@@ -288,7 +288,7 @@ class SearchViewModelTest {
             noteHandler.notifyNoteDeleted("doc1")
             advanceTimeBy(1.milliseconds)
 
-            val state = viewModel.uiState.value as SearchUiState.Success
+            val state = viewModel.uiState.value.content as SearchContent.Success
             assertEquals(1, state.notes.size)
             assertFalse(state.notes.any { it.documentPath == "doc1" })
         }
@@ -302,7 +302,7 @@ class SearchViewModelTest {
             noteHandler.notifyNoteFavorited(makeNote("doc1", favorite = true))
             advanceTimeBy(1.milliseconds)
 
-            val state = viewModel.uiState.value as SearchUiState.Success
+            val state = viewModel.uiState.value.content as SearchContent.Success
             assertTrue(state.notes.first { it.documentPath == "doc1" }.favorite)
         }
 }

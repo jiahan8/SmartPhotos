@@ -18,19 +18,28 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-sealed interface UploadUiState {
-    data object Idle : UploadUiState
-    data object Uploading : UploadUiState
-    data object Success : UploadUiState
-    data class Error(val message: String) : UploadUiState
+sealed interface UploadStatus {
+    data object Idle : UploadStatus
+    data object Uploading : UploadStatus
+    data object Success : UploadStatus
+    data class Error(val message: String) : UploadStatus
 }
+
+data class NoteUiState(
+    val postText: String = "",
+    val postTextError: String? = null,
+    val photoUri: Uri? = null,
+    val videoUri: Uri? = null,
+    val mediaList: List<NoteMediaDetail> = emptyList(),
+    val uploadStatus: UploadStatus = UploadStatus.Idle
+)
 
 @HiltViewModel
 class NoteViewModel @Inject constructor(
@@ -43,21 +52,21 @@ class NoteViewModel @Inject constructor(
     private val errorHandler: ErrorHandler,
 ) : ViewModel() {
 
-    private val _uploadUiState = MutableStateFlow<UploadUiState>(UploadUiState.Idle)
-    val uploadUiState = _uploadUiState.asStateFlow()
-    private val _postTextError = MutableStateFlow<String?>(null)
-    val postTextError = _postTextError.asStateFlow()
-    private val _postButtonEnabled = MutableStateFlow(false)
-    val postButtonEnabled = _postButtonEnabled.asStateFlow()
+    private val _uiState = MutableStateFlow(NoteUiState())
+    val uiState = _uiState.asStateFlow()
 
-    private val _postText = MutableStateFlow("")
-    val postText = _postText.asStateFlow()
-    private val _photoUri = MutableStateFlow<Uri?>(null)
-    val photoUri = _photoUri.asStateFlow()
-    private val _videoUri = MutableStateFlow<Uri?>(null)
-    val videoUri = _videoUri.asStateFlow()
-    private val _mediaList = MutableStateFlow<List<NoteMediaDetail>>(emptyList())
-    val mediaList = _mediaList.asStateFlow()
+    val postButtonEnabled = _uiState
+        .map { state ->
+            state.uploadStatus !is UploadStatus.Uploading &&
+                    (state.postText.isNotBlank() || state.mediaList.isNotEmpty()) &&
+                    state.postTextError == null
+        }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = false
+        )
 
     private val userPreferences = userPreferencesRepository.userPreferencesFlow
         .distinctUntilChanged()
@@ -79,26 +88,11 @@ class NoteViewModel @Inject constructor(
         .map { it.profilePicture }
         .distinctUntilChanged()
 
-    init {
-        viewModelScope.launch {
-            combine(
-                _uploadUiState,
-                _postText,
-                _mediaList,
-                _postTextError
-            ) { uploadState, postText, uriList, postTextError ->
-                uploadState !is UploadUiState.Uploading && (postText.isNotBlank() || uriList.isNotEmpty()) && postTextError == null
-            }.collect {
-                _postButtonEnabled.value = it
-            }
-        }
-    }
-
     fun uploadPost() {
-        val text = _postText.value.trim()
-        val media = _mediaList.value
+        val text = _uiState.value.postText.trim()
+        val media = _uiState.value.mediaList
         viewModelScope.launch {
-            _uploadUiState.value = UploadUiState.Uploading
+            _uiState.update { it.copy(uploadStatus = UploadStatus.Uploading) }
             noteRepository.uploadMediaToFirebase(media)
                 .onSuccess { mediaDetailList ->
                     noteRepository.addNote(
@@ -111,23 +105,28 @@ class NoteViewModel @Inject constructor(
                     )
                         .onSuccess {
                             noteHandler.notifyNoteAdded()
-                            _uploadUiState.value = UploadUiState.Success
+                            _uiState.update { it.copy(uploadStatus = UploadStatus.Success) }
                         }
                         .onFailure { e ->
                             errorHandler.logError(e)
-                            _uploadUiState.value =
-                                UploadUiState.Error(errorHandler.getErrorMessage(e))
+                            _uiState.update {
+                                it.copy(
+                                    uploadStatus = UploadStatus.Error(errorHandler.getErrorMessage(e))
+                                )
+                            }
                         }
                 }
                 .onFailure { e ->
                     errorHandler.logError(e)
-                    _uploadUiState.value = UploadUiState.Error(errorHandler.getErrorMessage(e))
+                    _uiState.update {
+                        it.copy(uploadStatus = UploadStatus.Error(errorHandler.getErrorMessage(e)))
+                    }
                 }
         }
     }
 
     fun resetUploadState() {
-        _uploadUiState.value = UploadUiState.Idle
+        _uiState.update { it.copy(uploadStatus = UploadStatus.Idle) }
     }
 
     fun createImageUri(): Uri? = mediaFileRepository.createImageUri()
@@ -136,20 +135,24 @@ class NoteViewModel @Inject constructor(
 
     fun cancelPhotoCapture(uri: Uri) {
         mediaFileRepository.deleteUri(uri)
-        _photoUri.value = null
+        _uiState.update { it.copy(photoUri = null) }
     }
 
     fun cancelVideoCapture(uri: Uri) {
         mediaFileRepository.deleteUri(uri)
-        _videoUri.value = null
+        _uiState.update { it.copy(videoUri = null) }
     }
 
     fun updatePostText(text: String) {
-        _postText.value = text
         analyticsRepository.logNoteCustomEvent(text)
-        _postTextError.value = when {
-            text.length > MAX_POST_TEXT_LENGTH -> resourceProvider.getString(R.string.post_validation)
-            else -> null
+        _uiState.update {
+            it.copy(
+                postText = text,
+                postTextError = when {
+                    text.length > MAX_POST_TEXT_LENGTH -> resourceProvider.getString(R.string.post_validation)
+                    else -> null
+                }
+            )
         }
     }
 
@@ -159,25 +162,26 @@ class NoteViewModel @Inject constructor(
         viewModelScope.launch {
             noteRepository.buildLocalMediaDetails(uriList)
                 .onSuccess { newMediaDetailList ->
-                    _mediaList.value = newMediaDetailList + _mediaList.value
+                    _uiState.update { it.copy(mediaList = newMediaDetailList + it.mediaList) }
                 }
                 .onFailure { e -> errorHandler.logError(e) }
         }
     }
 
     fun removeUriFromList(index: Int) {
-        if (index >= 0 && index < _mediaList.value.size) {
-            val newList = _mediaList.value.toMutableList()
+        val currentList = _uiState.value.mediaList
+        if (index >= 0 && index < currentList.size) {
+            val newList = currentList.toMutableList()
             newList.removeAt(index)
-            _mediaList.value = newList
+            _uiState.update { it.copy(mediaList = newList) }
         }
     }
 
     fun updatePhotoUri(uri: Uri?) {
-        _photoUri.value = uri
+        _uiState.update { it.copy(photoUri = uri) }
     }
 
     fun updateVideoUri(uri: Uri?) {
-        _videoUri.value = uri
+        _uiState.update { it.copy(videoUri = uri) }
     }
 }

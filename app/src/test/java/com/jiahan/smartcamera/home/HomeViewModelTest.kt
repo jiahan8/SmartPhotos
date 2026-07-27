@@ -75,9 +75,9 @@ class HomeViewModelTest {
 
     @Test
     fun `init emits Success with empty list when repository returns empty`() = runTest {
-        val state = viewModel.uiState.value
-        assertTrue(state is HomeUiState.Success)
-        assertTrue((state as HomeUiState.Success).notes.isEmpty())
+        val content = viewModel.uiState.value.content
+        assertTrue(content is HomeContent.Success)
+        assertTrue((content as HomeContent.Success).notes.isEmpty())
     }
 
     @Test
@@ -85,7 +85,7 @@ class HomeViewModelTest {
         val notes = listOf(makeNote("a"), makeNote("b"))
         coEvery { noteRepository.getNotes(0, any()) } returns Result.success(notes)
         val vm = createViewModel()
-        assertEquals(HomeUiState.Success(notes), vm.uiState.value)
+        assertEquals(HomeContent.Success(notes), vm.uiState.value.content)
     }
 
     @Test
@@ -95,9 +95,9 @@ class HomeViewModelTest {
         every { errorHandler.getErrorMessage(exception) } returns "network error"
         val vm = createViewModel()
 
-        val state = vm.uiState.value
-        assertTrue(state is HomeUiState.Error)
-        assertEquals("network error", (state as HomeUiState.Error).message)
+        val content = vm.uiState.value.content
+        assertTrue(content is HomeContent.Error)
+        assertEquals("network error", (content as HomeContent.Error).message)
     }
 
     // -------------------------------------------------------------------------
@@ -111,7 +111,7 @@ class HomeViewModelTest {
 
         viewModel.refresh()
 
-        assertEquals(HomeUiState.Success(refreshedNotes), viewModel.uiState.value)
+        assertEquals(HomeContent.Success(refreshedNotes), viewModel.uiState.value.content)
     }
 
     @Test
@@ -123,7 +123,7 @@ class HomeViewModelTest {
     @Test
     fun `isRefreshing is false after refresh completes`() = runTest {
         viewModel.refresh()
-        assertFalse(viewModel.isRefreshing.value)
+        assertFalse(viewModel.uiState.value.isRefreshing)
     }
 
     // -------------------------------------------------------------------------
@@ -140,8 +140,8 @@ class HomeViewModelTest {
 
         vm.loadMoreNotes()
 
-        val state = vm.uiState.value as HomeUiState.Success
-        assertEquals(15, state.notes.size)
+        val content = vm.uiState.value.content as HomeContent.Success
+        assertEquals(15, content.notes.size)
     }
 
     @Test
@@ -168,7 +168,7 @@ class HomeViewModelTest {
 
         vm.loadMoreNotes()
 
-        assertFalse(vm.isLoadingMore.value)
+        assertFalse(vm.uiState.value.isLoadingMore)
     }
 
     @Test
@@ -187,10 +187,10 @@ class HomeViewModelTest {
 
         vm.loadMoreNotes()
         advanceTimeBy(1.milliseconds) // let loadMoreNotes start; page-1 fetch suspends at delay(1s)
-        assertTrue(vm.isLoadingMore.value)
+        assertTrue(vm.uiState.value.isLoadingMore)
 
         advanceUntilIdle() // complete the delay
-        assertFalse(vm.isLoadingMore.value)
+        assertFalse(vm.uiState.value.isLoadingMore)
     }
 
     @Test
@@ -208,9 +208,9 @@ class HomeViewModelTest {
         vm.loadMoreNotes()
 
         // Existing notes are unchanged despite the page-1 failure
-        val state = vm.uiState.value as HomeUiState.Success
-        assertEquals(10, state.notes.size)
-        assertFalse(vm.isLoadingMore.value)
+        val content = vm.uiState.value.content as HomeContent.Success
+        assertEquals(10, content.notes.size)
+        assertFalse(vm.uiState.value.isLoadingMore)
     }
 
     // -------------------------------------------------------------------------
@@ -226,9 +226,9 @@ class HomeViewModelTest {
 
         vm.deleteNote("doc1")
 
-        val state = vm.uiState.value as HomeUiState.Success
-        assertEquals(1, state.notes.size)
-        assertEquals("doc2", state.notes.first().documentPath)
+        val content = vm.uiState.value.content as HomeContent.Success
+        assertEquals(1, content.notes.size)
+        assertEquals("doc2", content.notes.first().documentPath)
     }
 
     @Test
@@ -252,7 +252,7 @@ class HomeViewModelTest {
 
         vm.deleteNote("doc1")
 
-        assertEquals(2, (vm.uiState.value as HomeUiState.Success).notes.size)
+        assertEquals(2, (vm.uiState.value.content as HomeContent.Success).notes.size)
     }
 
     // -------------------------------------------------------------------------
@@ -305,14 +305,14 @@ class HomeViewModelTest {
     fun `setNoteToDelete sets the note`() = runTest {
         val note = makeNote("doc1")
         viewModel.setNoteToDelete(note)
-        assertEquals(note, viewModel.noteToDelete.value)
+        assertEquals(note, viewModel.uiState.value.noteToDelete)
     }
 
     @Test
     fun `setNoteToDelete with null clears the note`() = runTest {
         viewModel.setNoteToDelete(makeNote("doc1"))
         viewModel.setNoteToDelete(null)
-        assertNull(viewModel.noteToDelete.value)
+        assertNull(viewModel.uiState.value.noteToDelete)
     }
 
     // -------------------------------------------------------------------------
@@ -327,9 +327,9 @@ class HomeViewModelTest {
 
         noteHandler.notifyNoteDeleted("doc2")
 
-        val state = vm.uiState.value as HomeUiState.Success
-        assertEquals(2, state.notes.size)
-        assertFalse(state.notes.any { it.documentPath == "doc2" })
+        val content = vm.uiState.value.content as HomeContent.Success
+        assertEquals(2, content.notes.size)
+        assertFalse(content.notes.any { it.documentPath == "doc2" })
     }
 
     @Test
@@ -340,8 +340,8 @@ class HomeViewModelTest {
 
         noteHandler.notifyNoteFavorited(makeNote("doc1", favorite = true))
 
-        val state = vm.uiState.value as HomeUiState.Success
-        assertTrue(state.notes.first { it.documentPath == "doc1" }.favorite)
+        val content = vm.uiState.value.content as HomeContent.Success
+        assertTrue(content.notes.first { it.documentPath == "doc1" }.favorite)
     }
 
     @Test
@@ -352,7 +352,7 @@ class HomeViewModelTest {
 
         noteHandler.notifyNoteFavorited(makeNote("doc1", favorite = true))
 
-        val state = vm.uiState.value as HomeUiState.Success
-        assertFalse(state.notes.first { it.documentPath == "doc2" }.favorite)
+        val content = vm.uiState.value.content as HomeContent.Success
+        assertFalse(content.notes.first { it.documentPath == "doc2" }.favorite)
     }
 }

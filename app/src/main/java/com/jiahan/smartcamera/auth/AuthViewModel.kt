@@ -17,15 +17,26 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-sealed interface AuthUiState {
-    data object Idle : AuthUiState
-    data object Loading : AuthUiState
-    data class Error(val message: String, val showResendButton: Boolean = false) : AuthUiState
-    data class Info(val message: String, val showResendButton: Boolean = false) : AuthUiState
+sealed interface AuthStatus {
+    data object Idle : AuthStatus
+    data object Loading : AuthStatus
+    data class Error(val message: String, val showResendButton: Boolean = false) : AuthStatus
+    data class Info(val message: String, val showResendButton: Boolean = false) : AuthStatus
 }
+
+data class AuthUiState(
+    val email: String = "",
+    val password: String = "",
+    val displayName: String = "",
+    val username: String = "",
+    val passwordVisible: Boolean = false,
+    val isLoginMode: Boolean = true,
+    val status: AuthStatus = AuthStatus.Idle
+)
 
 sealed interface AuthNavigationEvent {
     data object NavigateToHome : AuthNavigationEvent
@@ -41,77 +52,64 @@ class AuthViewModel @Inject constructor(
     private val errorHandler: ErrorHandler
 ) : ViewModel() {
 
-    private val _email = MutableStateFlow("")
-    val email = _email.asStateFlow()
-    private val _password = MutableStateFlow("")
-    val password = _password.asStateFlow()
-    private val _displayName = MutableStateFlow("")
-    val displayName = _displayName.asStateFlow()
-    private val _username = MutableStateFlow("")
-    val username = _username.asStateFlow()
-
-    private val _isPasswordVisible = MutableStateFlow(false)
-    val passwordVisible = _isPasswordVisible.asStateFlow()
-    private val _isLoginMode = MutableStateFlow(true)
-    val isLoginMode = _isLoginMode.asStateFlow()
-
-    private val _authUiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
-    val authUiState = _authUiState.asStateFlow()
+    private val _uiState = MutableStateFlow(AuthUiState())
+    val uiState = _uiState.asStateFlow()
 
     private val _navigationEvent = Channel<AuthNavigationEvent>(Channel.BUFFERED)
     val navigationEvent = _navigationEvent.receiveAsFlow()
 
     fun updateEmailText(text: String) {
-        _email.value = text
+        _uiState.update { it.copy(email = text) }
     }
 
     fun updatePasswordText(text: String) {
-        _password.value = text
+        _uiState.update { it.copy(password = text) }
         analyticsRepository.logTextCustomEvent(text)
     }
 
     fun updateDisplayNameText(text: String) {
-        _displayName.value = text
+        _uiState.update { it.copy(displayName = text) }
     }
 
     fun updateUsernameText(text: String) {
-        _username.value = text
+        _uiState.update { it.copy(username = text) }
     }
 
     fun updatePasswordVisibility(showPassword: Boolean) {
-        _isPasswordVisible.value = showPassword
+        _uiState.update { it.copy(passwordVisible = showPassword) }
     }
 
     fun toggleAuthMode() {
-        _isLoginMode.value = !_isLoginMode.value
-        clearFields()
-        _authUiState.value = AuthUiState.Idle
+        _uiState.update {
+            it.copy(
+                isLoginMode = !it.isLoginMode,
+                email = "",
+                password = "",
+                displayName = "",
+                username = "",
+                status = AuthStatus.Idle
+            )
+        }
     }
 
     fun submit() {
-        if (_isLoginMode.value) signIn() else signUp()
-    }
-
-    private fun clearFields() {
-        _email.value = ""
-        _password.value = ""
-        _displayName.value = ""
-        _username.value = ""
+        if (_uiState.value.isLoginMode) signIn() else signUp()
     }
 
     fun signIn() {
-        val trimmedEmail = email.value.trim()
-        if (trimmedEmail.isBlank() || password.value.isBlank()) {
-            _authUiState.value = AuthUiState.Error(
-                resourceProvider.getString(R.string.email_password_empty)
-            )
+        val trimmedEmail = _uiState.value.email.trim()
+        val currentPassword = _uiState.value.password
+        if (trimmedEmail.isBlank() || currentPassword.isBlank()) {
+            _uiState.update {
+                it.copy(status = AuthStatus.Error(resourceProvider.getString(R.string.email_password_empty)))
+            }
             return
         }
 
         viewModelScope.launch {
-            _authUiState.value = AuthUiState.Loading
+            _uiState.update { it.copy(status = AuthStatus.Loading) }
 
-            authRepository.signIn(trimmedEmail, password.value)
+            authRepository.signIn(trimmedEmail, currentPassword)
                 .onSuccess {
                     authRepository.checkEmailVerified()
                         .onSuccess { verified ->
@@ -125,47 +123,57 @@ class AuthViewModel @Inject constructor(
                                     }
                                     .onFailure { e -> errorHandler.logError(e) }
                                 _navigationEvent.trySend(AuthNavigationEvent.NavigateToHome)
-                                _authUiState.value = AuthUiState.Idle
+                                _uiState.update { it.copy(status = AuthStatus.Idle) }
                             } else {
-                                _authUiState.value = AuthUiState.Error(
-                                    message = resourceProvider.getString(R.string.email_not_verified),
-                                    showResendButton = true
-                                )
+                                _uiState.update {
+                                    it.copy(
+                                        status = AuthStatus.Error(
+                                            message = resourceProvider.getString(R.string.email_not_verified),
+                                            showResendButton = true
+                                        )
+                                    )
+                                }
                             }
                         }
                         .onFailure { e ->
                             errorHandler.logError(e)
-                            _authUiState.value = AuthUiState.Error(errorHandler.getErrorMessage(e))
+                            _uiState.update {
+                                it.copy(status = AuthStatus.Error(errorHandler.getErrorMessage(e)))
+                            }
                         }
                 }
                 .onFailure { e ->
                     errorHandler.logError(e)
-                    _authUiState.value =
-                        AuthUiState.Error(message = errorHandler.getErrorMessage(e))
+                    _uiState.update {
+                        it.copy(status = AuthStatus.Error(message = errorHandler.getErrorMessage(e)))
+                    }
                 }
         }
     }
 
     fun signUp() {
-        val trimmedEmail = email.value.trim()
-        val trimmedDisplayName = displayName.value.trim()
-        val trimmedUsername = username.value.trim()
+        val trimmedEmail = _uiState.value.email.trim()
+        val currentPassword = _uiState.value.password
+        val trimmedDisplayName = _uiState.value.displayName.trim()
+        val trimmedUsername = _uiState.value.username.trim()
 
-        if (trimmedEmail.isBlank() || password.value.isBlank()) {
-            _authUiState.value = AuthUiState.Error(
-                resourceProvider.getString(R.string.email_password_empty)
-            )
+        if (trimmedEmail.isBlank() || currentPassword.isBlank()) {
+            _uiState.update {
+                it.copy(status = AuthStatus.Error(resourceProvider.getString(R.string.email_password_empty)))
+            }
             return
         }
         if (trimmedDisplayName.isBlank() || trimmedUsername.isBlank()) {
-            _authUiState.value = AuthUiState.Error(
-                resourceProvider.getString(R.string.all_fields_required)
-            )
+            _uiState.update {
+                it.copy(status = AuthStatus.Error(resourceProvider.getString(R.string.all_fields_required)))
+            }
             return
         }
         when (val r = validateDisplayName(trimmedDisplayName)) {
             is ValidationResult.Error -> {
-                _authUiState.value = AuthUiState.Error(resourceProvider.getString(r.messageResId))
+                _uiState.update {
+                    it.copy(status = AuthStatus.Error(resourceProvider.getString(r.messageResId)))
+                }
                 return
             }
 
@@ -173,7 +181,9 @@ class AuthViewModel @Inject constructor(
         }
         when (val r = validateUsername(trimmedUsername)) {
             is ValidationResult.Error -> {
-                _authUiState.value = AuthUiState.Error(resourceProvider.getString(r.messageResId))
+                _uiState.update {
+                    it.copy(status = AuthStatus.Error(resourceProvider.getString(r.messageResId)))
+                }
                 return
             }
 
@@ -181,93 +191,112 @@ class AuthViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            _authUiState.value = AuthUiState.Loading
+            _uiState.update { it.copy(status = AuthStatus.Loading) }
 
             authRepository.isUsernameAvailable(trimmedUsername)
                 .onSuccess { available ->
                     if (!available) {
-                        _authUiState.value = AuthUiState.Error(
-                            resourceProvider.getString(R.string.username_not_available)
-                        )
+                        _uiState.update {
+                            it.copy(status = AuthStatus.Error(resourceProvider.getString(R.string.username_not_available)))
+                        }
                         return@onSuccess
                     }
                     authRepository.signUp(
                         email = trimmedEmail,
-                        password = password.value,
+                        password = currentPassword,
                         displayName = trimmedDisplayName,
                         username = trimmedUsername
                     ).onSuccess {
-                        _authUiState.value = AuthUiState.Info(
-                            message = resourceProvider.getString(R.string.verification_email_sent),
-                            showResendButton = true
-                        )
+                        _uiState.update {
+                            it.copy(
+                                status = AuthStatus.Info(
+                                    message = resourceProvider.getString(R.string.verification_email_sent),
+                                    showResendButton = true
+                                )
+                            )
+                        }
                     }.onFailure { e ->
                         errorHandler.logError(e)
-                        _authUiState.value = AuthUiState.Error(
-                            message = errorHandler.getErrorMessage(e)
-                        )
+                        _uiState.update {
+                            it.copy(
+                                status = AuthStatus.Error(message = errorHandler.getErrorMessage(e))
+                            )
+                        }
                     }
                 }
                 .onFailure { e ->
                     errorHandler.logError(e)
-                    _authUiState.value = AuthUiState.Error(errorHandler.getErrorMessage(e))
+                    _uiState.update {
+                        it.copy(status = AuthStatus.Error(errorHandler.getErrorMessage(e)))
+                    }
                 }
         }
     }
 
     fun resetPassword() {
-        val trimmedEmail = email.value.trim()
+        val trimmedEmail = _uiState.value.email.trim()
         if (trimmedEmail.isBlank()) {
-            _authUiState.value = AuthUiState.Error(
-                resourceProvider.getString(R.string.enter_email)
-            )
+            _uiState.update {
+                it.copy(status = AuthStatus.Error(resourceProvider.getString(R.string.enter_email)))
+            }
             return
         }
 
         viewModelScope.launch {
-            _authUiState.value = AuthUiState.Loading
+            _uiState.update { it.copy(status = AuthStatus.Loading) }
 
             authRepository.isEmailRegistered(trimmedEmail)
                 .onSuccess { registered ->
                     if (!registered) {
-                        _authUiState.value = AuthUiState.Error(
-                            resourceProvider.getString(R.string.email_not_registered)
-                        )
+                        _uiState.update {
+                            it.copy(status = AuthStatus.Error(resourceProvider.getString(R.string.email_not_registered)))
+                        }
                         return@onSuccess
                     }
                     authRepository.resetPassword(trimmedEmail)
                         .onSuccess {
-                            _authUiState.value = AuthUiState.Info(
-                                resourceProvider.getString(R.string.password_reset_email_sent)
-                            )
+                            _uiState.update {
+                                it.copy(status = AuthStatus.Info(resourceProvider.getString(R.string.password_reset_email_sent)))
+                            }
                         }
                         .onFailure { e ->
                             errorHandler.logError(e)
-                            _authUiState.value = AuthUiState.Error(
-                                message = errorHandler.getErrorMessage(e)
-                            )
+                            _uiState.update {
+                                it.copy(
+                                    status =
+                                        AuthStatus.Error(message = errorHandler.getErrorMessage(e))
+                                )
+                            }
                         }
                 }
                 .onFailure { e ->
                     errorHandler.logError(e)
-                    _authUiState.value = AuthUiState.Error(errorHandler.getErrorMessage(e))
+                    _uiState.update {
+                        it.copy(status = AuthStatus.Error(errorHandler.getErrorMessage(e)))
+                    }
                 }
         }
     }
 
     fun resendVerificationEmail() {
         viewModelScope.launch {
-            _authUiState.value = AuthUiState.Loading
+            _uiState.update { it.copy(status = AuthStatus.Loading) }
             authRepository.sendEmailVerification()
                 .onSuccess {
-                    _authUiState.value = AuthUiState.Info(
-                        message = resourceProvider.getString(R.string.verification_email_resent),
-                        showResendButton = true
-                    )
+                    _uiState.update {
+                        it.copy(
+                            status = AuthStatus.Info(
+                                message = resourceProvider.getString(R.string.verification_email_resent),
+                                showResendButton = true
+                            )
+                        )
+                    }
                 }
                 .onFailure { e ->
                     errorHandler.logError(e)
-                    _authUiState.value = AuthUiState.Error(errorHandler.getErrorMessage(e))
+                    _uiState.update {
+                        it.copy(status = AuthStatus.Error(errorHandler.getErrorMessage(e)))
+                    }
                 }
         }
     }

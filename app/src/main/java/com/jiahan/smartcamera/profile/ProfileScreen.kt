@@ -84,22 +84,23 @@ fun ProfileScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var isErrorSnackBar by remember { mutableStateOf(false) }
     val bottomSheetState = rememberModalBottomSheetState()
-    val showBottomSheet by viewModel.showBottomSheet.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val showBottomSheet = uiState.showBottomSheet
     val scrollState = rememberScrollState()
 
-    val email by viewModel.email.collectAsStateWithLifecycle()
-    val displayName by viewModel.displayName.collectAsStateWithLifecycle()
-    val username by viewModel.username.collectAsStateWithLifecycle()
-    val profilePictureUrl by viewModel.profilePictureUrl.collectAsStateWithLifecycle()
-    val displayNameErrorMessage by viewModel.displayNameErrorMessage.collectAsStateWithLifecycle()
-    val usernameErrorMessage by viewModel.usernameErrorMessage.collectAsStateWithLifecycle()
-    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
-    val isErrorFree by viewModel.isErrorFree.collectAsStateWithLifecycle()
-    val isFormChanged by viewModel.isFormChanged.collectAsStateWithLifecycle()
-    val isSaving by viewModel.isLoading.collectAsStateWithLifecycle()
-    val isUploading by viewModel.isUploading.collectAsStateWithLifecycle()
-    val dialogState by viewModel.dialogState.collectAsStateWithLifecycle()
-    val photoUri by viewModel.photoUri.collectAsStateWithLifecycle()
+    val email = uiState.email
+    val displayName = uiState.displayName
+    val username = uiState.username
+    val profilePictureUrl = uiState.profilePictureUrl
+    val displayNameErrorMessage = uiState.displayNameErrorMessage
+    val usernameErrorMessage = uiState.usernameErrorMessage
+    val errorMessage = uiState.errorMessage
+    val isErrorFree = uiState.isErrorFree
+    val isFormChanged = uiState.isFormChanged
+    val isSaving = uiState.isLoading
+    val isUploading = uiState.isUploading
+    val dialogState = uiState.dialogState
+    val photoUri = uiState.photoUri
 
     val updateSuccessMessage = stringResource(R.string.info_updated_success)
     val updateFailureMessage = stringResource(R.string.info_updated_failure)

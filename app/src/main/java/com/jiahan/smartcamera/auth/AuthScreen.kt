@@ -57,14 +57,15 @@ fun AuthScreen(
 ) {
     val scrollState = rememberScrollState()
 
-    val email by viewModel.email.collectAsStateWithLifecycle()
-    val password by viewModel.password.collectAsStateWithLifecycle()
-    val displayName by viewModel.displayName.collectAsStateWithLifecycle()
-    val username by viewModel.username.collectAsStateWithLifecycle()
-    val passwordVisible by viewModel.passwordVisible.collectAsStateWithLifecycle()
-    val authUiState by viewModel.authUiState.collectAsStateWithLifecycle()
-    val isLoading = authUiState is AuthUiState.Loading
-    val isLoginMode by viewModel.isLoginMode.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val email = uiState.email
+    val password = uiState.password
+    val displayName = uiState.displayName
+    val username = uiState.username
+    val passwordVisible = uiState.passwordVisible
+    val authStatus = uiState.status
+    val isLoading = authStatus is AuthStatus.Loading
+    val isLoginMode = uiState.isLoginMode
 
     LaunchedEffect(Unit) {
         viewModel.navigationEvent.collect { event ->
@@ -174,17 +175,17 @@ fun AuthScreen(
                     }
                 )
 
-                when (val state = authUiState) {
-                    is AuthUiState.Error -> Text(
-                        text = state.message,
+                when (authStatus) {
+                    is AuthStatus.Error -> Text(
+                        text = authStatus.message,
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    is AuthUiState.Info -> Text(
-                        text = state.message,
+                    is AuthStatus.Info -> Text(
+                        text = authStatus.message,
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
@@ -236,10 +237,8 @@ fun AuthScreen(
                     }
                 }
 
-                val currentState = authUiState
                 val showResendButton =
-                    (currentState is AuthUiState.Error && currentState.showResendButton) ||
-                            (currentState is AuthUiState.Info && currentState.showResendButton)
+                    (authStatus is AuthStatus.Error && authStatus.showResendButton) || (authStatus is AuthStatus.Info && authStatus.showResendButton)
                 if (showResendButton) {
                     TextButton(onClick = { viewModel.resendVerificationEmail() }) {
                         Text(stringResource(R.string.resend_verification_email))

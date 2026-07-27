@@ -65,9 +65,9 @@ class NotePreviewViewModelTest {
     @Test
     fun `init loads note and sets Success state`() = runTest {
         val vm = createViewModel()
-        val state = vm.uiState.value
-        assertTrue(state is NotePreviewUiState.Success)
-        assertEquals(testNote, (state as NotePreviewUiState.Success).note)
+        val state = vm.uiState.value.content
+        assertTrue(state is NotePreviewContent.Success)
+        assertEquals(testNote, (state as NotePreviewContent.Success).note)
     }
 
     @Test
@@ -78,9 +78,9 @@ class NotePreviewViewModelTest {
 
         val vm = createViewModel()
 
-        val state = vm.uiState.value
-        assertTrue(state is NotePreviewUiState.Error)
-        assertEquals("not found", (state as NotePreviewUiState.Error).message)
+        val state = vm.uiState.value.content
+        assertTrue(state is NotePreviewContent.Error)
+        assertEquals("not found", (state as NotePreviewContent.Error).message)
     }
 
     // -------------------------------------------------------------------------
@@ -123,7 +123,7 @@ class NotePreviewViewModelTest {
 
         vm.favoriteNote(testNote)
 
-        val state = vm.uiState.value as NotePreviewUiState.Success
+        val state = vm.uiState.value.content as NotePreviewContent.Success
         assertTrue(state.note.favorite) // false → true
     }
 
@@ -162,7 +162,7 @@ class NotePreviewViewModelTest {
     fun `setNoteToDelete stores the note`() = runTest {
         val vm = createViewModel()
         vm.setNoteToDelete(testNote)
-        assertEquals(testNote, vm.noteToDelete.value)
+        assertEquals(testNote, vm.uiState.value.noteToDelete)
     }
 
     @Test
@@ -170,6 +170,6 @@ class NotePreviewViewModelTest {
         val vm = createViewModel()
         vm.setNoteToDelete(testNote)
         vm.setNoteToDelete(null)
-        assertNull(vm.noteToDelete.value)
+        assertNull(vm.uiState.value.noteToDelete)
     }
 }

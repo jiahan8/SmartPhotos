@@ -12,14 +12,22 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-sealed interface HomeUiState {
-    data object Loading : HomeUiState
-    data class Success(val notes: List<HomeNote>) : HomeUiState
-    data class Error(val message: String) : HomeUiState
+sealed interface HomeContent {
+    data object Loading : HomeContent
+    data class Success(val notes: List<HomeNote>) : HomeContent
+    data class Error(val message: String) : HomeContent
 }
+
+data class HomeUiState(
+    val content: HomeContent = HomeContent.Loading,
+    val isRefreshing: Boolean = false,
+    val isLoadingMore: Boolean = false,
+    val noteToDelete: HomeNote? = null
+)
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -28,14 +36,8 @@ class HomeViewModel @Inject constructor(
     private val errorHandler: ErrorHandler
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
+    private val _uiState = MutableStateFlow(HomeUiState())
     val uiState = _uiState.asStateFlow()
-    private val _isRefreshing = MutableStateFlow(false)
-    val isRefreshing = _isRefreshing.asStateFlow()
-    private val _isLoadingMore = MutableStateFlow(false)
-    val isLoadingMore = _isLoadingMore.asStateFlow()
-    private val _noteToDelete = MutableStateFlow<HomeNote?>(null)
-    val noteToDelete = _noteToDelete.asStateFlow()
     private val _actionError = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val actionError = _actionError.asSharedFlow()
 
@@ -62,16 +64,16 @@ class HomeViewModel @Inject constructor(
 
     fun refresh() {
         viewModelScope.launch {
-            _isRefreshing.value = true
+            _uiState.update { it.copy(isRefreshing = true) }
             fetchNotes(initialLoading = true)
-            _isRefreshing.value = false
+            _uiState.update { it.copy(isRefreshing = false) }
         }
     }
 
     private suspend fun fetchNotes(initialLoading: Boolean) {
         if (initialLoading) {
-            if (!_isRefreshing.value) {
-                _uiState.value = HomeUiState.Loading
+            if (!_uiState.value.isRefreshing) {
+                _uiState.update { it.copy(content = HomeContent.Loading) }
             }
             currentPage = 0
             hasMoreData = true
@@ -81,26 +83,28 @@ class HomeViewModel @Inject constructor(
         noteRepository.getNotes(page = currentPage, pageSize = pageSize)
             .onSuccess { result ->
                 val prev = if (initialLoading) emptyList()
-                else (_uiState.value as? HomeUiState.Success)?.notes ?: emptyList()
-                _uiState.value = HomeUiState.Success(prev + result)
+                else (_uiState.value.content as? HomeContent.Success)?.notes ?: emptyList()
+                _uiState.update { it.copy(content = HomeContent.Success(prev + result)) }
                 hasMoreData = result.size >= pageSize
                 currentPage++
             }
             .onFailure { e ->
                 errorHandler.logError(e)
                 if (initialLoading) {
-                    _uiState.value = HomeUiState.Error(errorHandler.getErrorMessage(e))
+                    _uiState.update {
+                        it.copy(content = HomeContent.Error(errorHandler.getErrorMessage(e)))
+                    }
                 }
             }
     }
 
     fun loadMoreNotes() {
-        if (_isLoadingMore.value || !hasMoreData) return
+        if (_uiState.value.isLoadingMore || !hasMoreData) return
 
         viewModelScope.launch {
-            _isLoadingMore.value = true
+            _uiState.update { it.copy(isLoadingMore = true) }
             fetchNotes(initialLoading = false)
-            _isLoadingMore.value = false
+            _uiState.update { it.copy(isLoadingMore = false) }
         }
     }
 
@@ -132,11 +136,11 @@ class HomeViewModel @Inject constructor(
     }
 
     fun setNoteToDelete(note: HomeNote?) {
-        _noteToDelete.value = note
+        _uiState.update { it.copy(noteToDelete = note) }
     }
 
     private fun updateSuccessNotes(transform: (List<HomeNote>) -> List<HomeNote>) {
-        val current = _uiState.value as? HomeUiState.Success ?: return
-        _uiState.value = current.copy(notes = transform(current.notes))
+        val content = _uiState.value.content as? HomeContent.Success ?: return
+        _uiState.update { it.copy(content = content.copy(notes = transform(content.notes))) }
     }
 }

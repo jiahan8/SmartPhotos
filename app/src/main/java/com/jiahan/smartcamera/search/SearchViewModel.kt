@@ -7,24 +7,37 @@ import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.util.AppConstants.DEBOUNCE_MS
+import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 
-sealed interface SearchUiState {
-    data object Idle : SearchUiState
-    data object Loading : SearchUiState
-    data class Success(val notes: List<HomeNote>) : SearchUiState
-    data class Error(val message: String) : SearchUiState
+sealed interface SearchContent {
+    data object Idle : SearchContent
+    data object Loading : SearchContent
+    data class Success(val notes: List<HomeNote>) : SearchContent
+    data class Error(val message: String) : SearchContent
 }
+
+data class SearchUiState(
+    val content: SearchContent = SearchContent.Idle,
+    val searchQuery: String = "",
+    val isRefreshing: Boolean = false,
+    val noteToDelete: HomeNote? = null
+)
 
 @OptIn(FlowPreview::class)
 @HiltViewModel
@@ -35,16 +48,15 @@ class SearchViewModel @Inject constructor(
     private val errorHandler: ErrorHandler
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<SearchUiState>(SearchUiState.Idle)
+    private val _uiState = MutableStateFlow(SearchUiState())
     val uiState = _uiState.asStateFlow()
-    private val _searchQuery = MutableStateFlow("")
-    val searchQuery = _searchQuery.asStateFlow()
-    private val _isRefreshing = MutableStateFlow(false)
-    val isRefreshing = _isRefreshing.asStateFlow()
-    private val _noteToDelete = MutableStateFlow<HomeNote?>(null)
-    val noteToDelete = _noteToDelete.asStateFlow()
     private val _actionError = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val actionError = _actionError.asSharedFlow()
+
+    val searchQuery = _uiState
+        .map { it.searchQuery }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STATEFLOW_WHILE_SUBSCRIBED_MS), "")
 
     init {
         viewModelScope.launch {
@@ -52,9 +64,9 @@ class SearchViewModel @Inject constructor(
                 .debounce(DEBOUNCE_MS.milliseconds)
                 .collect { query ->
                     if (query.isBlank()) {
-                        _uiState.value = SearchUiState.Idle
+                        _uiState.update { it.copy(content = SearchContent.Idle) }
                     } else {
-                        searchNotes()
+                        searchNotes(query)
                     }
                 }
         }
@@ -75,28 +87,32 @@ class SearchViewModel @Inject constructor(
     }
 
     fun updateSearchQuery(query: String) {
-        _searchQuery.value = query
+        _uiState.update { it.copy(searchQuery = query) }
     }
 
     fun refresh() {
         viewModelScope.launch {
-            _isRefreshing.value = true
-            searchNotes()
-            _isRefreshing.value = false
+            _uiState.update { it.copy(isRefreshing = true) }
+            searchNotes(_uiState.value.searchQuery)
+            _uiState.update { it.copy(isRefreshing = false) }
         }
     }
 
-    private suspend fun searchNotes() {
-        _uiState.value = SearchUiState.Loading
-        noteRepository.searchNotes(query = _searchQuery.value)
+    private suspend fun searchNotes(query: String) {
+        _uiState.update { it.copy(content = SearchContent.Loading) }
+        noteRepository.searchNotes(query = query)
             .onSuccess { results ->
-                _uiState.value = SearchUiState.Success(results)
-                analyticsRepository.logSearchCustomEvent(_searchQuery.value)
-                analyticsRepository.logSearchEvent(_searchQuery.value)
+                _uiState.update { it.copy(content = SearchContent.Success(results)) }
+                analyticsRepository.logSearchCustomEvent(query)
+                analyticsRepository.logSearchEvent(query)
             }
             .onFailure { e ->
                 errorHandler.logError(e)
-                _uiState.value = SearchUiState.Error(errorHandler.getErrorMessage(e))
+                _uiState.update {
+                    it.copy(
+                        content = SearchContent.Error(errorHandler.getErrorMessage(e))
+                    )
+                }
             }
     }
 
@@ -128,11 +144,11 @@ class SearchViewModel @Inject constructor(
     }
 
     fun setNoteToDelete(note: HomeNote?) {
-        _noteToDelete.value = note
+        _uiState.update { it.copy(noteToDelete = note) }
     }
 
     private fun updateSuccessNotes(transform: (List<HomeNote>) -> List<HomeNote>) {
-        val current = _uiState.value as? SearchUiState.Success ?: return
-        _uiState.value = current.copy(notes = transform(current.notes))
+        val content = _uiState.value.content as? SearchContent.Success ?: return
+        _uiState.update { it.copy(content = content.copy(notes = transform(content.notes))) }
     }
 }

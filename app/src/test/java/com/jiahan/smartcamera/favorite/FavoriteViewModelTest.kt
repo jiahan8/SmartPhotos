@@ -104,7 +104,7 @@ class FavoriteViewModelTest {
         runTest(mainDispatcherRule.testDispatcher) {
             viewModel.refresh()
             advanceUntilIdle()
-            assertFalse(viewModel.isRefreshing.value)
+            assertFalse(viewModel.uiState.value.isRefreshing)
         }
 
     // -------------------------------------------------------------------------
@@ -114,7 +114,7 @@ class FavoriteViewModelTest {
     @Test
     fun `updateSearchQuery updates searchQuery state`() {
         viewModel.updateSearchQuery("cats")
-        assertEquals("cats", viewModel.searchQuery.value)
+        assertEquals("cats", viewModel.uiState.value.searchQuery)
     }
 
     @Test
@@ -207,13 +207,13 @@ class FavoriteViewModelTest {
     fun `setNoteToDelete sets the note`() {
         val note = makeNote("doc1")
         viewModel.setNoteToDelete(note)
-        assertEquals(note, viewModel.noteToDelete.value)
+        assertEquals(note, viewModel.uiState.value.noteToDelete)
     }
 
     @Test
     fun `setNoteToDelete null clears the note`() {
         viewModel.setNoteToDelete(makeNote("doc1"))
         viewModel.setNoteToDelete(null)
-        assertNull(viewModel.noteToDelete.value)
+        assertNull(viewModel.uiState.value.noteToDelete)
     }
 }

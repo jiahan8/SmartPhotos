@@ -62,10 +62,10 @@ fun SettingsScreen(
 
     val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val dialogState by viewModel.dialogState.collectAsStateWithLifecycle()
+    val dialogState = uiState.dialogState
 
-    val isLoading = uiState is SettingsUiState.Loading
-    val isErrorSnackBar = uiState is SettingsUiState.Error
+    val isLoading = uiState.status is SettingsStatus.Loading
+    val isErrorSnackBar = uiState.status is SettingsStatus.Error
 
     val actionFailureMessage = stringResource(R.string.action_failure)
 
@@ -87,7 +87,7 @@ fun SettingsScreen(
     }
 
     LaunchedEffect(uiState) {
-        if (uiState is SettingsUiState.Error) {
+        if (uiState.status is SettingsStatus.Error) {
             snackbarHostState.showSnackbar(actionFailureMessage, duration = SnackbarDuration.Short)
             viewModel.resetActionError()
         }

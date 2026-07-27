@@ -37,10 +37,11 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
-            val startDestination by viewModel.startDestination.collectAsStateWithLifecycle()
-            val isAppReady by viewModel.isAppReady.collectAsStateWithLifecycle()
-            val showBottomBar by viewModel.showBottomBar.collectAsStateWithLifecycle()
-            val scrollToTop by viewModel.scrollToTop.collectAsStateWithLifecycle()
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            val startDestination = uiState.startDestination
+            val isAppReady = uiState.isAppReady
+            val showBottomBar = uiState.showBottomBar
+            val scrollToTop = uiState.scrollToTop
 
             splashScreen.setKeepOnScreenCondition { !isAppReady }
 

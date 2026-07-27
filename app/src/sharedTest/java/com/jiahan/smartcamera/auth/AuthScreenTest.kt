@@ -108,7 +108,7 @@ class AuthScreenTest {
         composeTestRule.onNodeWithText(string(R.string.email)).performTextInput("user@test.com")
         composeTestRule.waitForIdle()
 
-        assertEquals("user@test.com", viewModel.email.value)
+        assertEquals("user@test.com", viewModel.uiState.value.email)
     }
 
     @Test

@@ -77,10 +77,10 @@ class ProfileViewModelTest {
 
     @Test
     fun `init loads user profile into state fields`() = runTest {
-        assertEquals("user@example.com", viewModel.email.value)
-        assertEquals("Test User", viewModel.displayName.value)
-        assertEquals("testuser", viewModel.username.value)
-        assertNull(viewModel.profilePictureUrl.value)
+        assertEquals("user@example.com", viewModel.uiState.value.email)
+        assertEquals("Test User", viewModel.uiState.value.displayName)
+        assertEquals("testuser", viewModel.uiState.value.username)
+        assertNull(viewModel.uiState.value.profilePictureUrl)
     }
 
     @Test
@@ -92,7 +92,7 @@ class ProfileViewModelTest {
             userRepository, authRepository, userPreferencesRepository,
             mediaFileRepository, resourceProvider, errorHandler
         )
-        assertEquals("load failed", vm.errorMessage.value)
+        assertEquals("load failed", vm.uiState.value.errorMessage)
     }
 
     // -------------------------------------------------------------------------
@@ -103,31 +103,31 @@ class ProfileViewModelTest {
     fun `updateDisplayNameText valid value clears error and marks form changed`() = runTest {
         viewModel.updateDisplayNameText("New Name")
 
-        assertEquals("New Name", viewModel.displayName.value)
-        assertNull(viewModel.displayNameErrorMessage.value)
-        assertTrue(viewModel.isFormChanged.value)
+        assertEquals("New Name", viewModel.uiState.value.displayName)
+        assertNull(viewModel.uiState.value.displayNameErrorMessage)
+        assertTrue(viewModel.uiState.value.isFormChanged)
     }
 
     @Test
     fun `updateDisplayNameText blank value sets displayNameError`() = runTest {
         viewModel.updateDisplayNameText("  ")
 
-        assertNotNull(viewModel.displayNameErrorMessage.value)
+        assertNotNull(viewModel.uiState.value.displayNameErrorMessage)
     }
 
     @Test
     fun `updateUsernameText valid value clears error`() = runTest {
         viewModel.updateUsernameText("newuser")
 
-        assertEquals("newuser", viewModel.username.value)
-        assertNull(viewModel.usernameErrorMessage.value)
+        assertEquals("newuser", viewModel.uiState.value.username)
+        assertNull(viewModel.uiState.value.usernameErrorMessage)
     }
 
     @Test
     fun `updateUsernameText with invalid characters sets usernameError`() = runTest {
         viewModel.updateUsernameText("bad user!")
 
-        assertNotNull(viewModel.usernameErrorMessage.value)
+        assertNotNull(viewModel.uiState.value.usernameErrorMessage)
     }
 
     // -------------------------------------------------------------------------
@@ -177,8 +177,8 @@ class ProfileViewModelTest {
         coEvery { authRepository.isUsernameAvailable("taken") } returns Result.success(false)
 
         viewModel.updateUserProfile()
-        assertNotNull(viewModel.usernameErrorMessage.value)
-        assertFalse(viewModel.isErrorFree.value)
+        assertNotNull(viewModel.uiState.value.usernameErrorMessage)
+        assertFalse(viewModel.uiState.value.isErrorFree)
     }
 
     // -------------------------------------------------------------------------
@@ -188,22 +188,22 @@ class ProfileViewModelTest {
     @Test
     fun `showDeletePictureDialog sets dialogState to DeletePicture`() {
         viewModel.showDeletePictureDialog()
-        assertEquals(ProfileDialogState.DeletePicture, viewModel.dialogState.value)
+        assertEquals(ProfileDialogState.DeletePicture, viewModel.uiState.value.dialogState)
     }
 
     @Test
     fun `dismissDialog resets dialogState to None`() {
         viewModel.showDeletePictureDialog()
         viewModel.dismissDialog()
-        assertEquals(ProfileDialogState.None, viewModel.dialogState.value)
+        assertEquals(ProfileDialogState.None, viewModel.uiState.value.dialogState)
     }
 
     @Test
     fun `updateBottomSheetVisibility updates state`() {
         viewModel.updateBottomSheetVisibility(true)
-        assertTrue(viewModel.showBottomSheet.value)
+        assertTrue(viewModel.uiState.value.showBottomSheet)
         viewModel.updateBottomSheetVisibility(false)
-        assertFalse(viewModel.showBottomSheet.value)
+        assertFalse(viewModel.uiState.value.showBottomSheet)
     }
 
     // -------------------------------------------------------------------------
@@ -214,7 +214,7 @@ class ProfileViewModelTest {
     fun `updatePhotoUri stores the uri`() {
         val uri: Uri = mockk()
         viewModel.updatePhotoUri(uri)
-        assertEquals(uri, viewModel.photoUri.value)
+        assertEquals(uri, viewModel.uiState.value.photoUri)
     }
 
     @Test
@@ -222,8 +222,8 @@ class ProfileViewModelTest {
         val uri: Uri = mockk()
         every { mediaFileRepository.deleteUri(uri) } just runs
         viewModel.updatePhotoUri(uri)           // establish a non-null state first
-        assertEquals(uri, viewModel.photoUri.value) // precondition
+        assertEquals(uri, viewModel.uiState.value.photoUri) // precondition
         viewModel.cancelPhotoCapture(uri)
-        assertNull(viewModel.photoUri.value)
+        assertNull(viewModel.uiState.value.photoUri)
     }
 }

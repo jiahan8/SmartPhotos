@@ -18,11 +18,20 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
+
+data class FavoriteUiState(
+    val searchQuery: String = "",
+    val isRefreshing: Boolean = false,
+    val noteToDelete: HomeNote? = null
+)
 
 @OptIn(FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -33,17 +42,17 @@ class FavoriteViewModel @Inject constructor(
     private val errorHandler: ErrorHandler
 ) : ViewModel() {
 
-    private val _searchQuery = MutableStateFlow("")
-    val searchQuery = _searchQuery.asStateFlow()
+    private val _uiState = MutableStateFlow(FavoriteUiState())
+    val uiState = _uiState.asStateFlow()
     private val _isSyncing = MutableStateFlow(false)
-    private val _isRefreshing = MutableStateFlow(false)
-    val isRefreshing = _isRefreshing.asStateFlow()
-    private val _noteToDelete = MutableStateFlow<HomeNote?>(null)
-    val noteToDelete = _noteToDelete.asStateFlow()
     private val _actionError = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val actionError = _actionError.asSharedFlow()
 
-    val notes = _searchQuery
+    private val searchQuery = _uiState
+        .map { it.searchQuery }
+        .distinctUntilChanged()
+
+    val notes = searchQuery
         .debounce(DEBOUNCE_MS.milliseconds)
         .flatMapLatest { query -> noteRepository.getFavoriteNotesStream(query) }
         .stateIn(
@@ -65,21 +74,21 @@ class FavoriteViewModel @Inject constructor(
     }
 
     fun updateSearchQuery(query: String) {
-        _searchQuery.value = query
+        _uiState.update { it.copy(searchQuery = query) }
     }
 
     fun refresh() {
         viewModelScope.launch {
-            _isRefreshing.value = true
+            _uiState.update { it.copy(isRefreshing = true) }
             syncNotes()
-            _isRefreshing.value = false
+            _uiState.update { it.copy(isRefreshing = false) }
         }
     }
 
     private suspend fun syncNotes() {
         _isSyncing.value = true
         noteRepository.syncFavoriteNotes()
-            .onSuccess { analyticsRepository.logFavoriteSearchCustomEvent(_searchQuery.value) }
+            .onSuccess { analyticsRepository.logFavoriteSearchCustomEvent(_uiState.value.searchQuery) }
             .onFailure { e ->
                 errorHandler.logError(e)
                 _actionError.tryEmit(errorHandler.getErrorMessage(e))
@@ -112,6 +121,6 @@ class FavoriteViewModel @Inject constructor(
     }
 
     fun setNoteToDelete(note: HomeNote?) {
-        _noteToDelete.value = note
+        _uiState.update { it.copy(noteToDelete = note) }
     }
 }

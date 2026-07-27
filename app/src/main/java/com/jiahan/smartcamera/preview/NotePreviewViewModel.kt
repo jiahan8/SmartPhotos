@@ -13,14 +13,20 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-sealed interface NotePreviewUiState {
-    data object Loading : NotePreviewUiState
-    data class Success(val note: HomeNote) : NotePreviewUiState
-    data class Error(val message: String) : NotePreviewUiState
+sealed interface NotePreviewContent {
+    data object Loading : NotePreviewContent
+    data class Success(val note: HomeNote) : NotePreviewContent
+    data class Error(val message: String) : NotePreviewContent
 }
+
+data class NotePreviewUiState(
+    val content: NotePreviewContent = NotePreviewContent.Loading,
+    val noteToDelete: HomeNote? = null
+)
 
 @HiltViewModel
 class NotePreviewViewModel @Inject constructor(
@@ -32,21 +38,23 @@ class NotePreviewViewModel @Inject constructor(
 
     private val documentPath: String = checkNotNull(savedStateHandle[Screen.NotePreview.ID_ARG])
 
-    private val _uiState = MutableStateFlow<NotePreviewUiState>(NotePreviewUiState.Loading)
+    private val _uiState = MutableStateFlow(NotePreviewUiState())
     val uiState = _uiState.asStateFlow()
-    private val _noteToDelete = MutableStateFlow<HomeNote?>(null)
-    val noteToDelete = _noteToDelete.asStateFlow()
     private val _actionError = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val actionError = _actionError.asSharedFlow()
 
     init {
         viewModelScope.launch {
-            _uiState.value = NotePreviewUiState.Loading
+            _uiState.update { it.copy(content = NotePreviewContent.Loading) }
             noteRepository.getNote(documentPath)
-                .onSuccess { _uiState.value = NotePreviewUiState.Success(it) }
+                .onSuccess { note ->
+                    _uiState.update { it.copy(content = NotePreviewContent.Success(note)) }
+                }
                 .onFailure { e ->
                     errorHandler.logError(e)
-                    _uiState.value = NotePreviewUiState.Error(errorHandler.getErrorMessage(e))
+                    _uiState.update {
+                        it.copy(content = NotePreviewContent.Error(errorHandler.getErrorMessage(e)))
+                    }
                 }
         }
     }
@@ -67,7 +75,7 @@ class NotePreviewViewModel @Inject constructor(
             noteRepository.favoriteNote(homeNote)
                 .onSuccess {
                     val toggled = homeNote.copy(favorite = homeNote.favorite.not())
-                    _uiState.value = NotePreviewUiState.Success(toggled)
+                    _uiState.update { it.copy(content = NotePreviewContent.Success(toggled)) }
                     noteHandler.notifyNoteFavorited(toggled)
                 }
                 .onFailure { e ->
@@ -78,6 +86,6 @@ class NotePreviewViewModel @Inject constructor(
     }
 
     fun setNoteToDelete(note: HomeNote?) {
-        _noteToDelete.value = note
+        _uiState.update { it.copy(noteToDelete = note) }
     }
 }

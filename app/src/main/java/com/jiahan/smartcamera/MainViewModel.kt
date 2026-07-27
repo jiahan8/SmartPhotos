@@ -14,8 +14,16 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+data class MainUiState(
+    val isAppReady: Boolean = false,
+    val startDestination: String = Screen.Auth.route,
+    val showBottomBar: Boolean = true,
+    val scrollToTop: Long? = null
+)
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
@@ -25,14 +33,8 @@ class MainViewModel @Inject constructor(
     userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
 
-    private val _isAppReady = MutableStateFlow(false)
-    val isAppReady = _isAppReady.asStateFlow()
-    private val _startDestination = MutableStateFlow(Screen.Auth.route)
-    val startDestination = _startDestination.asStateFlow()
-    private val _showBottomBar = MutableStateFlow(true)
-    val showBottomBar = _showBottomBar.asStateFlow()
-    private val _scrollToTop = MutableStateFlow<Long?>(null)
-    val scrollToTop = _scrollToTop.asStateFlow()
+    private val _uiState = MutableStateFlow(MainUiState())
+    val uiState = _uiState.asStateFlow()
 
     val isDarkTheme = userPreferencesRepository.userPreferencesFlow
         .map { it.isDarkTheme }
@@ -46,28 +48,28 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             remoteConfigRepository.fetchAndActivateConfig()
                 .onFailure { e -> errorHandler.logError(e) }
-            _startDestination.value =
+            val destination =
                 if (authRepository.currentUserId != null && authRepository.isCurrentUserEmailVerified)
                     Screen.Home.route
                 else
                     Screen.Auth.route
-            _isAppReady.value = true
+            _uiState.update { it.copy(startDestination = destination, isAppReady = true) }
         }
     }
 
     fun updateBottomBarVisibility(showBottomBar: Boolean) {
-        _showBottomBar.value = showBottomBar
+        _uiState.update { it.copy(showBottomBar = showBottomBar) }
     }
 
     fun updateStartDestination(destination: String) {
-        _startDestination.value = destination
+        _uiState.update { it.copy(startDestination = destination) }
     }
 
     fun triggerScrollToTop() {
-        _scrollToTop.value = System.currentTimeMillis()
+        _uiState.update { it.copy(scrollToTop = System.currentTimeMillis()) }
     }
 
     fun consumeScrollToTopEvent() {
-        _scrollToTop.value = null
+        _uiState.update { it.copy(scrollToTop = null) }
     }
 }
