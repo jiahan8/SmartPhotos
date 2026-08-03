@@ -68,6 +68,9 @@
     <!-- Video -->
     <string name="video">Video</string>
 
+    <!-- Explore -->
+    <string name="explore">Explore</string>
+
     <!-- Authentication -->
     <string name="authentication">Authentication</string>
     <string name="email">Email</string>

@@ -7,6 +7,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.jiahan.smartcamera.auth.AuthScreen
+import com.jiahan.smartcamera.explore.ExploreScreen
 import com.jiahan.smartcamera.favorite.FavoriteScreen
 import com.jiahan.smartcamera.home.HomeScreen
 import com.jiahan.smartcamera.navigation.Screen.Search.SEARCH_DEEP_LINK_URI_PATTERN
@@ -35,6 +36,9 @@ fun NavGraphBuilder.smartPhotosNavGraph(
             },
             onNavigateToVideoPreview = { url ->
                 navController.navigate(Screen.VideoPreview.createRemoteRoute(url))
+            },
+            onNavigateToExplore = {
+                navController.navigate(Screen.Explore.route)
             },
             onScrollDirectionChanged = onScrollDirectionChanged,
             scrollToTop = scrollToTop,
@@ -90,6 +94,15 @@ fun NavGraphBuilder.smartPhotosNavGraph(
             onScrollDirectionChanged = onScrollDirectionChanged,
             scrollToTop = scrollToTop,
             onScrollToTopConsumed = onScrollToTopConsumed,
+        )
+    }
+
+    composable(route = Screen.Explore.route) {
+        ExploreScreen(
+            onBack = { navController.popBackStack() },
+            onNavigateToPhotoPreview = { url ->
+                navController.navigate(Screen.PhotoPreview.createRemoteRoute(url))
+            }
         )
     }
 

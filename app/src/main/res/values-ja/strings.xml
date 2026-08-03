@@ -68,6 +68,9 @@
     <!-- Video -->
     <string name="video">ビデオ</string>
 
+    <!-- Explore -->
+    <string name="explore">探索</string>
+
     <!-- Authentication -->
     <string name="authentication">認証</string>
     <string name="email">メールアドレス</string>

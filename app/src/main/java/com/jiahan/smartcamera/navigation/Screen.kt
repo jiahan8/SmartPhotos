@@ -22,6 +22,7 @@ sealed class Screen(
 
     object Note : Screen("note", R.string.note, Icons.Outlined.Create)
     object Favorite : Screen("favorite", R.string.favorite, Icons.Outlined.FavoriteBorder)
+    object Explore : Screen("explore", R.string.explore, null)
 
     object PhotoPreview : Screen("photo/{type}/{source}", R.string.photo, null) {
         const val TYPE_ARG = "type"
