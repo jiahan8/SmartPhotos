@@ -1,52 +1,22 @@
 package com.jiahan.smartcamera.screenshot
 
-import android.app.Application
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onRoot
-import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
-import com.github.takahirom.roborazzi.captureRoboImage
 import com.jiahan.smartcamera.domain.DetectedLabel
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.home.HomeItem
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
-import org.junit.Rule
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
-import org.robolectric.annotation.GraphicsMode
 import java.time.Instant
 
 /**
- * Roborazzi screenshot tests for [HomeItem], rendered on the JVM via Robolectric — no emulator
- * required. Each test captures a PNG that is diffed against a checked-in reference under
- * `src/test/screenshots`, catching visual/layout regressions that semantic (text) assertions cannot.
+ * Roborazzi screenshot tests for [HomeItem]. Each test captures a PNG that is diffed against a
+ * checked-in reference under `src/test/screenshots`, catching visual/layout regressions that
+ * semantic (text) assertions cannot.
  *
- * Deterministic by construction: a fixed device profile (Pixel 5 qualifiers), no remote image URLs
- * (the account-circle fallback is drawn instead of a network image), and a plain [Application] so no
- * Hilt/Firebase initialization runs during rendering.
- *
- * Record references: ./gradlew :app:recordRoborazziDebug
- * Verify:            ./gradlew :app:verifyRoborazziDebug
+ * Deterministic by construction: no remote image URLs (the account-circle fallback is drawn
+ * instead of a network image), so Coil never performs I/O during rendering.
  */
-@RunWith(RobolectricTestRunner::class)
-@GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(
-    application = Application::class,
-    sdk = [35],
-    qualifiers = RobolectricDeviceQualifiers.Pixel5
-)
-class HomeItemScreenshotTest {
-
-    @get:Rule
-    val composeRule = createComposeRule()
-
-    private fun capture(content: @Composable () -> Unit) {
-        composeRule.setContent { content() }
-        composeRule.onRoot().captureRoboImage()
-    }
+class HomeItemScreenshotTest : BaseScreenshotTest() {
 
     @Test
     fun homeItem_textOnly_light() {

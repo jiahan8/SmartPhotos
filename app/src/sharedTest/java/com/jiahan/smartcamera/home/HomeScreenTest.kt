@@ -58,6 +58,7 @@ class HomeScreenTest {
                     onNavigateToNotePreview = { navigatedToNotePreview = it },
                     onNavigateToPhotoPreview = {},
                     onNavigateToVideoPreview = {},
+                    onNavigateToExplore = {},
                     viewModel = viewModel,
                     scrollToTop = null,
                     onScrollToTopConsumed = {},
