@@ -12,6 +12,7 @@ import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.fake.FakeErrorHandler
 import com.jiahan.smartcamera.fake.FakeNoteRepository
+import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -47,10 +48,12 @@ class HomeScreenTest {
     )
 
     private fun launchHomeScreen() {
+        val errorHandler = FakeErrorHandler()
         val viewModel = HomeViewModel(
             noteRepository = noteRepository,
             noteHandler = noteHandler,
-            errorHandler = FakeErrorHandler(),
+            noteActions = NoteActionsDelegate(noteRepository, noteHandler, errorHandler),
+            errorHandler = errorHandler,
         )
         composeTestRule.setContent {
             SmartCameraTheme {

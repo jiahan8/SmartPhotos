@@ -4,13 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
+import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.util.AppConstants.DEFAULT_PAGE_SIZE
 import com.jiahan.smartcamera.util.ErrorHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -27,19 +26,22 @@ data class HomeUiState(
     val isRefreshing: Boolean = false,
     val isLoadingMore: Boolean = false,
     val noteToDelete: HomeNote? = null
-)
+) {
+    val notes: List<HomeNote>?
+        get() = (content as? HomeContent.Success)?.notes
+}
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val noteRepository: NoteRepository,
     private val noteHandler: NoteHandler,
+    private val noteActions: NoteActionsDelegate,
     private val errorHandler: ErrorHandler
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState = _uiState.asStateFlow()
-    private val _actionError = MutableSharedFlow<String>(extraBufferCapacity = 1)
-    val actionError = _actionError.asSharedFlow()
+    val actionError = noteActions.actionError
 
     private var currentPage = 0
     private val pageSize = DEFAULT_PAGE_SIZE
@@ -48,18 +50,7 @@ class HomeViewModel @Inject constructor(
     init {
         viewModelScope.launch { fetchNotes(initialLoading = true) }
         viewModelScope.launch { noteHandler.noteAddedEvent.collect { fetchNotes(initialLoading = true) } }
-        viewModelScope.launch {
-            noteHandler.noteDeletedEvent.collect { documentPath ->
-                updateSuccessNotes { it.filter { note -> note.documentPath != documentPath } }
-            }
-        }
-        viewModelScope.launch {
-            noteHandler.noteFavoritedEvent.collect { updatedNote ->
-                updateSuccessNotes { notes ->
-                    notes.map { if (it.documentPath == updatedNote.documentPath) it.copy(favorite = updatedNote.favorite) else it }
-                }
-            }
-        }
+        noteHandler.observeNoteMutations(viewModelScope) { transform -> updateSuccessNotes(transform) }
     }
 
     fun refresh() {
@@ -83,7 +74,7 @@ class HomeViewModel @Inject constructor(
         noteRepository.getNotes(page = currentPage, pageSize = pageSize)
             .onSuccess { result ->
                 val prev = if (initialLoading) emptyList()
-                else (_uiState.value.content as? HomeContent.Success)?.notes ?: emptyList()
+                else _uiState.value.notes ?: emptyList()
                 _uiState.update { it.copy(content = HomeContent.Success(prev + result)) }
                 hasMoreData = result.size >= pageSize
                 currentPage++
@@ -110,29 +101,14 @@ class HomeViewModel @Inject constructor(
 
     fun deleteNote(documentPath: String) {
         viewModelScope.launch {
-            noteRepository.deleteNote(documentPath)
-                .onSuccess {
-                    updateSuccessNotes { it.filter { note -> note.documentPath != documentPath } }
-                    noteHandler.notifyNoteDeleted(documentPath)
-                }
-                .onFailure { e ->
-                    errorHandler.logError(e)
-                    _actionError.tryEmit(errorHandler.getErrorMessage(e))
-                }
+            if (noteActions.deleteNote(documentPath)) {
+                updateSuccessNotes { it.filter { note -> note.documentPath != documentPath } }
+            }
         }
     }
 
     fun favoriteNote(homeNote: HomeNote) {
-        viewModelScope.launch {
-            noteRepository.favoriteNote(homeNote)
-                .onSuccess {
-                    noteHandler.notifyNoteFavorited(homeNote.copy(favorite = homeNote.favorite.not()))
-                }
-                .onFailure { e ->
-                    errorHandler.logError(e)
-                    _actionError.tryEmit(errorHandler.getErrorMessage(e))
-                }
-        }
+        viewModelScope.launch { noteActions.favoriteNote(homeNote) }
     }
 
     fun setNoteToDelete(note: HomeNote?) {
@@ -140,7 +116,7 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun updateSuccessNotes(transform: (List<HomeNote>) -> List<HomeNote>) {
-        val content = _uiState.value.content as? HomeContent.Success ?: return
-        _uiState.update { it.copy(content = content.copy(notes = transform(content.notes))) }
+        val notes = _uiState.value.notes ?: return
+        _uiState.update { it.copy(content = HomeContent.Success(transform(notes))) }
     }
 }

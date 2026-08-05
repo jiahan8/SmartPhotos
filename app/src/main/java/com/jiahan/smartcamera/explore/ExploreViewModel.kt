@@ -23,7 +23,10 @@ data class ExploreUiState(
     val content: ExploreContent = ExploreContent.Loading,
     val isRefreshing: Boolean = false,
     val isLoadingMore: Boolean = false
-)
+) {
+    val photos: List<Photo>?
+        get() = (content as? ExploreContent.Success)?.photos
+}
 
 @HiltViewModel
 class ExploreViewModel @Inject constructor(
@@ -78,7 +81,7 @@ class ExploreViewModel @Inject constructor(
         photoRepository.listPhotos(page = currentPage, pageSize = pageSize)
             .onSuccess { result ->
                 val prev = if (initialLoading) emptyList()
-                else (_uiState.value.content as? ExploreContent.Success)?.photos ?: emptyList()
+                else _uiState.value.photos ?: emptyList()
                 _uiState.update { it.copy(content = ExploreContent.Success(prev + result)) }
                 hasMoreData = result.size >= pageSize
                 currentPage++

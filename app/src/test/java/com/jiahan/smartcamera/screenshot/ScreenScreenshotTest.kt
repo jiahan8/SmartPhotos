@@ -9,6 +9,7 @@ import com.jiahan.smartcamera.fake.FakeNoteRepository
 import com.jiahan.smartcamera.fake.FakeUserPreferencesRepository
 import com.jiahan.smartcamera.home.HomeScreen
 import com.jiahan.smartcamera.home.HomeViewModel
+import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.search.SearchScreen
 import com.jiahan.smartcamera.search.SearchViewModel
@@ -40,7 +41,14 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
 
     private fun homeViewModel(notes: Result<List<HomeNote>>): HomeViewModel {
         val repo = FakeNoteRepository().apply { notesResult = notes }
-        return HomeViewModel(repo, NoteHandler(), FakeErrorHandler())
+        val noteHandler = NoteHandler()
+        val errorHandler = FakeErrorHandler()
+        return HomeViewModel(
+            repo,
+            noteHandler,
+            NoteActionsDelegate(repo, noteHandler, errorHandler),
+            errorHandler,
+        )
     }
 
     @Test
@@ -106,11 +114,15 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
 
     @Test
     fun searchScreen_idle() {
+        val noteRepository = FakeNoteRepository()
+        val noteHandler = NoteHandler()
+        val errorHandler = FakeErrorHandler()
         val viewModel = SearchViewModel(
-            noteRepository = FakeNoteRepository(),
+            noteRepository = noteRepository,
             analyticsRepository = FakeAnalyticsRepository(),
-            noteHandler = NoteHandler(),
-            errorHandler = FakeErrorHandler(),
+            noteHandler = noteHandler,
+            noteActions = NoteActionsDelegate(noteRepository, noteHandler, errorHandler),
+            errorHandler = errorHandler,
         )
         captureSettled {
             SearchScreen(

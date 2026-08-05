@@ -32,7 +32,6 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -49,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.CustomSnackbarHost
+import com.jiahan.smartcamera.common.rememberShouldLoadMore
 import com.jiahan.smartcamera.domain.Photo
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -63,15 +63,7 @@ fun ExploreScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    val shouldLoadMore by remember {
-        derivedStateOf {
-            val photos =
-                (uiState.content as? ExploreContent.Success)?.photos ?: return@derivedStateOf false
-            if (photos.isEmpty()) return@derivedStateOf false
-            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
-            lastVisible != null && lastVisible >= photos.size - 1
-        }
-    }
+    val shouldLoadMore by rememberShouldLoadMore(listState) { uiState.photos?.size ?: 0 }
     LaunchedEffect(shouldLoadMore) {
         if (shouldLoadMore && !uiState.isLoadingMore) {
             viewModel.loadMorePhotos()

@@ -10,6 +10,7 @@ import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
 import com.jiahan.smartcamera.fake.FakeNoteRepository
+import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import org.junit.Rule
@@ -37,11 +38,12 @@ class FavoriteScreenTest {
     )
 
     private fun launchFavoriteScreen() {
+        val errorHandler = FakeErrorHandler()
         val viewModel = FavoriteViewModel(
             noteRepository = noteRepository,
             analyticsRepository = FakeAnalyticsRepository(),
-            noteHandler = NoteHandler(),
-            errorHandler = FakeErrorHandler(),
+            noteActions = NoteActionsDelegate(noteRepository, NoteHandler(), errorHandler),
+            errorHandler = errorHandler,
         )
         composeTestRule.setContent {
             SmartCameraTheme {

@@ -43,10 +43,8 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,13 +63,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.CustomSnackbarHost
+import com.jiahan.smartcamera.common.ScrollDirectionEffect
+import com.jiahan.smartcamera.common.ScrollToTopEffect
+import com.jiahan.smartcamera.common.rememberShouldLoadMore
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
-import com.jiahan.smartcamera.util.pairwise
 import com.jiahan.smartcamera.util.toFormattedDateTime
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,44 +89,20 @@ fun HomeScreen(
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(listState) {
-        onScrollDirectionChanged(true)
-        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
-            .pairwise()
-            .map { (prev, curr) ->
-                val (prevIndex, prevOffset) = prev
-                val (currIndex, currOffset) = curr
-                currIndex < prevIndex || (currIndex == prevIndex && currOffset < prevOffset)
-            }
-            .distinctUntilChanged()
-            .collect { isScrollingUp ->
-                onScrollDirectionChanged(isScrollingUp)
-            }
-    }
+    ScrollDirectionEffect(listState, onScrollDirectionChanged)
 
-    LaunchedEffect(scrollToTop) {
-        scrollToTop?.let {
-            val notes = (uiState.content as? HomeContent.Success)?.notes
-            if (notes?.isNotEmpty() == true) {
-                listState.animateScrollToItem(0)
-                onScrollToTopConsumed()
-            }
-        }
-    }
+    ScrollToTopEffect(
+        scrollToTop = scrollToTop,
+        listState = listState,
+        hasItems = uiState.notes?.isNotEmpty() == true,
+        onConsumed = onScrollToTopConsumed
+    )
 
     LaunchedEffect(Unit) {
         viewModel.actionError.collect { message -> snackbarHostState.showSnackbar(message) }
     }
 
-    val shouldLoadMore by remember {
-        derivedStateOf {
-            val notes =
-                (uiState.content as? HomeContent.Success)?.notes ?: return@derivedStateOf false
-            if (notes.isEmpty()) return@derivedStateOf false
-            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
-            lastVisible != null && lastVisible >= notes.size - 1
-        }
-    }
+    val shouldLoadMore by rememberShouldLoadMore(listState) { uiState.notes?.size ?: 0 }
     LaunchedEffect(shouldLoadMore) {
         if (shouldLoadMore && !uiState.isLoadingMore) {
             viewModel.loadMoreNotes()

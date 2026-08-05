@@ -12,6 +12,7 @@ import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
 import com.jiahan.smartcamera.fake.FakeNoteRepository
+import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import org.junit.Rule
@@ -39,11 +40,14 @@ class SearchScreenTest {
     )
 
     private fun launchSearchScreen() {
+        val noteHandler = NoteHandler()
+        val errorHandler = FakeErrorHandler()
         val viewModel = SearchViewModel(
             noteRepository = noteRepository,
             analyticsRepository = FakeAnalyticsRepository(),
-            noteHandler = NoteHandler(),
-            errorHandler = FakeErrorHandler(),
+            noteHandler = noteHandler,
+            noteActions = NoteActionsDelegate(noteRepository, noteHandler, errorHandler),
+            errorHandler = errorHandler,
         )
         composeTestRule.setContent {
             SmartCameraTheme {

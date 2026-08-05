@@ -1,8 +1,10 @@
 package com.jiahan.smartcamera.note
 
 import com.jiahan.smartcamera.domain.HomeNote
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 class NoteHandler @Inject constructor() {
@@ -25,5 +27,23 @@ class NoteHandler @Inject constructor() {
 
     suspend fun notifyNoteFavorited(homeNote: HomeNote) {
         _noteFavoritedEvent.emit(homeNote)
+    }
+
+    fun observeNoteMutations(
+        scope: CoroutineScope,
+        updateNotes: ((List<HomeNote>) -> List<HomeNote>) -> Unit
+    ) {
+        scope.launch {
+            noteDeletedEvent.collect { documentPath ->
+                updateNotes { it.filter { note -> note.documentPath != documentPath } }
+            }
+        }
+        scope.launch {
+            noteFavoritedEvent.collect { updatedNote ->
+                updateNotes { notes ->
+                    notes.map { if (it.documentPath == updatedNote.documentPath) it.copy(favorite = updatedNote.favorite) else it }
+                }
+            }
+        }
     }
 }

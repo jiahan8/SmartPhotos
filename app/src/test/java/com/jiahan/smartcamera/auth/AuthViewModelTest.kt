@@ -215,7 +215,7 @@ class AuthViewModelTest {
 
         val state = viewModel.uiState.value.status
         assertTrue(state is AuthStatus.Error)
-        assertTrue((state as AuthStatus.Error).showResendButton)
+        assertTrue(viewModel.uiState.value.showResendButton)
     }
 
     // -------------------------------------------------------------------------
@@ -410,7 +410,7 @@ class AuthViewModelTest {
 
         val state = viewModel.uiState.value.status
         assertTrue(state is AuthStatus.Info)
-        assertTrue((state as AuthStatus.Info).showResendButton)
+        assertTrue(viewModel.uiState.value.showResendButton)
     }
 
     // -------------------------------------------------------------------------
@@ -461,7 +461,7 @@ class AuthViewModelTest {
 
         val state = viewModel.uiState.value.status
         assertTrue(state is AuthStatus.Info)
-        assertTrue((state as AuthStatus.Info).showResendButton)
+        assertTrue(viewModel.uiState.value.showResendButton)
     }
 
     @Test

@@ -24,8 +24,8 @@ import javax.inject.Inject
 sealed interface AuthStatus {
     data object Idle : AuthStatus
     data object Loading : AuthStatus
-    data class Error(val message: String, val showResendButton: Boolean = false) : AuthStatus
-    data class Info(val message: String, val showResendButton: Boolean = false) : AuthStatus
+    data class Error(val message: String) : AuthStatus
+    data class Info(val message: String) : AuthStatus
 }
 
 data class AuthUiState(
@@ -35,7 +35,8 @@ data class AuthUiState(
     val username: String = "",
     val passwordVisible: Boolean = false,
     val isLoginMode: Boolean = true,
-    val status: AuthStatus = AuthStatus.Idle
+    val status: AuthStatus = AuthStatus.Idle,
+    val showResendButton: Boolean = false
 )
 
 sealed interface AuthNavigationEvent {
@@ -87,7 +88,8 @@ class AuthViewModel @Inject constructor(
                 password = "",
                 displayName = "",
                 username = "",
-                status = AuthStatus.Idle
+                status = AuthStatus.Idle,
+                showResendButton = false
             )
         }
     }
@@ -101,13 +103,16 @@ class AuthViewModel @Inject constructor(
         val currentPassword = _uiState.value.password
         if (trimmedEmail.isBlank() || currentPassword.isBlank()) {
             _uiState.update {
-                it.copy(status = AuthStatus.Error(resourceProvider.getString(R.string.email_password_empty)))
+                it.copy(
+                    status = AuthStatus.Error(resourceProvider.getString(R.string.email_password_empty)),
+                    showResendButton = false
+                )
             }
             return
         }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(status = AuthStatus.Loading) }
+            _uiState.update { it.copy(status = AuthStatus.Loading, showResendButton = false) }
 
             authRepository.signIn(trimmedEmail, currentPassword)
                 .onSuccess {
@@ -123,14 +128,16 @@ class AuthViewModel @Inject constructor(
                                     }
                                     .onFailure { e -> errorHandler.logError(e) }
                                 _navigationEvent.trySend(AuthNavigationEvent.NavigateToHome)
-                                _uiState.update { it.copy(status = AuthStatus.Idle) }
+                                _uiState.update {
+                                    it.copy(status = AuthStatus.Idle, showResendButton = false)
+                                }
                             } else {
                                 _uiState.update {
                                     it.copy(
                                         status = AuthStatus.Error(
-                                            message = resourceProvider.getString(R.string.email_not_verified),
-                                            showResendButton = true
-                                        )
+                                            message = resourceProvider.getString(R.string.email_not_verified)
+                                        ),
+                                        showResendButton = true
                                     )
                                 }
                             }
@@ -138,14 +145,20 @@ class AuthViewModel @Inject constructor(
                         .onFailure { e ->
                             errorHandler.logError(e)
                             _uiState.update {
-                                it.copy(status = AuthStatus.Error(errorHandler.getErrorMessage(e)))
+                                it.copy(
+                                    status = AuthStatus.Error(errorHandler.getErrorMessage(e)),
+                                    showResendButton = false
+                                )
                             }
                         }
                 }
                 .onFailure { e ->
                     errorHandler.logError(e)
                     _uiState.update {
-                        it.copy(status = AuthStatus.Error(message = errorHandler.getErrorMessage(e)))
+                        it.copy(
+                            status = AuthStatus.Error(message = errorHandler.getErrorMessage(e)),
+                            showResendButton = false
+                        )
                     }
                 }
         }
@@ -159,20 +172,29 @@ class AuthViewModel @Inject constructor(
 
         if (trimmedEmail.isBlank() || currentPassword.isBlank()) {
             _uiState.update {
-                it.copy(status = AuthStatus.Error(resourceProvider.getString(R.string.email_password_empty)))
+                it.copy(
+                    status = AuthStatus.Error(resourceProvider.getString(R.string.email_password_empty)),
+                    showResendButton = false
+                )
             }
             return
         }
         if (trimmedDisplayName.isBlank() || trimmedUsername.isBlank()) {
             _uiState.update {
-                it.copy(status = AuthStatus.Error(resourceProvider.getString(R.string.all_fields_required)))
+                it.copy(
+                    status = AuthStatus.Error(resourceProvider.getString(R.string.all_fields_required)),
+                    showResendButton = false
+                )
             }
             return
         }
         when (val r = validateDisplayName(trimmedDisplayName)) {
             is ValidationResult.Error -> {
                 _uiState.update {
-                    it.copy(status = AuthStatus.Error(resourceProvider.getString(r.messageResId)))
+                    it.copy(
+                        status = AuthStatus.Error(resourceProvider.getString(r.messageResId)),
+                        showResendButton = false
+                    )
                 }
                 return
             }
@@ -182,7 +204,10 @@ class AuthViewModel @Inject constructor(
         when (val r = validateUsername(trimmedUsername)) {
             is ValidationResult.Error -> {
                 _uiState.update {
-                    it.copy(status = AuthStatus.Error(resourceProvider.getString(r.messageResId)))
+                    it.copy(
+                        status = AuthStatus.Error(resourceProvider.getString(r.messageResId)),
+                        showResendButton = false
+                    )
                 }
                 return
             }
@@ -191,13 +216,16 @@ class AuthViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(status = AuthStatus.Loading) }
+            _uiState.update { it.copy(status = AuthStatus.Loading, showResendButton = false) }
 
             authRepository.isUsernameAvailable(trimmedUsername)
                 .onSuccess { available ->
                     if (!available) {
                         _uiState.update {
-                            it.copy(status = AuthStatus.Error(resourceProvider.getString(R.string.username_not_available)))
+                            it.copy(
+                                status = AuthStatus.Error(resourceProvider.getString(R.string.username_not_available)),
+                                showResendButton = false
+                            )
                         }
                         return@onSuccess
                     }
@@ -210,16 +238,17 @@ class AuthViewModel @Inject constructor(
                         _uiState.update {
                             it.copy(
                                 status = AuthStatus.Info(
-                                    message = resourceProvider.getString(R.string.verification_email_sent),
-                                    showResendButton = true
-                                )
+                                    message = resourceProvider.getString(R.string.verification_email_sent)
+                                ),
+                                showResendButton = true
                             )
                         }
                     }.onFailure { e ->
                         errorHandler.logError(e)
                         _uiState.update {
                             it.copy(
-                                status = AuthStatus.Error(message = errorHandler.getErrorMessage(e))
+                                status = AuthStatus.Error(message = errorHandler.getErrorMessage(e)),
+                                showResendButton = false
                             )
                         }
                     }
@@ -227,7 +256,10 @@ class AuthViewModel @Inject constructor(
                 .onFailure { e ->
                     errorHandler.logError(e)
                     _uiState.update {
-                        it.copy(status = AuthStatus.Error(errorHandler.getErrorMessage(e)))
+                        it.copy(
+                            status = AuthStatus.Error(errorHandler.getErrorMessage(e)),
+                            showResendButton = false
+                        )
                     }
                 }
         }
@@ -237,34 +269,45 @@ class AuthViewModel @Inject constructor(
         val trimmedEmail = _uiState.value.email.trim()
         if (trimmedEmail.isBlank()) {
             _uiState.update {
-                it.copy(status = AuthStatus.Error(resourceProvider.getString(R.string.enter_email)))
+                it.copy(
+                    status = AuthStatus.Error(resourceProvider.getString(R.string.enter_email)),
+                    showResendButton = false
+                )
             }
             return
         }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(status = AuthStatus.Loading) }
+            _uiState.update { it.copy(status = AuthStatus.Loading, showResendButton = false) }
 
             authRepository.isEmailRegistered(trimmedEmail)
                 .onSuccess { registered ->
                     if (!registered) {
                         _uiState.update {
-                            it.copy(status = AuthStatus.Error(resourceProvider.getString(R.string.email_not_registered)))
+                            it.copy(
+                                status = AuthStatus.Error(resourceProvider.getString(R.string.email_not_registered)),
+                                showResendButton = false
+                            )
                         }
                         return@onSuccess
                     }
                     authRepository.resetPassword(trimmedEmail)
                         .onSuccess {
                             _uiState.update {
-                                it.copy(status = AuthStatus.Info(resourceProvider.getString(R.string.password_reset_email_sent)))
+                                it.copy(
+                                    status = AuthStatus.Info(resourceProvider.getString(R.string.password_reset_email_sent)),
+                                    showResendButton = false
+                                )
                             }
                         }
                         .onFailure { e ->
                             errorHandler.logError(e)
                             _uiState.update {
                                 it.copy(
-                                    status =
-                                        AuthStatus.Error(message = errorHandler.getErrorMessage(e))
+                                    status = AuthStatus.Error(
+                                        message = errorHandler.getErrorMessage(e)
+                                    ),
+                                    showResendButton = false
                                 )
                             }
                         }
@@ -272,7 +315,10 @@ class AuthViewModel @Inject constructor(
                 .onFailure { e ->
                     errorHandler.logError(e)
                     _uiState.update {
-                        it.copy(status = AuthStatus.Error(errorHandler.getErrorMessage(e)))
+                        it.copy(
+                            status = AuthStatus.Error(errorHandler.getErrorMessage(e)),
+                            showResendButton = false
+                        )
                     }
                 }
         }
@@ -280,22 +326,23 @@ class AuthViewModel @Inject constructor(
 
     fun resendVerificationEmail() {
         viewModelScope.launch {
-            _uiState.update { it.copy(status = AuthStatus.Loading) }
+            _uiState.update { it.copy(status = AuthStatus.Loading, showResendButton = false) }
             authRepository.sendEmailVerification()
                 .onSuccess {
                     _uiState.update {
                         it.copy(
-                            status = AuthStatus.Info(
-                                message = resourceProvider.getString(R.string.verification_email_resent),
-                                showResendButton = true
-                            )
+                            status = AuthStatus.Info(message = resourceProvider.getString(R.string.verification_email_resent)),
+                            showResendButton = true
                         )
                     }
                 }
                 .onFailure { e ->
                     errorHandler.logError(e)
                     _uiState.update {
-                        it.copy(status = AuthStatus.Error(errorHandler.getErrorMessage(e)))
+                        it.copy(
+                            status = AuthStatus.Error(errorHandler.getErrorMessage(e)),
+                            showResendButton = false
+                        )
                     }
                 }
         }

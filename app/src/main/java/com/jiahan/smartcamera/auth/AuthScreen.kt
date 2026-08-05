@@ -237,9 +237,7 @@ fun AuthScreen(
                     }
                 }
 
-                val showResendButton =
-                    (authStatus is AuthStatus.Error && authStatus.showResendButton) || (authStatus is AuthStatus.Info && authStatus.showResendButton)
-                if (showResendButton) {
+                if (uiState.showResendButton) {
                     TextButton(onClick = { viewModel.resendVerificationEmail() }) {
                         Text(stringResource(R.string.resend_verification_email))
                     }

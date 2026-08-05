@@ -5,6 +5,7 @@ import com.jiahan.smartcamera.MainDispatcherRule
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
+import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.util.AppConstants.DEBOUNCE_MS
 import com.jiahan.smartcamera.util.ErrorHandler
@@ -38,6 +39,13 @@ class SearchViewModelTest {
     private val analyticsRepository: AnalyticsRepository = mockk()
     private val noteHandler = NoteHandler()
     private val errorHandler: ErrorHandler = mockk()
+    private val noteActions by lazy {
+        NoteActionsDelegate(
+            noteRepository,
+            noteHandler,
+            errorHandler
+        )
+    }
 
     private lateinit var viewModel: SearchViewModel
 
@@ -47,7 +55,13 @@ class SearchViewModelTest {
         every { analyticsRepository.logSearchCustomEvent(any()) } just runs
         every { errorHandler.logError(any()) } just runs
         every { errorHandler.getErrorMessage(any()) } returns "Error"
-        viewModel = SearchViewModel(noteRepository, analyticsRepository, noteHandler, errorHandler)
+        viewModel = SearchViewModel(
+            noteRepository,
+            analyticsRepository,
+            noteHandler,
+            noteActions,
+            errorHandler
+        )
     }
 
     @After

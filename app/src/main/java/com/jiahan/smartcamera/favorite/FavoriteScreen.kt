@@ -34,7 +34,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.snapshotFlow
 import com.jiahan.smartcamera.common.CustomSnackbarHost
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,10 +44,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.common.ScrollDirectionEffect
+import com.jiahan.smartcamera.common.ScrollToTopEffect
 import com.jiahan.smartcamera.home.HomeItem
-import com.jiahan.smartcamera.util.pairwise
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,29 +73,14 @@ fun FavoriteScreen(
 
     val onRefresh: () -> Unit = { viewModel.refresh() }
 
-    LaunchedEffect(listState) {
-        onScrollDirectionChanged(true)
-        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
-            .pairwise()
-            .map { (prev, curr) ->
-                val (prevIndex, prevOffset) = prev
-                val (currIndex, currOffset) = curr
-                currIndex < prevIndex || (currIndex == prevIndex && currOffset < prevOffset)
-            }
-            .distinctUntilChanged()
-            .collect { isScrollingUp ->
-                onScrollDirectionChanged(isScrollingUp)
-            }
-    }
+    ScrollDirectionEffect(listState, onScrollDirectionChanged)
 
-    LaunchedEffect(scrollToTop) {
-        scrollToTop?.let {
-            if (notes.isNotEmpty()) {
-                listState.animateScrollToItem(0)
-                onScrollToTopConsumed()
-            }
-        }
-    }
+    ScrollToTopEffect(
+        scrollToTop = scrollToTop,
+        listState = listState,
+        hasItems = notes.isNotEmpty(),
+        onConsumed = onScrollToTopConsumed
+    )
 
     uiState.noteToDelete?.let { note ->
         AlertDialog(
