@@ -1,5 +1,6 @@
 package com.jiahan.smartcamera.fake
 
+import android.graphics.Bitmap
 import android.net.Uri
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
 
@@ -12,6 +13,8 @@ class FakeMediaFileRepository : MediaFileRepository {
     override fun createImageUri(): Uri? = null
 
     override fun createVideoUri(): Uri? = null
+
+    override fun saveBitmapAsTempFile(bitmap: Bitmap): Uri? = null
 
     override fun deleteUri(uri: Uri) {}
 }

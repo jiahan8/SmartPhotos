@@ -9,9 +9,15 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Top-level notes: only signed-in users.
+    // Top-level "note" collection is unused by the app (notes live under
+    // user/{userId}/note below); locked down rather than left wide open to
+    // any signed-in user.
     match /note/{noteId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
+    }
+
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
     }
 
     // Per-user data and the user's notes subcollection
@@ -30,12 +36,25 @@ service cloud.firestore {
 
     match /user/{userId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId &&
-          isValidDisplayName();
+      allow write: if isOwner(userId) && isValidDisplayName();
+
+      // Notes are created via the createNote Cloud Function (Admin SDK,
+      // bypasses these rules), which enforces MAX_POST_TEXT_LENGTH and
+      // stamps the true owner into user_id -- so there is no client `create`
+      // rule here at all. Clients may only flip `favorite` on an existing
+      // note; every other field (text/media_list/user_id/created) must stay
+      // exactly as it was, since generatedText/generatedObjects/
+      // generatedLabels on media_list items may only be added by the
+      // processTextRecognition Cloud Function.
+      function onlyFavoriteChanged() {
+        return request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["favorite"]);
+      }
 
       match /note/{noteId} {
         allow read: if request.auth != null;
-        allow write: if request.auth != null && request.auth.uid == userId;
+        allow update: if isOwner(userId) && onlyFavoriteChanged();
+        allow delete: if isOwner(userId);
       }
     }
 

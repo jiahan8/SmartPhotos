@@ -48,7 +48,7 @@ class DefaultErrorHandler @Inject constructor(
  * Maps a username-conflict [FirebaseFunctionsException] thrown by the
  * createUserProfile/updateUsername Cloud Functions to the matching localized
  * string resource, so callers don't leak the raw hardcoded English
- * [HttpsError] text via [ErrorHandler.getErrorMessage]. Returns null for any
+ * `HttpsError` text via [ErrorHandler.getErrorMessage]. Returns null for any
  * other exception type/code, so callers should fall back to
  * [ErrorHandler.getErrorMessage] in that case.
  */
@@ -58,3 +58,24 @@ fun usernameErrorMessageResId(throwable: Throwable): Int? =
         FirebaseFunctionsException.Code.INVALID_ARGUMENT -> R.string.username_reserved
         else -> null
     }
+
+/**
+ * Maps the `reason` detail of an `invalid-argument` [FirebaseFunctionsException.Code]
+ * error thrown by the createNote Cloud Function to the matching localized
+ * string resource. All of createNote's validation errors share that single
+ * code, so unlike [usernameErrorMessageResId], this reads the structured
+ * `details` payload rather than the error code to tell them apart. Returns
+ * null for reasons with no user-facing string (they indicate a malformed
+ * request no legitimate client can produce) or any other exception type, so
+ * callers should fall back to [ErrorHandler.getErrorMessage] in that case.
+ */
+fun noteErrorMessageResId(throwable: Throwable): Int? {
+    val reason = ((throwable as? FirebaseFunctionsException)?.details as? Map<*, *>)
+        ?.get("reason") as? String
+    return when (reason) {
+        "TEXT_TOO_LONG" -> R.string.post_validation
+        "TOO_MANY_MEDIA_ITEMS" -> R.string.note_media_limit
+        "EMPTY_NOTE" -> R.string.note_empty
+        else -> null
+    }
+}

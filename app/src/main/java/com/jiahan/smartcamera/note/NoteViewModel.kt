@@ -10,10 +10,12 @@ import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
+import com.jiahan.smartcamera.util.AppConstants.MAX_NOTE_MEDIA_ITEMS
 import com.jiahan.smartcamera.util.AppConstants.MAX_POST_TEXT_LENGTH
 import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ResourceProvider
+import com.jiahan.smartcamera.util.noteErrorMessageResId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -107,22 +109,21 @@ class NoteViewModel @Inject constructor(
                             noteHandler.notifyNoteAdded()
                             _uiState.update { it.copy(uploadStatus = UploadStatus.Success) }
                         }
-                        .onFailure { e ->
-                            errorHandler.logError(e)
-                            _uiState.update {
-                                it.copy(
-                                    uploadStatus = UploadStatus.Error(errorHandler.getErrorMessage(e))
-                                )
-                            }
-                        }
+                        .onFailure { e -> handleUploadFailure(e) }
                 }
-                .onFailure { e ->
-                    errorHandler.logError(e)
-                    _uiState.update {
-                        it.copy(uploadStatus = UploadStatus.Error(errorHandler.getErrorMessage(e)))
-                    }
-                }
+                .onFailure { e -> handleUploadFailure(e) }
         }
+    }
+
+    // createNote's validation errors all share the invalid-argument code, so
+    // noteErrorMessageResId() reads the structured `details.reason` payload
+    // to map them to a specific, localized message instead of leaking the
+    // Cloud Function's raw English error text.
+    private fun handleUploadFailure(e: Throwable) {
+        errorHandler.logError(e)
+        val message = noteErrorMessageResId(e)?.let(resourceProvider::getString)
+            ?: errorHandler.getErrorMessage(e)
+        _uiState.update { it.copy(uploadStatus = UploadStatus.Error(message)) }
     }
 
     fun resetUploadState() {
@@ -162,7 +163,19 @@ class NoteViewModel @Inject constructor(
         viewModelScope.launch {
             noteRepository.buildLocalMediaDetails(uriList)
                 .onSuccess { newMediaDetailList ->
-                    _uiState.update { it.copy(mediaList = newMediaDetailList + it.mediaList) }
+                    val combinedMediaList = newMediaDetailList + _uiState.value.mediaList
+                    if (combinedMediaList.size > MAX_NOTE_MEDIA_ITEMS) {
+                        _uiState.update {
+                            it.copy(
+                                mediaList = combinedMediaList.take(MAX_NOTE_MEDIA_ITEMS),
+                                uploadStatus = UploadStatus.Error(
+                                    resourceProvider.getString(R.string.note_media_limit)
+                                )
+                            )
+                        }
+                    } else {
+                        _uiState.update { it.copy(mediaList = combinedMediaList) }
+                    }
                 }
                 .onFailure { e -> errorHandler.logError(e) }
         }

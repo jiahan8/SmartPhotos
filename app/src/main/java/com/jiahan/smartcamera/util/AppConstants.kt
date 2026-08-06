@@ -14,6 +14,7 @@ object AppConstants {
     const val MAX_DISPLAY_NAME_LENGTH = 50
 
     // Media constraints
+    const val MAX_NOTE_MEDIA_ITEMS = 10
     const val VIDEO_THUMBNAIL_DIMENSION = 1080
     const val VIDEO_THUMBNAIL_TIME_MICROSECONDS = 1_000_000L // 1 second
     const val VIDEO_THUMBNAIL_DEFAULT_WIDTH = 640

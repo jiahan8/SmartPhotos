@@ -101,8 +101,8 @@ class ProfileViewModel @Inject constructor(
 
     fun updateDisplayNameText(text: String) {
         val displayNameErrorMessage =
-            when (val result = validateDisplayName(text.trim(), requireNonBlank = true)) {
-                is ValidationResult.Error -> resourceProvider.getString(result.messageResId)
+            when (val validationResult = validateDisplayName(text.trim(), requireNonBlank = true)) {
+                is ValidationResult.Error -> resourceProvider.getString(validationResult.messageResId)
                 else -> null
             }
         _uiState.update {
@@ -116,8 +116,8 @@ class ProfileViewModel @Inject constructor(
 
     fun updateUsernameText(text: String) {
         val usernameErrorMessage =
-            when (val result = validateUsername(text.trim(), requireNonBlank = true)) {
-                is ValidationResult.Error -> resourceProvider.getString(result.messageResId)
+            when (val validationResult = validateUsername(text.trim(), requireNonBlank = true)) {
+                is ValidationResult.Error -> resourceProvider.getString(validationResult.messageResId)
                 else -> null
             }
         _uiState.update { it.copy(username = text, usernameErrorMessage = usernameErrorMessage) }
@@ -180,9 +180,14 @@ class ProfileViewModel @Inject constructor(
                 }
             }
 
+            // Only pass username when it actually changed, so we don't trigger
+            // the updateUsername Cloud Function's Firestore transaction on
+            // every display-name-only edit.
+            val usernameToUpdate = trimmedUsername.takeIf { it != user?.username }
+
             userRepository.updateUserProfile(
                 displayName = trimmedDisplayName,
-                username = trimmedUsername,
+                username = usernameToUpdate,
                 profilePicture = ProfilePictureUpdate.Keep
             ).onSuccess {
                 loadUserProfile()

@@ -111,8 +111,6 @@ fun NoteScreen(
         )
     )
 
-    val postFailureMessage = stringResource(R.string.post_failure)
-
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -185,7 +183,7 @@ fun NoteScreen(
                 keyboardController?.hide()
                 isErrorSnackBar = true
                 snackbarHostState.showSnackbar(
-                    postFailureMessage,
+                    uploadStatus.message,
                     duration = SnackbarDuration.Short
                 )
                 viewModel.resetUploadState()

@@ -34,8 +34,9 @@
     <string name="write_a_thought">Write a thought…</string>
     <string name="post">Post</string>
     <string name="post_success">Post uploaded successfully</string>
-    <string name="post_failure">Couldn\'t upload your post. Please try again.</string>
-    <string name="post_validation">Post cannot exceed 200 characters</string>
+    <string name="post_validation">Post cannot exceed 500 characters</string>
+    <string name="note_media_limit">You can attach up to 10 photos or videos per post</string>
+    <string name="note_empty">Add some text or media before posting</string>
     <string name="no_media_available">No media URI available for upload</string>
 
     <!-- Favorite -->

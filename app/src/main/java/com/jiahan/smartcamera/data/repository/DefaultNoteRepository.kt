@@ -1,14 +1,13 @@
 package com.jiahan.smartcamera.data.repository
 
 import android.content.Context
-import android.graphics.Bitmap
 import android.net.Uri
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.DocumentSnapshot
-import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.storage
 import com.jiahan.smartcamera.R
@@ -41,8 +40,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileOutputStream
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -52,7 +49,9 @@ class DefaultNoteRepository @Inject constructor(
     private val remoteConfigRepository: RemoteConfigRepository,
     private val authRepository: AuthRepository,
     private val firestore: FirebaseFirestore,
+    private val functions: FirebaseFunctions,
     private val noteDao: NoteDao,
+    private val mediaFileRepository: MediaFileRepository,
     private val errorHandler: ErrorHandler,
     @param:ApplicationScope private val applicationScope: CoroutineScope,
     @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
@@ -85,6 +84,15 @@ class DefaultNoteRepository @Inject constructor(
         private const val FIELD_OBJECT = "object"
         private const val FIELD_LABEL = "label"
         private const val FIELD_SCORE = "score"
+
+        // Cloud Function names / argument keys
+        private const val FUNCTION_CREATE_NOTE = "createNote"
+        private const val ARG_TEXT = "text"
+        private const val ARG_MEDIA_LIST = "mediaList"
+        private const val ARG_PHOTO_URL = "photoUrl"
+        private const val ARG_VIDEO_URL = "videoUrl"
+        private const val ARG_THUMBNAIL_URL = "thumbnailUrl"
+        private const val ARG_IS_VIDEO = "isVideo"
     }
 
     private val storage: FirebaseStorage by lazy {
@@ -148,18 +156,21 @@ class DefaultNoteRepository @Inject constructor(
         } ?: emptyList()
     }
 
+    // Delegates to the createNote Cloud Function, which enforces
+    // MAX_POST_TEXT_LENGTH and stamps the true owner into user_id server-side
+    // instead of trusting a client-supplied value.
     override suspend fun addNote(homeNote: HomeNote): Result<Unit> = safeCall {
-        val userId = authRepository.currentUserId
-            ?: throw IllegalStateException("User is not authenticated")
-        noteCollectionReference?.add(
+        val mediaListPayload = homeNote.mediaList.orEmpty().map { media ->
             hashMapOf(
-                FIELD_TEXT to homeNote.text,
-                FIELD_CREATED to FieldValue.serverTimestamp(),
-                FIELD_FAVORITE to false,
-                FIELD_MEDIA_LIST to homeNote.mediaList,
-                FIELD_USER_ID to userId
+                ARG_PHOTO_URL to media.photoUrl,
+                ARG_VIDEO_URL to media.videoUrl,
+                ARG_THUMBNAIL_URL to media.thumbnailUrl,
+                ARG_IS_VIDEO to media.isVideo
             )
-        )?.await()
+        }
+        functions.getHttpsCallable(FUNCTION_CREATE_NOTE)
+            .call(hashMapOf(ARG_TEXT to homeNote.text, ARG_MEDIA_LIST to mediaListPayload))
+            .await()
     }
 
     override suspend fun searchNotes(query: String): Result<List<HomeNote>> = safeCall {
@@ -269,7 +280,10 @@ class DefaultNoteRepository @Inject constructor(
                         val isVideo =
                             context.contentResolver.getType(uri)?.startsWith("video/") == true
                         val thumbnailUri = if (isVideo) {
-                            createVideoThumbnail(context, uri)?.let { saveBitmapAsTempFile(it) }
+                            createVideoThumbnail(
+                                context,
+                                uri
+                            )?.let { mediaFileRepository.saveBitmapAsTempFile(it) }
                         } else null
                         NoteMediaDetail(
                             photoUri = if (!isVideo) uri else null,
@@ -281,21 +295,6 @@ class DefaultNoteRepository @Inject constructor(
                 }
             }
         }
-
-    private fun saveBitmapAsTempFile(bitmap: Bitmap): Uri? {
-        return try {
-            val file = File.createTempFile("thumbnail_", ".jpg", context.cacheDir)
-            FileOutputStream(file).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
-            }
-            Uri.fromFile(file)
-        } catch (e: Exception) {
-            errorHandler.logError(e)
-            null
-        } finally {
-            bitmap.recycle()
-        }
-    }
 
     /** Fire-and-forget — no Result returned; errors logged internally. */
     override suspend fun quickUploadMediaToFirebase(uriList: List<Uri>) {

@@ -42,7 +42,15 @@ const UNSPLASH_API_BASE_URL = "https://api.unsplash.com";
 // checks are UX-only, these are the actual enforcement boundary.
 const MAX_USERNAME_LENGTH = 30;
 const MAX_DISPLAY_NAME_LENGTH = 50;
+const MAX_POST_TEXT_LENGTH = 500;
 const USERNAME_PATTERN = /^[a-zA-Z0-9._]+$/;
+
+// Anti-abuse cap on how many media items a single note may carry. Not
+// mirrored client-side (the picker has no matching limit) since normal
+// usage never approaches it; it only guards against a scripted/abusive
+// caller forcing processTextRecognition to run the Vision API hundreds of
+// times for one note.
+const MAX_NOTE_MEDIA_ITEMS = 10;
 
 // System/impersonation-prone words that may never be claimed as a username,
 // checked case-insensitively.
@@ -205,6 +213,99 @@ exports.processTextRecognition = onDocumentCreated(
         return null;
       }
     });
+
+/**
+ * Strips a client-supplied media item down to the fields a client may
+ * legitimately set before upload/detection finishes. generatedText/
+ * generatedObjects/generatedLabels are intentionally dropped here: those may
+ * only be added later, server-side, by processTextRecognition -- otherwise a
+ * caller could fabricate detection results to manipulate search.
+ * @param {object} media A single client-supplied media item.
+ * @return {object} The sanitized media item to persist.
+ */
+function sanitizeMediaItem(media) {
+  const item = (media && typeof media === "object") ? media : {};
+  return {
+    photoUrl: typeof item.photoUrl === "string" ? item.photoUrl : null,
+    videoUrl: typeof item.videoUrl === "string" ? item.videoUrl : null,
+    thumbnailUrl:
+      typeof item.thumbnailUrl === "string" ? item.thumbnailUrl : null,
+    video: item.isVideo === true,
+  };
+}
+
+/**
+ * Callable that creates a note under user/{uid}/note. Replaces the client's
+ * direct Firestore write so the server -- not the client -- enforces
+ * MAX_POST_TEXT_LENGTH, stamps the true owner into user_id (getHomeNote() on
+ * the client trusts that field to look up whose username/profile picture to
+ * render alongside the note), and strips any generatedText/generatedObjects/
+ * generatedLabels a caller tries to inject at creation time.
+ */
+exports.createNote = onCall(async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Sign-in required.");
+  }
+
+  // Every invalid-argument error below carries a machine-readable `reason`
+  // in its details -- noteErrorMessageResId() on the client maps these to
+  // localized strings. All of them share the invalid-argument code, so the
+  // client can't tell them apart from the code alone.
+  const rawText = request.data && request.data.text;
+  if (rawText !== null && rawText !== undefined &&
+      typeof rawText !== "string") {
+    throw new HttpsError(
+        "invalid-argument", "Text must be a string.",
+        {reason: "INVALID_TEXT_TYPE"},
+    );
+  }
+  const text = typeof rawText === "string" ? rawText.trim() : null;
+  if (text && text.length > MAX_POST_TEXT_LENGTH) {
+    throw new HttpsError(
+        "invalid-argument", "Text is too long.",
+        {reason: "TEXT_TOO_LONG"},
+    );
+  }
+
+  const rawMediaList = (request.data && request.data.mediaList) || [];
+  if (!Array.isArray(rawMediaList)) {
+    throw new HttpsError(
+        "invalid-argument", "mediaList must be an array.",
+        {reason: "INVALID_MEDIA_LIST_TYPE"},
+    );
+  }
+  if (rawMediaList.length > MAX_NOTE_MEDIA_ITEMS) {
+    throw new HttpsError(
+        "invalid-argument", "Too many media items.",
+        {reason: "TOO_MANY_MEDIA_ITEMS"},
+    );
+  }
+  const mediaList = rawMediaList.map(sanitizeMediaItem);
+
+  if (!text && mediaList.length === 0) {
+    throw new HttpsError(
+        "invalid-argument", "Note must have text or media.",
+        {reason: "EMPTY_NOTE"},
+    );
+  }
+
+  const noteRef = admin.firestore()
+      .collection(COLLECTION_USER)
+      .doc(uid)
+      .collection("note")
+      .doc();
+
+  await noteRef.set({
+    text: text,
+    created: admin.firestore.FieldValue.serverTimestamp(),
+    favorite: false,
+    media_list: mediaList,
+    user_id: uid,
+  });
+
+  return {documentPath: noteRef.id};
+});
 
 /**
  * Builds the Firestore document reference for a reserved username.

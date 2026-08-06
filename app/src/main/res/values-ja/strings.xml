@@ -34,8 +34,9 @@
     <string name="write_a_thought">思いついたことを書いてみよう…</string>
     <string name="post">投稿</string>
     <string name="post_success">投稿が正常にアップロードされました</string>
-    <string name="post_failure">投稿のアップロードに失敗しました。もう一度お試しください。</string>
-    <string name="post_validation">投稿は200文字以内で入力してください</string>
+    <string name="post_validation">投稿は500文字以内で入力してください</string>
+    <string name="note_media_limit">1回の投稿につき写真・動画は10件まで添付できます</string>
+    <string name="note_empty">投稿する前にテキストかメディアを追加してください</string>
     <string name="no_media_available">アップロードするメディアがありません</string>
 
     <!-- Favorite -->

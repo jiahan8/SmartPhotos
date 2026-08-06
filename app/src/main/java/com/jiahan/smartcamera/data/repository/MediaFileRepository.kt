@@ -1,5 +1,6 @@
 package com.jiahan.smartcamera.data.repository
 
+import android.graphics.Bitmap
 import android.net.Uri
 
 /**
@@ -24,6 +25,13 @@ interface MediaFileRepository {
      * Returns `null` if the file could not be created.
      */
     fun createVideoUri(): Uri?
+
+    /**
+     * Saves [bitmap] as a temporary JPEG file in the app cache (used for
+     * video thumbnails) and returns its file URI. Recycles [bitmap] once
+     * written. Returns `null` if the file could not be created.
+     */
+    fun saveBitmapAsTempFile(bitmap: Bitmap): Uri?
 
     /**
      * Deletes the file represented by [uri] via the content resolver.
