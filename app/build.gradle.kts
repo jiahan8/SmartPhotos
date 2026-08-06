@@ -1,24 +1,13 @@
-import java.util.Properties
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.google.services)
     alias(libs.plugins.parcelize)
     alias(libs.plugins.crashlytics)
     alias(libs.plugins.roborazzi)
-}
-
-// Local secrets (e.g. API keys) live in local.properties, which is gitignored.
-val localProperties = Properties().apply {
-    val localPropertiesFile = rootProject.file("local.properties")
-    if (localPropertiesFile.exists()) {
-        localPropertiesFile.inputStream().use { load(it) }
-    }
 }
 
 android {
@@ -36,12 +25,6 @@ android {
         testInstrumentationRunner = "com.jiahan.smartcamera.HiltTestRunner"
         // Wipe app data (DataStore/Room/prefs) between tests for full isolation. Requires orchestrator.
         testInstrumentationRunnerArguments["clearPackageData"] = "true"
-
-        buildConfigField(
-            "String",
-            "UNSPLASH_ACCESS_KEY",
-            "\"${localProperties.getProperty("UNSPLASH_ACCESS_KEY", "")}\""
-        )
 
         javaCompileOptions {
             annotationProcessorOptions {
@@ -181,6 +164,7 @@ dependencies {
     implementation(libs.firebase.messaging)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.auth)
+    implementation(libs.firebase.functions)
 
     // Room
     ksp(libs.room.runtime)
@@ -203,14 +187,6 @@ dependencies {
 
     // Splash Screen
     implementation(libs.core.splashscreen)
-
-    // Ktor client + kotlinx.serialization for the Unsplash API
-    implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.okhttp)
-    implementation(libs.ktor.client.content.negotiation)
-    implementation(libs.ktor.client.logging)
-    implementation(libs.ktor.serialization.kotlinx.json)
-    implementation(libs.kotlinx.serialization.json)
 
     // Explore screen icon (Icons.Outlined.Explore isn't in material-icons-core)
     implementation(libs.androidx.material.icons.extended)

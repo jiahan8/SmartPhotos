@@ -13,6 +13,7 @@ import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ResourceProvider
 import com.jiahan.smartcamera.util.ValidationResult
+import com.jiahan.smartcamera.util.usernameErrorMessageResId
 import com.jiahan.smartcamera.util.validateDisplayName
 import com.jiahan.smartcamera.util.validateUsername
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -189,7 +190,17 @@ class ProfileViewModel @Inject constructor(
                 _events.tryEmit(ProfileEvent.UpdateSuccess)
             }.onFailure { e ->
                 errorHandler.logError(e)
-                _uiState.update { it.copy(errorMessage = errorHandler.getErrorMessage(e)) }
+                val usernameErrorMessage =
+                    usernameErrorMessageResId(e)?.let(resourceProvider::getString)
+                _uiState.update {
+                    it.copy(
+                        usernameErrorMessage = usernameErrorMessage,
+                        errorMessage =
+                            if (usernameErrorMessage == null)
+                                errorHandler.getErrorMessage(e)
+                            else null
+                    )
+                }
                 _events.tryEmit(ProfileEvent.UpdateError)
             }
             _uiState.update { it.copy(isLoading = false) }

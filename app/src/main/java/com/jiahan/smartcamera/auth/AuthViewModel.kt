@@ -10,6 +10,7 @@ import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ResourceProvider
 import com.jiahan.smartcamera.util.ValidationResult
+import com.jiahan.smartcamera.util.usernameErrorMessageResId
 import com.jiahan.smartcamera.util.validateDisplayName
 import com.jiahan.smartcamera.util.validateUsername
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -188,11 +189,11 @@ class AuthViewModel @Inject constructor(
             }
             return
         }
-        when (val r = validateDisplayName(trimmedDisplayName)) {
+        when (val validationResult = validateDisplayName(trimmedDisplayName)) {
             is ValidationResult.Error -> {
                 _uiState.update {
                     it.copy(
-                        status = AuthStatus.Error(resourceProvider.getString(r.messageResId)),
+                        status = AuthStatus.Error(resourceProvider.getString(validationResult.messageResId)),
                         showResendButton = false
                     )
                 }
@@ -201,11 +202,11 @@ class AuthViewModel @Inject constructor(
 
             else -> {}
         }
-        when (val r = validateUsername(trimmedUsername)) {
+        when (val validationResult = validateUsername(trimmedUsername)) {
             is ValidationResult.Error -> {
                 _uiState.update {
                     it.copy(
-                        status = AuthStatus.Error(resourceProvider.getString(r.messageResId)),
+                        status = AuthStatus.Error(resourceProvider.getString(validationResult.messageResId)),
                         showResendButton = false
                     )
                 }
@@ -245,9 +246,11 @@ class AuthViewModel @Inject constructor(
                         }
                     }.onFailure { e ->
                         errorHandler.logError(e)
+                        val message = usernameErrorMessageResId(e)?.let(resourceProvider::getString)
+                            ?: errorHandler.getErrorMessage(e)
                         _uiState.update {
                             it.copy(
-                                status = AuthStatus.Error(message = errorHandler.getErrorMessage(e)),
+                                status = AuthStatus.Error(message = message),
                                 showResendButton = false
                             )
                         }

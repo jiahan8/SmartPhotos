@@ -102,6 +102,7 @@
     <string name="error_occurred">エラーが発生しました</string>
     <string name="name_empty">名前を入力してください</string>
     <string name="username_empty">ユーザー名を入力してください</string>
+    <string name="username_reserved">このユーザー名は予約されています</string>
     <string name="info_updated_success">情報を更新しました</string>
     <string name="info_updated_failure">プロフィールを更新できませんでした。もう一度お試しください。</string>
 

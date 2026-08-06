@@ -9,10 +9,26 @@ sealed class ValidationResult {
     data class Error(val messageResId: Int) : ValidationResult()
 }
 
+// Mirrors the RESERVED_USERNAMES set in functions/index.js so the UI can
+// reject these immediately instead of waiting on a round trip to
+// createUserProfile/updateUsername. Keep both lists in sync.
+private val RESERVED_USERNAMES = setOf(
+    "admin", "administrator", "root", "superuser", "moderator", "mod",
+    "support", "help", "helpdesk", "contact", "info", "about",
+    "security", "webmaster", "postmaster", "hostmaster",
+    "system", "staff", "official", "team", "owner",
+    "api", "www", "mail", "ftp", "firebase", "smartphotos", "smartcamera",
+    "null", "undefined", "anonymous", "everyone", "here", "channel",
+    "test", "sample", "guest",
+    "login", "logout", "signup", "signin", "register", "password",
+    "settings", "profile", "billing", "payment", "terms", "privacy",
+)
+
 fun validateUsername(username: String, requireNonBlank: Boolean = false): ValidationResult = when {
     requireNonBlank && username.isBlank() -> ValidationResult.Error(R.string.username_empty)
     username.length > MAX_USERNAME_LENGTH -> ValidationResult.Error(R.string.username_too_long)
     !username.matches(Regex("^[a-zA-Z0-9._]+$")) -> ValidationResult.Error(R.string.username_invalid_characters)
+    username.lowercase() in RESERVED_USERNAMES -> ValidationResult.Error(R.string.username_reserved)
     else -> ValidationResult.Success
 }
 

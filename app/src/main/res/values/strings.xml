@@ -102,6 +102,7 @@
     <string name="error_occurred">An error occurred</string>
     <string name="name_empty">Name cannot be empty</string>
     <string name="username_empty">Username cannot be empty</string>
+    <string name="username_reserved">This username is reserved</string>
     <string name="info_updated_success">Info updated successfully</string>
     <string name="info_updated_failure">Couldn\'t update your profile. Please try again.</string>
 

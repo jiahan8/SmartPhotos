@@ -8,7 +8,12 @@
  */
 
 const {setGlobalOptions} = require("firebase-functions");
-const {onDocumentCreated} = require("firebase-functions/v2/firestore");
+const {
+  onDocumentCreated,
+  onDocumentDeleted,
+} = require("firebase-functions/v2/firestore");
+const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const vision = require("@google-cloud/vision");
@@ -21,6 +26,37 @@ const visionClient = new vision.ImageAnnotatorClient();
 
 // For cost control, set the maximum number of concurrent instances
 setGlobalOptions({maxInstances: 10});
+
+// Collection names shared by the user-profile functions below
+const COLLECTION_USER = "user";
+const COLLECTION_USERNAME = "username";
+
+// Unsplash access key, set via:
+//   firebase functions:secrets:set UNSPLASH_ACCESS_KEY
+// Kept server-side so it never ships inside the app (a bundled client
+// secret can trivially be extracted from any APK).
+const UNSPLASH_ACCESS_KEY = defineSecret("UNSPLASH_ACCESS_KEY");
+const UNSPLASH_API_BASE_URL = "https://api.unsplash.com";
+
+// Mirrors AppConstants.kt / ValidationUtils.kt on the client: client-side
+// checks are UX-only, these are the actual enforcement boundary.
+const MAX_USERNAME_LENGTH = 30;
+const MAX_DISPLAY_NAME_LENGTH = 50;
+const USERNAME_PATTERN = /^[a-zA-Z0-9._]+$/;
+
+// System/impersonation-prone words that may never be claimed as a username,
+// checked case-insensitively.
+const RESERVED_USERNAMES = new Set([
+  "admin", "administrator", "root", "superuser", "moderator", "mod",
+  "support", "help", "helpdesk", "contact", "info", "about",
+  "security", "webmaster", "postmaster", "hostmaster",
+  "system", "staff", "official", "team", "owner",
+  "api", "www", "mail", "ftp", "firebase", "smartphotos", "smartcamera",
+  "null", "undefined", "anonymous", "everyone", "here", "channel",
+  "test", "sample", "guest",
+  "login", "logout", "signup", "signin", "register", "password",
+  "settings", "profile", "billing", "payment", "terms", "privacy",
+]);
 
 /**
  * Cloud Function to process text recognition, label detection, and
@@ -169,3 +205,297 @@ exports.processTextRecognition = onDocumentCreated(
         return null;
       }
     });
+
+/**
+ * Builds the Firestore document reference for a reserved username.
+ * Usernames are reserved case-insensitively: the document ID is always
+ * lowercased, while the original casing is kept in the `username` field.
+ * @param {string} username The username to look up.
+ * @return {admin.firestore.DocumentReference} The reservation doc reference.
+ */
+function usernameDocRef(username) {
+  return admin.firestore()
+      .collection(COLLECTION_USERNAME)
+      .doc(username.toLowerCase());
+}
+
+/**
+ * Throws an `invalid-argument` error if the given username is a reserved
+ * system/impersonation-prone word (checked case-insensitively).
+ * @param {string} username The username to validate.
+ */
+function assertUsernameNotReserved(username) {
+  if (RESERVED_USERNAMES.has(username.toLowerCase())) {
+    throw new HttpsError("invalid-argument", "This username is reserved.");
+  }
+}
+
+/**
+ * Throws an `invalid-argument` error if the given username violates the
+ * length/character-set rules also enforced (for UX) in ValidationUtils.kt.
+ * @param {string} username The username to validate.
+ */
+function assertValidUsernameFormat(username) {
+  if (username.length > MAX_USERNAME_LENGTH) {
+    throw new HttpsError("invalid-argument", "Username is too long.");
+  }
+  if (!USERNAME_PATTERN.test(username)) {
+    throw new HttpsError(
+        "invalid-argument",
+        "Username contains invalid characters.",
+    );
+  }
+}
+
+/**
+ * Callable that reports whether a username is available. Reads the
+ * `username` reservation doc via the Admin SDK so clients never need direct
+ * Firestore access to that collection (which stays fully locked down in
+ * firestore.rules). Callable without auth, since this runs before sign-up.
+ * Non-authoritative: createUserProfile/updateUsername still enforce
+ * uniqueness atomically inside a transaction.
+ */
+exports.isUsernameAvailable = onCall(async (request) => {
+  const username = request.data && request.data.username;
+  if (typeof username !== "string" || username.trim().length === 0) {
+    throw new HttpsError("invalid-argument", "Username is required.");
+  }
+  if (RESERVED_USERNAMES.has(username.toLowerCase())) {
+    return {available: false};
+  }
+  const usernameSnapshot = await usernameDocRef(username).get();
+  return {available: !usernameSnapshot.exists};
+});
+
+/**
+ * Callable that reports whether an email address is already registered.
+ * Uses Firebase Auth (via the Admin SDK) as the source of truth rather
+ * than Firestore, since a `user` document may not exist yet even
+ * though the Auth account does (e.g. the app was killed right after
+ * account creation, before createUserProfile ran). Callable without auth,
+ * since this runs before sign-up.
+ */
+exports.isEmailRegistered = onCall(async (request) => {
+  const email = request.data && request.data.email;
+  if (typeof email !== "string" || email.trim().length === 0) {
+    throw new HttpsError("invalid-argument", "Email is required.");
+  }
+
+  try {
+    await admin.auth().getUserByEmail(email);
+    return {registered: true};
+  } catch (error) {
+    if (error.code === "auth/user-not-found") {
+      return {registered: false};
+    }
+    throw error;
+  }
+});
+
+/**
+ * Callable that atomically reserves a username and creates the caller's
+ * `user/{uid}` profile document. Replaces the client's direct Firestore
+ * writes so uniqueness can be enforced with a transaction instead of a
+ * racy read-then-write from the client.
+ */
+exports.createUserProfile = onCall(async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Sign-in required.");
+  }
+
+  const metadata = request.data && request.data.metadata;
+  const username = request.data && request.data.username;
+  if (typeof username !== "string" || username.trim().length === 0) {
+    throw new HttpsError("invalid-argument", "Username is required.");
+  }
+  if (typeof metadata !== "string") {
+    throw new HttpsError("invalid-argument", "Metadata is required.");
+  }
+  assertValidUsernameFormat(username);
+  assertUsernameNotReserved(username);
+
+  // Read canonical profile fields from Auth rather than trusting the
+  // client, since only auth.uid is verified by the callable context.
+  const authUser = await admin.auth().getUser(uid);
+  if (authUser.displayName &&
+      authUser.displayName.length > MAX_DISPLAY_NAME_LENGTH) {
+    throw new HttpsError("invalid-argument", "Display name is too long.");
+  }
+  const firestore = admin.firestore();
+  const userRef = firestore.collection(COLLECTION_USER).doc(uid);
+  const usernameRef = usernameDocRef(username);
+
+  await firestore.runTransaction(async (transaction) => {
+    const usernameSnapshot = await transaction.get(usernameRef);
+    if (usernameSnapshot.exists && usernameSnapshot.data().uid !== uid) {
+      throw new HttpsError("already-exists", "Username is taken.");
+    }
+
+    transaction.set(usernameRef, {uid, username});
+    transaction.set(userRef, {
+      email: authUser.email || null,
+      metadata: metadata,
+      display_name: authUser.displayName || null,
+      username: username,
+      profile_picture: null,
+      created: admin.firestore.FieldValue.serverTimestamp(),
+      user_id: uid,
+    });
+  });
+
+  return {success: true};
+});
+
+/**
+ * Callable that atomically changes the caller's username: reserves the
+ * new username, releases the old reservation, and updates `user/{uid}`.
+ */
+exports.updateUsername = onCall(async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Sign-in required.");
+  }
+
+  const username = request.data && request.data.username;
+  if (typeof username !== "string" || username.trim().length === 0) {
+    throw new HttpsError("invalid-argument", "Username is required.");
+  }
+  assertValidUsernameFormat(username);
+  assertUsernameNotReserved(username);
+
+  const firestore = admin.firestore();
+  const userRef = firestore.collection(COLLECTION_USER).doc(uid);
+  const usernameRef = usernameDocRef(username);
+
+  await firestore.runTransaction(async (transaction) => {
+    const userSnapshot = await transaction.get(userRef);
+    if (!userSnapshot.exists) {
+      throw new HttpsError(
+          "failed-precondition",
+          "User profile does not exist.",
+      );
+    }
+
+    const usernameSnapshot = await transaction.get(usernameRef);
+    if (usernameSnapshot.exists && usernameSnapshot.data().uid !== uid) {
+      throw new HttpsError("already-exists", "Username is taken.");
+    }
+
+    const oldUsername = userSnapshot.data().username;
+    if (oldUsername && oldUsername.toLowerCase() !== username.toLowerCase()) {
+      transaction.delete(usernameDocRef(oldUsername));
+    }
+
+    transaction.set(usernameRef, {uid, username});
+    transaction.update(userRef, {username: username});
+  });
+
+  return {success: true};
+});
+
+const DOWNLOAD_URL_PATTERN = /\/v0\/b\/([^/]+)\/o\/([^?]+)/;
+
+/**
+ * Extracts the storage bucket and object path from a Firebase Storage
+ * download URL.
+ * @param {string} url A Firebase Storage download URL.
+ * @return {{bucket: string, path: string}|null} The parsed bucket/path,
+ *   or null if the URL doesn't match the expected shape.
+ */
+function parseStorageDownloadUrl(url) {
+  if (typeof url !== "string") {
+    return null;
+  }
+  const match = url.match(DOWNLOAD_URL_PATTERN);
+  if (!match) {
+    return null;
+  }
+  return {bucket: match[1], path: decodeURIComponent(match[2])};
+}
+
+/**
+ * Deletes the Storage objects (photo/video/thumbnail) referenced by a
+ * note's `media_list` when the note document is deleted, so removing a
+ * note doesn't leak Storage files.
+ */
+exports.cleanupNoteMedia = onDocumentDeleted(
+    `${COLLECTION_USER}/{userId}/note/{noteId}`,
+    async (event) => {
+      const snapshot = event.data;
+      if (!snapshot) {
+        return null;
+      }
+
+      const mediaList = snapshot.data().media_list || [];
+      const urls = mediaList
+          .reduce((acc, media) => acc.concat(
+              [media.photoUrl, media.videoUrl, media.thumbnailUrl],
+          ), [])
+          .filter(Boolean);
+
+      if (urls.length === 0) {
+        return null;
+      }
+
+      const results = await Promise.allSettled(
+          urls.map(async (url) => {
+            const parsed = parseStorageDownloadUrl(url);
+            if (!parsed) {
+              logger.warn(`Could not parse storage URL: ${url}`);
+              return;
+            }
+            await admin.storage()
+                .bucket(parsed.bucket)
+                .file(parsed.path)
+                .delete({ignoreNotFound: true});
+          }),
+      );
+
+      results.forEach((result, index) => {
+        if (result.status === "rejected") {
+          logger.error(
+              `Failed to delete storage object for ${urls[index]}:`,
+              result.reason,
+          );
+        }
+      });
+
+      return null;
+    },
+);
+
+/**
+ * Callable that proxies Unsplash's photo-listing endpoint so the Unsplash
+ * access key stays server-side instead of being bundled into the app.
+ */
+exports.listUnsplashPhotos = onCall(
+    {secrets: [UNSPLASH_ACCESS_KEY]},
+    async (request) => {
+      if (!(request.auth && request.auth.uid)) {
+        throw new HttpsError("unauthenticated", "Sign-in required.");
+      }
+
+      const page = (request.data && request.data.page) || 1;
+      const perPage = (request.data && request.data.perPage) || 10;
+      const orderBy = (request.data && request.data.orderBy) || "latest";
+
+      const url = new URL(`${UNSPLASH_API_BASE_URL}/photos`);
+      url.searchParams.set("page", String(page));
+      url.searchParams.set("per_page", String(perPage));
+      url.searchParams.set("order_by", String(orderBy));
+
+      const response = await fetch(url, {
+        headers: {
+          "Authorization": `Client-ID ${UNSPLASH_ACCESS_KEY.value()}`,
+        },
+      });
+
+      if (!response.ok) {
+        logger.error(`Unsplash request failed with status ${response.status}`);
+        throw new HttpsError("unavailable", "Failed to fetch photos.");
+      }
+
+      return {photos: await response.json()};
+    },
+);

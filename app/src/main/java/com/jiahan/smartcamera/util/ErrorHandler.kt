@@ -2,6 +2,7 @@ package com.jiahan.smartcamera.util
 
 import android.util.Log
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.google.firebase.functions.FirebaseFunctionsException
 import com.jiahan.smartcamera.BuildConfig
 import com.jiahan.smartcamera.R
 import javax.inject.Inject
@@ -42,3 +43,18 @@ class DefaultErrorHandler @Inject constructor(
         throwable.localizedMessage?.takeIf { it.isNotBlank() }
             ?: resourceProvider.getString(R.string.error_occurred)
 }
+
+/**
+ * Maps a username-conflict [FirebaseFunctionsException] thrown by the
+ * createUserProfile/updateUsername Cloud Functions to the matching localized
+ * string resource, so callers don't leak the raw hardcoded English
+ * [HttpsError] text via [ErrorHandler.getErrorMessage]. Returns null for any
+ * other exception type/code, so callers should fall back to
+ * [ErrorHandler.getErrorMessage] in that case.
+ */
+fun usernameErrorMessageResId(throwable: Throwable): Int? =
+    when ((throwable as? FirebaseFunctionsException)?.code) {
+        FirebaseFunctionsException.Code.ALREADY_EXISTS -> R.string.username_not_available
+        FirebaseFunctionsException.Code.INVALID_ARGUMENT -> R.string.username_reserved
+        else -> null
+    }

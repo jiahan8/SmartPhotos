@@ -3,20 +3,17 @@ package com.jiahan.smartcamera.data.repository
 import android.net.Uri
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
-import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.storage
 import com.jiahan.smartcamera.domain.ProfilePictureUpdate
 import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
 import com.jiahan.smartcamera.util.safeCall
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.tasks.await
 import java.time.Instant
 import java.util.UUID
@@ -25,19 +22,20 @@ import javax.inject.Inject
 class DefaultUserRepository @Inject constructor(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
+    private val functions: FirebaseFunctions,
     private val remoteConfigRepository: RemoteConfigRepository,
 ) : UserRepository {
 
     companion object {
         private const val COLLECTION_USER = "user"
-        private const val COLLECTION_MEMBER = "member"
         private const val FIELD_EMAIL = "email"
         private const val FIELD_METADATA = "metadata"
         private const val FIELD_DISPLAY_NAME = "display_name"
         private const val FIELD_USERNAME = "username"
         private const val FIELD_PROFILE_PICTURE = "profile_picture"
         private const val FIELD_CREATED = "created"
-        private const val FIELD_USER_ID = "user_id"
+        private const val FUNCTION_CREATE_USER_PROFILE = "createUserProfile"
+        private const val FUNCTION_UPDATE_USERNAME = "updateUsername"
     }
 
     private val storage: FirebaseStorage by lazy {
@@ -49,8 +47,6 @@ class DefaultUserRepository @Inject constructor(
 
     private val userDocumentReference: DocumentReference?
         get() = auth.uid?.let { id -> firestore.collection(COLLECTION_USER).document(id) }
-    private val memberDocumentReference: DocumentReference?
-        get() = auth.uid?.let { id -> firestore.collection(COLLECTION_MEMBER).document(id) }
 
     override suspend fun getUser(): Result<User?> = safeCall {
         val snapshot = userDocumentReference?.get()?.await()
@@ -62,17 +58,15 @@ class DefaultUserRepository @Inject constructor(
         snapshot?.let { getUserProfile(it) }
     }
 
+    // Delegates to the createUserProfile Cloud Function, which reserves the
+    // username and creates the user document atomically in a transaction.
     override suspend fun createUserProfile(
         metadata: String,
         username: String
     ): Result<Unit> = safeCall {
-        val firebaseUser = auth.currentUser ?: return@safeCall
-        val userProfile = createUserProfileMap(firebaseUser, metadata, username)
-        val memberProfile = createMemberProfileMap(firebaseUser, username)
-        updateUserAndMemberDocuments(
-            userOperation = { userDocumentReference?.set(userProfile)?.await() },
-            memberOperation = { memberDocumentReference?.set(memberProfile)?.await() }
-        )
+        functions.getHttpsCallable(FUNCTION_CREATE_USER_PROFILE)
+            .call(hashMapOf(FIELD_METADATA to metadata, FIELD_USERNAME to username))
+            .await()
     }
 
     override suspend fun updateUserProfile(
@@ -84,9 +78,9 @@ class DefaultUserRepository @Inject constructor(
             displayName = displayName,
             profilePicture = profilePicture
         )
+        username?.let { updateUsername(it) }
         updateDatabaseUserProfile(
             displayName = displayName,
-            username = username,
             profilePicture = profilePicture
         )
     }
@@ -117,14 +111,20 @@ class DefaultUserRepository @Inject constructor(
         )?.await()
     }
 
+    // Delegates to the updateUsername Cloud Function, which atomically
+    // reserves the new username and releases the previous one.
+    private suspend fun updateUsername(username: String) {
+        functions.getHttpsCallable(FUNCTION_UPDATE_USERNAME)
+            .call(hashMapOf(FIELD_USERNAME to username))
+            .await()
+    }
+
     private suspend fun updateDatabaseUserProfile(
         displayName: String?,
-        username: String?,
         profilePicture: ProfilePictureUpdate
     ) {
         val updates = buildMap {
             displayName?.let { put(FIELD_DISPLAY_NAME, it) }
-            username?.let { put(FIELD_USERNAME, it) }
             when (profilePicture) {
                 is ProfilePictureUpdate.Set -> put(FIELD_PROFILE_PICTURE, profilePicture.url)
                 ProfilePictureUpdate.Delete -> put(FIELD_PROFILE_PICTURE, null)
@@ -132,50 +132,9 @@ class DefaultUserRepository @Inject constructor(
             }
         }
         if (updates.isNotEmpty()) {
-            updateUserAndMemberDocuments(
-                userOperation = { userDocumentReference?.update(updates)?.await() },
-                memberOperation = { memberDocumentReference?.update(updates)?.await() }
-            )
+            userDocumentReference?.update(updates)?.await()
         }
     }
-
-    private suspend fun updateUserAndMemberDocuments(
-        userOperation: suspend () -> Unit,
-        memberOperation: suspend () -> Unit
-    ) {
-        coroutineScope {
-            val userDeferred = async { safeCall { userOperation() } }
-            val memberDeferred = async { safeCall { memberOperation() } }
-            userDeferred.await().getOrThrow()
-            memberDeferred.await().getOrThrow()
-        }
-    }
-
-    private fun createUserProfileMap(
-        firebaseUser: FirebaseUser,
-        metadata: String,
-        username: String
-    ): Map<String, Any?> = hashMapOf(
-        FIELD_EMAIL to firebaseUser.email,
-        FIELD_METADATA to metadata,
-        FIELD_DISPLAY_NAME to firebaseUser.displayName,
-        FIELD_USERNAME to username,
-        FIELD_PROFILE_PICTURE to null,
-        FIELD_CREATED to FieldValue.serverTimestamp(),
-        FIELD_USER_ID to firebaseUser.uid
-    )
-
-    private fun createMemberProfileMap(
-        firebaseUser: FirebaseUser,
-        username: String
-    ): Map<String, Any?> = hashMapOf(
-        FIELD_EMAIL to firebaseUser.email,
-        FIELD_DISPLAY_NAME to firebaseUser.displayName,
-        FIELD_USERNAME to username,
-        FIELD_PROFILE_PICTURE to null,
-        FIELD_CREATED to FieldValue.serverTimestamp(),
-        FIELD_USER_ID to firebaseUser.uid
-    )
 
     private fun getUserProfile(snapshot: DocumentSnapshot): User = User(
         email = snapshot.getString(FIELD_EMAIL) ?: "",
