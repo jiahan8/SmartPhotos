@@ -23,7 +23,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -67,8 +66,6 @@ fun SettingsScreen(
     val isLoading = uiState.status is SettingsStatus.Loading
     val isErrorSnackBar = uiState.status is SettingsStatus.Error
 
-    val actionFailureMessage = stringResource(R.string.action_failure)
-
     LaunchedEffect(Unit) {
         viewModel.navigationEvent.collect { event ->
             when (event) {
@@ -87,8 +84,9 @@ fun SettingsScreen(
     }
 
     LaunchedEffect(uiState) {
-        if (uiState.status is SettingsStatus.Error) {
-            snackbarHostState.showSnackbar(actionFailureMessage, duration = SnackbarDuration.Short)
+        val status = uiState.status
+        if (status is SettingsStatus.Error) {
+            snackbarHostState.showSnackbar(status.message)
             viewModel.resetActionError()
         }
     }

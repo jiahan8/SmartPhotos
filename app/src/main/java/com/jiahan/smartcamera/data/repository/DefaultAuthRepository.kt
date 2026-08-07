@@ -3,6 +3,7 @@ package com.jiahan.smartcamera.data.repository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.functions.FirebaseFunctions
+import com.jiahan.smartcamera.database.dao.NoteDao
 import com.jiahan.smartcamera.util.safeCall
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -11,6 +12,7 @@ class DefaultAuthRepository @Inject constructor(
     private val auth: FirebaseAuth,
     private val functions: FirebaseFunctions,
     private val userRepository: UserRepository,
+    private val noteDao: NoteDao,
 ) : AuthRepository {
 
     companion object {
@@ -47,6 +49,7 @@ class DefaultAuthRepository @Inject constructor(
 
     override suspend fun signOut(): Result<Unit> = safeCall {
         auth.signOut()
+        noteDao.clearAllNotes()
     }
 
     override suspend fun resetPassword(email: String): Result<Unit> = safeCall {
@@ -64,6 +67,7 @@ class DefaultAuthRepository @Inject constructor(
 
     override suspend fun deleteAccount(): Result<Unit> = safeCall {
         auth.currentUser?.delete()?.await()
+        noteDao.clearAllNotes()
     }
 
     override suspend fun isUsernameAvailable(username: String): Result<Boolean> = safeCall {

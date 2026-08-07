@@ -28,7 +28,7 @@ import javax.inject.Inject
 sealed interface ProfileEvent {
     data object UpdateSuccess : ProfileEvent
     data object UploadSuccess : ProfileEvent
-    data object UpdateError : ProfileEvent
+    data class UpdateError(val message: String? = null) : ProfileEvent
 }
 
 sealed interface ProfileDialogState {
@@ -165,7 +165,7 @@ class ProfileViewModel @Inject constructor(
                                 isLoading = false
                             )
                         }
-                        _events.tryEmit(ProfileEvent.UpdateError)
+                        _events.tryEmit(ProfileEvent.UpdateError())
                         return@launch
                     }
                 if (!available) {
@@ -206,7 +206,7 @@ class ProfileViewModel @Inject constructor(
                             else null
                     )
                 }
-                _events.tryEmit(ProfileEvent.UpdateError)
+                _events.tryEmit(ProfileEvent.UpdateError())
             }
             _uiState.update { it.copy(isLoading = false) }
         }
@@ -218,7 +218,7 @@ class ProfileViewModel @Inject constructor(
             userRepository.uploadProfilePicture(profilePictureUri)
                 .onSuccess { profilePictureUrl ->
                     if (profilePictureUrl == null) {
-                        _events.tryEmit(ProfileEvent.UpdateError)
+                        _events.tryEmit(ProfileEvent.UpdateError())
                         _uiState.update { it.copy(isUploading = false) }
                         return@launch
                     }
@@ -234,12 +234,12 @@ class ProfileViewModel @Inject constructor(
                         _events.tryEmit(ProfileEvent.UploadSuccess)
                     }.onFailure { e ->
                         errorHandler.logError(e)
-                        _events.tryEmit(ProfileEvent.UpdateError)
+                        _events.tryEmit(ProfileEvent.UpdateError(errorHandler.getErrorMessage(e)))
                     }
                 }
                 .onFailure { e ->
                     errorHandler.logError(e)
-                    _events.tryEmit(ProfileEvent.UpdateError)
+                    _events.tryEmit(ProfileEvent.UpdateError(errorHandler.getErrorMessage(e)))
                 }
             _uiState.update { it.copy(isUploading = false) }
         }
@@ -257,7 +257,7 @@ class ProfileViewModel @Inject constructor(
                 _events.tryEmit(ProfileEvent.UploadSuccess)
             }.onFailure { e ->
                 errorHandler.logError(e)
-                _events.tryEmit(ProfileEvent.UpdateError)
+                _events.tryEmit(ProfileEvent.UpdateError(errorHandler.getErrorMessage(e)))
             }
             _uiState.update { it.copy(isUploading = false) }
         }

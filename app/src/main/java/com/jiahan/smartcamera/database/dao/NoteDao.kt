@@ -25,6 +25,9 @@ interface NoteDao {
     @Query("DELETE FROM notes WHERE favorite = 1")
     suspend fun clearFavorites()
 
+    @Query("DELETE FROM notes")
+    suspend fun clearAllNotes()
+
     @Transaction
     suspend fun syncFavoriteNotes(notes: List<DatabaseNote>) {
         clearFavorites()

@@ -42,7 +42,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -148,18 +147,12 @@ fun ProfileScreen(
             when (event) {
                 ProfileEvent.UpdateSuccess, ProfileEvent.UploadSuccess -> {
                     isErrorSnackBar = false
-                    snackbarHostState.showSnackbar(
-                        updateSuccessMessage,
-                        duration = SnackbarDuration.Short
-                    )
+                    snackbarHostState.showSnackbar(updateSuccessMessage)
                 }
 
-                ProfileEvent.UpdateError -> {
+                is ProfileEvent.UpdateError -> {
                     isErrorSnackBar = true
-                    snackbarHostState.showSnackbar(
-                        updateFailureMessage,
-                        duration = SnackbarDuration.Short
-                    )
+                    snackbarHostState.showSnackbar(event.message ?: updateFailureMessage)
                 }
             }
         }

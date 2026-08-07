@@ -123,7 +123,7 @@ fun SmartPhotosApp(
                     NavHost(
                         navController = navController,
                         startDestination = startDestination,
-                        modifier = Modifier.padding()
+                        modifier = Modifier.padding(bottom = padding.calculateBottomPadding())
                     ) {
                         smartPhotosNavGraph(
                             navController = navController,
