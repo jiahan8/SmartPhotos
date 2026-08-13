@@ -2,32 +2,20 @@ package com.jiahan.smartcamera.search
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Clear
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
@@ -36,7 +24,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.LayoutDirection
@@ -47,6 +34,7 @@ import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.CustomSnackbarHost
 import com.jiahan.smartcamera.common.ScrollDirectionEffect
 import com.jiahan.smartcamera.common.ScrollToTopEffect
+import com.jiahan.smartcamera.common.SearchBar
 import com.jiahan.smartcamera.common.rememberCyclingPlaceholder
 import com.jiahan.smartcamera.home.HomeItem
 
@@ -118,49 +106,16 @@ fun SearchScreen(
 
     Scaffold(
         topBar = {
-            TextField(
-                value = searchQuery,
-                onValueChange = { text -> viewModel.updateSearchQuery(text) },
-                modifier = Modifier
-                    .windowInsetsPadding(WindowInsets.statusBars)
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .fillMaxWidth(),
-                shape = CircleShape,
-                singleLine = true,
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Rounded.Search,
-                        contentDescription = stringResource(R.string.search),
-                        modifier = Modifier
-                            .padding(start = 8.dp)
-                            .size(20.dp)
-                    )
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.updateSearchQuery("") }) {
-                            Icon(
-                                imageVector = Icons.Rounded.Clear,
-                                contentDescription = stringResource(R.string.cd_clear_field),
-                                modifier = Modifier
-                                    .padding(end = 8.dp)
-                                    .size(20.dp)
-                            )
-                        }
-                    }
-                },
+            SearchBar(
+                searchQuery = searchQuery,
+                onSearchQueryChange = { text -> viewModel.updateSearchQuery(text) },
                 placeholder = {
                     Text(
                         text = placeholder,
-                        modifier = Modifier
-                            .graphicsLayer(alpha = placeholderAlpha)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.graphicsLayer(alpha = placeholderAlpha)
                     )
-                },
-                colors = TextFieldDefaults.colors(
-                    cursorColor = Color.Gray,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                )
+                }
             )
         },
         snackbarHost = { CustomSnackbarHost(snackbarHostState, isError = true) }

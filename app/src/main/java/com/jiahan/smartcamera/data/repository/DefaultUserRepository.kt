@@ -95,6 +95,14 @@ class DefaultUserRepository @Inject constructor(
         storageRef.downloadUrl.await().toString()
     }
 
+    // Delegates to the updateUsername Cloud Function, which atomically
+    // reserves the new username and releases the previous one.
+    private suspend fun updateUsername(username: String) {
+        functions.getHttpsCallable(FUNCTION_UPDATE_USERNAME)
+            .call(hashMapOf(FIELD_USERNAME to username))
+            .await()
+    }
+
     private suspend fun updateFirebaseUserProfile(
         displayName: String?,
         profilePicture: ProfilePictureUpdate
@@ -109,14 +117,6 @@ class DefaultUserRepository @Inject constructor(
                 }
             }
         )?.await()
-    }
-
-    // Delegates to the updateUsername Cloud Function, which atomically
-    // reserves the new username and releases the previous one.
-    private suspend fun updateUsername(username: String) {
-        functions.getHttpsCallable(FUNCTION_UPDATE_USERNAME)
-            .call(hashMapOf(FIELD_USERNAME to username))
-            .await()
     }
 
     private suspend fun updateDatabaseUserProfile(

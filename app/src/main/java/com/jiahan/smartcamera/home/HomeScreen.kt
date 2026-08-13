@@ -1,5 +1,13 @@
 package com.jiahan.smartcamera.home
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -69,6 +77,7 @@ import com.jiahan.smartcamera.common.rememberShouldLoadMore
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
+import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
 import com.jiahan.smartcamera.util.toFormattedDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -354,7 +363,18 @@ fun HomeItem(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    if (note.favorite) {
+                    AnimatedVisibility(
+                        visible = note.favorite,
+                        enter = scaleIn(
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessLow
+                            ),
+                            initialScale = 8f
+                        ) + fadeIn(tween(ANIMATION_DURATION_SHORT_MS)),
+                        exit = scaleOut(tween(ANIMATION_DURATION_SHORT_MS)) +
+                                fadeOut(tween(ANIMATION_DURATION_SHORT_MS))
+                    ) {
                         Icon(
                             imageVector = Icons.Rounded.Favorite,
                             contentDescription = stringResource(R.string.cd_marked_as_favorite),
