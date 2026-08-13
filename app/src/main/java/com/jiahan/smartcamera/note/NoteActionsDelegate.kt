@@ -15,6 +15,10 @@ class NoteActionsDelegate @Inject constructor(
     private val _actionError = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val actionError = _actionError.asSharedFlow()
 
+    fun reportError(message: String) {
+        _actionError.tryEmit(message)
+    }
+
     suspend fun deleteNote(documentPath: String): Boolean =
         noteRepository.deleteNote(documentPath)
             .onSuccess { noteHandler.notifyNoteDeleted(documentPath) }

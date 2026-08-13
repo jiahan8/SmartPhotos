@@ -1,5 +1,15 @@
 package com.jiahan.smartcamera.preview
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -45,16 +55,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ShareCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
 import com.jiahan.smartcamera.util.toFormattedDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,12 +79,23 @@ fun NotePreviewScreen(
     onNavigateToVideoPreview: (url: String) -> Unit,
     viewModel: NotePreviewViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.actionError.collect { message -> snackbarHostState.showSnackbar(message) }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.shareEvent.collect { shareContent ->
+            val intentBuilder = ShareCompat.IntentBuilder(context)
+                .setType(if (shareContent.uris.isEmpty()) "text/plain" else "*/*")
+            shareContent.text?.let { intentBuilder.setText(it) }
+            shareContent.uris.forEach { intentBuilder.addStream(it) }
+            intentBuilder.startChooser()
+        }
     }
 
     uiState.noteToDelete?.let { note ->
@@ -287,26 +312,60 @@ fun NotePreviewScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(start = 68.dp, end = 16.dp, top = 16.dp)
+                                .padding(start = 68.dp, end = 16.dp, top = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                painter = painterResource(if (note.favorite) R.drawable.favorite else R.drawable.favorite_outlined),
-                                contentDescription = stringResource(R.string.favorite),
+                            Box(
                                 modifier = Modifier
                                     .clickable(
                                         interactionSource = null,
-                                        indication = null
-                                    ) {
-                                        viewModel.favoriteNote(note)
+                                        indication = null,
+                                        role = Role.Button,
+                                        onClickLabel = stringResource(R.string.favorite)
+                                    ) { viewModel.favoriteNote(note) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                AnimatedContent(
+                                    targetState = note.favorite,
+                                    transitionSpec = {
+                                        (scaleIn(
+                                            animationSpec = spring(
+                                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                stiffness = Spring.StiffnessLow
+                                            ),
+                                            initialScale = 0.5f
+                                        ) + fadeIn(tween(ANIMATION_DURATION_SHORT_MS)))
+                                            .togetherWith(
+                                                scaleOut(tween(ANIMATION_DURATION_SHORT_MS)) +
+                                                        fadeOut(tween(ANIMATION_DURATION_SHORT_MS))
+                                            )
+                                            .using(SizeTransform(clip = false))
                                     },
-                                tint = if (note.favorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                    label = "favoriteIconAnimation"
+                                ) { isFavorite ->
+                                    Icon(
+                                        painter = painterResource(if (isFavorite) R.drawable.favorite else R.drawable.favorite_outlined),
+                                        contentDescription = null,
+                                        tint = if (isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                    )
+                                }
+                            }
+
+                            Icon(
+                                painter = painterResource(R.drawable.share),
+                                contentDescription = stringResource(R.string.share),
+                                modifier = Modifier
+                                    .padding(start = 8.dp)
+                                    .clickable {
+                                        viewModel.shareNote(note)
+                                    }
                             )
 
                             Icon(
                                 painter = painterResource(R.drawable.delete),
                                 contentDescription = stringResource(R.string.delete),
                                 modifier = Modifier
-                                    .padding(start = 6.dp)
+                                    .padding(start = 8.dp)
                                     .clickable {
                                         viewModel.setNoteToDelete(note)
                                     }

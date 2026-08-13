@@ -7,6 +7,7 @@ import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteHandler
+import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.AppConstants.DEBOUNCE_MS
 import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
@@ -48,12 +49,14 @@ class SearchViewModel @Inject constructor(
     private val analyticsRepository: AnalyticsRepository,
     noteHandler: NoteHandler,
     private val noteActions: NoteActionsDelegate,
+    private val noteShare: NoteShareDelegate,
     private val errorHandler: ErrorHandler
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SearchUiState())
     val uiState = _uiState.asStateFlow()
     val actionError = noteActions.actionError
+    val shareEvent = noteShare.shareEvent
 
     val searchQuery = _uiState
         .map { it.searchQuery }
@@ -119,6 +122,10 @@ class SearchViewModel @Inject constructor(
 
     fun setNoteToDelete(note: HomeNote?) {
         _uiState.update { it.copy(noteToDelete = note) }
+    }
+
+    fun shareNote(note: HomeNote) {
+        viewModelScope.launch { noteShare.shareNote(note) }
     }
 
     private fun updateSuccessNotes(transform: (List<HomeNote>) -> List<HomeNote>) {

@@ -5,18 +5,22 @@ import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeAuthRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
+import com.jiahan.smartcamera.fake.FakeMediaFileRepository
 import com.jiahan.smartcamera.fake.FakeNoteRepository
+import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.fake.FakeUserPreferencesRepository
 import com.jiahan.smartcamera.home.HomeScreen
 import com.jiahan.smartcamera.home.HomeViewModel
 import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteHandler
+import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.search.SearchScreen
 import com.jiahan.smartcamera.search.SearchViewModel
 import com.jiahan.smartcamera.settings.SettingsScreen
 import com.jiahan.smartcamera.settings.SettingsViewModel
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import org.junit.Test
+import org.robolectric.RuntimeEnvironment
 import java.time.Instant
 
 /**
@@ -43,10 +47,16 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
         val repo = FakeNoteRepository().apply { notesResult = notes }
         val noteHandler = NoteHandler()
         val errorHandler = FakeErrorHandler()
+        val noteActions = NoteActionsDelegate(repo, noteHandler, errorHandler)
         return HomeViewModel(
             repo,
             noteHandler,
-            NoteActionsDelegate(repo, noteHandler, errorHandler),
+            noteActions,
+            NoteShareDelegate(
+                FakeMediaFileRepository(),
+                noteActions,
+                FakeResourceProvider(RuntimeEnvironment.getApplication())
+            ),
             errorHandler,
         )
     }
@@ -117,11 +127,17 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
         val noteRepository = FakeNoteRepository()
         val noteHandler = NoteHandler()
         val errorHandler = FakeErrorHandler()
+        val noteActions = NoteActionsDelegate(noteRepository, noteHandler, errorHandler)
         val viewModel = SearchViewModel(
             noteRepository = noteRepository,
             analyticsRepository = FakeAnalyticsRepository(),
             noteHandler = noteHandler,
-            noteActions = NoteActionsDelegate(noteRepository, noteHandler, errorHandler),
+            noteActions = noteActions,
+            noteShare = NoteShareDelegate(
+                FakeMediaFileRepository(),
+                noteActions,
+                FakeResourceProvider(RuntimeEnvironment.getApplication())
+            ),
             errorHandler = errorHandler,
         )
         captureSettled {

@@ -12,8 +12,11 @@ import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
 import com.jiahan.smartcamera.fake.FakeNoteRepository
+import com.jiahan.smartcamera.fake.FakeMediaFileRepository
+import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteHandler
+import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import org.junit.Rule
 import org.junit.Test
@@ -42,11 +45,17 @@ class SearchScreenTest {
     private fun launchSearchScreen() {
         val noteHandler = NoteHandler()
         val errorHandler = FakeErrorHandler()
+        val noteActions = NoteActionsDelegate(noteRepository, noteHandler, errorHandler)
         val viewModel = SearchViewModel(
             noteRepository = noteRepository,
             analyticsRepository = FakeAnalyticsRepository(),
             noteHandler = noteHandler,
-            noteActions = NoteActionsDelegate(noteRepository, noteHandler, errorHandler),
+            noteActions = noteActions,
+            noteShare = NoteShareDelegate(
+                FakeMediaFileRepository(),
+                noteActions,
+                FakeResourceProvider(composeTestRule.activity)
+            ),
             errorHandler = errorHandler,
         )
         composeTestRule.setContent {

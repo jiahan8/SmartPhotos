@@ -7,6 +7,7 @@ import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteHandler
+import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.ErrorHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -33,7 +34,8 @@ class NotePreviewViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val noteRepository: NoteRepository,
     private val noteHandler: NoteHandler,
-    private val errorHandler: ErrorHandler
+    private val errorHandler: ErrorHandler,
+    private val noteShare: NoteShareDelegate
 ) : ViewModel() {
 
     private val documentPath: String = checkNotNull(savedStateHandle[Screen.NotePreview.ID_ARG])
@@ -42,6 +44,7 @@ class NotePreviewViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
     private val _actionError = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val actionError = _actionError.asSharedFlow()
+    val shareEvent = noteShare.shareEvent
 
     init {
         viewModelScope.launch {
@@ -87,5 +90,9 @@ class NotePreviewViewModel @Inject constructor(
 
     fun setNoteToDelete(note: HomeNote?) {
         _uiState.update { it.copy(noteToDelete = note) }
+    }
+
+    fun shareNote(note: HomeNote) {
+        viewModelScope.launch { noteShare.shareNote(note) }
     }
 }

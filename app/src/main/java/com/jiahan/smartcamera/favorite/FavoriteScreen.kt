@@ -24,9 +24,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ShareCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jiahan.smartcamera.R
@@ -47,6 +49,7 @@ fun FavoriteScreen(
     scrollToTop: Long?,
     onScrollToTopConsumed: () -> Unit
 ) {
+    val context = LocalContext.current
     val pullToRefreshState = rememberPullToRefreshState()
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -58,6 +61,16 @@ fun FavoriteScreen(
 
     LaunchedEffect(Unit) {
         viewModel.actionError.collect { message -> snackbarHostState.showSnackbar(message) }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.shareEvent.collect { shareContent ->
+            val intentBuilder = ShareCompat.IntentBuilder(context)
+                .setType(if (shareContent.uris.isEmpty()) "text/plain" else "*/*")
+            shareContent.text?.let { intentBuilder.setText(it) }
+            shareContent.uris.forEach { intentBuilder.addStream(it) }
+            intentBuilder.startChooser()
+        }
     }
 
     val onRefresh: () -> Unit = { viewModel.refresh() }
@@ -153,13 +166,13 @@ fun FavoriteScreen(
                             val note = notes[index]
                             HomeItem(
                                 note = note,
-                                onTap = {
+                                onNavigateToNotePreview = {
                                     onNavigateToNotePreview(note.documentPath)
                                 },
-                                onDoubleTap = {
+                                onFavoriteNote = {
                                     viewModel.favoriteNote(note)
                                 },
-                                onLongPress = {
+                                onDeleteNote = {
                                     viewModel.setNoteToDelete(note)
                                 },
                                 onPhotoClick = { url ->
@@ -170,7 +183,8 @@ fun FavoriteScreen(
                                 },
                                 onProfilePictureClick = { url ->
                                     onNavigateToPhotoPreview(url)
-                                }
+                                },
+                                onShareNote = { viewModel.shareNote(note) }
                             )
                         }
                     }

@@ -6,6 +6,7 @@ import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteActionsDelegate
+import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.AppConstants.DEBOUNCE_MS
 import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
@@ -39,6 +40,7 @@ class FavoriteViewModel @Inject constructor(
     private val noteRepository: NoteRepository,
     private val analyticsRepository: AnalyticsRepository,
     private val noteActions: NoteActionsDelegate,
+    private val noteShare: NoteShareDelegate,
     private val errorHandler: ErrorHandler
 ) : ViewModel() {
 
@@ -47,6 +49,7 @@ class FavoriteViewModel @Inject constructor(
     private val _isSyncing = MutableStateFlow(false)
     private val _syncError = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val actionError = merge(noteActions.actionError, _syncError)
+    val shareEvent = noteShare.shareEvent
 
     private val searchQuery = _uiState
         .map { it.searchQuery }
@@ -106,5 +109,9 @@ class FavoriteViewModel @Inject constructor(
 
     fun setNoteToDelete(note: HomeNote?) {
         _uiState.update { it.copy(noteToDelete = note) }
+    }
+
+    fun shareNote(note: HomeNote) {
+        viewModelScope.launch { noteShare.shareNote(note) }
     }
 }

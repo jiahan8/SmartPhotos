@@ -6,6 +6,7 @@ import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteHandler
+import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.ErrorHandler
 import io.mockk.clearMocks
 import io.mockk.coEvery
@@ -50,6 +51,7 @@ class HomeViewModelTest {
             errorHandler
         )
     }
+    private val noteShare: NoteShareDelegate = mockk(relaxed = true)
 
     private lateinit var viewModel: HomeViewModel
 
@@ -58,7 +60,7 @@ class HomeViewModelTest {
         every { errorHandler.logError(any()) } just runs
         every { errorHandler.getErrorMessage(any()) } returns "An error occurred"
         coEvery { noteRepository.getNotes(any(), any()) } returns Result.success(emptyList())
-        viewModel = HomeViewModel(noteRepository, noteHandler, noteActions, errorHandler)
+        viewModel = HomeViewModel(noteRepository, noteHandler, noteActions, noteShare, errorHandler)
     }
 
     @After
@@ -76,7 +78,7 @@ class HomeViewModelTest {
     )
 
     private fun createViewModel() =
-        HomeViewModel(noteRepository, noteHandler, noteActions, errorHandler)
+        HomeViewModel(noteRepository, noteHandler, noteActions, noteShare, errorHandler)
 
     // -------------------------------------------------------------------------
     // Initial load

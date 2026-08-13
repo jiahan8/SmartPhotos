@@ -6,6 +6,7 @@ import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteHandler
+import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.AppConstants.DEFAULT_PAGE_SIZE
 import com.jiahan.smartcamera.util.ErrorHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -36,12 +37,14 @@ class HomeViewModel @Inject constructor(
     private val noteRepository: NoteRepository,
     private val noteHandler: NoteHandler,
     private val noteActions: NoteActionsDelegate,
+    private val noteShare: NoteShareDelegate,
     private val errorHandler: ErrorHandler
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState = _uiState.asStateFlow()
     val actionError = noteActions.actionError
+    val shareEvent = noteShare.shareEvent
 
     private var currentPage = 0
     private val pageSize = DEFAULT_PAGE_SIZE
@@ -113,6 +116,10 @@ class HomeViewModel @Inject constructor(
 
     fun setNoteToDelete(note: HomeNote?) {
         _uiState.update { it.copy(noteToDelete = note) }
+    }
+
+    fun shareNote(note: HomeNote) {
+        viewModelScope.launch { noteShare.shareNote(note) }
     }
 
     private fun updateSuccessNotes(transform: (List<HomeNote>) -> List<HomeNote>) {

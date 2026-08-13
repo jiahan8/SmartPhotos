@@ -7,6 +7,7 @@ import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteHandler
+import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.AppConstants
 import com.jiahan.smartcamera.util.ErrorHandler
 import io.mockk.clearMocks
@@ -48,6 +49,7 @@ class FavoriteViewModelTest {
             errorHandler
         )
     }
+    private val noteShare: NoteShareDelegate = mockk(relaxed = true)
 
     private lateinit var viewModel: FavoriteViewModel
 
@@ -59,7 +61,13 @@ class FavoriteViewModelTest {
         coEvery { noteRepository.syncFavoriteNotes() } returns Result.success(Unit)
         every { noteRepository.getFavoriteNotesStream(any()) } returns flowOf(emptyList())
         viewModel =
-            FavoriteViewModel(noteRepository, analyticsRepository, noteActions, errorHandler)
+            FavoriteViewModel(
+                noteRepository,
+                analyticsRepository,
+                noteActions,
+                noteShare,
+                errorHandler
+            )
     }
 
     @After
@@ -83,7 +91,13 @@ class FavoriteViewModelTest {
     fun `init sync failure emits action error`() = runTest(mainDispatcherRule.testDispatcher) {
         coEvery { noteRepository.syncFavoriteNotes() } returns Result.failure(RuntimeException("sync"))
         every { errorHandler.getErrorMessage(any()) } returns "sync error"
-        val vm = FavoriteViewModel(noteRepository, analyticsRepository, noteActions, errorHandler)
+        val vm = FavoriteViewModel(
+            noteRepository,
+            analyticsRepository,
+            noteActions,
+            noteShare,
+            errorHandler
+        )
 
         vm.actionError.test {
             advanceUntilIdle()

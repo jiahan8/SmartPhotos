@@ -7,8 +7,10 @@ import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.note.NoteHandler
+import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.ErrorHandler
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -31,6 +33,7 @@ class NotePreviewViewModelTest {
     private val noteRepository: NoteRepository = mockk()
     private val noteHandler = NoteHandler()
     private val errorHandler: ErrorHandler = mockk()
+    private val noteShare: NoteShareDelegate = mockk(relaxed = true)
 
     private val documentPath = "notes/abc123"
 
@@ -45,7 +48,8 @@ class NotePreviewViewModelTest {
         savedStateHandle = SavedStateHandle(mapOf(Screen.NotePreview.ID_ARG to documentPath)),
         noteRepository = noteRepository,
         noteHandler = noteHandler,
-        errorHandler = errorHandler
+        errorHandler = errorHandler,
+        noteShare = noteShare
     )
 
     @Before
@@ -171,5 +175,19 @@ class NotePreviewViewModelTest {
         vm.setNoteToDelete(testNote)
         vm.setNoteToDelete(null)
         assertNull(vm.uiState.value.noteToDelete)
+    }
+
+    // -------------------------------------------------------------------------
+    // shareNote
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `shareNote delegates to NoteShareDelegate`() = runTest {
+        val vm = createViewModel()
+        coEvery { noteShare.shareNote(testNote) } just runs
+
+        vm.shareNote(testNote)
+
+        coVerify { noteShare.shareNote(testNote) }
     }
 }

@@ -12,7 +12,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -27,6 +26,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Email
@@ -59,7 +61,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -70,6 +71,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.common.BottomSheetActionItem
 import com.jiahan.smartcamera.common.CustomSnackbarHost
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -163,81 +165,38 @@ fun ProfileScreen(
             onDismissRequest = { viewModel.updateBottomSheetVisibility(false) },
             sheetState = bottomSheetState
         ) {
-            Column(
-                modifier = Modifier
-                    .wrapContentHeight()
-                    .padding(bottom = 36.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            libraryLauncher.launch(
-                                PickVisualMediaRequest(
-                                    PickVisualMedia.ImageOnly
-                                )
+            Column(modifier = Modifier.wrapContentHeight()) {
+                BottomSheetActionItem(
+                    icon = Icons.Outlined.PhotoLibrary,
+                    label = stringResource(R.string.choose_from_library),
+                    onClick = {
+                        libraryLauncher.launch(
+                            PickVisualMediaRequest(
+                                PickVisualMedia.ImageOnly
                             )
-                        }
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.photo_library),
-                        modifier = Modifier.padding(end = 12.dp),
-                        contentDescription = stringResource(R.string.cd_choose_photo)
-                    )
-                    Text(
-                        text = stringResource(R.string.choose_from_library),
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            if (hasCameraPermission) {
-                                val uri = viewModel.createImageUri()
-                                viewModel.updatePhotoUri(uri)
-                                uri?.let { pictureLauncher.launch(it) }
-                            } else {
-                                photoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                            }
-                        }
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.photo_camera),
-                        modifier = Modifier.padding(end = 12.dp),
-                        contentDescription = stringResource(R.string.take_photo)
-                    )
-                    Text(
-                        text = stringResource(R.string.take_photo),
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                profilePictureUrl?.let {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                viewModel.showDeletePictureDialog()
-                            }
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.delete),
-                            modifier = Modifier.padding(end = 12.dp),
-                            contentDescription = stringResource(R.string.delete),
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                        Text(
-                            text = stringResource(R.string.remove_current_picture),
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.weight(1f)
                         )
                     }
+                )
+                BottomSheetActionItem(
+                    icon = Icons.Outlined.PhotoCamera,
+                    label = stringResource(R.string.take_photo),
+                    onClick = {
+                        if (hasCameraPermission) {
+                            val uri = viewModel.createImageUri()
+                            viewModel.updatePhotoUri(uri)
+                            uri?.let { pictureLauncher.launch(it) }
+                        } else {
+                            photoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                        }
+                    }
+                )
+                profilePictureUrl?.let {
+                    BottomSheetActionItem(
+                        icon = Icons.Outlined.Delete,
+                        label = stringResource(R.string.remove_current_picture),
+                        onClick = { viewModel.showDeletePictureDialog() },
+                        tint = MaterialTheme.colorScheme.error
+                    )
                 }
             }
         }

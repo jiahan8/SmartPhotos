@@ -10,6 +10,8 @@
     <!-- Home -->
     <string name="home">ホーム</string>
     <string name="no_notes_found">メモが見つかりません</string>
+    <string name="like">いいね</string>
+    <string name="remove_like">いいねを取り消す</string>
     <string name="delete_note">メモを削除</string>
     <string name="delete_note_desc">このメモを削除してもよろしいですか？</string>
     <string name="delete">削除</string>
@@ -33,9 +35,9 @@
     <string name="whats_on_mind">今、何を考えていますか？</string>
     <string name="write_a_thought">思いついたことを書いてみよう…</string>
     <string name="post">投稿</string>
-    <string name="post_success">投稿が正常にアップロードされました</string>
-    <string name="post_validation">投稿は500文字以内で入力してください</string>
-    <string name="note_media_limit">1回の投稿につき写真・動画は10件まで添付できます</string>
+    <string name="post_success">ノートが正常にアップロードされました</string>
+    <string name="post_validation">ノートは500文字以内で入力してください</string>
+    <string name="note_media_limit">ノートには最大10枚の写真または動画を添付できます</string>
     <string name="note_empty">投稿する前にテキストかメディアを追加してください</string>
     <string name="no_media_available">アップロードするメディアがありません</string>
 
@@ -71,6 +73,11 @@
 
     <!-- Explore -->
     <string name="explore">探索</string>
+
+    <!-- Sharing -->
+    <string name="share">共有</string>
+    <string name="share_note_failure">このノートを共有できませんでした。もう一度お試しください。</string>
+    <string name="cd_more_options">その他のオプション</string>
 
     <!-- Authentication -->
     <string name="authentication">認証</string>
@@ -117,7 +124,6 @@
     <string name="cd_remove_image">画像を削除</string>
     <string name="cd_clear_field">テキストをクリア</string>
     <string name="cd_choose_photos">複数の写真を選択</string>
-    <string name="cd_choose_photo">写真を選択</string>
     <string name="cd_take_photo">写真を撮る</string>
     <string name="cd_take_video">動画を撮影</string>
     <string name="cd_marked_as_favorite">お気に入りに登録済み</string>

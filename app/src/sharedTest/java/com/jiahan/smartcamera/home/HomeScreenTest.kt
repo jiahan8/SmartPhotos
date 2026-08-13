@@ -11,9 +11,12 @@ import androidx.compose.ui.test.performTouchInput
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.fake.FakeErrorHandler
+import com.jiahan.smartcamera.fake.FakeMediaFileRepository
 import com.jiahan.smartcamera.fake.FakeNoteRepository
+import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteHandler
+import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
@@ -49,10 +52,16 @@ class HomeScreenTest {
 
     private fun launchHomeScreen() {
         val errorHandler = FakeErrorHandler()
+        val noteActions = NoteActionsDelegate(noteRepository, noteHandler, errorHandler)
         val viewModel = HomeViewModel(
             noteRepository = noteRepository,
             noteHandler = noteHandler,
-            noteActions = NoteActionsDelegate(noteRepository, noteHandler, errorHandler),
+            noteActions = noteActions,
+            noteShare = NoteShareDelegate(
+                FakeMediaFileRepository(),
+                noteActions,
+                FakeResourceProvider(composeTestRule.activity)
+            ),
             errorHandler = errorHandler,
         )
         composeTestRule.setContent {
@@ -107,12 +116,16 @@ class HomeScreenTest {
     }
 
     @Test
-    fun longPressNote_showsDeleteDialog_andConfirmDeletesNote() {
+    fun longPressNote_showsActionsSheet_thenDeleteDialog_andConfirmDeletesNote() {
         noteRepository.notesResult = Result.success(listOf(note("doc1", "Deletable note")))
         launchHomeScreen()
         waitForText("Deletable note")
 
         composeTestRule.onNodeWithText("Deletable note").performTouchInput { longClick() }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText(string(R.string.delete_note)).assertIsDisplayed()
+
+        composeTestRule.onNodeWithText(string(R.string.delete_note)).performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText(string(R.string.delete_note_desc)).assertIsDisplayed()
 

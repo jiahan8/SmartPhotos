@@ -30,9 +30,13 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Explore
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,6 +45,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -48,28 +53,37 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.app.ShareCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.common.BottomSheetActionItem
 import com.jiahan.smartcamera.common.CustomSnackbarHost
 import com.jiahan.smartcamera.common.ScrollDirectionEffect
 import com.jiahan.smartcamera.common.ScrollToTopEffect
@@ -79,6 +93,7 @@ import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
 import com.jiahan.smartcamera.util.toFormattedDateTime
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,6 +107,7 @@ fun HomeScreen(
     scrollToTop: Long?,
     onScrollToTopConsumed: () -> Unit
 ) {
+    val context = LocalContext.current
     val pullToRefreshState = rememberPullToRefreshState()
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -109,6 +125,16 @@ fun HomeScreen(
 
     LaunchedEffect(Unit) {
         viewModel.actionError.collect { message -> snackbarHostState.showSnackbar(message) }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.shareEvent.collect { shareContent ->
+            val intentBuilder = ShareCompat.IntentBuilder(context)
+                .setType(if (shareContent.uris.isEmpty()) "text/plain" else "*/*")
+            shareContent.text?.let { intentBuilder.setText(it) }
+            shareContent.uris.forEach { intentBuilder.addStream(it) }
+            intentBuilder.startChooser()
+        }
     }
 
     val shouldLoadMore by rememberShouldLoadMore(listState) { uiState.notes?.size ?: 0 }
@@ -212,11 +238,11 @@ fun HomeScreen(
                                 val note = state.notes[index]
                                 HomeItem(
                                     note = note,
-                                    onTap = {
+                                    onNavigateToNotePreview = {
                                         onNavigateToNotePreview(note.documentPath)
                                     },
-                                    onDoubleTap = { viewModel.favoriteNote(note) },
-                                    onLongPress = { viewModel.setNoteToDelete(note) },
+                                    onFavoriteNote = { viewModel.favoriteNote(note) },
+                                    onDeleteNote = { viewModel.setNoteToDelete(note) },
                                     onPhotoClick = { url ->
                                         onNavigateToPhotoPreview(url)
                                     },
@@ -225,7 +251,8 @@ fun HomeScreen(
                                     },
                                     onProfilePictureClick = { url ->
                                         onNavigateToPhotoPreview(url)
-                                    }
+                                    },
+                                    onShareNote = { viewModel.shareNote(note) }
                                 )
                             }
 
@@ -253,40 +280,44 @@ fun HomeScreen(
 
 @Stable
 data class HomeItemCallbacks(
-    val onTap: () -> Unit,
-    val onDoubleTap: () -> Unit,
-    val onLongPress: () -> Unit,
+    val onNavigateToNotePreview: () -> Unit,
+    val onFavoriteNote: () -> Unit,
+    val onDeleteNote: () -> Unit,
     val onPhotoClick: (String) -> Unit,
     val onVideoClick: (String) -> Unit,
-    val onProfilePictureClick: (String) -> Unit
+    val onProfilePictureClick: (String) -> Unit,
+    val onShareNote: () -> Unit
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeItem(
     note: HomeNote,
-    onTap: () -> Unit,
-    onDoubleTap: () -> Unit,
-    onLongPress: () -> Unit,
+    onNavigateToNotePreview: () -> Unit,
+    onFavoriteNote: () -> Unit,
+    onDeleteNote: () -> Unit,
     onPhotoClick: (String) -> Unit,
     onVideoClick: (String) -> Unit,
-    onProfilePictureClick: (String) -> Unit
+    onProfilePictureClick: (String) -> Unit,
+    onShareNote: () -> Unit
 ) {
     val callbacks = remember(
-        onTap,
-        onDoubleTap,
-        onLongPress,
+        onNavigateToNotePreview,
+        onFavoriteNote,
+        onDeleteNote,
         onPhotoClick,
         onVideoClick,
-        onProfilePictureClick
+        onProfilePictureClick,
+        onShareNote
     ) {
         HomeItemCallbacks(
-            onTap = onTap,
-            onDoubleTap = onDoubleTap,
-            onLongPress = onLongPress,
+            onNavigateToNotePreview = onNavigateToNotePreview,
+            onFavoriteNote = onFavoriteNote,
+            onDeleteNote = onDeleteNote,
             onPhotoClick = onPhotoClick,
             onVideoClick = onVideoClick,
-            onProfilePictureClick = onProfilePictureClick
+            onProfilePictureClick = onProfilePictureClick,
+            onShareNote = onShareNote
         )
     }
 
@@ -299,13 +330,30 @@ fun HomeItem(
         note.createdDate?.toEpochMilli()?.toFormattedDateTime() ?: ""
     }
 
+    var showActionsSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
+    val coroutineScope = rememberCoroutineScope()
+    val hapticFeedback = LocalHapticFeedback.current
+
+    fun openActionsSheet() {
+        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+        showActionsSheet = true
+    }
+
+    fun closeSheetThen(action: () -> Unit) {
+        coroutineScope.launch { sheetState.hide() }.invokeOnCompletion {
+            showActionsSheet = false
+            action()
+        }
+    }
+
     Column(
         modifier = Modifier
             .pointerInput(callbacks) {
                 detectTapGestures(
-                    onTap = { callbacks.onTap() },
-                    onDoubleTap = { callbacks.onDoubleTap() },
-                    onLongPress = { callbacks.onLongPress() }
+                    onTap = { callbacks.onNavigateToNotePreview() },
+                    onDoubleTap = { callbacks.onFavoriteNote() },
+                    onLongPress = { openActionsSheet() }
                 )
             }
     ) {
@@ -343,52 +391,72 @@ fun HomeItem(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = note.username,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-
-                    Text(
-                        text = formattedDate,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = onSurfaceVariantColor,
-                        modifier = Modifier.padding(start = 8.dp),
-                        maxLines = 1
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    AnimatedVisibility(
-                        visible = note.favorite,
-                        enter = scaleIn(
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessLow
-                            ),
-                            initialScale = 8f
-                        ) + fadeIn(tween(ANIMATION_DURATION_SHORT_MS)),
-                        exit = scaleOut(tween(ANIMATION_DURATION_SHORT_MS)) +
-                                fadeOut(tween(ANIMATION_DURATION_SHORT_MS))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Favorite,
-                            contentDescription = stringResource(R.string.cd_marked_as_favorite),
-                            modifier = Modifier
-                                .size(16.dp)
-                                .clickable(
-                                    interactionSource = null,
-                                    indication = null
-                                ) {
-                                    callbacks.onDoubleTap()
-                                },
-                            tint = primaryColor
+                        Text(
+                            text = note.username,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
+
+                        Text(
+                            text = formattedDate,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = onSurfaceVariantColor,
+                            modifier = Modifier.padding(start = 8.dp),
+                            maxLines = 1
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        AnimatedVisibility(
+                            visible = note.favorite,
+                            enter = scaleIn(
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessLow
+                                ),
+                                initialScale = 5f
+                            ) + fadeIn(tween(ANIMATION_DURATION_SHORT_MS)),
+                            exit = scaleOut(tween(ANIMATION_DURATION_SHORT_MS)) +
+                                    fadeOut(tween(ANIMATION_DURATION_SHORT_MS))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Favorite,
+                                contentDescription = stringResource(R.string.cd_marked_as_favorite),
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clickable(
+                                        interactionSource = null,
+                                        indication = null
+                                    ) {
+                                        callbacks.onFavoriteNote()
+                                    },
+                                tint = primaryColor
+                            )
+                        }
                     }
+
+                    Icon(
+                        imageVector = Icons.Rounded.MoreHoriz,
+                        contentDescription = stringResource(R.string.cd_more_options),
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .size(18.dp)
+                            .clickable(
+                                interactionSource = null,
+                                indication = null
+                            ) {
+                                openActionsSheet()
+                            },
+                        tint = onSurfaceVariantColor
+                    )
                 }
 
                 note.text?.let { text ->
@@ -431,6 +499,33 @@ fun HomeItem(
             modifier = Modifier.padding(top = 16.dp, start = 8.dp, end = 8.dp),
             thickness = 0.5.dp
         )
+    }
+
+    if (showActionsSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showActionsSheet = false },
+            sheetState = sheetState
+        ) {
+            BottomSheetActionItem(
+                icon = Icons.Outlined.FavoriteBorder,
+                label = if (note.favorite)
+                    stringResource(R.string.remove_like)
+                else
+                    stringResource(R.string.like),
+                onClick = { closeSheetThen(callbacks.onFavoriteNote) }
+            )
+            BottomSheetActionItem(
+                icon = Icons.Outlined.Share,
+                label = stringResource(R.string.share),
+                onClick = { closeSheetThen(callbacks.onShareNote) }
+            )
+            BottomSheetActionItem(
+                icon = Icons.Outlined.Delete,
+                label = stringResource(R.string.delete),
+                onClick = { closeSheetThen(callbacks.onDeleteNote) },
+                tint = MaterialTheme.colorScheme.error
+            )
+        }
     }
 }
 
@@ -501,12 +596,13 @@ private fun HomeItemPreview() {
                 favorite = false,
                 createdDate = null
             ),
-            onTap = {},
-            onDoubleTap = {},
-            onLongPress = {},
+            onNavigateToNotePreview = {},
+            onFavoriteNote = {},
+            onDeleteNote = {},
             onPhotoClick = {},
             onVideoClick = {},
-            onProfilePictureClick = {}
+            onProfilePictureClick = {},
+            onShareNote = {}
         )
     }
 }
@@ -525,12 +621,13 @@ private fun HomeItemFavoritedPreview() {
                 favorite = true,
                 createdDate = null
             ),
-            onTap = {},
-            onDoubleTap = {},
-            onLongPress = {},
+            onNavigateToNotePreview = {},
+            onFavoriteNote = {},
+            onDeleteNote = {},
             onPhotoClick = {},
             onVideoClick = {},
-            onProfilePictureClick = {}
+            onProfilePictureClick = {},
+            onShareNote = {}
         )
     }
 }

@@ -7,6 +7,7 @@ import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteHandler
+import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.AppConstants.DEBOUNCE_MS
 import com.jiahan.smartcamera.util.ErrorHandler
 import io.mockk.coEvery
@@ -46,6 +47,7 @@ class SearchViewModelTest {
             errorHandler
         )
     }
+    private val noteShare: NoteShareDelegate = mockk(relaxed = true)
 
     private lateinit var viewModel: SearchViewModel
 
@@ -60,6 +62,7 @@ class SearchViewModelTest {
             analyticsRepository,
             noteHandler,
             noteActions,
+            noteShare,
             errorHandler
         )
     }

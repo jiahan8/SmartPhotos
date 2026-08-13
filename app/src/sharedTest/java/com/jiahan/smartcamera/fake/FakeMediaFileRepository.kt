@@ -16,5 +16,7 @@ class FakeMediaFileRepository : MediaFileRepository {
 
     override fun saveBitmapAsTempFile(bitmap: Bitmap): Uri? = null
 
+    override suspend fun downloadToCacheFile(url: String, isVideo: Boolean): Uri? = null
+
     override fun deleteUri(uri: Uri) {}
 }

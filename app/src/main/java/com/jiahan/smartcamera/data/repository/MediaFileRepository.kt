@@ -34,6 +34,13 @@ interface MediaFileRepository {
     fun saveBitmapAsTempFile(bitmap: Bitmap): Uri?
 
     /**
+     * Downloads the remote resource at [url] into a temporary cache file and
+     * returns a FileProvider URI for it, so it can be attached to a share
+     * intent. Returns `null` if the download fails.
+     */
+    suspend fun downloadToCacheFile(url: String, isVideo: Boolean): Uri?
+
+    /**
      * Deletes the file represented by [uri] via the content resolver.
      * Safe to call with a FileProvider URI pointing at a cache file.
      */
