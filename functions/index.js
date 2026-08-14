@@ -260,7 +260,8 @@ exports.createNote = onCall(async (request) => {
         {reason: "INVALID_TEXT_TYPE"},
     );
   }
-  const text = typeof rawText === "string" ? rawText.trim() : null;
+  const trimmedText = typeof rawText === "string" ? rawText.trim() : null;
+  const text = trimmedText ? trimmedText : null;
   if (text && text.length > MAX_POST_TEXT_LENGTH) {
     throw new HttpsError(
         "invalid-argument", "Text is too long.",

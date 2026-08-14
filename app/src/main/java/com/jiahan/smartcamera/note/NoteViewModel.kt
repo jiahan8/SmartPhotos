@@ -99,7 +99,7 @@ class NoteViewModel @Inject constructor(
         .distinctUntilChanged()
 
     fun uploadPost() {
-        val text = _uiState.value.postText.trim()
+        val text = _uiState.value.postText.trim().ifBlank { null }
         val media = _uiState.value.mediaList
         viewModelScope.launch {
             _uiState.update { it.copy(uploadStatus = UploadStatus.Uploading) }

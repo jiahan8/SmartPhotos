@@ -1,5 +1,6 @@
 package com.jiahan.smartcamera.home
 
+import android.content.ClipData
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -30,6 +31,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.FavoriteBorder
@@ -70,6 +72,8 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -338,6 +342,7 @@ fun HomeItem(
     val sheetState = rememberModalBottomSheetState()
     val coroutineScope = rememberCoroutineScope()
     val hapticFeedback = LocalHapticFeedback.current
+    val clipboard = LocalClipboard.current
 
     fun openActionsSheet() {
         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -389,7 +394,7 @@ fun HomeItem(
             )
 
             Column(
-                modifier = Modifier.padding(start = 8.dp)
+                modifier = Modifier.padding(start = 16.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -524,6 +529,19 @@ fun HomeItem(
                 label = stringResource(R.string.share),
                 onClick = { closeSheetThen(callbacks.onShareNote) }
             )
+            note.text?.let { text ->
+                BottomSheetActionItem(
+                    icon = Icons.Outlined.ContentCopy,
+                    label = stringResource(R.string.copy_text),
+                    onClick = {
+                        closeSheetThen {
+                            coroutineScope.launch {
+                                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(null, text)))
+                            }
+                        }
+                    }
+                )
+            }
             BottomSheetActionItem(
                 icon = Icons.Outlined.Delete,
                 label = stringResource(R.string.delete),
