@@ -52,10 +52,18 @@ class NoteViewModel @Inject constructor(
     private val mediaFileRepository: MediaFileRepository,
     private val resourceProvider: ResourceProvider,
     private val errorHandler: ErrorHandler,
+    incomingShareHandler: IncomingShareHandler,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(NoteUiState())
     val uiState = _uiState.asStateFlow()
+
+    init {
+        incomingShareHandler.consume()?.let { share ->
+            if (!share.text.isNullOrBlank()) updatePostText(share.text)
+            if (share.uris.isNotEmpty()) updateUriList(share.uris)
+        }
+    }
 
     val postButtonEnabled = _uiState
         .map { state ->

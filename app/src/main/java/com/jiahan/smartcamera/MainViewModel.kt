@@ -1,11 +1,16 @@
 package com.jiahan.smartcamera
 
+import android.content.Intent
+import android.net.Uri
+import androidx.core.content.IntentCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.navigation.Screen
+import com.jiahan.smartcamera.note.IncomingShare
+import com.jiahan.smartcamera.note.IncomingShareHandler
 import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,6 +35,7 @@ class MainViewModel @Inject constructor(
     private val remoteConfigRepository: RemoteConfigRepository,
     private val errorHandler: ErrorHandler,
     private val authRepository: AuthRepository,
+    private val incomingShareHandler: IncomingShareHandler,
     userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
 
@@ -38,6 +44,14 @@ class MainViewModel @Inject constructor(
 
     val isDarkTheme = userPreferencesRepository.userPreferencesFlow
         .map { it.isDarkTheme }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(STATEFLOW_WHILE_SUBSCRIBED_MS),
+            initialValue = false
+        )
+
+    val hasPendingShare = incomingShareHandler.incomingShare
+        .map { it != null }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(STATEFLOW_WHILE_SUBSCRIBED_MS),
@@ -71,5 +85,32 @@ class MainViewModel @Inject constructor(
 
     fun consumeScrollToTopEvent() {
         _uiState.update { it.copy(scrollToTop = null) }
+    }
+
+    fun handleIncomingIntent(intent: Intent) {
+        val share = when (intent.action) {
+            Intent.ACTION_SEND -> {
+                val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+                val uri =
+                    IntentCompat.getParcelableExtra(
+                        intent,
+                        Intent.EXTRA_STREAM,
+                        Uri::class.java
+                    )
+                if (text != null || uri != null) IncomingShare(text, listOfNotNull(uri)) else null
+            }
+
+            Intent.ACTION_SEND_MULTIPLE -> {
+                val uris = IntentCompat.getParcelableArrayListExtra(
+                    intent,
+                    Intent.EXTRA_STREAM,
+                    Uri::class.java
+                )
+                if (!uris.isNullOrEmpty()) IncomingShare(text = null, uris = uris) else null
+            }
+
+            else -> null
+        }
+        share?.let(incomingShareHandler::postShare)
     }
 }

@@ -37,7 +37,7 @@
     <string name="post">Post</string>
     <string name="post_success">Note uploaded successfully</string>
     <string name="post_validation">Note cannot exceed 500 characters</string>
-    <string name="note_media_limit">You can attach up to 10 photos or videos per note</string>
+    <string name="note_media_limit">You can attach up to 20 photos or videos per note</string>
     <string name="note_empty">Add some text or media before posting</string>
     <string name="no_media_available">No media URI available for upload</string>
 

@@ -50,7 +50,7 @@ const USERNAME_PATTERN = /^[a-zA-Z0-9._]+$/;
 // usage never approaches it; it only guards against a scripted/abusive
 // caller forcing processTextRecognition to run the Vision API hundreds of
 // times for one note.
-const MAX_NOTE_MEDIA_ITEMS = 10;
+const MAX_NOTE_MEDIA_ITEMS = 20;
 
 // System/impersonation-prone words that may never be claimed as a username,
 // checked case-insensitively.

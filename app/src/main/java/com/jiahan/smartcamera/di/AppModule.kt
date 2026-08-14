@@ -1,5 +1,6 @@
 package com.jiahan.smartcamera.di
 
+import com.jiahan.smartcamera.note.IncomingShareHandler
 import com.jiahan.smartcamera.note.NoteHandler
 import dagger.Module
 import dagger.Provides
@@ -36,6 +37,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideNoteHandler(): NoteHandler = NoteHandler()
+
+    @Provides
+    @Singleton
+    fun provideIncomingShareHandler(): IncomingShareHandler = IncomingShareHandler()
 
     @Provides
     @Singleton

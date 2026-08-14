@@ -19,6 +19,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -44,6 +45,7 @@ fun SmartPhotosApp(
     startDestination: String,
     showBottomBar: Boolean,
     scrollToTop: Long?,
+    hasPendingShare: Boolean,
     onScrollDirectionChanged: (Boolean) -> Unit,
     onScrollToTopConsumed: () -> Unit,
     onTriggerScrollToTop: () -> Unit,
@@ -72,6 +74,12 @@ fun SmartPhotosApp(
         val currentRoute = currentDestination?.route
         val isBottomBarVisible = remember(currentRoute, showBottomBar) {
             (currentRoute in bottomNavItems.map { it.route }) && showBottomBar
+        }
+
+        LaunchedEffect(hasPendingShare, currentRoute) {
+            if (hasPendingShare && currentRoute != null && currentRoute != Screen.Auth.route) {
+                navController.navigate(Screen.Note.route) { launchSingleTop = true }
+            }
         }
 
         Surface(

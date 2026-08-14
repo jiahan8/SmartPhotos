@@ -35,6 +35,8 @@ class MainActivity : ComponentActivity() {
 
         super.onCreate(savedInstanceState)
 
+        viewModel.handleIncomingIntent(intent)
+
         setContent {
             val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -42,6 +44,7 @@ class MainActivity : ComponentActivity() {
             val isAppReady = uiState.isAppReady
             val showBottomBar = uiState.showBottomBar
             val scrollToTop = uiState.scrollToTop
+            val hasPendingShare by viewModel.hasPendingShare.collectAsStateWithLifecycle()
 
             splashScreen.setKeepOnScreenCondition { !isAppReady }
 
@@ -51,6 +54,7 @@ class MainActivity : ComponentActivity() {
                 startDestination = startDestination,
                 showBottomBar = showBottomBar,
                 scrollToTop = scrollToTop,
+                hasPendingShare = hasPendingShare,
                 onScrollDirectionChanged = viewModel::updateBottomBarVisibility,
                 onScrollToTopConsumed = viewModel::consumeScrollToTopEvent,
                 onTriggerScrollToTop = viewModel::triggerScrollToTop,

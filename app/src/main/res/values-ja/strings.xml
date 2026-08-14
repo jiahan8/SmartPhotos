@@ -37,7 +37,7 @@
     <string name="post">投稿</string>
     <string name="post_success">ノートが正常にアップロードされました</string>
     <string name="post_validation">ノートは500文字以内で入力してください</string>
-    <string name="note_media_limit">ノートには最大10枚の写真または動画を添付できます</string>
+    <string name="note_media_limit">ノートには最大20枚の写真または動画を添付できます</string>
     <string name="note_empty">投稿する前にテキストかメディアを追加してください</string>
     <string name="no_media_available">アップロードするメディアがありません</string>
 
