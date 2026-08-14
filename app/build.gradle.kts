@@ -139,6 +139,8 @@ dependencies {
 
     // Coil for image loading
     implementation(libs.coil.compose)
+    implementation(libs.coil.gif)
+    implementation(libs.coil.network.okhttp)
 
     // ML Kit Text Recognition
     implementation(libs.mlkit.text.recognition)

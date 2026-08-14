@@ -34,8 +34,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,6 +57,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
+    val hapticFeedback = LocalHapticFeedback.current
     val packageName = remember { context.packageName }
     val locale = ConfigurationCompat.getLocales(configuration).get(0)
     val snackbarHostState = remember { SnackbarHostState() }
@@ -195,6 +198,7 @@ fun SettingsScreen(
                 Switch(
                     checked = isDarkTheme,
                     onCheckedChange = { newValue ->
+                        hapticFeedback.performHapticFeedback(if (newValue) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
                         viewModel.updateDarkThemeVisibility(newValue)
                     },
                     thumbContent = if (isDarkTheme) {

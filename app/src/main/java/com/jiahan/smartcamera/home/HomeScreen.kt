@@ -81,7 +81,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.ShareCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.BottomSheetActionItem
 import com.jiahan.smartcamera.common.CustomSnackbarHost
@@ -108,6 +108,7 @@ fun HomeScreen(
     onScrollToTopConsumed: () -> Unit
 ) {
     val context = LocalContext.current
+    val hapticFeedback = LocalHapticFeedback.current
     val pullToRefreshState = rememberPullToRefreshState()
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -224,7 +225,10 @@ fun HomeScreen(
                         ),
                         state = pullToRefreshState,
                         isRefreshing = uiState.isRefreshing,
-                        onRefresh = { viewModel.refresh() },
+                        onRefresh = {
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                            viewModel.refresh()
+                        },
                     ) {
                         LazyColumn(
                             state = listState,
@@ -385,7 +389,7 @@ fun HomeItem(
             )
 
             Column(
-                modifier = Modifier.padding(start = 16.dp)
+                modifier = Modifier.padding(start = 8.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -436,6 +440,7 @@ fun HomeItem(
                                         interactionSource = null,
                                         indication = null
                                     ) {
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         callbacks.onFavoriteNote()
                                     },
                                 tint = primaryColor

@@ -35,7 +35,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
 import kotlinx.coroutines.launch
 

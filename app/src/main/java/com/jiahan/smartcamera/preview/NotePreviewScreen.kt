@@ -54,8 +54,10 @@ import com.jiahan.smartcamera.common.CustomSnackbarHost
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -66,7 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.ShareCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
 import com.jiahan.smartcamera.util.toFormattedDateTime
@@ -80,6 +82,7 @@ fun NotePreviewScreen(
     viewModel: NotePreviewViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val hapticFeedback = LocalHapticFeedback.current
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -322,7 +325,10 @@ fun NotePreviewScreen(
                                         indication = null,
                                         role = Role.Button,
                                         onClickLabel = stringResource(R.string.favorite)
-                                    ) { viewModel.favoriteNote(note) },
+                                    ) {
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        viewModel.favoriteNote(note)
+                                    },
                                 contentAlignment = Alignment.Center
                             ) {
                                 AnimatedContent(
