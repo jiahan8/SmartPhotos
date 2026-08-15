@@ -38,8 +38,9 @@ class NoteViewModelTest {
     private val noteRepository: NoteRepository = mockk()
     private val userPreferencesRepository: UserPreferencesRepository = mockk()
     private val analyticsRepository: AnalyticsRepository = mockk()
-    private val noteHandler = NoteHandler()
     private val mediaFileRepository: MediaFileRepository = mockk()
+    private val noteHandler = NoteHandler()
+    private val incomingShareHandler: IncomingShareHandler = mockk()
     private val resourceProvider: ResourceProvider = mockk()
     private val errorHandler: ErrorHandler = mockk()
 
@@ -60,8 +61,14 @@ class NoteViewModelTest {
                     )
                 )
         viewModel = NoteViewModel(
-            noteRepository, userPreferencesRepository, analyticsRepository,
-            noteHandler, mediaFileRepository, resourceProvider, errorHandler
+            noteRepository,
+            userPreferencesRepository,
+            analyticsRepository,
+            mediaFileRepository,
+            noteHandler,
+            incomingShareHandler,
+            resourceProvider,
+            errorHandler
         )
     }
 

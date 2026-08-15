@@ -4,6 +4,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.functions.FirebaseFunctions
 import com.jiahan.smartcamera.database.dao.NoteDao
+import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.safeCall
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -13,6 +14,7 @@ class DefaultAuthRepository @Inject constructor(
     private val functions: FirebaseFunctions,
     private val userRepository: UserRepository,
     private val noteDao: NoteDao,
+    private val errorHandler: ErrorHandler,
 ) : AuthRepository {
 
     companion object {
@@ -48,6 +50,8 @@ class DefaultAuthRepository @Inject constructor(
     }
 
     override suspend fun signOut(): Result<Unit> = safeCall {
+        userRepository.unregisterFromPushNotifications()
+            .onFailure { e -> errorHandler.logError(e) }
         auth.signOut()
         noteDao.clearAllNotes()
     }

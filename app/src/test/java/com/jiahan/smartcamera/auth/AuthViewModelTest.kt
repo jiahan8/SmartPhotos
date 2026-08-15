@@ -56,6 +56,7 @@ class AuthViewModelTest {
         every { errorHandler.getErrorMessage(any()) } returns "Error"
         every { resourceProvider.getString(any()) } returns "Error message"
         every { resourceProvider.getString(any(), any()) } returns "Error message"
+        coEvery { userRepository.registerForPushNotifications() } returns Result.success(Unit)
 
         viewModel = AuthViewModel(
             authRepository, userRepository, userPreferencesRepository,

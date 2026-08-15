@@ -128,6 +128,8 @@ class AuthViewModel @Inject constructor(
                                         )
                                     }
                                     .onFailure { e -> errorHandler.logError(e) }
+                                userRepository.registerForPushNotifications()
+                                    .onFailure { e -> errorHandler.logError(e) }
                                 _navigationEvent.trySend(AuthNavigationEvent.NavigateToHome)
                                 _uiState.update {
                                     it.copy(status = AuthStatus.Idle, showResendButton = false)

@@ -38,4 +38,10 @@ class FakeUserRepository : UserRepository {
 
     override suspend fun uploadProfilePicture(uri: Uri): Result<String?> =
         Result.success(uploadedUrl)
+
+    override suspend fun updateFcmToken(token: String): Result<Unit> = Result.success(Unit)
+
+    override suspend fun registerForPushNotifications(): Result<Unit> = Result.success(Unit)
+
+    override suspend fun unregisterFromPushNotifications(): Result<Unit> = Result.success(Unit)
 }

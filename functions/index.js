@@ -67,6 +67,46 @@ const RESERVED_USERNAMES = new Set([
 ]);
 
 /**
+ * Sends a data-only push notification to a user via FCM, using the token
+ * stored on their user document. Data-only (no `notification` block) so the
+ * client's FirebaseMessagingService.onMessageReceived always runs -- even
+ * while the app is backgrounded/killed -- and can build a localized
+ * notification with the correct deep-link intent; a `notification` block
+ * would instead be auto-displayed by the OS in that state, bypassing our
+ * code and losing the deep link. Clears the stored token if FCM reports it
+ * as stale/unregistered, so a dead token doesn't linger and get retried
+ * forever.
+ * @param {string} uid The recipient's user document ID.
+ * @param {Object<string, string>} data Key-value payload (e.g. noteId).
+ */
+async function sendPushToUser(uid, data = {}) {
+  const userRef = admin.firestore().collection("user").doc(uid);
+  const userSnap = await userRef.get();
+  const fcmToken = userSnap.data() && userSnap.data().fcm_token;
+
+  if (!fcmToken) {
+    return;
+  }
+
+  try {
+    await admin.messaging().send({
+      token: fcmToken,
+      data,
+    });
+  } catch (error) {
+    const staleTokenCodes = [
+      "messaging/registration-token-not-registered",
+      "messaging/invalid-registration-token",
+    ];
+    if (staleTokenCodes.includes(error.code)) {
+      await userRef.update({fcm_token: null});
+    } else {
+      throw error;
+    }
+  }
+}
+
+/**
  * Cloud Function to process text recognition, label detection, and
  * object detection on images in a note
  * This function is automatically triggered when a new note is created
@@ -201,6 +241,12 @@ exports.processTextRecognition = onDocumentCreated(
         await noteRef.update({
           media_list: updatedMediaList,
         });
+
+        try {
+          await sendPushToUser(userId, {noteId});
+        } catch (error) {
+          logger.error("Error sending push notification:", error);
+        }
 
         const msg = `Successfully processed text recognition`;
         logger.info(`${msg} for note: ${noteId}`);

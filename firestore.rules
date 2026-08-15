@@ -34,9 +34,19 @@ service cloud.firestore {
            request.resource.data.display_name.size() <= 50);
     }
 
+    // fcm_token is written directly by the client when it registers for
+    // push notifications, so its shape/length is validated here the same
+    // way display_name is above.
+    function isValidFcmToken() {
+      return !("fcm_token" in request.resource.data) ||
+          request.resource.data.fcm_token == null ||
+          (request.resource.data.fcm_token is string &&
+           request.resource.data.fcm_token.size() <= 4096);
+    }
+
     match /user/{userId} {
       allow read: if request.auth != null;
-      allow write: if isOwner(userId) && isValidDisplayName();
+      allow write: if isOwner(userId) && isValidDisplayName() && isValidFcmToken();
 
       // Notes are created via the createNote Cloud Function (Admin SDK,
       // bypasses these rules), which enforces MAX_POST_TEXT_LENGTH and

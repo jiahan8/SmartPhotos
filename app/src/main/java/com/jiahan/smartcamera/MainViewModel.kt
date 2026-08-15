@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
+import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.note.IncomingShare
@@ -27,7 +28,8 @@ data class MainUiState(
     val isAppReady: Boolean = false,
     val startDestination: String = Screen.Auth.route,
     val showBottomBar: Boolean = true,
-    val scrollToTop: Long? = null
+    val scrollToTop: Long? = null,
+    val pendingNoteId: String? = null
 )
 
 @HiltViewModel
@@ -35,8 +37,9 @@ class MainViewModel @Inject constructor(
     private val remoteConfigRepository: RemoteConfigRepository,
     private val errorHandler: ErrorHandler,
     private val authRepository: AuthRepository,
-    private val incomingShareHandler: IncomingShareHandler,
-    userPreferencesRepository: UserPreferencesRepository
+    private val userRepository: UserRepository,
+    userPreferencesRepository: UserPreferencesRepository,
+    private val incomingShareHandler: IncomingShareHandler
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -68,6 +71,10 @@ class MainViewModel @Inject constructor(
                 else
                     Screen.Auth.route
             _uiState.update { it.copy(startDestination = destination, isAppReady = true) }
+            if (destination == Screen.Home.route) {
+                userRepository.registerForPushNotifications()
+                    .onFailure { e -> errorHandler.logError(e) }
+            }
         }
     }
 
@@ -112,5 +119,13 @@ class MainViewModel @Inject constructor(
             else -> null
         }
         share?.let(incomingShareHandler::postShare)
+    }
+
+    fun onNotificationNoteIdReceived(noteId: String) {
+        _uiState.update { it.copy(pendingNoteId = noteId) }
+    }
+
+    fun consumePendingNoteId() {
+        _uiState.update { it.copy(pendingNoteId = null) }
     }
 }

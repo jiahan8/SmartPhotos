@@ -115,6 +115,12 @@
     <string name="info_updated_success">情報を更新しました</string>
     <string name="info_updated_failure">プロフィールを更新できませんでした。もう一度お試しください。</string>
 
+    <!-- Notifications -->
+    <string name="notification_channel_name">一般通知</string>
+    <string name="notification_channel_description">写真やノートに関するお知らせ</string>
+    <string name="notification_note_processed_title">写真の準備ができました</string>
+    <string name="notification_note_processed_body">ノートのテキストとラベルの検出が完了しました</string>
+
     <!-- Content descriptions (accessibility) -->
     <string name="cd_back">前の画面に戻る</string>
     <string name="cd_profile_picture">プロフィール写真</string>

@@ -4,9 +4,12 @@ import com.jiahan.smartcamera.data.datastore.UserPreferences
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
+import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.navigation.Screen
+import com.jiahan.smartcamera.note.IncomingShareHandler
 import com.jiahan.smartcamera.util.ErrorHandler
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -31,9 +34,11 @@ class MainViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val remoteConfigRepository: RemoteConfigRepository = mockk()
-    private val errorHandler: ErrorHandler = mockk()
     private val authRepository: AuthRepository = mockk()
+    private val userRepository: UserRepository = mockk()
     private val userPreferencesRepository: UserPreferencesRepository = mockk()
+    private val incomingShareHandler: IncomingShareHandler = mockk()
+    private val errorHandler: ErrorHandler = mockk()
 
     private val defaultPrefs =
         UserPreferences(isDarkTheme = false, username = "", profilePicture = null)
@@ -46,6 +51,7 @@ class MainViewModelTest {
         // Default: unauthenticated user. Tests that need a different state override these.
         every { authRepository.currentUserId } returns null
         every { authRepository.isCurrentUserEmailVerified } returns false
+        coEvery { userRepository.registerForPushNotifications() } returns Result.success(Unit)
     }
 
     @After
@@ -56,7 +62,9 @@ class MainViewModelTest {
             remoteConfigRepository,
             errorHandler,
             authRepository,
-            userPreferencesRepository
+            userRepository,
+            userPreferencesRepository,
+            incomingShareHandler
         )
 
     // -------------------------------------------------------------------------
@@ -78,6 +86,7 @@ class MainViewModelTest {
         val vm = createViewModel()
 
         assertEquals(Screen.Home.route, vm.uiState.value.startDestination)
+        coVerify { userRepository.registerForPushNotifications() }
     }
 
     @Test
@@ -86,6 +95,7 @@ class MainViewModelTest {
         val vm = createViewModel()
 
         assertEquals(Screen.Auth.route, vm.uiState.value.startDestination)
+        coVerify(exactly = 0) { userRepository.registerForPushNotifications() }
     }
 
     @Test
@@ -177,5 +187,34 @@ class MainViewModelTest {
         vm.consumeScrollToTopEvent()
 
         assertNull(vm.uiState.value.scrollToTop)
+    }
+
+    // -------------------------------------------------------------------------
+    // Notification deep link
+    // -------------------------------------------------------------------------
+    @Test
+    fun `pendingNoteId is null initially`() = runTest {
+        val vm = createViewModel()
+
+        assertNull(vm.uiState.value.pendingNoteId)
+    }
+
+    @Test
+    fun `onNotificationNoteIdReceived sets pendingNoteId`() = runTest {
+        val vm = createViewModel()
+
+        vm.onNotificationNoteIdReceived("note_123")
+
+        assertEquals("note_123", vm.uiState.value.pendingNoteId)
+    }
+
+    @Test
+    fun `consumePendingNoteId clears pendingNoteId`() = runTest {
+        val vm = createViewModel()
+
+        vm.onNotificationNoteIdReceived("note_123")
+        vm.consumePendingNoteId()
+
+        assertNull(vm.uiState.value.pendingNoteId)
     }
 }

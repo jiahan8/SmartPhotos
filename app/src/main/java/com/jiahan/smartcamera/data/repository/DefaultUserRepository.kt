@@ -8,6 +8,7 @@ import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.storage
 import com.jiahan.smartcamera.domain.ProfilePictureUpdate
@@ -23,6 +24,7 @@ class DefaultUserRepository @Inject constructor(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
     private val functions: FirebaseFunctions,
+    private val messaging: FirebaseMessaging,
     private val remoteConfigRepository: RemoteConfigRepository,
 ) : UserRepository {
 
@@ -34,8 +36,10 @@ class DefaultUserRepository @Inject constructor(
         private const val FIELD_USERNAME = "username"
         private const val FIELD_PROFILE_PICTURE = "profile_picture"
         private const val FIELD_CREATED = "created"
+        private const val FIELD_FCM_TOKEN = "fcm_token"
         private const val FUNCTION_CREATE_USER_PROFILE = "createUserProfile"
         private const val FUNCTION_UPDATE_USERNAME = "updateUsername"
+        private const val ANNOUNCEMENTS_TOPIC = "announcements"
     }
 
     private val storage: FirebaseStorage by lazy {
@@ -101,6 +105,26 @@ class DefaultUserRepository @Inject constructor(
         functions.getHttpsCallable(FUNCTION_UPDATE_USERNAME)
             .call(hashMapOf(FIELD_USERNAME to username))
             .await()
+    }
+
+    override suspend fun updateFcmToken(token: String): Result<Unit> = safeCall {
+        userDocumentReference?.update(FIELD_FCM_TOKEN, token)?.await()
+    }
+
+    // FirebaseMessaging.getToken() is deprecated in favor of register(), but register()
+    // doesn't return a token at all -- it switches to an opt-in Firebase Installation ID
+    // model that admin.messaging().send() (used server-side in sendPushToUser) cannot
+    // target. Registration tokens remain the only mechanism our Cloud Function can send to.
+    @Suppress("DEPRECATION")
+    override suspend fun registerForPushNotifications(): Result<Unit> = safeCall {
+        val token = messaging.token.await()
+        userDocumentReference?.update(FIELD_FCM_TOKEN, token)?.await()
+        messaging.subscribeToTopic(ANNOUNCEMENTS_TOPIC).await()
+    }
+
+    override suspend fun unregisterFromPushNotifications(): Result<Unit> = safeCall {
+        messaging.unsubscribeFromTopic(ANNOUNCEMENTS_TOPIC).await()
+        userDocumentReference?.update(FIELD_FCM_TOKEN, null)?.await()
     }
 
     private suspend fun updateFirebaseUserProfile(

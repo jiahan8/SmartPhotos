@@ -115,6 +115,13 @@
     <string name="info_updated_success">Info updated successfully</string>
     <string name="info_updated_failure">Couldn\'t update your profile. Please try again.</string>
 
+    <!-- Notifications -->
+    <string name="default_notification_channel_id" translatable="false">general</string>
+    <string name="notification_channel_name">General notifications</string>
+    <string name="notification_channel_description">Updates about your photos and notes</string>
+    <string name="notification_note_processed_title">Your photo is ready</string>
+    <string name="notification_note_processed_body">Text and label detection finished for your note</string>
+
     <!-- Content descriptions (accessibility) -->
     <string name="cd_back">Navigate back</string>
     <string name="cd_profile_picture">Profile picture</string>

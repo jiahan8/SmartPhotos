@@ -46,10 +46,12 @@ fun SmartPhotosApp(
     showBottomBar: Boolean,
     scrollToTop: Long?,
     hasPendingShare: Boolean,
+    pendingNoteId: String?,
     onScrollDirectionChanged: (Boolean) -> Unit,
     onScrollToTopConsumed: () -> Unit,
     onTriggerScrollToTop: () -> Unit,
     onUpdateStartDestination: (String) -> Unit,
+    onPendingNoteIdConsumed: () -> Unit,
 ) {
     SmartCameraTheme(darkTheme = isDarkTheme) {
         val view = LocalView.current
@@ -66,6 +68,14 @@ fun SmartPhotosApp(
         }
 
         val navController = rememberNavController()
+
+        LaunchedEffect(pendingNoteId) {
+            if (pendingNoteId != null) {
+                navController.navigate(Screen.NotePreview.createRoute(pendingNoteId))
+                onPendingNoteIdConsumed()
+            }
+        }
+
         val bottomNavItems = remember {
             listOf(Screen.Home, Screen.Search, Screen.Note, Screen.Favorite, Screen.Profile)
         }

@@ -48,11 +48,11 @@ class NoteViewModel @Inject constructor(
     private val noteRepository: NoteRepository,
     userPreferencesRepository: UserPreferencesRepository,
     private val analyticsRepository: AnalyticsRepository,
-    private val noteHandler: NoteHandler,
     private val mediaFileRepository: MediaFileRepository,
+    private val noteHandler: NoteHandler,
+    incomingShareHandler: IncomingShareHandler,
     private val resourceProvider: ResourceProvider,
     private val errorHandler: ErrorHandler,
-    incomingShareHandler: IncomingShareHandler,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(NoteUiState())
