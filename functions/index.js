@@ -27,9 +27,10 @@ const visionClient = new vision.ImageAnnotatorClient();
 // For cost control, set the maximum number of concurrent instances
 setGlobalOptions({maxInstances: 10});
 
-// Collection names shared by the user-profile functions below
+// Collection names shared by the functions below
 const COLLECTION_USER = "user";
 const COLLECTION_USERNAME = "username";
+const COLLECTION_NOTE = "note";
 
 // Unsplash access key, set via:
 //   firebase functions:secrets:set UNSPLASH_ACCESS_KEY
@@ -80,7 +81,7 @@ const RESERVED_USERNAMES = new Set([
  * @param {Object<string, string>} data Key-value payload (e.g. noteId).
  */
 async function sendPushToUser(uid, data = {}) {
-  const userRef = admin.firestore().collection("user").doc(uid);
+  const userRef = admin.firestore().collection(COLLECTION_USER).doc(uid);
   const userSnap = await userRef.get();
   const fcmToken = userSnap.data() && userSnap.data().fcm_token;
 
@@ -115,7 +116,7 @@ async function sendPushToUser(uid, data = {}) {
  */
 exports.processTextRecognition = onDocumentCreated(
     {
-      document: "user/{userId}/note/{noteId}",
+      document: `${COLLECTION_USER}/{userId}/${COLLECTION_NOTE}/{noteId}`,
       maxInstances: 5,
     },
     async (event) => {
@@ -145,9 +146,9 @@ exports.processTextRecognition = onDocumentCreated(
 
         // Get reference to the note document for updating
         const noteRef = admin.firestore()
-            .collection("user")
+            .collection(COLLECTION_USER)
             .doc(userId)
-            .collection("note")
+            .collection(COLLECTION_NOTE)
             .doc(noteId);
 
         // Process each media item that has a photoUrl or thumbnailUrl
@@ -162,17 +163,20 @@ exports.processTextRecognition = onDocumentCreated(
               }
 
               try {
-                // Use Vision client to detect text, labels, and objects
-                const [textResult] =
-                  await visionClient.textDetection(imageUrl);
-                const [labelResult] =
-                  await visionClient.labelDetection(imageUrl);
-                const [objectResult] =
-                  await visionClient.objectLocalization(imageUrl);
+                // Request text, label, and object detection in a single
+                // Vision API call instead of three separate round trips.
+                const [result] = await visionClient.annotateImage({
+                  image: {source: {imageUri: imageUrl}},
+                  features: [
+                    {type: "TEXT_DETECTION"},
+                    {type: "LABEL_DETECTION"},
+                    {type: "OBJECT_LOCALIZATION"},
+                  ],
+                });
 
                 // Process text detection - create array of detected text
                 const generatedText = [];
-                const textDetections = textResult.textAnnotations;
+                const textDetections = result.textAnnotations;
                 if (textDetections && textDetections.length > 0) {
                   // First annotation contains the entire detected text
                   const fullText = textDetections[0].description || "";
@@ -188,7 +192,7 @@ exports.processTextRecognition = onDocumentCreated(
                 // Process label detection
                 // Create array of maps with label and score
                 const generatedLabels = [];
-                const labels = labelResult.labelAnnotations;
+                const labels = result.labelAnnotations;
                 if (labels && labels.length > 0) {
                   labels.forEach((label) => {
                     generatedLabels.push({
@@ -201,7 +205,7 @@ exports.processTextRecognition = onDocumentCreated(
                 // Process object detection
                 // Create array of maps with object and score
                 const generatedObjects = [];
-                const objects = objectResult.localizedObjectAnnotations;
+                const objects = result.localizedObjectAnnotations;
                 if (objects && objects.length > 0) {
                   objects.forEach((object) => {
                     generatedObjects.push({
@@ -340,7 +344,7 @@ exports.createNote = onCall(async (request) => {
   const noteRef = admin.firestore()
       .collection(COLLECTION_USER)
       .doc(uid)
-      .collection("note")
+      .collection(COLLECTION_NOTE)
       .doc();
 
   await noteRef.set({
@@ -568,7 +572,7 @@ function parseStorageDownloadUrl(url) {
  * note doesn't leak Storage files.
  */
 exports.cleanupNoteMedia = onDocumentDeleted(
-    `${COLLECTION_USER}/{userId}/note/{noteId}`,
+    `${COLLECTION_USER}/{userId}/${COLLECTION_NOTE}/{noteId}`,
     async (event) => {
       const snapshot = event.data;
       if (!snapshot) {
