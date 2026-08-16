@@ -167,6 +167,11 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.auth)
     implementation(libs.firebase.functions)
+    implementation(libs.firebase.inappmessaging.display)
+
+    // Play Core (in-app updates)
+    implementation(libs.play.app.update)
+    implementation(libs.play.app.update.ktx)
 
     // Room
     ksp(libs.room.runtime)

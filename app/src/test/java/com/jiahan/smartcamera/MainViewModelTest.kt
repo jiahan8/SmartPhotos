@@ -2,6 +2,7 @@ package com.jiahan.smartcamera
 
 import com.jiahan.smartcamera.data.datastore.UserPreferences
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
+import com.jiahan.smartcamera.data.repository.AppUpdateRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
@@ -39,6 +40,7 @@ class MainViewModelTest {
     private val userRepository: UserRepository = mockk()
     private val userPreferencesRepository: UserPreferencesRepository = mockk()
     private val incomingShareHandler: IncomingShareHandler = mockk()
+    private val appUpdateRepository: AppUpdateRepository = mockk()
     private val errorHandler: ErrorHandler = mockk()
 
     private val defaultPrefs =
@@ -50,6 +52,7 @@ class MainViewModelTest {
         every { errorHandler.logError(any()) } just runs
         every { userPreferencesRepository.userPreferencesFlow } returns flowOf(defaultPrefs)
         every { incomingShareHandler.incomingShare } returns MutableStateFlow(null)
+        every { appUpdateRepository.observeUpdateState() } returns flowOf()
         // Default: unauthenticated user. Tests that need a different state override these.
         every { authRepository.currentUserId } returns null
         every { authRepository.isCurrentUserEmailVerified } returns false
@@ -66,7 +69,8 @@ class MainViewModelTest {
             authRepository,
             userRepository,
             userPreferencesRepository,
-            incomingShareHandler
+            incomingShareHandler,
+            appUpdateRepository
         )
 
     // -------------------------------------------------------------------------

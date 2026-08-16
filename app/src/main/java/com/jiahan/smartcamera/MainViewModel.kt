@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.core.content.IntentCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.play.core.ktx.AppUpdateResult
+import com.jiahan.smartcamera.data.repository.AppUpdateRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
@@ -18,6 +20,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -39,11 +42,24 @@ class MainViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
     userPreferencesRepository: UserPreferencesRepository,
-    private val incomingShareHandler: IncomingShareHandler
+    private val incomingShareHandler: IncomingShareHandler,
+    appUpdateRepository: AppUpdateRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState = _uiState.asStateFlow()
+
+    // requestUpdateFlow() checks availability once per subscription, then keeps emitting as the
+    // flexible update progresses (Available -> InProgress -> Downloaded), so a single collector
+    // living as long as MainActivity is enough to drive both the initial prompt and the
+    // "ready to restart" state.
+    val updateState = appUpdateRepository.observeUpdateState()
+        .catch { e -> errorHandler.logError(e) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(STATEFLOW_WHILE_SUBSCRIBED_MS),
+            initialValue = null
+        )
 
     val isDarkTheme = userPreferencesRepository.userPreferencesFlow
         .map { it.isDarkTheme }
@@ -127,5 +143,11 @@ class MainViewModel @Inject constructor(
 
     fun consumePendingNoteId() {
         _uiState.update { it.copy(pendingNoteId = null) }
+    }
+
+    fun completeUpdate() {
+        viewModelScope.launch {
+            (updateState.value as? AppUpdateResult.Downloaded)?.completeUpdate()
+        }
     }
 }

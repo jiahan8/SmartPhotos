@@ -246,10 +246,24 @@ exports.processTextRecognition = onDocumentCreated(
           media_list: updatedMediaList,
         });
 
-        try {
-          await sendPushToUser(userId, {noteId});
-        } catch (error) {
-          logger.error("Error sending push notification:", error);
+        // Only notify when the note actually carries a photo/video -- a
+        // text-only note has no image to show as the notification icon and
+        // isn't the kind of "processing finished" event worth interrupting
+        // the user for.
+        const firstMedia = updatedMediaList.find(
+            (media) => media.photoUrl || media.videoUrl,
+        );
+        if (firstMedia) {
+          const pushData = {noteId};
+          const previewUrl = firstMedia.thumbnailUrl || firstMedia.photoUrl;
+          if (previewUrl) {
+            pushData.mediaUrl = previewUrl;
+          }
+          try {
+            await sendPushToUser(userId, pushData);
+          } catch (error) {
+            logger.error("Error sending push notification:", error);
+          }
         }
 
         const msg = `Successfully processed text recognition`;

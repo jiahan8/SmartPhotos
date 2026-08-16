@@ -1,7 +1,9 @@
 package com.jiahan.smartcamera.data.di
 
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
+import com.jiahan.smartcamera.data.repository.AppUpdateRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
+import com.jiahan.smartcamera.data.repository.DefaultAppUpdateRepository
 import com.jiahan.smartcamera.data.repository.DefaultAuthRepository
 import com.jiahan.smartcamera.data.repository.DefaultMediaFileRepository
 import com.jiahan.smartcamera.data.repository.DefaultNoteRepository
@@ -73,4 +75,10 @@ abstract class DataModule {
     abstract fun bindPhotoRepository(
         defaultPhotoRepository: DefaultPhotoRepository
     ): PhotoRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAppUpdateRepository(
+        defaultAppUpdateRepository: DefaultAppUpdateRepository
+    ): AppUpdateRepository
 }

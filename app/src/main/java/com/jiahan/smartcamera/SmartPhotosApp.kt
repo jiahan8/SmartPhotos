@@ -16,6 +16,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +36,7 @@ import androidx.core.view.WindowCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.jiahan.smartcamera.common.CustomSnackbarHost
 import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.navigation.smartPhotosNavGraph
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
@@ -47,11 +51,13 @@ fun SmartPhotosApp(
     scrollToTop: Long?,
     hasPendingShare: Boolean,
     pendingNoteId: String?,
+    isUpdateReadyToInstall: Boolean,
     onScrollDirectionChanged: (Boolean) -> Unit,
     onScrollToTopConsumed: () -> Unit,
     onTriggerScrollToTop: () -> Unit,
     onUpdateStartDestination: (String) -> Unit,
     onPendingNoteIdConsumed: () -> Unit,
+    onCompleteUpdate: () -> Unit,
 ) {
     SmartCameraTheme(darkTheme = isDarkTheme) {
         val view = LocalView.current
@@ -92,11 +98,29 @@ fun SmartPhotosApp(
             }
         }
 
+        val updateSnackbarHostState = remember { SnackbarHostState() }
+        val updateReadyMessage = stringResource(R.string.update_ready_message)
+        val updateReadyAction = stringResource(R.string.update_ready_action)
+
+        LaunchedEffect(isUpdateReadyToInstall) {
+            if (isUpdateReadyToInstall) {
+                val result = updateSnackbarHostState.showSnackbar(
+                    message = updateReadyMessage,
+                    actionLabel = updateReadyAction,
+                    duration = SnackbarDuration.Indefinite
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    onCompleteUpdate()
+                }
+            }
+        }
+
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
         ) {
             Scaffold(
+                snackbarHost = { CustomSnackbarHost(updateSnackbarHostState) },
                 bottomBar = {
                     AnimatedVisibility(
                         visible = isBottomBarVisible,

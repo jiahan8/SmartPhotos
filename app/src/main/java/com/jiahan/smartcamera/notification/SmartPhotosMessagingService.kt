@@ -4,9 +4,22 @@ import android.Manifest
 import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
+import android.graphics.Rect
+import android.graphics.RectF
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.drawable.toBitmap
+import coil3.SingletonImageLoader
+import coil3.asDrawable
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.jiahan.smartcamera.MainActivity
@@ -21,6 +34,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 private const val DATA_KEY_NOTE_ID = "noteId"
+private const val DATA_KEY_MEDIA_URL = "mediaUrl"
 
 @AndroidEntryPoint
 class SmartPhotosMessagingService : FirebaseMessagingService() {
@@ -53,14 +67,47 @@ class SmartPhotosMessagingService : FirebaseMessagingService() {
         // this method entirely and losing the noteId deep link. Title/body then come from local
         // string resources rather than the payload, which also keeps them localized.
         val noteId = message.data[DATA_KEY_NOTE_ID]
+        val mediaUrl = message.data[DATA_KEY_MEDIA_URL]
         val title = message.notification?.title
             ?: getString(R.string.notification_note_processed_title)
         val body = message.notification?.body
             ?: getString(R.string.notification_note_processed_body)
-        showNotification(title = title, body = body, noteId = noteId)
+        // Fetching/cropping the media preview needs to happen off the main thread, and
+        // onMessageReceived() offers no callback for "done displaying" -- so the notification is
+        // built and shown from within this coroutine rather than being returned out of it.
+        serviceScope.launch {
+            val icon = mediaUrl?.let { loadRoundedIcon(it) }
+            showNotification(title = title, body = body, noteId = noteId, largeIcon = icon)
+        }
     }
 
-    private fun showNotification(title: String, body: String?, noteId: String?) {
+    private suspend fun loadRoundedIcon(url: String): Bitmap? {
+        val request = ImageRequest.Builder(this).data(url).build()
+        val result = SingletonImageLoader.get(this).execute(request)
+        if (result !is SuccessResult) {
+            return null
+        }
+        val bitmap = result.image.asDrawable(resources).toBitmap()
+        return bitmap.toCircularBitmap()
+    }
+
+    private fun Bitmap.toCircularBitmap(): Bitmap {
+        val output = createBitmap(width, height)
+        val canvas = Canvas(output)
+        val rect = Rect(0, 0, width, height)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        canvas.drawOval(RectF(rect), paint)
+        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+        canvas.drawBitmap(this, rect, rect, paint)
+        return output
+    }
+
+    private fun showNotification(
+        title: String,
+        body: String?,
+        noteId: String?,
+        largeIcon: Bitmap?
+    ) {
         val contentIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             noteId?.let { putExtra(MainActivity.EXTRA_NOTE_ID, it) }
@@ -75,6 +122,7 @@ class SmartPhotosMessagingService : FirebaseMessagingService() {
         val notification =
             NotificationCompat.Builder(this, getString(R.string.default_notification_channel_id))
                 .setSmallIcon(R.drawable.photo_camera)
+                .setLargeIcon(largeIcon)
                 .setContentTitle(title)
                 .setContentText(body)
                 .setAutoCancel(true)

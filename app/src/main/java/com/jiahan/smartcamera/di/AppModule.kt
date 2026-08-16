@@ -1,10 +1,14 @@
 package com.jiahan.smartcamera.di
 
+import android.content.Context
+import com.google.android.play.core.appupdate.AppUpdateManager
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.jiahan.smartcamera.note.IncomingShareHandler
 import com.jiahan.smartcamera.note.NoteHandler
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -51,4 +55,9 @@ object AppModule {
     @Provides
     @IoDispatcher
     fun provideIoDispatcher(): CoroutineDispatcher = Dispatchers.IO
+
+    @Provides
+    @Singleton
+    fun provideAppUpdateManager(@ApplicationContext context: Context): AppUpdateManager =
+        AppUpdateManagerFactory.create(context)
 }

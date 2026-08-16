@@ -49,6 +49,7 @@
     <string name="settings">Settings</string>
     <string name="dark_theme">Dark Theme</string>
     <string name="language">Language</string>
+    <string name="app_version">Version %s</string>
     <string name="log_out">Log out</string>
     <string name="log_out_desc">Are you sure you want to log out?</string>
     <string name="delete_account">Delete account</string>
@@ -119,8 +120,10 @@
     <string name="default_notification_channel_id" translatable="false">general</string>
     <string name="notification_channel_name">General notifications</string>
     <string name="notification_channel_description">Updates about your photos and notes</string>
-    <string name="notification_note_processed_title">Your photo is ready</string>
-    <string name="notification_note_processed_body">Text and label detection finished for your note</string>
+    <string name="notification_note_processed_title">Your note is ready</string>
+    <string name="notification_note_processed_body">Tap to view note</string>
+    <string name="update_ready_message">A new version has been downloaded</string>
+    <string name="update_ready_action">Restart</string>
 
     <!-- Content descriptions (accessibility) -->
     <string name="cd_back">Navigate back</string>

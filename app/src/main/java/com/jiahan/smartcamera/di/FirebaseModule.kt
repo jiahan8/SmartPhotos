@@ -8,6 +8,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.functions
+import com.google.firebase.inappmessaging.FirebaseInAppMessaging
+import com.google.firebase.inappmessaging.inAppMessaging
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.messaging
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
@@ -45,4 +47,8 @@ object FirebaseModule {
     @Provides
     @Singleton
     fun provideFirebaseMessaging(): FirebaseMessaging = Firebase.messaging
+
+    @Provides
+    @Singleton
+    fun provideFirebaseInAppMessaging(): FirebaseInAppMessaging = Firebase.inAppMessaging
 }

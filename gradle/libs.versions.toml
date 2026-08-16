@@ -30,7 +30,7 @@ datastorePreferences = "1.2.1"
 crashlytics = "3.0.7"
 firebaseCrashlytics = "20.1.0"
 firebaseMessaging = "25.1.1"
-firebaseInAppmessagingDisplay = "25.1.4"
+firebaseInAppmessagingDisplay = "22.0.3"
 firebaseFirestore = "26.5.0"
 firebaseAuth = "24.2.0"
 firebaseFunctions = "22.1.1"
@@ -43,6 +43,7 @@ androidxTestOrchestrator = "1.6.1"
 androidxTestRunner = "1.7.0"
 roborazzi = "1.70.0"
 robolectric = "4.16.1"
+playAppUpdate = "2.1.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -108,6 +109,8 @@ robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "
 roborazzi = { group = "io.github.takahirom.roborazzi", name = "roborazzi", version.ref = "roborazzi" }
 roborazzi-compose = { group = "io.github.takahirom.roborazzi", name = "roborazzi-compose", version.ref = "roborazzi" }
 roborazzi-junit-rule = { group = "io.github.takahirom.roborazzi", name = "roborazzi-junit-rule", version.ref = "roborazzi" }
+play-app-update = { group = "com.google.android.play", name = "app-update", version.ref = "playAppUpdate" }
+play-app-update-ktx = { group = "com.google.android.play", name = "app-update-ktx", version.ref = "playAppUpdate" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

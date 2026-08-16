@@ -15,6 +15,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.google.android.play.core.ktx.AppUpdateResult
 import com.jiahan.smartcamera.navigation.Screen
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -60,11 +61,20 @@ class MainActivity : ComponentActivity() {
             val scrollToTop = uiState.scrollToTop
             val hasPendingShare by viewModel.hasPendingShare.collectAsStateWithLifecycle()
             val pendingNoteId = uiState.pendingNoteId
+            val updateState by viewModel.updateState.collectAsStateWithLifecycle()
 
             splashScreen.setKeepOnScreenCondition { !isAppReady }
 
             val notificationPermissionLauncher = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission()
+            ) {}
+
+            // startFlexibleUpdate() shows Play Store's own confirmation UI before downloading,
+            // so this only needs to kick off the flow -- no extra in-app prompt required. The
+            // launcher result is ignored since the user cancelling just means updateState stays
+            // Available and this effect fires again next recomposition.
+            val appUpdateLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.StartIntentSenderForResult()
             ) {}
 
             LaunchedEffect(startDestination) {
@@ -80,6 +90,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            LaunchedEffect(updateState) {
+                (updateState as? AppUpdateResult.Available)?.startFlexibleUpdate(appUpdateLauncher)
+            }
+
             SmartPhotosApp(
                 isDarkTheme = isDarkTheme,
                 isAppReady = isAppReady,
@@ -88,11 +102,13 @@ class MainActivity : ComponentActivity() {
                 scrollToTop = scrollToTop,
                 hasPendingShare = hasPendingShare,
                 pendingNoteId = pendingNoteId,
+                isUpdateReadyToInstall = updateState is AppUpdateResult.Downloaded,
                 onScrollDirectionChanged = viewModel::updateBottomBarVisibility,
                 onScrollToTopConsumed = viewModel::consumeScrollToTopEvent,
                 onTriggerScrollToTop = viewModel::triggerScrollToTop,
                 onUpdateStartDestination = viewModel::updateStartDestination,
                 onPendingNoteIdConsumed = viewModel::consumePendingNoteId,
+                onCompleteUpdate = viewModel::completeUpdate,
             )
         }
     }

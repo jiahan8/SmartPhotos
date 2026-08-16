@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.Check
@@ -40,11 +42,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.os.ConfigurationCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.jiahan.smartcamera.BuildConfig
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.CustomSnackbarHost
 
@@ -180,98 +184,113 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            Row(
+            Column(
                 modifier = Modifier
-                    .wrapContentHeight()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.dark_mode),
-                    modifier = Modifier.padding(end = 12.dp),
-                    contentDescription = null
-                )
-                Text(
-                    text = stringResource(R.string.dark_theme),
-                    modifier = Modifier.weight(1f)
-                )
-                Switch(
-                    checked = isDarkTheme,
-                    onCheckedChange = { newValue ->
-                        hapticFeedback.performHapticFeedback(if (newValue) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
-                        viewModel.updateDarkThemeVisibility(newValue)
-                    },
-                    thumbContent = if (isDarkTheme) {
-                        {
-                            Icon(
-                                imageVector = Icons.Rounded.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(12.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    } else {
-                        null
-                    }
-                )
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { viewModel.openLanguageSettings() }
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.translate),
-                    modifier = Modifier.padding(end = 12.dp),
-                    contentDescription = null
-                )
-                Text(
-                    text = stringResource(R.string.language),
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f)
-                )
-                locale?.let {
+                Row(
+                    modifier = Modifier
+                        .wrapContentHeight()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.dark_mode),
+                        modifier = Modifier.padding(end = 12.dp),
+                        contentDescription = null
+                    )
                     Text(
-                        text = locale.displayLanguage,
+                        text = stringResource(R.string.dark_theme),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Switch(
+                        checked = isDarkTheme,
+                        onCheckedChange = { newValue ->
+                            hapticFeedback.performHapticFeedback(if (newValue) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
+                            viewModel.updateDarkThemeVisibility(newValue)
+                        },
+                        thumbContent = if (isDarkTheme) {
+                            {
+                                Icon(
+                                    imageVector = Icons.Rounded.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(12.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        } else {
+                            null
+                        }
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { viewModel.openLanguageSettings() }
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.translate),
+                        modifier = Modifier.padding(end = 12.dp),
+                        contentDescription = null
+                    )
+                    Text(
+                        text = stringResource(R.string.language),
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(start = 12.dp),
+                        modifier = Modifier.weight(1f)
+                    )
+                    locale?.let {
+                        Text(
+                            text = locale.displayLanguage,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(start = 12.dp),
+                        )
+                    }
+                }
+                HorizontalDivider(thickness = 1.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            viewModel.showLogoutDialog()
+                        }
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.log_out),
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            viewModel.showDeleteAccountDialog()
+                        }
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.delete_account),
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
-            HorizontalDivider(thickness = 1.dp)
-            Row(
+            Text(
+                text = stringResource(R.string.app_version, BuildConfig.VERSION_NAME),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable {
-                        viewModel.showLogoutDialog()
-                    }
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.log_out),
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        viewModel.showDeleteAccountDialog()
-                    }
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.delete_account),
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+                    .padding(vertical = 16.dp)
+            )
         }
     }
 }
