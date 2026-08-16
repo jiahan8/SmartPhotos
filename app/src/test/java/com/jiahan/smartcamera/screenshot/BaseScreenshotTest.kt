@@ -2,7 +2,7 @@ package com.jiahan.smartcamera.screenshot
 
 import android.app.Application
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onRoot
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.github.takahirom.roborazzi.captureRoboImage

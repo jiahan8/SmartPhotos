@@ -233,9 +233,7 @@ fun NoteScreen(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape),
-                            onError = {
-                                it.result.throwable.printStackTrace()
-                            }
+                            onError = { viewModel.logImageLoadError(it.result.throwable) }
                         )
                     } ?: Image(
                         imageVector = Icons.Rounded.AccountCircle,
@@ -333,7 +331,7 @@ fun NoteScreen(
                                             .maskClip(MaterialTheme.shapes.extraLarge),
                                         contentDescription = stringResource(R.string.cd_note_photo),
                                         contentScale = ContentScale.Crop,
-                                        onError = { it.result.throwable.printStackTrace() }
+                                        onError = { viewModel.logImageLoadError(it.result.throwable) }
                                     )
 
                                     if (noteMediaDetail.isVideo)

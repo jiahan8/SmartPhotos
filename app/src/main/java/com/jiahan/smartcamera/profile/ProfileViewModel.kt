@@ -74,6 +74,10 @@ class ProfileViewModel @Inject constructor(
         loadUserProfile()
     }
 
+    fun logImageLoadError(throwable: Throwable) {
+        errorHandler.logError(throwable, tag = "ImageLoad")
+    }
+
     private fun loadUserProfile() {
         viewModelScope.launch {
             userRepository.getUser()

@@ -102,10 +102,10 @@
     <string name="username_too_long">Username cannot exceed 30 characters</string>
     <string name="name_too_long">Name cannot exceed 50 characters</string>
     <string name="username_invalid_characters">Username can only contain letters, numbers, periods, and underscores</string>
-    <string name="verification_email_sent">Verification email sent. Please check your inbox and verify your email before logging in.</string>
-    <string name="email_not_verified">Please verify your email before logging in. Check your inbox for verification link.</string>
-    <string name="verification_email_resent">Verification email has been resent. Please check your inbox.</string>
-    <string name="email_verification_note">You will need to verify your email address before accessing your account.</string>
+    <string name="verification_email_sent">Verification email sent. Please check your inbox (and spam/junk folder) and verify your email before logging in.</string>
+    <string name="email_not_verified">Please verify your email before logging in. Check your inbox (and spam/junk folder) for the verification link.</string>
+    <string name="verification_email_resent">Verification email has been resent. Please check your inbox (and spam/junk folder).</string>
+    <string name="email_verification_note">You will need to verify your email address before accessing your account. Be sure to check your spam/junk folder.</string>
     <string name="resend_verification_email">Resend verification email</string>
     <string name="login_failure">Couldn\'t login. Please check your email and password.</string>
     <string name="sign_up_failure">Couldn\'t create your account. Please try again.</string>

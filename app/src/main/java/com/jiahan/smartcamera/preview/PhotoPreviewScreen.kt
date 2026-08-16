@@ -181,9 +181,7 @@ fun PhotoPreviewScreen(
                     )
                     .then(doubleTapModifier)
                     .transformable(state = transformableState),
-                onError = {
-                    it.result.throwable.printStackTrace()
-                }
+                onError = { viewModel.logImageLoadError(it.result.throwable) }
             )
         }
     }

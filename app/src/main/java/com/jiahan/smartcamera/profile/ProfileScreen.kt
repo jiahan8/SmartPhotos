@@ -275,7 +275,8 @@ fun ProfileScreen(
                             .clickable {
                                 onNavigateToPhotoPreview(it)
                             },
-                        alignment = Alignment.Center
+                        alignment = Alignment.Center,
+                        onError = { viewModel.logImageLoadError(it.result.throwable) }
                     )
                 } ?: Image(
                     imageVector = Icons.Rounded.AccountCircle,

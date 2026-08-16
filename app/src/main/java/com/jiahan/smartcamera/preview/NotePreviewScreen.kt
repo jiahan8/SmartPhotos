@@ -196,7 +196,8 @@ fun NotePreviewScreen(
                                         .clip(CircleShape)
                                         .clickable {
                                             onNavigateToPhotoPreview(it)
-                                        }
+                                        },
+                                    onError = { viewModel.logImageLoadError(it.result.throwable) }
                                 )
                             } ?: Image(
                                 imageVector = Icons.Rounded.AccountCircle,
@@ -287,9 +288,7 @@ fun NotePreviewScreen(
                                                 .clip(MaterialTheme.shapes.medium),
                                             contentDescription = stringResource(R.string.cd_note_photo),
                                             contentScale = ContentScale.Crop,
-                                            onError = {
-                                                it.result.throwable.printStackTrace()
-                                            }
+                                            onError = { viewModel.logImageLoadError(it.result.throwable) }
                                         )
 
                                         if (mediaDetail.isVideo)

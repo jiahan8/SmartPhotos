@@ -62,6 +62,10 @@ class NotePreviewViewModel @Inject constructor(
         }
     }
 
+    fun logImageLoadError(throwable: Throwable) {
+        errorHandler.logError(throwable, tag = "ImageLoad")
+    }
+
     fun deleteNote(noteId: String) {
         viewModelScope.launch {
             noteRepository.deleteNote(noteId)

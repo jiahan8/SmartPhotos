@@ -3,6 +3,7 @@ package com.jiahan.smartcamera.preview
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import com.jiahan.smartcamera.navigation.Screen
+import com.jiahan.smartcamera.util.ErrorHandler
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -20,7 +21,7 @@ class VideoPreviewViewModelTest {
         val map = mutableMapOf<String, Any?>()
         if (type != null) map[Screen.VideoPreview.TYPE_ARG] = type
         if (source != null) map[Screen.VideoPreview.SOURCE_ARG] = source
-        return VideoPreviewViewModel(SavedStateHandle(map))
+        return VideoPreviewViewModel(SavedStateHandle(map), mockk<ErrorHandler>(relaxed = true))
     }
 
     @Before

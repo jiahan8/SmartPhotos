@@ -259,7 +259,8 @@ fun HomeScreen(
                                     onProfilePictureClick = { url ->
                                         onNavigateToPhotoPreview(url)
                                     },
-                                    onShareNote = { viewModel.shareNote(note) }
+                                    onShareNote = { viewModel.shareNote(note) },
+                                    onImageLoadError = viewModel::logImageLoadError
                                 )
                             }
 
@@ -293,7 +294,8 @@ data class HomeItemCallbacks(
     val onPhotoClick: (String) -> Unit,
     val onVideoClick: (String) -> Unit,
     val onProfilePictureClick: (String) -> Unit,
-    val onShareNote: () -> Unit
+    val onShareNote: () -> Unit,
+    val onImageLoadError: (Throwable) -> Unit
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -306,7 +308,8 @@ fun HomeItem(
     onPhotoClick: (String) -> Unit,
     onVideoClick: (String) -> Unit,
     onProfilePictureClick: (String) -> Unit,
-    onShareNote: () -> Unit
+    onShareNote: () -> Unit,
+    onImageLoadError: (Throwable) -> Unit = {}
 ) {
     val callbacks = remember(
         onNavigateToNotePreview,
@@ -315,7 +318,8 @@ fun HomeItem(
         onPhotoClick,
         onVideoClick,
         onProfilePictureClick,
-        onShareNote
+        onShareNote,
+        onImageLoadError
     ) {
         HomeItemCallbacks(
             onNavigateToNotePreview = onNavigateToNotePreview,
@@ -324,7 +328,8 @@ fun HomeItem(
             onPhotoClick = onPhotoClick,
             onVideoClick = onVideoClick,
             onProfilePictureClick = onProfilePictureClick,
-            onShareNote = onShareNote
+            onShareNote = onShareNote,
+            onImageLoadError = onImageLoadError
         )
     }
 
@@ -378,7 +383,8 @@ fun HomeItem(
                         .clip(CircleShape)
                         .clickable {
                             callbacks.onProfilePictureClick(profilePictureUrl)
-                        }
+                        },
+                    onError = { callbacks.onImageLoadError(it.result.throwable) }
                 )
             } ?: Image(
                 imageVector = Icons.Rounded.AccountCircle,
@@ -496,7 +502,8 @@ fun HomeItem(
                         onPhotoClick = callbacks.onPhotoClick,
                         onVideoClick = callbacks.onVideoClick,
                         surfaceVariantColor = surfaceVariantColor,
-                        onSurfaceVariantColor = onSurfaceVariantColor
+                        onSurfaceVariantColor = onSurfaceVariantColor,
+                        onImageLoadError = callbacks.onImageLoadError
                     )
                 }
             }
@@ -555,7 +562,8 @@ private fun MediaItem(
     onPhotoClick: (String) -> Unit,
     onVideoClick: (String) -> Unit,
     surfaceVariantColor: Color,
-    onSurfaceVariantColor: Color
+    onSurfaceVariantColor: Color,
+    onImageLoadError: (Throwable) -> Unit = {}
 ) {
     val isVideo = mediaDetail.isVideo
     val imageUrl = if (isVideo) mediaDetail.thumbnailUrl else mediaDetail.photoUrl
@@ -582,9 +590,7 @@ private fun MediaItem(
                 .clip(MaterialTheme.shapes.medium),
             contentDescription = stringResource(R.string.cd_note_photo),
             contentScale = ContentScale.Crop,
-            onError = {
-                it.result.throwable.printStackTrace()
-            }
+            onError = { onImageLoadError(it.result.throwable) }
         )
 
         if (isVideo) {

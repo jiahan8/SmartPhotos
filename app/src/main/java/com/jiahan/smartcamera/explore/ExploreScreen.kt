@@ -139,7 +139,8 @@ fun ExploreScreen(
                                 val photo = state.photos[index]
                                 ExploreItem(
                                     photo = photo,
-                                    onClick = { onNavigateToPhotoPreview(photo.imageUrl) }
+                                    onClick = { onNavigateToPhotoPreview(photo.imageUrl) },
+                                    onImageLoadError = viewModel::logImageLoadError
                                 )
                             }
 
@@ -166,7 +167,11 @@ fun ExploreScreen(
 }
 
 @Composable
-private fun ExploreItem(photo: Photo, onClick: () -> Unit) {
+private fun ExploreItem(
+    photo: Photo,
+    onClick: () -> Unit,
+    onImageLoadError: (Throwable) -> Unit = {}
+) {
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val aspectRatio = remember(photo.width, photo.height) {
         if (photo.width > 0 && photo.height > 0) {
@@ -190,7 +195,8 @@ private fun ExploreItem(photo: Photo, onClick: () -> Unit) {
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(32.dp)
-                        .clip(CircleShape)
+                        .clip(CircleShape),
+                    onError = { onImageLoadError(it.result.throwable) }
                 )
             } ?: Image(
                 imageVector = Icons.Rounded.AccountCircle,
@@ -216,7 +222,8 @@ private fun ExploreItem(photo: Photo, onClick: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(aspectRatio)
-                .clickable { onClick() }
+                .clickable { onClick() },
+            onError = { onImageLoadError(it.result.throwable) }
         )
     }
 }

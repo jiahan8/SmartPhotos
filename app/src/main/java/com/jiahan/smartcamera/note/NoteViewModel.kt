@@ -65,6 +65,10 @@ class NoteViewModel @Inject constructor(
         }
     }
 
+    fun logImageLoadError(throwable: Throwable) {
+        errorHandler.logError(throwable, tag = "ImageLoad")
+    }
+
     val postButtonEnabled = _uiState
         .map { state ->
             state.uploadStatus !is UploadStatus.Uploading &&

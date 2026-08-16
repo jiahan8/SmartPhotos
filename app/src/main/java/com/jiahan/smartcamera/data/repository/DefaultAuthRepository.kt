@@ -46,7 +46,13 @@ class DefaultAuthRepository @Inject constructor(
             userProfileChangeRequest { this.displayName = displayName }
         )?.await()
         auth.currentUser?.sendEmailVerification()?.await()
-        userRepository.createUserProfile(metadata = password, username = username).getOrThrow()
+        userRepository.createUserProfile(metadata = password, username = username)
+            .onFailure {
+                // Profile creation failed after the Auth account was created; delete it
+                // so the user isn't left with an orphaned account and can retry signup.
+                auth.currentUser?.delete()?.await()
+            }
+            .getOrThrow()
     }
 
     override suspend fun signOut(): Result<Unit> = safeCall {

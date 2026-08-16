@@ -56,6 +56,10 @@ class HomeViewModel @Inject constructor(
         noteHandler.observeNoteMutations(viewModelScope) { transform -> updateSuccessNotes(transform) }
     }
 
+    fun logImageLoadError(throwable: Throwable) {
+        errorHandler.logError(throwable, tag = "ImageLoad")
+    }
+
     fun refresh() {
         viewModelScope.launch {
             _uiState.update { it.copy(isRefreshing = true) }

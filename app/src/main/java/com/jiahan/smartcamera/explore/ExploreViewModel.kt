@@ -50,6 +50,10 @@ class ExploreViewModel @Inject constructor(
         viewModelScope.launch { fetchPhotos(initialLoading = true) }
     }
 
+    fun logImageLoadError(throwable: Throwable) {
+        errorHandler.logError(throwable, tag = "ImageLoad")
+    }
+
     fun refresh() {
         viewModelScope.launch {
             _uiState.update { it.copy(isRefreshing = true) }

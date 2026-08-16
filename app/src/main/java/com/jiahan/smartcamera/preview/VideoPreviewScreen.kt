@@ -41,7 +41,7 @@ fun VideoPreviewScreen(
         ExoPlayer.Builder(context).build().apply {
             addListener(object : Player.Listener {
                 override fun onPlayerError(error: PlaybackException) {
-                    error.printStackTrace()
+                    viewModel.logVideoLoadError(error)
                 }
             })
             when (videoSource) {

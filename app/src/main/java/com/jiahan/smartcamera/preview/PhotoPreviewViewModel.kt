@@ -4,12 +4,14 @@ import androidx.core.net.toUri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import com.jiahan.smartcamera.navigation.Screen
+import com.jiahan.smartcamera.util.ErrorHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 @HiltViewModel
 class PhotoPreviewViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle
+    savedStateHandle: SavedStateHandle,
+    private val errorHandler: ErrorHandler
 ) : ViewModel() {
 
     val photoSource: PhotoSource? = run {
@@ -21,5 +23,9 @@ class PhotoPreviewViewModel @Inject constructor(
             Screen.PhotoPreview.TYPE_REMOTE -> PhotoSource.RemoteUrl(source)
             else -> null
         }
+    }
+
+    fun logImageLoadError(throwable: Throwable) {
+        errorHandler.logError(throwable, tag = "ImageLoad")
     }
 }
