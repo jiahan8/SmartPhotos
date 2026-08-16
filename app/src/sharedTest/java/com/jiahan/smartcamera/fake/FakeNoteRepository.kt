@@ -29,7 +29,7 @@ class FakeNoteRepository : NoteRepository {
 
     var deleteCallCount = 0
     var favoriteCallCount = 0
-    var lastDeletedPath: String? = null
+    var lastDeletedNoteId: String? = null
     var lastFavoritedNote: HomeNote? = null
 
     fun setFavorites(notes: List<HomeNote>) {
@@ -42,9 +42,9 @@ class FakeNoteRepository : NoteRepository {
 
     override suspend fun searchNotes(query: String): Result<List<HomeNote>> = searchResult
 
-    override suspend fun deleteNote(documentPath: String): Result<Unit> {
+    override suspend fun deleteNote(noteId: String): Result<Unit> {
         deleteCallCount++
-        lastDeletedPath = documentPath
+        lastDeletedNoteId = noteId
         return deleteResult
     }
 
@@ -54,8 +54,8 @@ class FakeNoteRepository : NoteRepository {
         return favoriteResult
     }
 
-    override suspend fun getNote(documentPath: String): Result<HomeNote> =
-        getNoteResult ?: Result.failure(NoSuchElementException("No note for $documentPath"))
+    override suspend fun getNote(noteId: String): Result<HomeNote> =
+        getNoteResult ?: Result.failure(NoSuchElementException("No note for $noteId"))
 
     override suspend fun quickUploadMediaToFirebase(uriList: List<Uri>) {}
 

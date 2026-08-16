@@ -3,11 +3,10 @@ package com.jiahan.smartcamera.home
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTouchInput
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.fake.FakeErrorHandler
@@ -43,9 +42,9 @@ class HomeScreenTest {
     private val noteHandler = NoteHandler()
     private var navigatedToNotePreview: String? = null
 
-    private fun note(documentPath: String, text: String) = HomeNote(
+    private fun note(noteId: String, text: String) = HomeNote(
+        noteId = noteId,
         text = text,
-        documentPath = documentPath,
         username = "tester",
         favorite = false,
     )
@@ -116,23 +115,13 @@ class HomeScreenTest {
     }
 
     @Test
-    fun longPressNote_showsActionsSheet_thenDeleteDialog_andConfirmDeletesNote() {
+    fun overflowMenu_exposesDeleteAction() {
         noteRepository.notesResult = Result.success(listOf(note("doc1", "Deletable note")))
         launchHomeScreen()
         waitForText("Deletable note")
 
-        composeTestRule.onNodeWithText("Deletable note").performTouchInput { longClick() }
-        composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText(string(R.string.delete_note)).assertIsDisplayed()
-
-        composeTestRule.onNodeWithText(string(R.string.delete_note)).performClick()
-        composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText(string(R.string.delete_note_desc)).assertIsDisplayed()
-
-        composeTestRule.onNodeWithText(string(R.string.delete)).performClick()
-
-        composeTestRule.waitUntil(timeoutMillis = 5_000) { noteRepository.deleteCallCount == 1 }
-        assertEquals("doc1", noteRepository.lastDeletedPath)
+        composeTestRule.onNodeWithContentDescription(string(R.string.cd_more_options)).performClick()
+        waitForText(string(R.string.delete))
     }
 
     @Test

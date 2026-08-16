@@ -13,8 +13,7 @@ import java.time.Instant
 @Entity(tableName = "notes")
 data class DatabaseNote(
     @PrimaryKey
-    @ColumnInfo(name = "document_path")
-    val documentPath: String,
+    @ColumnInfo(name = "note_id") val noteId: String,
     @ColumnInfo(name = "text") val text: String?,
     @ColumnInfo(name = "created_date") val createdDate: Long?,
     @ColumnInfo(name = "favorite") val favorite: Boolean,
@@ -24,9 +23,9 @@ data class DatabaseNote(
 )
 
 fun DatabaseNote.toHomeNote(): HomeNote = HomeNote(
+    noteId = noteId,
     text = text,
     createdDate = createdDate?.let { Instant.ofEpochMilli(it) },
-    documentPath = documentPath,
     favorite = favorite,
     mediaList = mediaList,
     username = username,
@@ -34,7 +33,7 @@ fun DatabaseNote.toHomeNote(): HomeNote = HomeNote(
 )
 
 fun HomeNote.toDatabaseNote(): DatabaseNote = DatabaseNote(
-    documentPath = documentPath,
+    noteId = noteId,
     text = text,
     createdDate = createdDate?.toEpochMilli(),
     favorite = favorite,

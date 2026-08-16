@@ -21,8 +21,8 @@ class NoteHandler @Inject constructor() {
         _noteAddedEvent.emit(Unit)
     }
 
-    suspend fun notifyNoteDeleted(documentPath: String) {
-        _noteDeletedEvent.emit(documentPath)
+    suspend fun notifyNoteDeleted(noteId: String) {
+        _noteDeletedEvent.emit(noteId)
     }
 
     suspend fun notifyNoteFavorited(homeNote: HomeNote) {
@@ -34,14 +34,14 @@ class NoteHandler @Inject constructor() {
         updateNotes: ((List<HomeNote>) -> List<HomeNote>) -> Unit
     ) {
         scope.launch {
-            noteDeletedEvent.collect { documentPath ->
-                updateNotes { it.filter { note -> note.documentPath != documentPath } }
+            noteDeletedEvent.collect { noteId ->
+                updateNotes { it.filter { note -> note.noteId != noteId } }
             }
         }
         scope.launch {
             noteFavoritedEvent.collect { updatedNote ->
                 updateNotes { notes ->
-                    notes.map { if (it.documentPath == updatedNote.documentPath) it.copy(favorite = updatedNote.favorite) else it }
+                    notes.map { if (it.noteId == updatedNote.noteId) it.copy(favorite = updatedNote.favorite) else it }
                 }
             }
         }

@@ -35,9 +35,9 @@ class SearchScreenTest {
 
     private val noteRepository = FakeNoteRepository()
 
-    private fun note(documentPath: String, text: String) = HomeNote(
+    private fun note(noteId: String, text: String) = HomeNote(
+        noteId = noteId,
         text = text,
-        documentPath = documentPath,
         username = "tester",
         favorite = false,
     )

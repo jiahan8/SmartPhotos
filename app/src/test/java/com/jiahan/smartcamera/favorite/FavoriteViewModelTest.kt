@@ -74,7 +74,7 @@ class FavoriteViewModelTest {
     fun tearDown() = unmockkAll()
 
     private fun makeNote(id: String, favorite: Boolean = true) = HomeNote(
-        documentPath = id, username = "user", favorite = favorite, text = "text $id"
+        noteId = id, username = "user", favorite = favorite, text = "text $id"
     )
 
     // -------------------------------------------------------------------------
@@ -202,7 +202,7 @@ class FavoriteViewModelTest {
                 viewModel.favoriteNote(note)
                 advanceUntilIdle()
                 val emitted = awaitItem()
-                assertEquals("doc1", emitted.documentPath)
+                assertEquals("doc1", emitted.noteId)
                 assertFalse(emitted.favorite) // true → false
                 cancelAndIgnoreRemainingEvents()
             }

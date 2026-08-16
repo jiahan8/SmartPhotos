@@ -16,11 +16,11 @@ interface NoteDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertNotes(notes: List<DatabaseNote>)
 
-    @Query("DELETE FROM notes WHERE document_path = :documentPath")
-    suspend fun deleteNote(documentPath: String)
+    @Query("DELETE FROM notes WHERE note_id = :noteId")
+    suspend fun deleteNote(noteId: String)
 
-    @Query("UPDATE notes SET favorite = :isFavorite WHERE document_path = :documentPath")
-    suspend fun updateFavorite(documentPath: String, isFavorite: Boolean)
+    @Query("UPDATE notes SET favorite = :isFavorite WHERE note_id = :noteId")
+    suspend fun updateFavorite(noteId: String, isFavorite: Boolean)
 
     @Query("DELETE FROM notes WHERE favorite = 1")
     suspend fun clearFavorites()

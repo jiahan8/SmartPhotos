@@ -12,7 +12,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -70,7 +70,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
@@ -102,7 +101,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onNavigateToNotePreview: (documentPath: String) -> Unit,
+    onNavigateToNotePreview: (noteId: String) -> Unit,
     onNavigateToPhotoPreview: (url: String) -> Unit,
     onNavigateToVideoPreview: (url: String) -> Unit,
     onNavigateToExplore: () -> Unit,
@@ -157,7 +156,7 @@ fun HomeScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.deleteNote(note.documentPath)
+                        viewModel.deleteNote(note.noteId)
                         viewModel.setNoteToDelete(null)
                     }
                 ) {
@@ -241,13 +240,13 @@ fun HomeScreen(
                         ) {
                             items(
                                 count = state.notes.size,
-                                key = { index -> state.notes[index].documentPath }
+                                key = { index -> state.notes[index].noteId }
                             ) { index ->
                                 val note = state.notes[index]
                                 HomeItem(
                                     note = note,
                                     onNavigateToNotePreview = {
-                                        onNavigateToNotePreview(note.documentPath)
+                                        onNavigateToNotePreview(note.noteId)
                                     },
                                     onFavoriteNote = { viewModel.favoriteNote(note) },
                                     onDeleteNote = { viewModel.setNoteToDelete(note) },
@@ -358,13 +357,11 @@ fun HomeItem(
 
     Column(
         modifier = Modifier
-            .pointerInput(callbacks) {
-                detectTapGestures(
-                    onTap = { callbacks.onNavigateToNotePreview() },
-                    onDoubleTap = { callbacks.onFavoriteNote() },
-                    onLongPress = { openActionsSheet() }
-                )
-            }
+            .combinedClickable(
+                onClick = callbacks.onNavigateToNotePreview,
+                onDoubleClick = callbacks.onFavoriteNote,
+                onLongClick = { openActionsSheet() }
+            )
     ) {
         Row(
             modifier = Modifier
@@ -491,7 +488,7 @@ fun HomeItem(
                     count = mediaList.size,
                     key = { index ->
                         val media = mediaList[index]
-                        "${note.documentPath}_${index}_${if (media.isVideo) media.videoUrl else media.photoUrl}"
+                        "${note.noteId}_${index}_${if (media.isVideo) media.videoUrl else media.photoUrl}"
                     }
                 ) { index ->
                     MediaItem(
@@ -611,7 +608,7 @@ private fun HomeItemPreview() {
     SmartCameraTheme {
         HomeItem(
             note = HomeNote(
-                documentPath = "preview/1",
+                noteId = "note1",
                 username = "john_doe",
                 text = "Hello, this is a preview note with some sample text that wraps across multiple lines.",
                 mediaList = null,
@@ -636,7 +633,7 @@ private fun HomeItemFavoritedPreview() {
     SmartCameraTheme {
         HomeItem(
             note = HomeNote(
-                documentPath = "preview/2",
+                noteId = "note2",
                 username = "jane_doe",
                 text = "This note is marked as a favourite.",
                 mediaList = null,

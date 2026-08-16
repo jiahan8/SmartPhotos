@@ -17,6 +17,7 @@ import io.mockk.runs
 import io.mockk.unmockkAll
 import io.mockk.verify
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -48,6 +49,7 @@ class MainViewModelTest {
         coEvery { remoteConfigRepository.fetchAndActivateConfig() } returns Result.success(Unit)
         every { errorHandler.logError(any()) } just runs
         every { userPreferencesRepository.userPreferencesFlow } returns flowOf(defaultPrefs)
+        every { incomingShareHandler.incomingShare } returns MutableStateFlow(null)
         // Default: unauthenticated user. Tests that need a different state override these.
         every { authRepository.currentUserId } returns null
         every { authRepository.isCurrentUserEmailVerified } returns false

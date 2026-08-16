@@ -6,9 +6,9 @@ import java.time.Instant
 
 @Parcelize
 data class HomeNote(
+    val noteId: String,
     val text: String? = null,
     val createdDate: Instant? = null,
-    val documentPath: String,
     val favorite: Boolean = false,
     val mediaList: List<MediaDetail>? = null,
     val username: String,

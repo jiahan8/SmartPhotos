@@ -18,9 +18,9 @@ interface NoteRepository {
     suspend fun getNotes(page: Int = 0, pageSize: Int = 10): Result<List<HomeNote>>
     suspend fun addNote(homeNote: HomeNote): Result<Unit>
     suspend fun searchNotes(query: String): Result<List<HomeNote>>
-    suspend fun deleteNote(documentPath: String): Result<Unit>
+    suspend fun deleteNote(noteId: String): Result<Unit>
     suspend fun favoriteNote(homeNote: HomeNote): Result<Unit>
-    suspend fun getNote(documentPath: String): Result<HomeNote>
+    suspend fun getNote(noteId: String): Result<HomeNote>
     suspend fun quickUploadMediaToFirebase(uriList: List<Uri>)
     suspend fun uploadMediaToFirebase(noteMediaDetailList: List<NoteMediaDetail>): Result<List<MediaDetail>>
     suspend fun buildLocalMediaDetails(uriList: List<Uri>): Result<List<NoteMediaDetail>>

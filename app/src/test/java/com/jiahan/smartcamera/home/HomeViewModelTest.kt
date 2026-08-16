@@ -71,8 +71,8 @@ class HomeViewModelTest {
     // -------------------------------------------------------------------------
 
     private fun makeNote(id: String, favorite: Boolean = false) = HomeNote(
+        noteId = id,
         text = "Note $id",
-        documentPath = id,
         username = "testUser",
         favorite = favorite
     )
@@ -239,7 +239,7 @@ class HomeViewModelTest {
 
         val content = vm.uiState.value.content as HomeContent.Success
         assertEquals(1, content.notes.size)
-        assertEquals("doc2", content.notes.first().documentPath)
+        assertEquals("doc2", content.notes.first().noteId)
     }
 
     @Test
@@ -278,7 +278,7 @@ class HomeViewModelTest {
         noteHandler.noteFavoritedEvent.test {
             viewModel.favoriteNote(note)
             val emitted = awaitItem()
-            assertEquals("doc1", emitted.documentPath)
+            assertEquals("doc1", emitted.noteId)
             assertTrue(emitted.favorite) // false → true
             cancelAndIgnoreRemainingEvents()
         }
@@ -340,7 +340,7 @@ class HomeViewModelTest {
 
         val content = vm.uiState.value.content as HomeContent.Success
         assertEquals(2, content.notes.size)
-        assertFalse(content.notes.any { it.documentPath == "doc2" })
+        assertFalse(content.notes.any { it.noteId == "doc2" })
     }
 
     @Test
@@ -352,7 +352,7 @@ class HomeViewModelTest {
         noteHandler.notifyNoteFavorited(makeNote("doc1", favorite = true))
 
         val content = vm.uiState.value.content as HomeContent.Success
-        assertTrue(content.notes.first { it.documentPath == "doc1" }.favorite)
+        assertTrue(content.notes.first { it.noteId == "doc1" }.favorite)
     }
 
     @Test
@@ -364,6 +364,6 @@ class HomeViewModelTest {
         noteHandler.notifyNoteFavorited(makeNote("doc1", favorite = true))
 
         val content = vm.uiState.value.content as HomeContent.Success
-        assertFalse(content.notes.first { it.documentPath == "doc2" }.favorite)
+        assertFalse(content.notes.first { it.noteId == "doc2" }.favorite)
     }
 }

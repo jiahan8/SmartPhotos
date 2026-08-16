@@ -107,9 +107,9 @@ class NoteViewModel @Inject constructor(
                 .onSuccess { mediaDetailList ->
                     noteRepository.addNote(
                         HomeNote(
+                            noteId = "",
                             text = text,
                             mediaList = mediaDetailList,
-                            documentPath = "",
                             username = ""
                         )
                     )

@@ -88,7 +88,7 @@ class HomeItemScreenshotTest : BaseScreenshotTest() {
 
     private companion object {
         val sampleNote = HomeNote(
-            documentPath = "preview/1",
+            noteId = "note1",
             username = "john_doe",
             text = "Hello, this is a preview note with some sample text that wraps across multiple lines.",
             mediaList = null,
@@ -98,14 +98,14 @@ class HomeItemScreenshotTest : BaseScreenshotTest() {
         )
 
         val favoritedNote = sampleNote.copy(
-            documentPath = "preview/2",
+            noteId = "note2",
             username = "jane_doe",
             text = "This note is marked as a favourite.",
             favorite = true,
         )
 
         val noteWithMedia = sampleNote.copy(
-            documentPath = "preview/3",
+            noteId = "note3",
             text = "A note with an attached media thumbnail.",
             mediaList = listOf(
                 MediaDetail(

@@ -190,28 +190,30 @@ class DefaultNoteRepository @Inject constructor(
         } ?: emptyList()
     }
 
-    override suspend fun deleteNote(documentPath: String): Result<Unit> = safeCall {
-        noteCollectionReference?.document(documentPath)?.delete()?.await()
-        noteDao.deleteNote(documentPath)
+    override suspend fun deleteNote(noteId: String): Result<Unit> = safeCall {
+        noteCollectionReference?.document(noteId)?.delete()?.await()
+        noteDao.deleteNote(noteId)
     }
 
     override suspend fun favoriteNote(homeNote: HomeNote): Result<Unit> = safeCall {
         val newFavoriteStatus = homeNote.favorite.not()
-        noteCollectionReference?.document(homeNote.documentPath)
+        noteCollectionReference?.document(homeNote.noteId)
             ?.update(FIELD_FAVORITE, newFavoriteStatus)?.await()
         if (newFavoriteStatus) {
             noteDao.upsertNotes(listOf(homeNote.copy(favorite = true).toDatabaseNote()))
         } else {
-            noteDao.deleteNote(homeNote.documentPath)
+            noteDao.deleteNote(homeNote.noteId)
         }
     }
 
-    override suspend fun getNote(documentPath: String): Result<HomeNote> = safeCall {
+    override suspend fun getNote(noteId: String): Result<HomeNote> = safeCall {
         noteCollectionReference?.let { ref ->
-            val noteDocument = ref.document(documentPath).get().await()
+            val noteDocument = ref.document(noteId).get().await()
+            check(noteDocument.exists()) { "Note $noteId does not exist" }
             val userId = noteDocument.getString(FIELD_USER_ID)
-                ?: throw IllegalStateException("Note $documentPath has no user_id")
+                ?: throw IllegalStateException("Note $noteId has no user_id")
             val userDocument = getUserDocumentSnapshot(userId)
+            check(userDocument.exists()) { "User $userId does not exist" }
             getHomeNote(noteDocument, userDocument)
         } ?: throw IllegalStateException("User is not authenticated")
     }
@@ -362,9 +364,9 @@ class DefaultNoteRepository @Inject constructor(
         noteDocumentSnapshot: DocumentSnapshot,
         userDocumentSnapshot: DocumentSnapshot
     ) = HomeNote(
+        noteId = noteDocumentSnapshot.id,
         text = noteDocumentSnapshot.getString(FIELD_TEXT),
         createdDate = noteDocumentSnapshot.getDate(FIELD_CREATED)?.toInstant(),
-        documentPath = noteDocumentSnapshot.id,
         favorite = noteDocumentSnapshot.getBoolean(FIELD_FAVORITE) == true,
         mediaList = (noteDocumentSnapshot.get(FIELD_MEDIA_LIST) as? List<*>)?.mapNotNull { item ->
             (item as? Map<*, *>)?.let { parseMediaDetail(it) }

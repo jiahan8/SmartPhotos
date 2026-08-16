@@ -19,9 +19,9 @@ class NoteActionsDelegate @Inject constructor(
         _actionError.tryEmit(message)
     }
 
-    suspend fun deleteNote(documentPath: String): Boolean =
-        noteRepository.deleteNote(documentPath)
-            .onSuccess { noteHandler.notifyNoteDeleted(documentPath) }
+    suspend fun deleteNote(noteId: String): Boolean =
+        noteRepository.deleteNote(noteId)
+            .onSuccess { noteHandler.notifyNoteDeleted(noteId) }
             .onFailure { e ->
                 errorHandler.logError(e)
                 _actionError.tryEmit(errorHandler.getErrorMessage(e))

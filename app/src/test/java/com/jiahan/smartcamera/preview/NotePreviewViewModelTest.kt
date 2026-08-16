@@ -35,17 +35,17 @@ class NotePreviewViewModelTest {
     private val errorHandler: ErrorHandler = mockk()
     private val noteShare: NoteShareDelegate = mockk(relaxed = true)
 
-    private val documentPath = "notes/abc123"
+    private val noteId = "note1"
 
     private val testNote = HomeNote(
         text = "Test note",
-        documentPath = documentPath,
+        noteId = noteId,
         username = "testUser",
         favorite = false
     )
 
     private fun createViewModel() = NotePreviewViewModel(
-        savedStateHandle = SavedStateHandle(mapOf(Screen.NotePreview.ID_ARG to documentPath)),
+        savedStateHandle = SavedStateHandle(mapOf(Screen.NotePreview.ID_ARG to noteId)),
         noteRepository = noteRepository,
         noteHandler = noteHandler,
         errorHandler = errorHandler,
@@ -56,7 +56,7 @@ class NotePreviewViewModelTest {
     fun setUp() {
         every { errorHandler.logError(any()) } just runs
         every { errorHandler.getErrorMessage(any()) } returns "Error"
-        coEvery { noteRepository.getNote(documentPath) } returns Result.success(testNote)
+        coEvery { noteRepository.getNote(noteId) } returns Result.success(testNote)
     }
 
     @After
@@ -77,7 +77,7 @@ class NotePreviewViewModelTest {
     @Test
     fun `init failure sets Error state`() = runTest {
         val exception = RuntimeException("not found")
-        coEvery { noteRepository.getNote(documentPath) } returns Result.failure(exception)
+        coEvery { noteRepository.getNote(noteId) } returns Result.failure(exception)
         every { errorHandler.getErrorMessage(exception) } returns "not found"
 
         val vm = createViewModel()
@@ -94,11 +94,11 @@ class NotePreviewViewModelTest {
     @Test
     fun `deleteNote success notifies NoteHandler`() = runTest {
         val vm = createViewModel()
-        coEvery { noteRepository.deleteNote(documentPath) } returns Result.success(Unit)
+        coEvery { noteRepository.deleteNote(noteId) } returns Result.success(Unit)
 
         noteHandler.noteDeletedEvent.test {
-            vm.deleteNote(documentPath)
-            assertEquals(documentPath, awaitItem())
+            vm.deleteNote(noteId)
+            assertEquals(noteId, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -110,7 +110,7 @@ class NotePreviewViewModelTest {
         every { errorHandler.getErrorMessage(any()) } returns "delete failed"
 
         vm.actionError.test {
-            vm.deleteNote(documentPath)
+            vm.deleteNote(noteId)
             assertEquals("delete failed", awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
@@ -139,7 +139,7 @@ class NotePreviewViewModelTest {
         noteHandler.noteFavoritedEvent.test {
             vm.favoriteNote(testNote)
             val emitted = awaitItem()
-            assertEquals(documentPath, emitted.documentPath)
+            assertEquals(noteId, emitted.noteId)
             assertTrue(emitted.favorite) // toggled from false to true
             cancelAndIgnoreRemainingEvents()
         }

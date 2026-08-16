@@ -38,7 +38,7 @@ class NotePreviewViewModel @Inject constructor(
     private val noteShare: NoteShareDelegate
 ) : ViewModel() {
 
-    private val documentPath: String = checkNotNull(savedStateHandle[Screen.NotePreview.ID_ARG])
+    private val noteId: String = checkNotNull(savedStateHandle[Screen.NotePreview.ID_ARG])
 
     private val _uiState = MutableStateFlow(NotePreviewUiState())
     val uiState = _uiState.asStateFlow()
@@ -49,7 +49,7 @@ class NotePreviewViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             _uiState.update { it.copy(content = NotePreviewContent.Loading) }
-            noteRepository.getNote(documentPath)
+            noteRepository.getNote(noteId)
                 .onSuccess { note ->
                     _uiState.update { it.copy(content = NotePreviewContent.Success(note)) }
                 }
@@ -62,10 +62,10 @@ class NotePreviewViewModel @Inject constructor(
         }
     }
 
-    fun deleteNote(documentPath: String) {
+    fun deleteNote(noteId: String) {
         viewModelScope.launch {
-            noteRepository.deleteNote(documentPath)
-                .onSuccess { noteHandler.notifyNoteDeleted(documentPath) }
+            noteRepository.deleteNote(noteId)
+                .onSuccess { noteHandler.notifyNoteDeleted(noteId) }
                 .onFailure { e ->
                     errorHandler.logError(e)
                     _actionError.tryEmit(errorHandler.getErrorMessage(e))

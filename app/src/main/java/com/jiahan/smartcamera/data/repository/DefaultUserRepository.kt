@@ -161,12 +161,12 @@ class DefaultUserRepository @Inject constructor(
     }
 
     private fun getUserProfile(snapshot: DocumentSnapshot): User = User(
+        userId = snapshot.id,
         email = snapshot.getString(FIELD_EMAIL) ?: "",
         metadata = snapshot.getString(FIELD_METADATA) ?: "",
         displayName = snapshot.getString(FIELD_DISPLAY_NAME) ?: "",
         username = snapshot.getString(FIELD_USERNAME) ?: "",
         profilePicture = snapshot.getString(FIELD_PROFILE_PICTURE),
         createdDate = snapshot.getDate(FIELD_CREATED)?.toInstant() ?: Instant.now(),
-        documentPath = snapshot.id
     )
 }

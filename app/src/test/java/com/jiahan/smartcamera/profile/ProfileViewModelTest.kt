@@ -42,13 +42,13 @@ class ProfileViewModelTest {
     private val errorHandler: ErrorHandler = mockk()
 
     private val testUser = User(
+        userId = "uid123",
         email = "user@example.com",
         metadata = "",
         displayName = "Test User",
         username = "testuser",
         profilePicture = null,
         createdDate = Instant.now(),
-        documentPath = "users/uid123"
     )
 
     private lateinit var viewModel: ProfileViewModel

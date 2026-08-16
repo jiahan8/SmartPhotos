@@ -102,10 +102,10 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun deleteNote(documentPath: String) {
+    fun deleteNote(noteId: String) {
         viewModelScope.launch {
-            if (noteActions.deleteNote(documentPath)) {
-                updateSuccessNotes { it.filter { note -> note.documentPath != documentPath } }
+            if (noteActions.deleteNote(noteId)) {
+                updateSuccessNotes { it.filter { note -> note.noteId != noteId } }
             }
         }
     }

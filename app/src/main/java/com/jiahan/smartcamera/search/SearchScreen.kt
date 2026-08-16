@@ -43,7 +43,7 @@ import com.jiahan.smartcamera.home.HomeItem
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
-    onNavigateToNotePreview: (documentPath: String) -> Unit,
+    onNavigateToNotePreview: (noteId: String) -> Unit,
     onNavigateToPhotoPreview: (url: String) -> Unit,
     onNavigateToVideoPreview: (url: String) -> Unit,
     viewModel: SearchViewModel = hiltViewModel(),
@@ -100,7 +100,7 @@ fun SearchScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.deleteNote(note.documentPath)
+                        viewModel.deleteNote(note.noteId)
                         viewModel.setNoteToDelete(null)
                     }
                 ) {
@@ -184,13 +184,13 @@ fun SearchScreen(
                         ) {
                             items(
                                 count = state.notes.size,
-                                key = { index -> state.notes[index].documentPath }
+                                key = { index -> state.notes[index].noteId }
                             ) { index ->
                                 val note = state.notes[index]
                                 HomeItem(
                                     note = note,
                                     onNavigateToNotePreview = {
-                                        onNavigateToNotePreview(note.documentPath)
+                                        onNavigateToNotePreview(note.noteId)
                                     },
                                     onFavoriteNote = { viewModel.favoriteNote(note) },
                                     onDeleteNote = { viewModel.setNoteToDelete(note) },

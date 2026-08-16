@@ -35,9 +35,9 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
         capture { SmartCameraTheme { content() } }
     }
 
-    private fun note(documentPath: String, text: String, favorite: Boolean = false) = HomeNote(
+    private fun note(noteId: String, text: String, favorite: Boolean = false) = HomeNote(
+        noteId = noteId,
         text = text,
-        documentPath = documentPath,
         username = "tester",
         favorite = favorite,
         createdDate = Instant.ofEpochMilli(1_700_000_000_000L),

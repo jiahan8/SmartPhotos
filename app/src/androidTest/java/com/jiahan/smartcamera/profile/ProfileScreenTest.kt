@@ -68,13 +68,13 @@ class ProfileScreenTest {
 
     private fun seedUser() {
         userRepository.user = User(
+            userId = "john",
             email = "john@test.com",
             metadata = "meta",
             displayName = "John Doe",
             username = "johndoe",
             profilePicture = null,
             createdDate = Instant.EPOCH,
-            documentPath = "users/john",
         )
     }
 

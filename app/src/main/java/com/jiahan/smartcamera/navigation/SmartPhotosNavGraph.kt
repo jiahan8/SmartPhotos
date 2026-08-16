@@ -28,8 +28,8 @@ fun NavGraphBuilder.smartPhotosNavGraph(
 ) {
     composable(Screen.Home.route) {
         HomeScreen(
-            onNavigateToNotePreview = { documentPath ->
-                navController.navigate(Screen.NotePreview.createRoute(documentPath))
+            onNavigateToNotePreview = { noteId ->
+                navController.navigate(Screen.NotePreview.createRoute(noteId))
             },
             onNavigateToPhotoPreview = { url ->
                 navController.navigate(Screen.PhotoPreview.createRemoteRoute(url))
@@ -53,8 +53,8 @@ fun NavGraphBuilder.smartPhotosNavGraph(
         )
     ) {
         SearchScreen(
-            onNavigateToNotePreview = { documentPath ->
-                navController.navigate(Screen.NotePreview.createRoute(documentPath))
+            onNavigateToNotePreview = { noteId ->
+                navController.navigate(Screen.NotePreview.createRoute(noteId))
             },
             onNavigateToPhotoPreview = { url ->
                 navController.navigate(Screen.PhotoPreview.createRemoteRoute(url))
@@ -82,8 +82,8 @@ fun NavGraphBuilder.smartPhotosNavGraph(
 
     composable(route = Screen.Favorite.route) {
         FavoriteScreen(
-            onNavigateToNotePreview = { documentPath ->
-                navController.navigate(Screen.NotePreview.createRoute(documentPath))
+            onNavigateToNotePreview = { noteId ->
+                navController.navigate(Screen.NotePreview.createRoute(noteId))
             },
             onNavigateToPhotoPreview = { url ->
                 navController.navigate(Screen.PhotoPreview.createRemoteRoute(url))

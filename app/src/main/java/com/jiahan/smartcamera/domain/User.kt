@@ -6,11 +6,11 @@ import java.time.Instant
 
 @Parcelize
 data class User(
+    val userId: String,
     val email: String,
     val metadata: String,
     val displayName: String,
     val username: String,
     val profilePicture: String?,
     val createdDate: Instant,
-    val documentPath: String
 ) : Parcelable

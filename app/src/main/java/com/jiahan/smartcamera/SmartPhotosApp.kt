@@ -69,8 +69,8 @@ fun SmartPhotosApp(
 
         val navController = rememberNavController()
 
-        LaunchedEffect(pendingNoteId) {
-            if (pendingNoteId != null) {
+        LaunchedEffect(isAppReady, pendingNoteId) {
+            if (isAppReady && pendingNoteId != null) {
                 navController.navigate(Screen.NotePreview.createRoute(pendingNoteId))
                 onPendingNoteIdConsumed()
             }

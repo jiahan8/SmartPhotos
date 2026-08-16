@@ -71,7 +71,7 @@ class SearchViewModelTest {
     fun tearDown() = unmockkAll()
 
     private fun makeNote(id: String, favorite: Boolean = false) = HomeNote(
-        documentPath = id,
+        noteId = id,
         username = "user",
         favorite = favorite,
         text = "text $id"
@@ -225,7 +225,7 @@ class SearchViewModelTest {
 
             val state = viewModel.uiState.value.content as SearchContent.Success
             assertEquals(1, state.notes.size)
-            assertEquals("doc2", state.notes.first().documentPath)
+            assertEquals("doc2", state.notes.first().noteId)
         }
 
     @Test
@@ -255,7 +255,7 @@ class SearchViewModelTest {
                 viewModel.favoriteNote(note)
                 advanceTimeBy(1.milliseconds)
                 val event = awaitItem()
-                assertEquals("doc1", event.documentPath)
+                assertEquals("doc1", event.noteId)
                 assertTrue(event.favorite) // false → true
                 cancelAndIgnoreRemainingEvents()
             }
@@ -307,7 +307,7 @@ class SearchViewModelTest {
 
             val state = viewModel.uiState.value.content as SearchContent.Success
             assertEquals(1, state.notes.size)
-            assertFalse(state.notes.any { it.documentPath == "doc1" })
+            assertFalse(state.notes.any { it.noteId == "doc1" })
         }
 
     @Test
@@ -320,6 +320,6 @@ class SearchViewModelTest {
             advanceTimeBy(1.milliseconds)
 
             val state = viewModel.uiState.value.content as SearchContent.Success
-            assertTrue(state.notes.first { it.documentPath == "doc1" }.favorite)
+            assertTrue(state.notes.first { it.noteId == "doc1" }.favorite)
         }
 }

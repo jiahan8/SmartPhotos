@@ -40,10 +40,10 @@ class NoteHandlerTest {
 
     @Test
     fun `notifyNoteDeleted emits the document path`() = runTest {
-        val path = "notes/abc123"
+        val noteId = "note1"
         noteHandler.noteDeletedEvent.test {
-            noteHandler.notifyNoteDeleted(path)
-            assertEquals(path, awaitItem())
+            noteHandler.notifyNoteDeleted(noteId)
+            assertEquals(noteId, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -51,10 +51,10 @@ class NoteHandlerTest {
     @Test
     fun `notifyNoteDeleted emits all paths in order`() = runTest {
         noteHandler.noteDeletedEvent.test {
-            noteHandler.notifyNoteDeleted("path/1")
-            noteHandler.notifyNoteDeleted("path/2")
-            assertEquals("path/1", awaitItem())
-            assertEquals("path/2", awaitItem())
+            noteHandler.notifyNoteDeleted("note1")
+            noteHandler.notifyNoteDeleted("note2")
+            assertEquals("note1", awaitItem())
+            assertEquals("note2", awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -66,8 +66,8 @@ class NoteHandlerTest {
     @Test
     fun `notifyNoteFavorited emits the HomeNote`() = runTest {
         val note = HomeNote(
+            noteId = "note1",
             text = "Test",
-            documentPath = "notes/xyz",
             username = "user1",
             favorite = true
         )
@@ -80,8 +80,8 @@ class NoteHandlerTest {
 
     @Test
     fun `notifyNoteFavorited preserves favorite flag`() = runTest {
-        val favorited = HomeNote(documentPath = "doc/1", username = "u", favorite = true)
-        val unfavorited = HomeNote(documentPath = "doc/2", username = "u", favorite = false)
+        val favorited = HomeNote(noteId = "note1", username = "u", favorite = true)
+        val unfavorited = HomeNote(noteId = "note2", username = "u", favorite = false)
 
         noteHandler.noteFavoritedEvent.test {
             noteHandler.notifyNoteFavorited(favorited)

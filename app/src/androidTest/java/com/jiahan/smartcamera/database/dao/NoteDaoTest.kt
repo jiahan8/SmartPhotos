@@ -44,13 +44,13 @@ class NoteDaoTest {
     }
 
     private fun note(
-        documentPath: String,
+        noteId: String,
         favorite: Boolean = true,
         createdDate: Long? = 0L,
         mediaList: List<MediaDetail>? = null,
     ) = DatabaseNote(
-        documentPath = documentPath,
-        text = "Note $documentPath",
+        noteId = noteId,
+        text = "Note $noteId",
         createdDate = createdDate,
         favorite = favorite,
         mediaList = mediaList,
@@ -72,7 +72,7 @@ class NoteDaoTest {
 
         assertEquals(2, favorites.size)
         assertTrue(favorites.all { it.favorite })
-        assertFalse(favorites.any { it.documentPath == "notFav" })
+        assertFalse(favorites.any { it.noteId == "notFav" })
     }
 
     @Test
@@ -89,7 +89,7 @@ class NoteDaoTest {
 
         assertEquals(
             listOf("newest", "middle", "old"),
-            favorites.map { it.documentPath }
+            favorites.map { it.noteId }
         )
     }
 
@@ -105,14 +105,14 @@ class NoteDaoTest {
     }
 
     @Test
-    fun deleteNote_removesMatchingDocumentPath() = runBlocking {
+    fun deleteNote_removesMatchingNoteId() = runBlocking {
         noteDao.upsertNotes(listOf(note("keep"), note("remove")))
 
         noteDao.deleteNote("remove")
 
         val favorites = noteDao.getFavoriteNotes().first()
         assertEquals(1, favorites.size)
-        assertEquals("keep", favorites.first().documentPath)
+        assertEquals("keep", favorites.first().noteId)
     }
 
     @Test
@@ -140,7 +140,7 @@ class NoteDaoTest {
         noteDao.syncFavoriteNotes(listOf(note("new1"), note("new2"), note("new3")))
 
         val favorites = noteDao.getFavoriteNotes().first()
-        assertEquals(setOf("new1", "new2", "new3"), favorites.map { it.documentPath }.toSet())
+        assertEquals(setOf("new1", "new2", "new3"), favorites.map { it.noteId }.toSet())
     }
 
     @Test

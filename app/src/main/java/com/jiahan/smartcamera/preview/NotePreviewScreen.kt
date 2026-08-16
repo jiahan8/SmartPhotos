@@ -109,7 +109,7 @@ fun NotePreviewScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.deleteNote(note.documentPath)
+                        viewModel.deleteNote(note.noteId)
                         viewModel.setNoteToDelete(null)
                         onBack()
                     }

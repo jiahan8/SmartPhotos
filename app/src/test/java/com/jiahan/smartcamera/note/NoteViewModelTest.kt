@@ -52,6 +52,7 @@ class NoteViewModelTest {
         every { errorHandler.logError(any()) } just runs
         every { errorHandler.getErrorMessage(any()) } returns "Error"
         every { resourceProvider.getString(any()) } returns "Text too long"
+        every { incomingShareHandler.consume() } returns null
         every { userPreferencesRepository.userPreferencesFlow } returns
                 flowOf(
                     UserPreferences(

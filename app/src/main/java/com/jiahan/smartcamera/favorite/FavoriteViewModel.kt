@@ -99,8 +99,8 @@ class FavoriteViewModel @Inject constructor(
         _isSyncing.value = false
     }
 
-    fun deleteNote(documentPath: String) {
-        viewModelScope.launch { noteActions.deleteNote(documentPath) }
+    fun deleteNote(noteId: String) {
+        viewModelScope.launch { noteActions.deleteNote(noteId) }
     }
 
     fun favoriteNote(homeNote: HomeNote) {
