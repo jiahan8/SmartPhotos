@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; case \"$f\" in *functions/*.js) root=\"$(git rev-parse --show-toplevel 2>/dev/null)\"; (cd \"$root/functions\" && \"$root/functions/node_modules/.bin/eslint\" --fix \"$f\"); ;; esac; } 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}

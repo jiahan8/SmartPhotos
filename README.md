@@ -13,6 +13,7 @@
 * Theme Switching
 * Language Switching
 * Splash Screen
+* In-App Update Prompts (Google Play Core)
 
 ### Storage
 * Firebase Firestore
@@ -28,6 +29,8 @@
 * Firebase Cloud Messaging (Push Notifications)
 * Firebase A/B Testing
 * Firebase Cloud Functions
+* Firebase In-App Messaging
+* Google Cloud
 
 ### Machine Learning & AI
 * Google Cloud Vision API (Text Detection)
@@ -45,12 +48,13 @@
 * ViewModel
 
 ### Testing
-* Unit Testing (JUnit)
-* UI Testing (Espresso, Compose Testing)
+* Local Tests (JUnit, Robolectric, MockK, Turbine)
+* Instrumented Tests
+* UI Testing (Espresso, Compose Testing, Screenshot Testing)
 
 ### Development Tools
 * Kotlin Symbol Processing (KSP)
-* ProGuard (Code Obfuscation)
+* R8 (Code Shrinking & Obfuscation)
 * Build Configuration Management
 
 ### Architecture Overview
