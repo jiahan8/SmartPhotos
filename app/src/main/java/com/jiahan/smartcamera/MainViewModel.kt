@@ -29,7 +29,7 @@ import javax.inject.Inject
 
 data class MainUiState(
     val isAppReady: Boolean = false,
-    val startDestination: String = Screen.Auth.route,
+    val startDestination: Screen = Screen.Auth,
     val showBottomBar: Boolean = true,
     val scrollToTop: Long? = null,
     val pendingNoteId: String? = null
@@ -83,11 +83,11 @@ class MainViewModel @Inject constructor(
                 .onFailure { e -> errorHandler.logError(e) }
             val destination =
                 if (authRepository.currentUserId != null && authRepository.isCurrentUserEmailVerified)
-                    Screen.Home.route
+                    Screen.Home
                 else
-                    Screen.Auth.route
+                    Screen.Auth
             _uiState.update { it.copy(startDestination = destination, isAppReady = true) }
-            if (destination == Screen.Home.route) {
+            if (destination == Screen.Home) {
                 userRepository.registerForPushNotifications()
                     .onFailure { e -> errorHandler.logError(e) }
             }
@@ -98,7 +98,7 @@ class MainViewModel @Inject constructor(
         _uiState.update { it.copy(showBottomBar = showBottomBar) }
     }
 
-    fun updateStartDestination(destination: String) {
+    fun updateStartDestination(destination: Screen) {
         _uiState.update { it.copy(startDestination = destination) }
     }
 

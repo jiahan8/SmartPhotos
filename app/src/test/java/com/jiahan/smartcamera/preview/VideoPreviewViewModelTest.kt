@@ -2,7 +2,8 @@ package com.jiahan.smartcamera.preview
 
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
-import com.jiahan.smartcamera.navigation.Screen
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.jiahan.smartcamera.navigation.MediaSourceType
 import com.jiahan.smartcamera.util.ErrorHandler
 import io.mockk.every
 import io.mockk.mockk
@@ -10,18 +11,23 @@ import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
 
+/**
+ * [VideoPreviewViewModel] parses its typed nav route via [androidx.navigation.toRoute], whose
+ * internal [androidx.navigation.serialization.RouteDecoder] constructs a real [android.os.Bundle]
+ * — that needs Robolectric's shadow to work outside a real Android runtime, hence Robolectric here.
+ */
+@RunWith(AndroidJUnit4::class)
 class VideoPreviewViewModelTest {
 
-    private fun createViewModel(type: String?, source: String?): VideoPreviewViewModel {
-        val map = mutableMapOf<String, Any?>()
-        if (type != null) map[Screen.VideoPreview.TYPE_ARG] = type
-        if (source != null) map[Screen.VideoPreview.SOURCE_ARG] = source
-        return VideoPreviewViewModel(SavedStateHandle(map), mockk<ErrorHandler>(relaxed = true))
+    private fun createViewModel(type: MediaSourceType, source: String): VideoPreviewViewModel {
+        val savedStateHandle =
+            SavedStateHandle(mapOf("type" to type, "source" to source))
+        return VideoPreviewViewModel(savedStateHandle, mockk<ErrorHandler>(relaxed = true))
     }
 
     @Before
@@ -39,23 +45,13 @@ class VideoPreviewViewModelTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `remote type with valid url returns RemoteUrl`() {
-        val url = "https://example.com/video.mp4"
-        val vm = createViewModel(Screen.VideoPreview.TYPE_REMOTE, url)
+    fun `remote type with url returns RemoteUrl`() {
+        val url = "https://example.com/clip.mp4?token=a/b+c"
+        val vm = createViewModel(MediaSourceType.REMOTE, url)
 
         val source = vm.videoSource
         assertTrue(source is VideoSource.RemoteUrl)
         assertEquals(url, (source as VideoSource.RemoteUrl).url)
-    }
-
-    @Test
-    fun `remote type with percent-encoded url decodes percent sign`() {
-        // "%25" in the source argument should be decoded to "%"
-        val encodedSource = "https://example.com/path%25video.mp4"
-        val vm = createViewModel(Screen.VideoPreview.TYPE_REMOTE, encodedSource)
-
-        val source = vm.videoSource as VideoSource.RemoteUrl
-        assertEquals("https://example.com/path%video.mp4", source.url)
     }
 
     // -------------------------------------------------------------------------
@@ -63,60 +59,15 @@ class VideoPreviewViewModelTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `local type with valid uri returns LocalUri`() {
-        val uriString = "content://media/external/video/1"
+    fun `local type with uri returns LocalUri`() {
+        val uriString = "content://media/external/video/42"
         val mockUri = mockk<Uri>()
         every { Uri.parse(uriString) } returns mockUri
 
-        val vm = createViewModel(Screen.VideoPreview.TYPE_LOCAL, uriString)
+        val vm = createViewModel(MediaSourceType.LOCAL, uriString)
 
         val source = vm.videoSource
         assertTrue(source is VideoSource.LocalUri)
         assertEquals(mockUri, (source as VideoSource.LocalUri).uri)
-    }
-
-    @Test
-    fun `local type with percent-encoded uri decodes percent sign`() {
-        val encodedSource = "content://media/external/video%251"
-        val decodedSource = "content://media/external/video%1"
-        val mockUri = mockk<Uri>()
-        every { Uri.parse(decodedSource) } returns mockUri
-
-        val vm = createViewModel(Screen.VideoPreview.TYPE_LOCAL, encodedSource)
-
-        val source = vm.videoSource as VideoSource.LocalUri
-        assertEquals(mockUri, source.uri)
-    }
-
-    // -------------------------------------------------------------------------
-    // Null / missing arguments
-    // -------------------------------------------------------------------------
-
-    @Test
-    fun `missing type arg returns null videoSource`() {
-        val vm = createViewModel(type = null, source = "https://example.com/video.mp4")
-        assertNull(vm.videoSource)
-    }
-
-    @Test
-    fun `missing source arg returns null videoSource`() {
-        val vm = createViewModel(type = Screen.VideoPreview.TYPE_REMOTE, source = null)
-        assertNull(vm.videoSource)
-    }
-
-    @Test
-    fun `both args missing returns null videoSource`() {
-        val vm = createViewModel(type = null, source = null)
-        assertNull(vm.videoSource)
-    }
-
-    // -------------------------------------------------------------------------
-    // Unknown type
-    // -------------------------------------------------------------------------
-
-    @Test
-    fun `unknown type returns null videoSource`() {
-        val vm = createViewModel(type = "unknown", source = "https://example.com/video.mp4")
-        assertNull(vm.videoSource)
     }
 }

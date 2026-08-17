@@ -3,6 +3,8 @@ package com.jiahan.smartcamera.preview
 import androidx.core.net.toUri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.navigation.toRoute
+import com.jiahan.smartcamera.navigation.MediaSourceType
 import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.util.ErrorHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,14 +16,11 @@ class VideoPreviewViewModel @Inject constructor(
     private val errorHandler: ErrorHandler
 ) : ViewModel() {
 
-    val videoSource: VideoSource? = run {
-        val type = savedStateHandle.get<String>(Screen.VideoPreview.TYPE_ARG) ?: return@run null
-        val source = savedStateHandle.get<String>(Screen.VideoPreview.SOURCE_ARG)
-            ?.replace("%25", "%") ?: return@run null
-        when (type) {
-            Screen.VideoPreview.TYPE_LOCAL -> VideoSource.LocalUri(source.toUri())
-            Screen.VideoPreview.TYPE_REMOTE -> VideoSource.RemoteUrl(source)
-            else -> null
+    val videoSource: VideoSource = run {
+        val route = savedStateHandle.toRoute<Screen.VideoPreview>()
+        when (route.type) {
+            MediaSourceType.LOCAL -> VideoSource.LocalUri(route.source.toUri())
+            MediaSourceType.REMOTE -> VideoSource.RemoteUrl(route.source)
         }
     }
 

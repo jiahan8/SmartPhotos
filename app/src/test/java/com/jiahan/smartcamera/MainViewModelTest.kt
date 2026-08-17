@@ -91,7 +91,7 @@ class MainViewModelTest {
 
         val vm = createViewModel()
 
-        assertEquals(Screen.Home.route, vm.uiState.value.startDestination)
+        assertEquals(Screen.Home, vm.uiState.value.startDestination)
         coVerify { userRepository.registerForPushNotifications() }
     }
 
@@ -100,7 +100,7 @@ class MainViewModelTest {
 
         val vm = createViewModel()
 
-        assertEquals(Screen.Auth.route, vm.uiState.value.startDestination)
+        assertEquals(Screen.Auth, vm.uiState.value.startDestination)
         coVerify(exactly = 0) { userRepository.registerForPushNotifications() }
     }
 
@@ -111,7 +111,7 @@ class MainViewModelTest {
 
         val vm = createViewModel()
 
-        assertEquals(Screen.Auth.route, vm.uiState.value.startDestination)
+        assertEquals(Screen.Auth, vm.uiState.value.startDestination)
     }
 
     @Test
@@ -161,9 +161,9 @@ class MainViewModelTest {
     fun `updateStartDestination overrides the destination`() = runTest {
         val vm = createViewModel()
 
-        vm.updateStartDestination(Screen.Home.route)
+        vm.updateStartDestination(Screen.Home)
 
-        assertEquals(Screen.Home.route, vm.uiState.value.startDestination)
+        assertEquals(Screen.Home, vm.uiState.value.startDestination)
     }
 
     // -------------------------------------------------------------------------

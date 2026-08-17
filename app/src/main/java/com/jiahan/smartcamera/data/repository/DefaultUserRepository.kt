@@ -1,5 +1,6 @@
 package com.jiahan.smartcamera.data.repository
 
+import android.content.Context
 import android.net.Uri
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
@@ -11,16 +12,19 @@ import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.storage
+import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.domain.ProfilePictureUpdate
 import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
 import com.jiahan.smartcamera.util.safeCall
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.tasks.await
 import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
 
 class DefaultUserRepository @Inject constructor(
+    @param:ApplicationContext private val context: Context,
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
     private val functions: FirebaseFunctions,
@@ -91,7 +95,7 @@ class DefaultUserRepository @Inject constructor(
 
     override suspend fun uploadProfilePicture(uri: Uri): Result<String?> = safeCall {
         val userId = auth.uid
-            ?: throw IllegalStateException("User is not authenticated")
+            ?: throw IllegalStateException(context.getString(R.string.user_not_authenticated))
         val mediaId = UUID.randomUUID().toString()
         val storageRef =
             storage.reference.child("$storageFolder/$userId/$mediaId$EXTENSION_JPG")

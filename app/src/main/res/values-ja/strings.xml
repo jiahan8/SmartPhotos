@@ -40,6 +40,7 @@
     <string name="note_media_limit">ノートには最大20枚の写真または動画を添付できます</string>
     <string name="note_empty">投稿する前にテキストかメディアを追加してください</string>
     <string name="no_media_available">アップロードするメディアがありません</string>
+    <string name="note_unavailable">このメモは利用できなくなりました</string>
 
     <!-- Favorite -->
     <string name="favorite">お気に入り</string>
@@ -110,6 +111,7 @@
     <string name="login_failure">ログインできませんでした。メールアドレスとパスワードをご確認ください。</string>
     <string name="sign_up_failure">アカウントを作成できませんでした。もう一度お試しください。</string>
     <string name="error_occurred">エラーが発生しました</string>
+    <string name="user_not_authenticated">この操作を行うにはログインが必要です</string>
     <string name="name_empty">名前を入力してください</string>
     <string name="username_empty">ユーザー名を入力してください</string>
     <string name="username_reserved">このユーザー名は予約されています</string>

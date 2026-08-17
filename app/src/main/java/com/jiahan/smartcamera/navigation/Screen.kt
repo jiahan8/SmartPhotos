@@ -1,58 +1,55 @@
 package com.jiahan.smartcamera.navigation
 
-import android.net.Uri
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Create
-import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.ui.graphics.vector.ImageVector
-import com.jiahan.smartcamera.R
+import kotlinx.serialization.Serializable
 
-sealed class Screen(
-    val route: String,
-    val titleResId: Int,
-    val icon: ImageVector?
-) {
-    object Home : Screen("home", R.string.home, Icons.Outlined.Home)
-    object Search : Screen("search", R.string.search, Icons.Outlined.Search) {
+/**
+ * Type-safe Navigation Compose routes (see
+ * https://developer.android.com/guide/navigation/design/type-safety). Each destination is a
+ * `@Serializable` type instead of a hand-built path string; Navigation Compose generates the
+ * route pattern and argument (de)serialization from these classes, so argument encoding (URL
+ * escaping, etc.) is no longer something this codebase manages by hand.
+ *
+ * UI-only metadata (bottom-bar icon/title) intentionally lives elsewhere (see
+ * [com.jiahan.smartcamera.navigation.BottomNavItem]) rather than on these route types, since only
+ * some destinations appear in the bottom bar and route types should stay plain data.
+ */
+sealed interface Screen {
+
+    @Serializable
+    data object Home : Screen
+
+    @Serializable
+    data object Search : Screen {
         const val SEARCH_DEEP_LINK_URI_PATTERN = "live://jiahan8.github.io/search"
     }
 
-    object Note : Screen("note", R.string.note, Icons.Outlined.Create)
-    object Favorite : Screen("favorite", R.string.favorite, Icons.Outlined.FavoriteBorder)
-    object Explore : Screen("explore", R.string.explore, null)
+    @Serializable
+    data object Note : Screen
 
-    object PhotoPreview : Screen("photo/{type}/{source}", R.string.photo, null) {
-        const val TYPE_ARG = "type"
-        const val SOURCE_ARG = "source"
+    @Serializable
+    data object Favorite : Screen
 
-        const val TYPE_LOCAL = "local"
-        const val TYPE_REMOTE = "remote"
+    @Serializable
+    data object Explore : Screen
 
-        fun createLocalRoute(uri: String) = "photo/$TYPE_LOCAL/${Uri.encode(uri)}"
-        fun createRemoteRoute(url: String) = "photo/$TYPE_REMOTE/${Uri.encode(url)}"
-    }
+    @Serializable
+    data class PhotoPreview(val type: MediaSourceType, val source: String) : Screen
 
-    object VideoPreview : Screen("video/{type}/{source}", R.string.video, null) {
-        const val TYPE_ARG = "type"
-        const val SOURCE_ARG = "source"
+    @Serializable
+    data class VideoPreview(val type: MediaSourceType, val source: String) : Screen
 
-        const val TYPE_LOCAL = "local"
-        const val TYPE_REMOTE = "remote"
+    @Serializable
+    data class NotePreview(val id: String) : Screen
 
-        fun createLocalRoute(uri: String) = "video/$TYPE_LOCAL/${Uri.encode(uri)}"
-        fun createRemoteRoute(url: String) = "video/$TYPE_REMOTE/${Uri.encode(url)}"
-    }
+    @Serializable
+    data object Auth : Screen
 
-    object NotePreview : Screen("notepreview/{id}", R.string.note_preview, null) {
-        const val ID_ARG = "id"
+    @Serializable
+    data object Profile : Screen
 
-        fun createRoute(id: String) = "notepreview/$id"
-    }
-
-    object Auth : Screen("auth", R.string.authentication, null)
-    object Profile : Screen("profile", R.string.profile, Icons.Outlined.Person)
-    object Settings : Screen("settings", R.string.settings, null)
+    @Serializable
+    data object Settings : Screen
 }
+
+@Serializable
+enum class MediaSourceType { LOCAL, REMOTE }

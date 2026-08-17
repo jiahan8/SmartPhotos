@@ -3,17 +3,19 @@ package com.jiahan.smartcamera.preview
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jiahan.smartcamera.navigation.Screen
+import androidx.navigation.toRoute
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
+import com.jiahan.smartcamera.navigation.Screen
+import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.ErrorHandler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -34,16 +36,20 @@ class NotePreviewViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val noteRepository: NoteRepository,
     private val noteHandler: NoteHandler,
+    noteActions: NoteActionsDelegate,
     private val errorHandler: ErrorHandler,
     private val noteShare: NoteShareDelegate
 ) : ViewModel() {
 
-    private val noteId: String = checkNotNull(savedStateHandle[Screen.NotePreview.ID_ARG])
+    private val noteId: String = savedStateHandle.toRoute<Screen.NotePreview>().id
 
     private val _uiState = MutableStateFlow(NotePreviewUiState())
     val uiState = _uiState.asStateFlow()
     private val _actionError = MutableSharedFlow<String>(extraBufferCapacity = 1)
-    val actionError = _actionError.asSharedFlow()
+
+    // noteShare shares its NoteActionsDelegate instance with noteActions (see @ViewModelScoped on
+    // NoteActionsDelegate), so merging here surfaces share failures reported via noteActions too.
+    val actionError = merge(_actionError, noteActions.actionError)
     val shareEvent = noteShare.shareEvent
 
     init {

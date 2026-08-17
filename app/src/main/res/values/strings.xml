@@ -40,6 +40,7 @@
     <string name="note_media_limit">You can attach up to 20 photos or videos per note</string>
     <string name="note_empty">Add some text or media before posting</string>
     <string name="no_media_available">No media URI available for upload</string>
+    <string name="note_unavailable">This note is no longer available</string>
 
     <!-- Favorite -->
     <string name="favorite">Favorite</string>
@@ -110,6 +111,7 @@
     <string name="login_failure">Couldn\'t login. Please check your email and password.</string>
     <string name="sign_up_failure">Couldn\'t create your account. Please try again.</string>
     <string name="error_occurred">An error occurred</string>
+    <string name="user_not_authenticated">You need to be signed in to do that</string>
     <string name="name_empty">Name cannot be empty</string>
     <string name="username_empty">Username cannot be empty</string>
     <string name="username_reserved">This username is reserved</string>

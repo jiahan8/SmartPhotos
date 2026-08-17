@@ -209,20 +209,20 @@ class DefaultNoteRepository @Inject constructor(
     override suspend fun getNote(noteId: String): Result<HomeNote> = safeCall {
         noteCollectionReference?.let { ref ->
             val noteDocument = ref.document(noteId).get().await()
-            check(noteDocument.exists()) { "Note $noteId does not exist" }
+            check(noteDocument.exists()) { context.getString(R.string.note_unavailable) }
             val userId = noteDocument.getString(FIELD_USER_ID)
-                ?: throw IllegalStateException("Note $noteId has no user_id")
+                ?: throw IllegalStateException(context.getString(R.string.note_unavailable))
             val userDocument = getUserDocumentSnapshot(userId)
-            check(userDocument.exists()) { "User $userId does not exist" }
+            check(userDocument.exists()) { context.getString(R.string.note_unavailable) }
             getHomeNote(noteDocument, userDocument)
-        } ?: throw IllegalStateException("User is not authenticated")
+        } ?: throw IllegalStateException(context.getString(R.string.user_not_authenticated))
     }
 
     override suspend fun uploadMediaToFirebase(
         noteMediaDetailList: List<NoteMediaDetail>
     ): Result<List<MediaDetail>> = safeCall {
         val userId = authRepository.currentUserId
-            ?: throw IllegalStateException("User is not authenticated")
+            ?: throw IllegalStateException(context.getString(R.string.user_not_authenticated))
         coroutineScope {
             noteMediaDetailList.map { noteMediaDetail ->
                 async(ioDispatcher) {

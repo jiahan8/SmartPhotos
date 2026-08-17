@@ -1,11 +1,12 @@
 package com.jiahan.smartcamera.preview
 
 import androidx.lifecycle.SavedStateHandle
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.cash.turbine.test
 import com.jiahan.smartcamera.MainDispatcherRule
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
-import com.jiahan.smartcamera.navigation.Screen
+import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.ErrorHandler
@@ -16,6 +17,8 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import io.mockk.unmockkAll
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -24,7 +27,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
 
+/**
+ * [NotePreviewViewModel] parses its typed nav route via [androidx.navigation.toRoute], whose
+ * internal [androidx.navigation.serialization.RouteDecoder] constructs a real [android.os.Bundle]
+ * — that needs Robolectric's shadow to work outside a real Android runtime, hence Robolectric here.
+ */
+@RunWith(AndroidJUnit4::class)
 class NotePreviewViewModelTest {
 
     @get:Rule
@@ -32,6 +42,7 @@ class NotePreviewViewModelTest {
 
     private val noteRepository: NoteRepository = mockk()
     private val noteHandler = NoteHandler()
+    private val noteActions: NoteActionsDelegate = mockk()
     private val errorHandler: ErrorHandler = mockk()
     private val noteShare: NoteShareDelegate = mockk(relaxed = true)
 
@@ -45,9 +56,10 @@ class NotePreviewViewModelTest {
     )
 
     private fun createViewModel() = NotePreviewViewModel(
-        savedStateHandle = SavedStateHandle(mapOf(Screen.NotePreview.ID_ARG to noteId)),
+        savedStateHandle = SavedStateHandle(mapOf("id" to noteId)),
         noteRepository = noteRepository,
         noteHandler = noteHandler,
+        noteActions = noteActions,
         errorHandler = errorHandler,
         noteShare = noteShare
     )
@@ -56,6 +68,7 @@ class NotePreviewViewModelTest {
     fun setUp() {
         every { errorHandler.logError(any()) } just runs
         every { errorHandler.getErrorMessage(any()) } returns "Error"
+        every { noteActions.actionError } returns MutableSharedFlow<String>().asSharedFlow()
         coEvery { noteRepository.getNote(noteId) } returns Result.success(testNote)
     }
 
@@ -189,5 +202,20 @@ class NotePreviewViewModelTest {
         vm.shareNote(testNote)
 
         coVerify { noteShare.shareNote(testNote) }
+    }
+
+    @Test
+    fun `actionError surfaces errors reported through the shared NoteActionsDelegate`() = runTest {
+        // NoteShareDelegate reports share failures via the same @ViewModelScoped
+        // NoteActionsDelegate instance injected here, not via this ViewModel's own _actionError.
+        val sharedActionError = MutableSharedFlow<String>(extraBufferCapacity = 1)
+        every { noteActions.actionError } returns sharedActionError.asSharedFlow()
+        val vm = createViewModel()
+
+        vm.actionError.test {
+            sharedActionError.tryEmit("share failed")
+            assertEquals("share failed", awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 }

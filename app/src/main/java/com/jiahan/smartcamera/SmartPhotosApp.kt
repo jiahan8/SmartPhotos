@@ -33,11 +33,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.core.view.WindowCompat
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.jiahan.smartcamera.common.CustomSnackbarHost
 import com.jiahan.smartcamera.navigation.Screen
+import com.jiahan.smartcamera.navigation.bottomNavItems
 import com.jiahan.smartcamera.navigation.smartPhotosNavGraph
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
@@ -46,7 +48,7 @@ import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
 fun SmartPhotosApp(
     isDarkTheme: Boolean,
     isAppReady: Boolean,
-    startDestination: String,
+    startDestination: Screen,
     showBottomBar: Boolean,
     scrollToTop: Long?,
     hasPendingShare: Boolean,
@@ -55,7 +57,7 @@ fun SmartPhotosApp(
     onScrollDirectionChanged: (Boolean) -> Unit,
     onScrollToTopConsumed: () -> Unit,
     onTriggerScrollToTop: () -> Unit,
-    onUpdateStartDestination: (String) -> Unit,
+    onUpdateStartDestination: (Screen) -> Unit,
     onPendingNoteIdConsumed: () -> Unit,
     onCompleteUpdate: () -> Unit,
 ) {
@@ -77,24 +79,23 @@ fun SmartPhotosApp(
 
         LaunchedEffect(isAppReady, pendingNoteId) {
             if (isAppReady && pendingNoteId != null) {
-                navController.navigate(Screen.NotePreview.createRoute(pendingNoteId))
+                navController.navigate(Screen.NotePreview(pendingNoteId))
                 onPendingNoteIdConsumed()
             }
         }
 
-        val bottomNavItems = remember {
-            listOf(Screen.Home, Screen.Search, Screen.Note, Screen.Favorite, Screen.Profile)
-        }
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentDestination = navBackStackEntry?.destination
-        val currentRoute = currentDestination?.route
-        val isBottomBarVisible = remember(currentRoute, showBottomBar) {
-            (currentRoute in bottomNavItems.map { it.route }) && showBottomBar
+        val isBottomBarVisible = remember(currentDestination, showBottomBar) {
+            bottomNavItems.any { item ->
+                currentDestination?.hasRoute(item.route::class) == true
+            } && showBottomBar
         }
 
-        LaunchedEffect(hasPendingShare, currentRoute) {
-            if (hasPendingShare && currentRoute != null && currentRoute != Screen.Auth.route) {
-                navController.navigate(Screen.Note.route) { launchSingleTop = true }
+        LaunchedEffect(hasPendingShare, currentDestination) {
+            val isOnAuthScreen = currentDestination?.hasRoute(Screen.Auth::class) == true
+            if (hasPendingShare && currentDestination != null && !isOnAuthScreen) {
+                navController.navigate(Screen.Note) { launchSingleTop = true }
             }
         }
 
@@ -128,25 +129,29 @@ fun SmartPhotosApp(
                         exit = fadeOut() + slideOutVertically(targetOffsetY = { it })
                     ) {
                         NavigationBar {
-                            bottomNavItems.forEach { screen ->
-                                val selected = currentDestination?.route == screen.route
+                            bottomNavItems.forEach { item ->
+                                val selected =
+                                    currentDestination?.hasRoute(item.route::class) == true
                                 NavigationBarItem(
                                     icon = {
-                                        screen.icon?.let { icon ->
-                                            AnimatedNavIcon(selected = selected, imageVector = icon)
-                                        }
+                                        AnimatedNavIcon(
+                                            selected = selected,
+                                            imageVector = item.icon
+                                        )
                                     },
-                                    label = { Text(stringResource(screen.titleResId)) },
+                                    label = { Text(stringResource(item.titleResId)) },
                                     selected = selected,
                                     onClick = {
-                                        if (currentDestination?.route == screen.route) {
-                                            when (screen.route) {
-                                                Screen.Home.route,
-                                                Screen.Search.route,
-                                                Screen.Favorite.route -> onTriggerScrollToTop()
+                                        if (selected) {
+                                            when (item.route) {
+                                                Screen.Home,
+                                                Screen.Search,
+                                                Screen.Favorite -> onTriggerScrollToTop()
+
+                                                else -> Unit
                                             }
                                         } else {
-                                            navController.navigate(screen.route) {
+                                            navController.navigate(item.route) {
                                                 popUpTo(navController.graph.startDestinationId) {
                                                     saveState = true
                                                 }

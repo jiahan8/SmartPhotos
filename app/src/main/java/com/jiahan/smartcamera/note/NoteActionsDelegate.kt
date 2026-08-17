@@ -3,10 +3,18 @@ package com.jiahan.smartcamera.note
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.util.ErrorHandler
+import dagger.hilt.android.scopes.ViewModelScoped
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import javax.inject.Inject
 
+/**
+ * Scoped per ViewModel (not just per constructor param): [NoteShareDelegate] also depends on this
+ * class, so without [ViewModelScoped] a ViewModel that injects both directly and via
+ * [NoteShareDelegate] would get two separate instances with two separate [actionError] flows,
+ * silently dropping [reportError] calls made through the [NoteShareDelegate]-owned instance.
+ */
+@ViewModelScoped
 class NoteActionsDelegate @Inject constructor(
     private val noteRepository: NoteRepository,
     private val noteHandler: NoteHandler,

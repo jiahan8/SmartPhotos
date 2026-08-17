@@ -5,6 +5,7 @@ import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.util.ResourceProvider
+import dagger.hilt.android.scopes.ViewModelScoped
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -14,6 +15,13 @@ import javax.inject.Inject
 
 data class ShareContent(val text: String?, val uris: List<Uri>)
 
+/**
+ * Scoped per ViewModel like [NoteActionsDelegate]: this owns a single [shareEvent] stream meant to
+ * be shared by whatever depends on it within one ViewModel. No current dependent double-injects it,
+ * but without this scope a future one could reintroduce the same silently-dropped-event bug that
+ * [NoteActionsDelegate]'s scoping fixes.
+ */
+@ViewModelScoped
 class NoteShareDelegate @Inject constructor(
     private val mediaFileRepository: MediaFileRepository,
     private val noteActions: NoteActionsDelegate,

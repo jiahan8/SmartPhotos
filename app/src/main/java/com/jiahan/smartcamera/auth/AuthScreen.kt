@@ -261,7 +261,7 @@ private fun AuthScreenLoginPreview() {
             OutlinedTextField(
                 value = "user@example.com",
                 onValueChange = {},
-                label = { Text("Email") },
+                label = { Text(stringResource(R.string.email)) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
                 singleLine = true,
@@ -270,7 +270,7 @@ private fun AuthScreenLoginPreview() {
             OutlinedTextField(
                 value = "••••••••",
                 onValueChange = {},
-                label = { Text("Password") },
+                label = { Text(stringResource(R.string.password)) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
                 singleLine = true,
@@ -283,7 +283,7 @@ private fun AuthScreenLoginPreview() {
                     .fillMaxWidth()
                     .height(52.dp)
             ) {
-                Text("Login", style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.login), style = MaterialTheme.typography.bodyLarge)
             }
         }
     }

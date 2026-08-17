@@ -78,7 +78,7 @@ class MainActivity : ComponentActivity() {
             ) {}
 
             LaunchedEffect(startDestination) {
-                if (startDestination == Screen.Home.route &&
+                if (startDestination == Screen.Home &&
                     Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                     ContextCompat.checkSelfPermission(
                         this@MainActivity,
