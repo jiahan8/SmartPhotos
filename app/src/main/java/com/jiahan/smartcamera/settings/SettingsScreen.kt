@@ -24,7 +24,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -50,28 +49,27 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jiahan.smartcamera.BuildConfig
 import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.common.CustomSnackbarHost
+import com.jiahan.smartcamera.common.showAppSnackbar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
     onNavigateToAuth: () -> Unit,
-    viewModel: SettingsViewModel = hiltViewModel()
+    viewModel: SettingsViewModel = hiltViewModel(),
+    snackbarHostState: SnackbarHostState,
 ) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val hapticFeedback = LocalHapticFeedback.current
     val packageName = remember { context.packageName }
     val locale = ConfigurationCompat.getLocales(configuration).get(0)
-    val snackbarHostState = remember { SnackbarHostState() }
 
     val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val dialogState = uiState.dialogState
 
     val isLoading = uiState.status is SettingsStatus.Loading
-    val isErrorSnackBar = uiState.status is SettingsStatus.Error
 
     LaunchedEffect(Unit) {
         viewModel.navigationEvent.collect { event ->
@@ -93,7 +91,7 @@ fun SettingsScreen(
     LaunchedEffect(uiState) {
         val status = uiState.status
         if (status is SettingsStatus.Error) {
-            snackbarHostState.showSnackbar(status.message)
+            snackbarHostState.showAppSnackbar(status.message, isError = true)
             viewModel.resetActionError()
         }
     }
@@ -148,8 +146,8 @@ fun SettingsScreen(
         else -> {}
     }
 
-    Scaffold(
-        topBar = {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
             TopAppBar(
                 title = {
                     Text(
@@ -166,131 +164,133 @@ fun SettingsScreen(
                     }
                 }
             )
-        },
-        snackbarHost = { CustomSnackbarHost(snackbarHostState, isErrorSnackBar) }
-    ) { padding ->
-        if (isLoading) {
             Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    strokeWidth = 1.5.dp
-                )
-            }
-        }
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            Column(
                 modifier = Modifier
                     .weight(1f)
-                    .verticalScroll(rememberScrollState())
+                    .fillMaxSize()
             ) {
-                Row(
-                    modifier = Modifier
-                        .wrapContentHeight()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.dark_mode),
-                        modifier = Modifier.padding(end = 12.dp),
-                        contentDescription = null
-                    )
-                    Text(
-                        text = stringResource(R.string.dark_theme),
-                        modifier = Modifier.weight(1f)
-                    )
-                    Switch(
-                        checked = isDarkTheme,
-                        onCheckedChange = { newValue ->
-                            hapticFeedback.performHapticFeedback(if (newValue) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
-                            viewModel.updateDarkThemeVisibility(newValue)
-                        },
-                        thumbContent = if (isDarkTheme) {
-                            {
-                                Icon(
-                                    imageVector = Icons.Rounded.Check,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(12.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        } else {
-                            null
-                        }
-                    )
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { viewModel.openLanguageSettings() }
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.translate),
-                        modifier = Modifier.padding(end = 12.dp),
-                        contentDescription = null
-                    )
-                    Text(
-                        text = stringResource(R.string.language),
-                        maxLines = 1,
-                        modifier = Modifier.weight(1f)
-                    )
-                    locale?.let {
-                        Text(
-                            text = locale.displayLanguage,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(start = 12.dp),
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            strokeWidth = 1.5.dp
                         )
                     }
                 }
-                HorizontalDivider(thickness = 1.dp)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            viewModel.showLogoutDialog()
-                        }
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    Text(
-                        text = stringResource(R.string.log_out),
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            viewModel.showDeleteAccountDialog()
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .wrapContentHeight()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.dark_mode),
+                                modifier = Modifier.padding(end = 12.dp),
+                                contentDescription = null
+                            )
+                            Text(
+                                text = stringResource(R.string.dark_theme),
+                                modifier = Modifier.weight(1f)
+                            )
+                            Switch(
+                                checked = isDarkTheme,
+                                onCheckedChange = { newValue ->
+                                    hapticFeedback.performHapticFeedback(if (newValue) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
+                                    viewModel.updateDarkThemeVisibility(newValue)
+                                },
+                                thumbContent = if (isDarkTheme) {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(12.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                } else {
+                                    null
+                                }
+                            )
                         }
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.openLanguageSettings() }
+                                .padding(horizontal = 16.dp, vertical = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.translate),
+                                modifier = Modifier.padding(end = 12.dp),
+                                contentDescription = null
+                            )
+                            Text(
+                                text = stringResource(R.string.language),
+                                maxLines = 1,
+                                modifier = Modifier.weight(1f)
+                            )
+                            locale?.let {
+                                Text(
+                                    text = locale.displayLanguage,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(start = 12.dp),
+                                )
+                            }
+                        }
+                        HorizontalDivider(thickness = 1.dp)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.showLogoutDialog()
+                                }
+                                .padding(horizontal = 16.dp, vertical = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.log_out),
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.showDeleteAccountDialog()
+                                }
+                                .padding(horizontal = 16.dp, vertical = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.delete_account),
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
                     Text(
-                        text = stringResource(R.string.delete_account),
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.weight(1f)
+                        text = stringResource(R.string.app_version, BuildConfig.VERSION_NAME),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp)
                     )
                 }
             }
-            Text(
-                text = stringResource(R.string.app_version, BuildConfig.VERSION_NAME),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp)
-            )
         }
     }
 }

@@ -1,6 +1,8 @@
 package com.jiahan.smartcamera.profile
 
 import androidx.activity.ComponentActivity
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -61,6 +63,7 @@ class ProfileScreenTest {
                     onNavigateToSettings = {},
                     onNavigateToPhotoPreview = {},
                     viewModel = viewModel,
+                    snackbarHostState = remember { SnackbarHostState() },
                 )
             }
         }

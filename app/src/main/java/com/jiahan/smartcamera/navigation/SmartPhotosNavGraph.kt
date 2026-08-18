@@ -1,5 +1,6 @@
 package com.jiahan.smartcamera.navigation
 
+import androidx.compose.material3.SnackbarHostState
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -23,6 +24,7 @@ fun NavGraphBuilder.smartPhotosNavGraph(
     onScrollDirectionChanged: (Boolean) -> Unit,
     onScrollToTopConsumed: () -> Unit,
     onUpdateStartDestination: (Screen) -> Unit,
+    snackbarHostState: SnackbarHostState,
 ) {
     composable<Screen.Home> {
         HomeScreen(
@@ -41,6 +43,7 @@ fun NavGraphBuilder.smartPhotosNavGraph(
             onScrollDirectionChanged = onScrollDirectionChanged,
             scrollToTop = scrollToTop,
             onScrollToTopConsumed = onScrollToTopConsumed,
+            snackbarHostState = snackbarHostState,
         )
     }
 
@@ -62,6 +65,7 @@ fun NavGraphBuilder.smartPhotosNavGraph(
             onScrollDirectionChanged = onScrollDirectionChanged,
             scrollToTop = scrollToTop,
             onScrollToTopConsumed = onScrollToTopConsumed,
+            snackbarHostState = snackbarHostState,
         )
     }
 
@@ -73,7 +77,8 @@ fun NavGraphBuilder.smartPhotosNavGraph(
             },
             onNavigateToVideoPreview = { uri ->
                 navController.navigate(Screen.VideoPreview(MediaSourceType.LOCAL, uri))
-            }
+            },
+            snackbarHostState = snackbarHostState,
         )
     }
 
@@ -91,6 +96,7 @@ fun NavGraphBuilder.smartPhotosNavGraph(
             onScrollDirectionChanged = onScrollDirectionChanged,
             scrollToTop = scrollToTop,
             onScrollToTopConsumed = onScrollToTopConsumed,
+            snackbarHostState = snackbarHostState,
         )
     }
 
@@ -99,7 +105,7 @@ fun NavGraphBuilder.smartPhotosNavGraph(
             onBack = { navController.popBackStack() },
             onNavigateToPhotoPreview = { url ->
                 navController.navigate(Screen.PhotoPreview(MediaSourceType.REMOTE, url))
-            }
+            },
         )
     }
 
@@ -119,7 +125,8 @@ fun NavGraphBuilder.smartPhotosNavGraph(
             },
             onNavigateToVideoPreview = { url ->
                 navController.navigate(Screen.VideoPreview(MediaSourceType.REMOTE, url))
-            }
+            },
+            snackbarHostState = snackbarHostState,
         )
     }
 
@@ -141,7 +148,8 @@ fun NavGraphBuilder.smartPhotosNavGraph(
             },
             onNavigateToPhotoPreview = { url ->
                 navController.navigate(Screen.PhotoPreview(MediaSourceType.REMOTE, url))
-            }
+            },
+            snackbarHostState = snackbarHostState,
         )
     }
 
@@ -152,7 +160,8 @@ fun NavGraphBuilder.smartPhotosNavGraph(
                 navController.navigate(Screen.Auth) {
                     popUpTo(0) { inclusive = true }
                 }
-            }
+            },
+            snackbarHostState = snackbarHostState,
         )
     }
 }

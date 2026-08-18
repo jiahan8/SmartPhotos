@@ -25,7 +25,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -75,172 +74,168 @@ fun AuthScreen(
         }
     }
 
-    Scaffold { padding ->
-        Box(
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(
+            AsyncImage(
+                model = R.mipmap.ic_launcher,
+                contentDescription = stringResource(R.string.cd_app_logo),
+                contentScale = ContentScale.Crop,
+            )
+
+            OutlinedTextField(
+                value = email,
+                onValueChange = { viewModel.updateEmailText(it) },
+                label = { Text(stringResource(R.string.email)) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Email,
+                    imeAction = ImeAction.Next
+                ),
+                leadingIcon = { Icon(Icons.Rounded.Email, contentDescription = null) }
+            )
+
+            if (!isLoginMode) {
+                OutlinedTextField(
+                    value = displayName,
+                    onValueChange = { viewModel.updateDisplayNameText(it) },
+                    label = { Text(stringResource(R.string.name)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null) },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                )
+
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { viewModel.updateUsernameText(it) },
+                    label = { Text(stringResource(R.string.username)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    singleLine = true,
+                    leadingIcon = {
+                        Icon(Icons.Rounded.AccountCircle, contentDescription = null)
+                    },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                )
+            }
+
+            OutlinedTextField(
+                value = password,
+                onValueChange = { viewModel.updatePasswordText(it) },
+                label = { Text(stringResource(R.string.password)) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                singleLine = true,
+                visualTransformation = if (passwordVisible)
+                    VisualTransformation.None
+                else
+                    PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = { viewModel.submit() }
+                ),
+                leadingIcon = { Icon(Icons.Rounded.Lock, contentDescription = null) },
+                trailingIcon = {
+                    Icon(
+                        modifier = Modifier.clickable(
+                            interactionSource = null,
+                            indication = null
+                        ) {
+                            viewModel.updatePasswordVisibility(!passwordVisible)
+                        },
+                        painter = if (passwordVisible)
+                            painterResource(R.drawable.visibility)
+                        else
+                            painterResource(R.drawable.visibility_off),
+                        contentDescription = if (passwordVisible)
+                            stringResource(R.string.cd_hide_password)
+                        else
+                            stringResource(R.string.cd_show_password)
+                    )
+                }
+            )
+
+            when (authStatus) {
+                is AuthStatus.Error -> Text(
+                    text = authStatus.message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                is AuthStatus.Info -> Text(
+                    text = authStatus.message,
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                else -> {}
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = { viewModel.submit() },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(scrollState)
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .height(52.dp),
+                enabled = !isLoading
             ) {
-                AsyncImage(
-                    model = R.mipmap.ic_launcher,
-                    contentDescription = stringResource(R.string.cd_app_logo),
-                    contentScale = ContentScale.Crop,
-                )
-
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { viewModel.updateEmailText(it) },
-                    label = { Text(stringResource(R.string.email)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Email,
-                        imeAction = ImeAction.Next
-                    ),
-                    leadingIcon = { Icon(Icons.Rounded.Email, contentDescription = null) }
-                )
-
-                if (!isLoginMode) {
-                    OutlinedTextField(
-                        value = displayName,
-                        onValueChange = { viewModel.updateDisplayNameText(it) },
-                        label = { Text(stringResource(R.string.name)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.large,
-                        singleLine = true,
-                        leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null) },
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 1.5.dp
                     )
-
-                    OutlinedTextField(
-                        value = username,
-                        onValueChange = { viewModel.updateUsernameText(it) },
-                        label = { Text(stringResource(R.string.username)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.large,
-                        singleLine = true,
-                        leadingIcon = {
-                            Icon(Icons.Rounded.AccountCircle, contentDescription = null)
-                        },
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
-                    )
-                }
-
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { viewModel.updatePasswordText(it) },
-                    label = { Text(stringResource(R.string.password)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    singleLine = true,
-                    visualTransformation = if (passwordVisible)
-                        VisualTransformation.None
-                    else
-                        PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Done
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onDone = { viewModel.submit() }
-                    ),
-                    leadingIcon = { Icon(Icons.Rounded.Lock, contentDescription = null) },
-                    trailingIcon = {
-                        Icon(
-                            modifier = Modifier.clickable(
-                                interactionSource = null,
-                                indication = null
-                            ) {
-                                viewModel.updatePasswordVisibility(!passwordVisible)
-                            },
-                            painter = if (passwordVisible)
-                                painterResource(R.drawable.visibility)
-                            else
-                                painterResource(R.drawable.visibility_off),
-                            contentDescription = if (passwordVisible)
-                                stringResource(R.string.cd_hide_password)
-                            else
-                                stringResource(R.string.cd_show_password)
-                        )
-                    }
-                )
-
-                when (authStatus) {
-                    is AuthStatus.Error -> Text(
-                        text = authStatus.message,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    is AuthStatus.Info -> Text(
-                        text = authStatus.message,
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    else -> {}
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Button(
-                    onClick = { viewModel.submit() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    enabled = !isLoading
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 1.5.dp
-                        )
-                    } else {
-                        Text(
-                            text = stringResource(if (isLoginMode) R.string.login else R.string.sign_up),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    }
-                }
-
-                if (!isLoginMode) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                } else {
                     Text(
-                        text = stringResource(R.string.email_verification_note),
-                        style = MaterialTheme.typography.bodySmall,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
+                        text = stringResource(if (isLoginMode) R.string.login else R.string.sign_up),
+                        style = MaterialTheme.typography.bodyLarge
                     )
                 }
+            }
 
-                TextButton(onClick = { viewModel.toggleAuthMode() }) {
-                    Text(stringResource(if (isLoginMode) R.string.need_account else R.string.already_have_account))
+            if (!isLoginMode) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.email_verification_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            TextButton(onClick = { viewModel.toggleAuthMode() }) {
+                Text(stringResource(if (isLoginMode) R.string.need_account else R.string.already_have_account))
+            }
+
+            if (isLoginMode) {
+                TextButton(onClick = { viewModel.resetPassword() }) {
+                    Text(stringResource(R.string.forgot_password))
                 }
+            }
 
-                if (isLoginMode) {
-                    TextButton(onClick = { viewModel.resetPassword() }) {
-                        Text(stringResource(R.string.forgot_password))
-                    }
-                }
-
-                if (uiState.showResendButton) {
-                    TextButton(onClick = { viewModel.resendVerificationEmail() }) {
-                        Text(stringResource(R.string.resend_verification_email))
-                    }
+            if (uiState.showResendButton) {
+                TextButton(onClick = { viewModel.resendVerificationEmail() }) {
+                    Text(stringResource(R.string.resend_verification_email))
                 }
             }
         }

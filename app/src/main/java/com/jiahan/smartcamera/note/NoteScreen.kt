@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -34,7 +32,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -62,15 +59,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.common.CustomSnackbarHost
 import com.jiahan.smartcamera.common.rememberCyclingPlaceholder
+import com.jiahan.smartcamera.common.showAppSnackbar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,10 +74,10 @@ fun NoteScreen(
     onBack: () -> Unit,
     onNavigateToPhotoPreview: (uri: String) -> Unit,
     onNavigateToVideoPreview: (uri: String) -> Unit,
-    viewModel: NoteViewModel = hiltViewModel()
+    viewModel: NoteViewModel = hiltViewModel(),
+    snackbarHostState: SnackbarHostState
 ) {
     val context = LocalContext.current
-    val snackbarHostState = remember { SnackbarHostState() }
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val scrollState = rememberScrollState()
@@ -97,8 +93,6 @@ fun NoteScreen(
     val isUploading = uploadStatus is UploadStatus.Uploading
     val postTextError = uiState.postTextError
     val postButtonEnabled by viewModel.postButtonEnabled.collectAsStateWithLifecycle()
-
-    var isErrorSnackBar by remember { mutableStateOf(false) }
 
     val (placeholder, placeholderAlpha) = rememberCyclingPlaceholder(
         options = listOf(
@@ -173,15 +167,13 @@ fun NoteScreen(
         when (uploadStatus) {
             is UploadStatus.Success -> {
                 keyboardController?.hide()
-                isErrorSnackBar = false
                 viewModel.resetUploadState()
                 onBack()
             }
 
             is UploadStatus.Error -> {
                 keyboardController?.hide()
-                isErrorSnackBar = true
-                snackbarHostState.showSnackbar(uploadStatus.message)
+                snackbarHostState.showAppSnackbar(uploadStatus.message, isError = true)
                 viewModel.resetUploadState()
             }
 
@@ -193,8 +185,8 @@ fun NoteScreen(
         focusRequester.requestFocus()
     }
 
-    Scaffold(
-        topBar = {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
             TopAppBar(
                 title = {
                     Text(
@@ -203,255 +195,249 @@ fun NoteScreen(
                     )
                 }
             )
-        },
-        snackbarHost = { CustomSnackbarHost(snackbarHostState, isErrorSnackBar) }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    top = padding.calculateTopPadding(),
-                    start = padding.calculateStartPadding(LayoutDirection.Ltr),
-                    end = padding.calculateEndPadding(LayoutDirection.Ltr)
-                )
-        ) {
-            Column(
+            Box(
                 modifier = Modifier
+                    .weight(1f)
                     .fillMaxWidth()
-                    .verticalScroll(scrollState)
             ) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp)
+                        .verticalScroll(scrollState)
                 ) {
-                    profilePicture?.let { profilePicture ->
-                        AsyncImage(
-                            model = profilePicture,
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp)
+                    ) {
+                        profilePicture?.let { profilePicture ->
+                            AsyncImage(
+                                model = profilePicture,
+                                contentDescription = stringResource(R.string.cd_profile_picture),
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape),
+                                onError = { viewModel.logImageLoadError(it.result.throwable) }
+                            )
+                        } ?: Image(
+                            imageVector = Icons.Rounded.AccountCircle,
                             contentDescription = stringResource(R.string.cd_profile_picture),
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape),
-                            onError = { viewModel.logImageLoadError(it.result.throwable) }
-                        )
-                    } ?: Image(
-                        imageVector = Icons.Rounded.AccountCircle,
-                        contentDescription = stringResource(R.string.cd_profile_picture),
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape),
-                        colorFilter = ColorFilter.tint(
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                        )
-                    )
-
-                    Column(modifier = Modifier.padding(start = 16.dp)) {
-                        Text(
-                            text = username,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = FontWeight.Bold
-                            ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            colorFilter = ColorFilter.tint(
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
                         )
 
-                        BasicTextField(
-                            value = postText,
-                            onValueChange = { text -> viewModel.updatePostText(text) },
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onSurface
-                            ),
-                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                            maxLines = 25,
-                            modifier = Modifier
-                                .padding(top = 8.dp, bottom = 8.dp)
-                                .fillMaxWidth()
-                                .focusRequester(focusRequester),
-                            enabled = !isUploading,
-                            decorationBox = { innerTextField ->
-                                Row {
-                                    Box(modifier = Modifier.weight(1f)) {
-                                        innerTextField()
-                                        if (postText.isBlank()) {
-                                            Text(
-                                                text = placeholder,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                                    alpha = 0.7f
-                                                ),
-                                                modifier = Modifier.graphicsLayer(alpha = placeholderAlpha)
+                        Column(modifier = Modifier.padding(start = 16.dp)) {
+                            Text(
+                                text = username,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+
+                            BasicTextField(
+                                value = postText,
+                                onValueChange = { text -> viewModel.updatePostText(text) },
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                    color = MaterialTheme.colorScheme.onSurface
+                                ),
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                maxLines = 25,
+                                modifier = Modifier
+                                    .padding(top = 8.dp, bottom = 8.dp)
+                                    .fillMaxWidth()
+                                    .focusRequester(focusRequester),
+                                enabled = !isUploading,
+                                decorationBox = { innerTextField ->
+                                    Row {
+                                        Box(modifier = Modifier.weight(1f)) {
+                                            innerTextField()
+                                            if (postText.isBlank()) {
+                                                Text(
+                                                    text = placeholder,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                                        alpha = 0.7f
+                                                    ),
+                                                    modifier = Modifier.graphicsLayer(alpha = placeholderAlpha)
+                                                )
+                                            }
+                                        }
+                                        if (postText.isNotBlank() && !isUploading) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Clear,
+                                                contentDescription = stringResource(R.string.cd_clear_field),
+                                                modifier = Modifier
+                                                    .padding(end = 12.dp)
+                                                    .size(16.dp)
+                                                    .clickable { viewModel.updatePostText("") },
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
-                                    }
-                                    if (postText.isNotBlank() && !isUploading) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Clear,
-                                            contentDescription = stringResource(R.string.cd_clear_field),
-                                            modifier = Modifier
-                                                .padding(end = 12.dp)
-                                                .size(16.dp)
-                                                .clickable { viewModel.updatePostText("") },
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
                                     }
                                 }
-                            }
-                        )
+                            )
 
-                        if (mediaList.isNotEmpty()) {
-                            HorizontalMultiBrowseCarousel(
-                                state = rememberCarouselState { mediaList.count() },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .wrapContentHeight()
-                                    .padding(top = 16.dp, bottom = 16.dp),
-                                preferredItemWidth = 186.dp,
-                                itemSpacing = 8.dp,
-                            ) { index ->
-                                val noteMediaDetail = mediaList[index]
-                                Box(
-                                    modifier = Modifier.clickable {
-                                        if (noteMediaDetail.isVideo) {
-                                            onNavigateToVideoPreview(
-                                                noteMediaDetail.videoUri.toString()
-                                            )
-                                        } else {
-                                            onNavigateToPhotoPreview(
-                                                noteMediaDetail.photoUri.toString()
-                                            )
+                            if (mediaList.isNotEmpty()) {
+                                HorizontalMultiBrowseCarousel(
+                                    state = rememberCarouselState { mediaList.count() },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .wrapContentHeight()
+                                        .padding(top = 16.dp, bottom = 16.dp),
+                                    preferredItemWidth = 186.dp,
+                                    itemSpacing = 8.dp,
+                                ) { index ->
+                                    val noteMediaDetail = mediaList[index]
+                                    Box(
+                                        modifier = Modifier.clickable {
+                                            if (noteMediaDetail.isVideo) {
+                                                onNavigateToVideoPreview(
+                                                    noteMediaDetail.videoUri.toString()
+                                                )
+                                            } else {
+                                                onNavigateToPhotoPreview(
+                                                    noteMediaDetail.photoUri.toString()
+                                                )
+                                            }
                                         }
-                                    }
-                                ) {
-                                    AsyncImage(
-                                        model = if (noteMediaDetail.isVideo) noteMediaDetail.thumbnailUri else noteMediaDetail.photoUri,
-                                        modifier = Modifier
-                                            .height(212.dp)
-                                            .maskClip(MaterialTheme.shapes.extraLarge),
-                                        contentDescription = stringResource(R.string.cd_note_photo),
-                                        contentScale = ContentScale.Crop,
-                                        onError = { viewModel.logImageLoadError(it.result.throwable) }
-                                    )
-
-                                    if (noteMediaDetail.isVideo)
-                                        Icon(
-                                            imageVector = Icons.Rounded.PlayArrow,
-                                            contentDescription = stringResource(R.string.cd_play_video),
+                                    ) {
+                                        AsyncImage(
+                                            model = if (noteMediaDetail.isVideo) noteMediaDetail.thumbnailUri else noteMediaDetail.photoUri,
                                             modifier = Modifier
-                                                .align(Alignment.Center)
-                                                .size(52.dp)
+                                                .height(212.dp)
+                                                .maskClip(MaterialTheme.shapes.extraLarge),
+                                            contentDescription = stringResource(R.string.cd_note_photo),
+                                            contentScale = ContentScale.Crop,
+                                            onError = { viewModel.logImageLoadError(it.result.throwable) }
+                                        )
+
+                                        if (noteMediaDetail.isVideo)
+                                            Icon(
+                                                imageVector = Icons.Rounded.PlayArrow,
+                                                contentDescription = stringResource(R.string.cd_play_video),
+                                                modifier = Modifier
+                                                    .align(Alignment.Center)
+                                                    .size(52.dp)
+                                                    .clip(CircleShape)
+                                                    .background(
+                                                        MaterialTheme.colorScheme.surfaceVariant.copy(
+                                                            alpha = 0.7f
+                                                        )
+                                                    ),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+
+                                        Icon(
+                                            imageVector = Icons.Rounded.Close,
+                                            contentDescription = stringResource(R.string.cd_remove_image),
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(8.dp)
+                                                .size(24.dp)
                                                 .clip(CircleShape)
                                                 .background(
                                                     MaterialTheme.colorScheme.surfaceVariant.copy(
                                                         alpha = 0.7f
                                                     )
-                                                ),
+                                                )
+                                                .clickable { viewModel.removeUriFromList(index) }
+                                                .padding(3.dp),
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
-
-                                    Icon(
-                                        imageVector = Icons.Rounded.Close,
-                                        contentDescription = stringResource(R.string.cd_remove_image),
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .padding(8.dp)
-                                            .size(24.dp)
-                                            .clip(CircleShape)
-                                            .background(
-                                                MaterialTheme.colorScheme.surfaceVariant.copy(
-                                                    alpha = 0.7f
-                                                )
-                                            )
-                                            .clickable { viewModel.removeUriFromList(index) }
-                                            .padding(3.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                    }
                                 }
                             }
-                        }
 
-                        postTextError?.let { error ->
-                            Text(
-                                text = error,
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
+                            postTextError?.let { error ->
+                                Text(
+                                    text = error,
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
 
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.photo_library),
-                                contentDescription = stringResource(R.string.cd_choose_photos),
-                                modifier = Modifier.clickable(enabled = !isUploading) {
-                                    libraryLauncher.launch(
-                                        PickVisualMediaRequest(PickVisualMedia.ImageAndVideo)
-                                    )
-                                },
-                                tint = if (isUploading)
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                else MaterialTheme.colorScheme.onSurface
-                            )
-
-                            Icon(
-                                painter = painterResource(R.drawable.photo_camera),
-                                contentDescription = stringResource(R.string.cd_take_photo),
-                                modifier = Modifier
-                                    .padding(start = 16.dp)
-                                    .clickable(enabled = !isUploading) {
-                                        if (hasCameraPermission) {
-                                            val uri = viewModel.createImageUri()
-                                            viewModel.updatePhotoUri(uri)
-                                            uri?.let { pictureLauncher.launch(it) }
-                                        } else {
-                                            photoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                                        }
-                                    },
-                                tint = if (isUploading)
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                else MaterialTheme.colorScheme.onSurface
-                            )
-
-                            Icon(
-                                painter = painterResource(R.drawable.smart_display),
-                                contentDescription = stringResource(R.string.cd_take_video),
-                                modifier = Modifier
-                                    .padding(start = 16.dp)
-                                    .clickable(enabled = !isUploading) {
-                                        if (hasCameraPermission) {
-                                            val uri = viewModel.createVideoUri()
-                                            viewModel.updateVideoUri(uri)
-                                            uri?.let { videoLauncher.launch(it) }
-                                        } else {
-                                            videoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                                        }
-                                    },
-                                tint = if (isUploading)
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                else MaterialTheme.colorScheme.onSurface
-                            )
-
-                            Spacer(modifier = Modifier.weight(1f))
-
-                            TextButton(
-                                onClick = { viewModel.uploadPost() },
-                                enabled = postButtonEnabled
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text(text = stringResource(R.string.post))
+                                Icon(
+                                    painter = painterResource(R.drawable.photo_library),
+                                    contentDescription = stringResource(R.string.cd_choose_photos),
+                                    modifier = Modifier.clickable(enabled = !isUploading) {
+                                        libraryLauncher.launch(
+                                            PickVisualMediaRequest(PickVisualMedia.ImageAndVideo)
+                                        )
+                                    },
+                                    tint = if (isUploading)
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                    else MaterialTheme.colorScheme.onSurface
+                                )
+
+                                Icon(
+                                    painter = painterResource(R.drawable.photo_camera),
+                                    contentDescription = stringResource(R.string.cd_take_photo),
+                                    modifier = Modifier
+                                        .padding(start = 16.dp)
+                                        .clickable(enabled = !isUploading) {
+                                            if (hasCameraPermission) {
+                                                val uri = viewModel.createImageUri()
+                                                viewModel.updatePhotoUri(uri)
+                                                uri?.let { pictureLauncher.launch(it) }
+                                            } else {
+                                                photoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                                            }
+                                        },
+                                    tint = if (isUploading)
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                    else MaterialTheme.colorScheme.onSurface
+                                )
+
+                                Icon(
+                                    painter = painterResource(R.drawable.smart_display),
+                                    contentDescription = stringResource(R.string.cd_take_video),
+                                    modifier = Modifier
+                                        .padding(start = 16.dp)
+                                        .clickable(enabled = !isUploading) {
+                                            if (hasCameraPermission) {
+                                                val uri = viewModel.createVideoUri()
+                                                viewModel.updateVideoUri(uri)
+                                                uri?.let { videoLauncher.launch(it) }
+                                            } else {
+                                                videoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                                            }
+                                        },
+                                    tint = if (isUploading)
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                    else MaterialTheme.colorScheme.onSurface
+                                )
+
+                                Spacer(modifier = Modifier.weight(1f))
+
+                                TextButton(
+                                    onClick = { viewModel.uploadPost() },
+                                    enabled = postButtonEnabled
+                                ) {
+                                    Text(text = stringResource(R.string.post))
+                                }
                             }
                         }
                     }
                 }
-            }
-            if (isUploading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(strokeWidth = 1.5.dp)
+                if (isUploading) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(strokeWidth = 1.5.dp)
+                    }
                 }
             }
         }

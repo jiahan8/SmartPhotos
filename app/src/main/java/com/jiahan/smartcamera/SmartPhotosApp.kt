@@ -9,8 +9,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -100,6 +100,7 @@ fun SmartPhotosApp(
         }
 
         val updateSnackbarHostState = remember { SnackbarHostState() }
+        val screenSnackbarHostState = remember { SnackbarHostState() }
         val updateReadyMessage = stringResource(R.string.update_ready_message)
         val updateReadyAction = stringResource(R.string.update_ready_action)
 
@@ -121,7 +122,12 @@ fun SmartPhotosApp(
             color = MaterialTheme.colorScheme.background
         ) {
             Scaffold(
-                snackbarHost = { CustomSnackbarHost(updateSnackbarHostState) },
+                snackbarHost = {
+                    Column {
+                        CustomSnackbarHost(screenSnackbarHostState)
+                        CustomSnackbarHost(updateSnackbarHostState)
+                    }
+                },
                 bottomBar = {
                     AnimatedVisibility(
                         visible = isBottomBarVisible,
@@ -170,7 +176,6 @@ fun SmartPhotosApp(
                     NavHost(
                         navController = navController,
                         startDestination = startDestination,
-                        modifier = Modifier.padding(bottom = padding.calculateBottomPadding())
                     ) {
                         smartPhotosNavGraph(
                             navController = navController,
@@ -178,6 +183,7 @@ fun SmartPhotosApp(
                             onScrollDirectionChanged = onScrollDirectionChanged,
                             onScrollToTopConsumed = onScrollToTopConsumed,
                             onUpdateStartDestination = onUpdateStartDestination,
+                            snackbarHostState = screenSnackbarHostState,
                         )
                     }
                 }

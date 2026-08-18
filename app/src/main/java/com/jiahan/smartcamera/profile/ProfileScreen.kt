@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -43,7 +41,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -64,7 +61,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -72,18 +68,17 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.BottomSheetActionItem
-import com.jiahan.smartcamera.common.CustomSnackbarHost
+import com.jiahan.smartcamera.common.showAppSnackbar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToPhotoPreview: (url: String) -> Unit,
-    viewModel: ProfileViewModel = hiltViewModel()
+    viewModel: ProfileViewModel = hiltViewModel(),
+    snackbarHostState: SnackbarHostState
 ) {
     val context = LocalContext.current
-    val snackbarHostState = remember { SnackbarHostState() }
-    var isErrorSnackBar by remember { mutableStateOf(false) }
     val bottomSheetState = rememberModalBottomSheetState()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val showBottomSheet = uiState.showBottomSheet
@@ -148,13 +143,14 @@ fun ProfileScreen(
         viewModel.events.collect { event ->
             when (event) {
                 ProfileEvent.UpdateSuccess, ProfileEvent.UploadSuccess -> {
-                    isErrorSnackBar = false
-                    snackbarHostState.showSnackbar(updateSuccessMessage)
+                    snackbarHostState.showAppSnackbar(updateSuccessMessage)
                 }
 
                 is ProfileEvent.UpdateError -> {
-                    isErrorSnackBar = true
-                    snackbarHostState.showSnackbar(event.message ?: updateFailureMessage)
+                    snackbarHostState.showAppSnackbar(
+                        event.message ?: updateFailureMessage,
+                        isError = true
+                    )
                 }
             }
         }
@@ -229,8 +225,8 @@ fun ProfileScreen(
         else -> {}
     }
 
-    Scaffold(
-        topBar = {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
             TopAppBar(
                 title = {
                     Text(
@@ -247,186 +243,180 @@ fun ProfileScreen(
                     }
                 }
             )
-        },
-        snackbarHost = { CustomSnackbarHost(snackbarHostState, isErrorSnackBar) }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    top = padding.calculateTopPadding(),
-                    start = padding.calculateStartPadding(LayoutDirection.Ltr) + 16.dp,
-                    end = padding.calculateEndPadding(LayoutDirection.Ltr) + 16.dp
-                )
-        ) {
-            Column(
-                modifier = Modifier.verticalScroll(scrollState),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
             ) {
-                profilePictureUrl?.let {
-                    AsyncImage(
-                        model = it,
+                Column(
+                    modifier = Modifier.verticalScroll(scrollState),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    profilePictureUrl?.let {
+                        AsyncImage(
+                            model = it,
+                            contentDescription = stringResource(R.string.cd_profile_picture),
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(88.dp)
+                                .clip(CircleShape)
+                                .clickable {
+                                    onNavigateToPhotoPreview(it)
+                                },
+                            alignment = Alignment.Center,
+                            onError = { viewModel.logImageLoadError(it.result.throwable) }
+                        )
+                    } ?: Image(
+                        imageVector = Icons.Rounded.AccountCircle,
                         contentDescription = stringResource(R.string.cd_profile_picture),
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .size(88.dp)
-                            .clip(CircleShape)
-                            .clickable {
-                                onNavigateToPhotoPreview(it)
-                            },
-                        alignment = Alignment.Center,
-                        onError = { viewModel.logImageLoadError(it.result.throwable) }
-                    )
-                } ?: Image(
-                    imageVector = Icons.Rounded.AccountCircle,
-                    contentDescription = stringResource(R.string.cd_profile_picture),
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(88.dp)
-                        .clip(CircleShape),
-                    colorFilter = ColorFilter.tint(
-                        MaterialTheme.colorScheme.onSurface.copy(
-                            alpha = 0.7f
+                            .clip(CircleShape),
+                        colorFilter = ColorFilter.tint(
+                            MaterialTheme.colorScheme.onSurface.copy(
+                                alpha = 0.7f
+                            )
                         )
                     )
-                )
 
-                TextButton(
-                    onClick = { viewModel.updateBottomSheetVisibility(true) }
-                ) {
-                    Text(text = stringResource(R.string.edit_picture))
-                }
-
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = {},
-                        label = { Text(stringResource(R.string.email)) },
-                        enabled = false,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.large,
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Email,
-                            imeAction = ImeAction.Next
-                        ),
-                        leadingIcon = { Icon(Icons.Rounded.Email, contentDescription = null) }
-                    )
-
-                    OutlinedTextField(
-                        value = displayName,
-                        onValueChange = { viewModel.updateDisplayNameText(it) },
-                        label = { Text(stringResource(R.string.name)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.large,
-                        singleLine = true,
-                        leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null) },
-                        trailingIcon = {
-                            if (displayName.isNotEmpty()) {
-                                IconButton(onClick = { viewModel.updateDisplayNameText("") }) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Clear,
-                                        contentDescription = stringResource(R.string.cd_clear_field),
-                                        modifier = Modifier
-                                            .size(16.dp)
-                                    )
-                                }
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
-                    )
-
-                    displayNameErrorMessage?.let {
-                        Text(
-                            text = it,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-
-                    OutlinedTextField(
-                        value = username,
-                        onValueChange = { viewModel.updateUsernameText(it) },
-                        label = { Text(stringResource(R.string.username)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.large,
-                        singleLine = true,
-                        leadingIcon = {
-                            Icon(Icons.Rounded.AccountCircle, contentDescription = null)
-                        },
-                        trailingIcon = {
-                            if (username.isNotEmpty()) {
-                                IconButton(onClick = { viewModel.updateUsernameText("") }) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Clear,
-                                        contentDescription = stringResource(R.string.cd_clear_field),
-                                        modifier = Modifier
-                                            .size(16.dp)
-                                    )
-                                }
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
-                    )
-
-                    usernameErrorMessage?.let {
-                        Text(
-                            text = it,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-
-                    errorMessage?.let {
-                        Text(
-                            text = it,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.weight(1f))
-
-                    Button(
-                        modifier = Modifier
-                            .padding(bottom = 16.dp)
-                            .fillMaxWidth()
-                            .height(52.dp),
-                        onClick = { viewModel.updateUserProfile() },
-                        enabled = isFormChanged && isErrorFree && !isSaving
+                    TextButton(
+                        onClick = { viewModel.updateBottomSheetVisibility(true) }
                     ) {
-                        if (isSaving) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 1.5.dp
-                            )
-                        } else {
+                        Text(text = stringResource(R.string.edit_picture))
+                    }
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = email,
+                            onValueChange = {},
+                            label = { Text(stringResource(R.string.email)) },
+                            enabled = false,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.large,
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Email,
+                                imeAction = ImeAction.Next
+                            ),
+                            leadingIcon = { Icon(Icons.Rounded.Email, contentDescription = null) }
+                        )
+
+                        OutlinedTextField(
+                            value = displayName,
+                            onValueChange = { viewModel.updateDisplayNameText(it) },
+                            label = { Text(stringResource(R.string.name)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.large,
+                            singleLine = true,
+                            leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null) },
+                            trailingIcon = {
+                                if (displayName.isNotEmpty()) {
+                                    IconButton(onClick = { viewModel.updateDisplayNameText("") }) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Clear,
+                                            contentDescription = stringResource(R.string.cd_clear_field),
+                                            modifier = Modifier
+                                                .size(16.dp)
+                                        )
+                                    }
+                                }
+                            },
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                        )
+
+                        displayNameErrorMessage?.let {
                             Text(
-                                text = stringResource(R.string.save_changes),
-                                style = MaterialTheme.typography.bodyLarge
+                                text = it,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall
                             )
+                        }
+
+                        OutlinedTextField(
+                            value = username,
+                            onValueChange = { viewModel.updateUsernameText(it) },
+                            label = { Text(stringResource(R.string.username)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.large,
+                            singleLine = true,
+                            leadingIcon = {
+                                Icon(Icons.Rounded.AccountCircle, contentDescription = null)
+                            },
+                            trailingIcon = {
+                                if (username.isNotEmpty()) {
+                                    IconButton(onClick = { viewModel.updateUsernameText("") }) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Clear,
+                                            contentDescription = stringResource(R.string.cd_clear_field),
+                                            modifier = Modifier
+                                                .size(16.dp)
+                                        )
+                                    }
+                                }
+                            },
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
+                        )
+
+                        usernameErrorMessage?.let {
+                            Text(
+                                text = it,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+
+                        errorMessage?.let {
+                            Text(
+                                text = it,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        Button(
+                            modifier = Modifier
+                                .padding(bottom = 16.dp)
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            onClick = { viewModel.updateUserProfile() },
+                            enabled = isFormChanged && isErrorFree && !isSaving
+                        ) {
+                            if (isSaving) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 1.5.dp
+                                )
+                            } else {
+                                Text(
+                                    text = stringResource(R.string.save_changes),
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                            }
                         }
                     }
                 }
-            }
-        }
-        if (isUploading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ) {},
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    strokeWidth = 1.5.dp
-                )
+                if (isUploading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) {},
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            strokeWidth = 1.5.dp
+                        )
+                    }
+                }
             }
         }
     }

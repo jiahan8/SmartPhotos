@@ -1,6 +1,8 @@
 package com.jiahan.smartcamera.settings
 
 import androidx.activity.ComponentActivity
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
@@ -49,6 +51,7 @@ class SettingsScreenTest {
                     onBack = {},
                     onNavigateToAuth = { navigatedToAuth = true },
                     viewModel = viewModel,
+                    snackbarHostState = remember { SnackbarHostState() },
                 )
             }
         }

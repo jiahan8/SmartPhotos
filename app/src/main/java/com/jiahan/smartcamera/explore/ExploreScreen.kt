@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -24,8 +22,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -41,13 +37,11 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.common.CustomSnackbarHost
 import com.jiahan.smartcamera.common.rememberShouldLoadMore
 import com.jiahan.smartcamera.domain.Photo
 
@@ -60,7 +54,6 @@ fun ExploreScreen(
 ) {
     val pullToRefreshState = rememberPullToRefreshState()
     val listState = rememberLazyListState()
-    val snackbarHostState = remember { SnackbarHostState() }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     val shouldLoadMore by rememberShouldLoadMore(listState) { uiState.photos?.size ?: 0 }
@@ -70,8 +63,8 @@ fun ExploreScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
             TopAppBar(
                 title = {
                     Text(
@@ -88,80 +81,80 @@ fun ExploreScreen(
                     }
                 }
             )
-        },
-        snackbarHost = { CustomSnackbarHost(snackbarHostState, isError = true) }
-    ) { padding ->
-        when (val state = uiState.content) {
-            is ExploreContent.Loading ->
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(strokeWidth = 1.5.dp)
-                }
-
-            is ExploreContent.Error ->
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(state.message)
-                }
-
-            is ExploreContent.Success ->
-                if (state.photos.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(stringResource(R.string.no_photos_found))
-                    }
-                } else {
-                    PullToRefreshBox(
-                        modifier = Modifier.padding(
-                            top = padding.calculateTopPadding(),
-                            start = padding.calculateStartPadding(LayoutDirection.Ltr),
-                            end = padding.calculateEndPadding(LayoutDirection.Ltr)
-                        ),
-                        state = pullToRefreshState,
-                        isRefreshing = uiState.isRefreshing,
-                        onRefresh = { viewModel.refresh() },
-                    ) {
-                        LazyColumn(
-                            state = listState,
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                when (val state = uiState.content) {
+                    is ExploreContent.Loading ->
+                        Box(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(top = 8.dp, bottom = 8.dp)
+                            contentAlignment = Alignment.Center
                         ) {
-                            items(
-                                count = state.photos.size,
-                                key = { index -> state.photos[index].id }
-                            ) { index ->
-                                val photo = state.photos[index]
-                                ExploreItem(
-                                    photo = photo,
-                                    onClick = { onNavigateToPhotoPreview(photo.imageUrl) },
-                                    onImageLoadError = viewModel::logImageLoadError
-                                )
-                            }
+                            CircularProgressIndicator(strokeWidth = 1.5.dp)
+                        }
 
-                            if (uiState.isLoadingMore) {
-                                item {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(32.dp),
-                                            strokeWidth = 1.5.dp
+                    is ExploreContent.Error ->
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(state.message)
+                        }
+
+                    is ExploreContent.Success ->
+                        if (state.photos.isEmpty()) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(stringResource(R.string.no_photos_found))
+                            }
+                        } else {
+                            PullToRefreshBox(
+                                modifier = Modifier.fillMaxSize(),
+                                state = pullToRefreshState,
+                                isRefreshing = uiState.isRefreshing,
+                                onRefresh = { viewModel.refresh() },
+                            ) {
+                                LazyColumn(
+                                    state = listState,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(top = 8.dp, bottom = 8.dp)
+                                ) {
+                                    items(
+                                        count = state.photos.size,
+                                        key = { index -> state.photos[index].id }
+                                    ) { index ->
+                                        val photo = state.photos[index]
+                                        ExploreItem(
+                                            photo = photo,
+                                            onClick = { onNavigateToPhotoPreview(photo.imageUrl) },
+                                            onImageLoadError = viewModel::logImageLoadError
                                         )
+                                    }
+
+                                    if (uiState.isLoadingMore) {
+                                        item {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(16.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(32.dp),
+                                                    strokeWidth = 1.5.dp
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
                 }
+            }
         }
     }
 }

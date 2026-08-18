@@ -1,6 +1,8 @@
 package com.jiahan.smartcamera.screenshot
 
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeAuthRepository
@@ -72,6 +74,7 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
                 viewModel = homeViewModel(Result.success(emptyList())),
                 scrollToTop = null,
                 onScrollToTopConsumed = {},
+                snackbarHostState = remember { SnackbarHostState() },
             )
         }
     }
@@ -91,6 +94,7 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
                 viewModel = homeViewModel(Result.success(notes)),
                 scrollToTop = null,
                 onScrollToTopConsumed = {},
+                snackbarHostState = remember { SnackbarHostState() },
             )
         }
     }
@@ -106,6 +110,7 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
                 viewModel = homeViewModel(Result.failure(RuntimeException("Something went wrong"))),
                 scrollToTop = null,
                 onScrollToTopConsumed = {},
+                snackbarHostState = remember { SnackbarHostState() },
             )
         }
     }
@@ -118,7 +123,12 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
             errorHandler = FakeErrorHandler(),
         )
         captureSettled {
-            SettingsScreen(onBack = {}, onNavigateToAuth = {}, viewModel = viewModel)
+            SettingsScreen(
+                onBack = {},
+                onNavigateToAuth = {},
+                viewModel = viewModel,
+                snackbarHostState = remember { SnackbarHostState() },
+            )
         }
     }
 
@@ -148,6 +158,7 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
                 viewModel = viewModel,
                 scrollToTop = null,
                 onScrollToTopConsumed = {},
+                snackbarHostState = remember { SnackbarHostState() },
             )
         }
     }

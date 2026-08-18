@@ -18,8 +18,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -48,7 +46,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -79,7 +76,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ShareCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -87,10 +83,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.BottomSheetActionItem
-import com.jiahan.smartcamera.common.CustomSnackbarHost
 import com.jiahan.smartcamera.common.ScrollDirectionEffect
 import com.jiahan.smartcamera.common.ScrollToTopEffect
 import com.jiahan.smartcamera.common.rememberShouldLoadMore
+import com.jiahan.smartcamera.common.showAppSnackbar
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
@@ -108,13 +104,13 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
     onScrollDirectionChanged: (Boolean) -> Unit = {},
     scrollToTop: Long?,
-    onScrollToTopConsumed: () -> Unit
+    onScrollToTopConsumed: () -> Unit,
+    snackbarHostState: SnackbarHostState
 ) {
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
     val pullToRefreshState = rememberPullToRefreshState()
     val listState = rememberLazyListState()
-    val snackbarHostState = remember { SnackbarHostState() }
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -128,7 +124,9 @@ fun HomeScreen(
     )
 
     LaunchedEffect(Unit) {
-        viewModel.actionError.collect { message -> snackbarHostState.showSnackbar(message) }
+        viewModel.actionError.collect { message ->
+            snackbarHostState.showAppSnackbar(message, isError = true)
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -173,8 +171,8 @@ fun HomeScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
             TopAppBar(
                 title = {
                     Text(
@@ -191,97 +189,96 @@ fun HomeScreen(
                     }
                 }
             )
-        },
-        snackbarHost = { CustomSnackbarHost(snackbarHostState, isError = true) }
-    ) { padding ->
-        when (val state = uiState.content) {
-            is HomeContent.Loading ->
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(strokeWidth = 1.5.dp)
-                }
-
-            is HomeContent.Error ->
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(state.message)
-                }
-
-            is HomeContent.Success ->
-                if (state.notes.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(stringResource(R.string.no_notes_found))
-                    }
-                } else {
-                    PullToRefreshBox(
-                        modifier = Modifier.padding(
-                            top = padding.calculateTopPadding(),
-                            start = padding.calculateStartPadding(LayoutDirection.Ltr),
-                            end = padding.calculateEndPadding(LayoutDirection.Ltr)
-                        ),
-                        state = pullToRefreshState,
-                        isRefreshing = uiState.isRefreshing,
-                        onRefresh = {
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
-                            viewModel.refresh()
-                        },
-                    ) {
-                        LazyColumn(
-                            state = listState,
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                when (val state = uiState.content) {
+                    is HomeContent.Loading ->
+                        Box(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(top = 8.dp, bottom = 8.dp)
+                            contentAlignment = Alignment.Center
                         ) {
-                            items(
-                                count = state.notes.size,
-                                key = { index -> state.notes[index].noteId }
-                            ) { index ->
-                                val note = state.notes[index]
-                                HomeItem(
-                                    note = note,
-                                    onNavigateToNotePreview = {
-                                        onNavigateToNotePreview(note.noteId)
-                                    },
-                                    onFavoriteNote = { viewModel.favoriteNote(note) },
-                                    onDeleteNote = { viewModel.setNoteToDelete(note) },
-                                    onPhotoClick = { url ->
-                                        onNavigateToPhotoPreview(url)
-                                    },
-                                    onVideoClick = { url ->
-                                        onNavigateToVideoPreview(url)
-                                    },
-                                    onProfilePictureClick = { url ->
-                                        onNavigateToPhotoPreview(url)
-                                    },
-                                    onShareNote = { viewModel.shareNote(note) },
-                                    onImageLoadError = viewModel::logImageLoadError
-                                )
-                            }
+                            CircularProgressIndicator(strokeWidth = 1.5.dp)
+                        }
 
-                            if (uiState.isLoadingMore) {
-                                item {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(32.dp),
-                                            strokeWidth = 1.5.dp
+                    is HomeContent.Error ->
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(state.message)
+                        }
+
+                    is HomeContent.Success ->
+                        if (state.notes.isEmpty()) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(stringResource(R.string.no_notes_found))
+                            }
+                        } else {
+                            PullToRefreshBox(
+                                modifier = Modifier.fillMaxSize(),
+                                state = pullToRefreshState,
+                                isRefreshing = uiState.isRefreshing,
+                                onRefresh = {
+                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                    viewModel.refresh()
+                                },
+                            ) {
+                                LazyColumn(
+                                    state = listState,
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    items(
+                                        count = state.notes.size,
+                                        key = { index -> state.notes[index].noteId }
+                                    ) { index ->
+                                        val note = state.notes[index]
+                                        HomeItem(
+                                            note = note,
+                                            onNavigateToNotePreview = {
+                                                onNavigateToNotePreview(note.noteId)
+                                            },
+                                            onFavoriteNote = { viewModel.favoriteNote(note) },
+                                            onDeleteNote = { viewModel.setNoteToDelete(note) },
+                                            onPhotoClick = { url ->
+                                                onNavigateToPhotoPreview(url)
+                                            },
+                                            onVideoClick = { url ->
+                                                onNavigateToVideoPreview(url)
+                                            },
+                                            onProfilePictureClick = { url ->
+                                                onNavigateToPhotoPreview(url)
+                                            },
+                                            onShareNote = { viewModel.shareNote(note) },
+                                            onImageLoadError = viewModel::logImageLoadError
                                         )
+                                    }
+
+                                    if (uiState.isLoadingMore) {
+                                        item {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(16.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(32.dp),
+                                                    strokeWidth = 1.5.dp
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
                 }
+            }
         }
     }
 }

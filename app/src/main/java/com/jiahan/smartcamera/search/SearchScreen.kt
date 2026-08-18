@@ -1,18 +1,15 @@
 package com.jiahan.smartcamera.search
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -21,23 +18,21 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ShareCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.common.CustomSnackbarHost
 import com.jiahan.smartcamera.common.ScrollDirectionEffect
 import com.jiahan.smartcamera.common.ScrollToTopEffect
 import com.jiahan.smartcamera.common.SearchBar
 import com.jiahan.smartcamera.common.rememberCyclingPlaceholder
+import com.jiahan.smartcamera.common.showAppSnackbar
 import com.jiahan.smartcamera.home.HomeItem
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,12 +44,12 @@ fun SearchScreen(
     viewModel: SearchViewModel = hiltViewModel(),
     onScrollDirectionChanged: (Boolean) -> Unit = {},
     scrollToTop: Long?,
-    onScrollToTopConsumed: () -> Unit
+    onScrollToTopConsumed: () -> Unit,
+    snackbarHostState: SnackbarHostState
 ) {
     val context = LocalContext.current
     val pullToRefreshState = rememberPullToRefreshState()
     val listState = rememberLazyListState()
-    val snackbarHostState = remember { SnackbarHostState() }
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
@@ -72,7 +67,9 @@ fun SearchScreen(
     ScrollDirectionEffect(listState, onScrollDirectionChanged)
 
     LaunchedEffect(Unit) {
-        viewModel.actionError.collect { message -> snackbarHostState.showSnackbar(message) }
+        viewModel.actionError.collect { message ->
+            snackbarHostState.showAppSnackbar(message, isError = true)
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -117,8 +114,8 @@ fun SearchScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
             SearchBar(
                 searchQuery = searchQuery,
                 onSearchQueryChange = { text -> viewModel.updateSearchQuery(text) },
@@ -130,85 +127,84 @@ fun SearchScreen(
                     )
                 }
             )
-        },
-        snackbarHost = { CustomSnackbarHost(snackbarHostState, isError = true) }
-    ) { padding ->
-        when (val state = uiState.content) {
-            is SearchContent.Idle ->
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(stringResource(R.string.no_results_found))
-                }
-
-            is SearchContent.Loading ->
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(strokeWidth = 1.5.dp)
-                }
-
-            is SearchContent.Error ->
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(state.message)
-                }
-
-            is SearchContent.Success ->
-                if (state.notes.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(stringResource(R.string.no_results_found))
-                    }
-                } else {
-                    PullToRefreshBox(
-                        modifier = Modifier.padding(
-                            top = padding.calculateTopPadding(),
-                            start = padding.calculateStartPadding(LayoutDirection.Ltr),
-                            end = padding.calculateEndPadding(LayoutDirection.Ltr)
-                        ),
-                        state = pullToRefreshState,
-                        isRefreshing = uiState.isRefreshing,
-                        onRefresh = { viewModel.refresh() },
-                    ) {
-                        LazyColumn(
-                            state = listState,
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                when (val state = uiState.content) {
+                    is SearchContent.Idle ->
+                        Box(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(top = 8.dp, bottom = 76.dp)
+                            contentAlignment = Alignment.Center
                         ) {
-                            items(
-                                count = state.notes.size,
-                                key = { index -> state.notes[index].noteId }
-                            ) { index ->
-                                val note = state.notes[index]
-                                HomeItem(
-                                    note = note,
-                                    onNavigateToNotePreview = {
-                                        onNavigateToNotePreview(note.noteId)
-                                    },
-                                    onFavoriteNote = { viewModel.favoriteNote(note) },
-                                    onDeleteNote = { viewModel.setNoteToDelete(note) },
-                                    onPhotoClick = { url ->
-                                        onNavigateToPhotoPreview(url)
-                                    },
-                                    onVideoClick = { url ->
-                                        onNavigateToVideoPreview(url)
-                                    },
-                                    onProfilePictureClick = { url ->
-                                        onNavigateToPhotoPreview(url)
-                                    },
-                                    onShareNote = { viewModel.shareNote(note) }
-                                )
+                            Text(stringResource(R.string.no_results_found))
+                        }
+
+                    is SearchContent.Loading ->
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(strokeWidth = 1.5.dp)
+                        }
+
+                    is SearchContent.Error ->
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(state.message)
+                        }
+
+                    is SearchContent.Success ->
+                        if (state.notes.isEmpty()) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(stringResource(R.string.no_results_found))
+                            }
+                        } else {
+                            PullToRefreshBox(
+                                modifier = Modifier.fillMaxSize(),
+                                state = pullToRefreshState,
+                                isRefreshing = uiState.isRefreshing,
+                                onRefresh = { viewModel.refresh() },
+                            ) {
+                                LazyColumn(
+                                    state = listState,
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    items(
+                                        count = state.notes.size,
+                                        key = { index -> state.notes[index].noteId }
+                                    ) { index ->
+                                        val note = state.notes[index]
+                                        HomeItem(
+                                            note = note,
+                                            onNavigateToNotePreview = {
+                                                onNavigateToNotePreview(note.noteId)
+                                            },
+                                            onFavoriteNote = { viewModel.favoriteNote(note) },
+                                            onDeleteNote = { viewModel.setNoteToDelete(note) },
+                                            onPhotoClick = { url ->
+                                                onNavigateToPhotoPreview(url)
+                                            },
+                                            onVideoClick = { url ->
+                                                onNavigateToVideoPreview(url)
+                                            },
+                                            onProfilePictureClick = { url ->
+                                                onNavigateToPhotoPreview(url)
+                                            },
+                                            onShareNote = { viewModel.shareNote(note) }
+                                        )
+                                    }
+                                }
                             }
                         }
-                    }
                 }
+            }
         }
     }
 }

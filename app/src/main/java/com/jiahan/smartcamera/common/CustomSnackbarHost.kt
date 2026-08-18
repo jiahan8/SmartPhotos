@@ -5,15 +5,18 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 
 @Composable
 fun CustomSnackbarHost(
     snackbarHostState: SnackbarHostState,
-    isError: Boolean = false
+    modifier: Modifier = Modifier
 ) {
     SnackbarHost(
         hostState = snackbarHostState,
+        modifier = modifier,
         snackbar = { snackbarData ->
+            val isError = (snackbarData.visuals as? AppSnackbarVisuals)?.isError == true
             Snackbar(
                 snackbarData = snackbarData,
                 containerColor = if (isError) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primary,

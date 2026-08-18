@@ -1,6 +1,8 @@
 package com.jiahan.smartcamera.search
 
 import androidx.activity.ComponentActivity
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -67,6 +69,7 @@ class SearchScreenTest {
                     viewModel = viewModel,
                     scrollToTop = null,
                     onScrollToTopConsumed = {},
+                    snackbarHostState = remember { SnackbarHostState() },
                 )
             }
         }
