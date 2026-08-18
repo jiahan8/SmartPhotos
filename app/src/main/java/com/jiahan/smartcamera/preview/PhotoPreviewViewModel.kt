@@ -7,6 +7,7 @@ import androidx.navigation.toRoute
 import com.jiahan.smartcamera.navigation.MediaSourceType
 import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.ErrorTag
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
@@ -25,6 +26,6 @@ class PhotoPreviewViewModel @Inject constructor(
     }
 
     fun logImageLoadError(throwable: Throwable) {
-        errorHandler.logError(throwable, tag = "ImageLoad")
+        errorHandler.logError(throwable, tag = ErrorTag.IMAGE_LOAD)
     }
 }

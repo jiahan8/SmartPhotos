@@ -94,8 +94,8 @@ class HomeScreenTest {
         noteRepository.notesResult = Result.success(emptyList())
         launchHomeScreen()
 
-        waitForText(string(R.string.no_notes_found))
-        composeTestRule.onNodeWithText(string(R.string.no_notes_found)).assertIsDisplayed()
+        waitForText(string(R.string.create_first_note))
+        composeTestRule.onNodeWithText(string(R.string.create_first_note)).assertIsDisplayed()
     }
 
     @Test

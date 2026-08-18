@@ -9,7 +9,7 @@
 
     <!-- Home -->
     <string name="home">ホーム</string>
-    <string name="no_notes_found">メモが見つかりません</string>
+    <string name="create_first_note">最初のメモを作成しましょう</string>
     <string name="like">いいね</string>
     <string name="remove_like">いいねを取り消す</string>
     <string name="delete_note">メモを削除</string>

@@ -114,7 +114,7 @@ fun ProfileScreen(
         contract = PickVisualMedia()
     ) { uri ->
         uri?.let {
-            viewModel.uploadProfilePicture(uri)
+            viewModel.uploadProfilePicture(it)
         }
     }
 
@@ -249,20 +249,22 @@ fun ProfileScreen(
                     .fillMaxWidth()
             ) {
                 Column(
-                    modifier = Modifier.verticalScroll(scrollState),
+                    modifier = Modifier
+                        .verticalScroll(scrollState)
+                        .padding(start = 16.dp, end = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    profilePictureUrl?.let {
+                    profilePictureUrl?.let { url ->
                         AsyncImage(
-                            model = it,
+                            model = url,
                             contentDescription = stringResource(R.string.cd_profile_picture),
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .size(88.dp)
                                 .clip(CircleShape)
                                 .clickable {
-                                    onNavigateToPhotoPreview(it)
+                                    onNavigateToPhotoPreview(url)
                                 },
                             alignment = Alignment.Center,
                             onError = { viewModel.logImageLoadError(it.result.throwable) }

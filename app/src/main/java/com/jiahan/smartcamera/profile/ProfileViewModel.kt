@@ -11,6 +11,7 @@ import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.domain.ProfilePictureUpdate
 import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.ErrorTag
 import com.jiahan.smartcamera.util.ResourceProvider
 import com.jiahan.smartcamera.util.ValidationResult
 import com.jiahan.smartcamera.util.usernameErrorMessageResId
@@ -75,7 +76,7 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun logImageLoadError(throwable: Throwable) {
-        errorHandler.logError(throwable, tag = "ImageLoad")
+        errorHandler.logError(throwable, tag = ErrorTag.IMAGE_LOAD)
     }
 
     private fun loadUserProfile() {

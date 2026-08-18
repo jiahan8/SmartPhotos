@@ -4,6 +4,7 @@ import com.jiahan.smartcamera.MainDispatcherRule
 import com.jiahan.smartcamera.data.repository.PhotoRepository
 import com.jiahan.smartcamera.domain.Photo
 import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.ErrorTag
 import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -218,6 +219,6 @@ class ExploreViewModelTest {
 
         viewModel.logImageLoadError(exception)
 
-        verify { errorHandler.logError(exception, "ImageLoad") }
+        verify { errorHandler.logError(exception, ErrorTag.IMAGE_LOAD) }
     }
 }

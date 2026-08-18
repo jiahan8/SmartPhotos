@@ -217,7 +217,7 @@ fun HomeScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(stringResource(R.string.no_notes_found))
+                                Text(stringResource(R.string.create_first_note))
                             }
                         } else {
                             PullToRefreshBox(

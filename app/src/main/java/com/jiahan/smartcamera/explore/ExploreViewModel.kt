@@ -6,6 +6,7 @@ import com.jiahan.smartcamera.data.repository.PhotoRepository
 import com.jiahan.smartcamera.domain.Photo
 import com.jiahan.smartcamera.util.AppConstants.DEFAULT_PAGE_SIZE
 import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.ErrorTag
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,7 +52,7 @@ class ExploreViewModel @Inject constructor(
     }
 
     fun logImageLoadError(throwable: Throwable) {
-        errorHandler.logError(throwable, tag = "ImageLoad")
+        errorHandler.logError(throwable, tag = ErrorTag.IMAGE_LOAD)
     }
 
     fun refresh() {

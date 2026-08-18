@@ -179,16 +179,16 @@ fun NotePreviewScreen(
                                         .fillMaxWidth()
                                         .padding(start = 16.dp, end = 16.dp, top = 16.dp)
                                 ) {
-                                    note.profilePictureUrl?.let {
+                                    note.profilePictureUrl?.let { url ->
                                         AsyncImage(
-                                            model = it,
+                                            model = url,
                                             contentDescription = stringResource(R.string.cd_profile_picture),
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier
                                                 .size(38.dp)
                                                 .clip(CircleShape)
                                                 .clickable {
-                                                    onNavigateToPhotoPreview(it)
+                                                    onNavigateToPhotoPreview(url)
                                                 },
                                             onError = { viewModel.logImageLoadError(it.result.throwable) }
                                         )

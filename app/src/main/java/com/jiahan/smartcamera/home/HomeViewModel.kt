@@ -9,6 +9,7 @@ import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.AppConstants.DEFAULT_PAGE_SIZE
 import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.ErrorTag
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,7 +58,7 @@ class HomeViewModel @Inject constructor(
     }
 
     fun logImageLoadError(throwable: Throwable) {
-        errorHandler.logError(throwable, tag = "ImageLoad")
+        errorHandler.logError(throwable, tag = ErrorTag.IMAGE_LOAD)
     }
 
     fun refresh() {

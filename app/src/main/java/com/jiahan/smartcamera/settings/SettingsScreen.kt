@@ -241,7 +241,7 @@ fun SettingsScreen(
                             )
                             locale?.let {
                                 Text(
-                                    text = locale.displayLanguage,
+                                    text = it.displayLanguage,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.padding(start = 12.dp),

@@ -14,6 +14,7 @@ import com.jiahan.smartcamera.util.AppConstants.MAX_NOTE_MEDIA_ITEMS
 import com.jiahan.smartcamera.util.AppConstants.MAX_POST_TEXT_LENGTH
 import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.ErrorTag
 import com.jiahan.smartcamera.util.ResourceProvider
 import com.jiahan.smartcamera.util.noteErrorMessageResId
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -66,7 +67,7 @@ class NoteViewModel @Inject constructor(
     }
 
     fun logImageLoadError(throwable: Throwable) {
-        errorHandler.logError(throwable, tag = "ImageLoad")
+        errorHandler.logError(throwable, tag = ErrorTag.IMAGE_LOAD)
     }
 
     val postButtonEnabled = _uiState

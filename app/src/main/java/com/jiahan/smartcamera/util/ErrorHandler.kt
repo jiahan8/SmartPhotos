@@ -27,6 +27,15 @@ interface ErrorHandler {
     fun getErrorMessage(throwable: Throwable): String
 }
 
+/**
+ * Well-known [ErrorHandler.logError] tags shared across features, kept in one place
+ * so call sites don't drift on ad-hoc string literals.
+ */
+object ErrorTag {
+    const val IMAGE_LOAD = "ImageLoad"
+    const val VIDEO_LOAD = "VideoLoad"
+}
+
 class DefaultErrorHandler @Inject constructor(
     private val resourceProvider: ResourceProvider
 ) : ErrorHandler {
