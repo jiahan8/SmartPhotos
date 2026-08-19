@@ -79,6 +79,8 @@
     <!-- Sharing -->
     <string name="share">共有</string>
     <string name="share_note_failure">このノートを共有できませんでした。もう一度お試しください。</string>
+    <string name="share_photo_failure">この写真を共有できませんでした。もう一度お試しください。</string>
+    <string name="share_video_failure">この動画を共有できませんでした。もう一度お試しください。</string>
     <string name="cd_more_options">その他のオプション</string>
     <string name="copy_text">テキストをコピー</string>
 

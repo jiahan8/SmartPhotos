@@ -13,4 +13,8 @@ object FileConstants {
 
     // Content provider authority
     const val FILE_PROVIDER_AUTHORITY = "com.jiahan.smartcamera.fileprovider"
+
+    // MIME types
+    const val MIME_TYPE_IMAGE = "image/*"
+    const val MIME_TYPE_VIDEO = "video/*"
 }

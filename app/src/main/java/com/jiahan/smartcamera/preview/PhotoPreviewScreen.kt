@@ -9,16 +9,21 @@ import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.IosShare
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.res.stringResource
 import com.jiahan.smartcamera.R
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,19 +36,44 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
+import androidx.core.app.ShareCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.jiahan.smartcamera.common.showAppSnackbar
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
+import com.jiahan.smartcamera.util.FileConstants.MIME_TYPE_IMAGE
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PhotoPreviewScreen(
     onBack: () -> Unit,
-    viewModel: PhotoPreviewViewModel = hiltViewModel()
+    viewModel: PhotoPreviewViewModel = hiltViewModel(),
+    snackbarHostState: SnackbarHostState
 ) {
     val photoSource = viewModel.photoSource
+    val context = LocalContext.current
+    val isSharing by viewModel.isSharing.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.shareEvent.collect { uri ->
+            ShareCompat.IntentBuilder(context)
+                .setType(MIME_TYPE_IMAGE)
+                .addStream(uri)
+                .startChooser()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.actionError.collect { message ->
+            snackbarHostState.showAppSnackbar(message, isError = true)
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -171,6 +201,24 @@ fun PhotoPreviewScreen(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = stringResource(R.string.cd_back)
                     )
+                }
+            },
+            actions = {
+                IconButton(
+                    onClick = { viewModel.sharePhoto() },
+                    enabled = !isSharing
+                ) {
+                    if (isSharing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 1.5.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Outlined.IosShare,
+                            contentDescription = stringResource(R.string.share)
+                        )
+                    }
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(

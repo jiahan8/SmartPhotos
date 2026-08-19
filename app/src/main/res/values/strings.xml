@@ -79,6 +79,8 @@
     <!-- Sharing -->
     <string name="share">Share</string>
     <string name="share_note_failure">Couldn\'t share this note. Please try again.</string>
+    <string name="share_photo_failure">Couldn\'t share this photo. Please try again.</string>
+    <string name="share_video_failure">Couldn\'t share this video. Please try again.</string>
     <string name="cd_more_options">More options</string>
     <string name="copy_text">Copy text</string>
 

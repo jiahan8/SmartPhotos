@@ -110,11 +110,17 @@ fun NavGraphBuilder.smartPhotosNavGraph(
     }
 
     composable<Screen.PhotoPreview> {
-        PhotoPreviewScreen(onBack = { navController.popBackStack() })
+        PhotoPreviewScreen(
+            onBack = { navController.popBackStack() },
+            snackbarHostState = snackbarHostState
+        )
     }
 
     composable<Screen.VideoPreview> {
-        VideoPreviewScreen(onBack = { navController.popBackStack() })
+        VideoPreviewScreen(
+            onBack = { navController.popBackStack() },
+            snackbarHostState = snackbarHostState
+        )
     }
 
     composable<Screen.NotePreview> {
