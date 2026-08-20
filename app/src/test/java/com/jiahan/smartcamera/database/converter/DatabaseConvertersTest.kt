@@ -144,6 +144,56 @@ class DatabaseConvertersTest {
     }
 
     // -------------------------------------------------------------------------
+    // Round-trip: generatedLandmarks
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `generatedLandmarks survive round-trip`() {
+        val original = listOf(
+            MediaDetail(
+                photoUrl = "https://example.com/photo.jpg",
+                generatedLandmarks = listOf(
+                    DetectedLabel("Eiffel Tower", 0.92),
+                    DetectedLabel("Golden Gate Bridge", 0.81)
+                )
+            )
+        )
+        val restored = requireNotNull(converters.toMediaList(converters.fromMediaList(original)))
+        val landmarks = requireNotNull(restored[0].generatedLandmarks)
+
+        assertEquals(2, landmarks.size)
+        assertEquals("Eiffel Tower", landmarks[0].label)
+        assertEquals(0.92, landmarks[0].score, 0.001)
+        assertEquals("Golden Gate Bridge", landmarks[1].label)
+        assertEquals(0.81, landmarks[1].score, 0.001)
+    }
+
+    // -------------------------------------------------------------------------
+    // Round-trip: generatedLogos
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `generatedLogos survive round-trip`() {
+        val original = listOf(
+            MediaDetail(
+                photoUrl = "https://example.com/photo.jpg",
+                generatedLogos = listOf(
+                    DetectedLabel("Nike", 0.97),
+                    DetectedLabel("Adidas", 0.7)
+                )
+            )
+        )
+        val restored = requireNotNull(converters.toMediaList(converters.fromMediaList(original)))
+        val logos = requireNotNull(restored[0].generatedLogos)
+
+        assertEquals(2, logos.size)
+        assertEquals("Nike", logos[0].label)
+        assertEquals(0.97, logos[0].score, 0.001)
+        assertEquals("Adidas", logos[1].label)
+        assertEquals(0.7, logos[1].score, 0.001)
+    }
+
+    // -------------------------------------------------------------------------
     // Round-trip: multiple MediaDetail items
     // -------------------------------------------------------------------------
 
@@ -182,5 +232,7 @@ class DatabaseConvertersTest {
         assertNull(restored[0].generatedText)
         assertNull(restored[0].generatedObjects)
         assertNull(restored[0].generatedLabels)
+        assertNull(restored[0].generatedLandmarks)
+        assertNull(restored[0].generatedLogos)
     }
 }

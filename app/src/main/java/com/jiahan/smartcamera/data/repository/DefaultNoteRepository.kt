@@ -79,6 +79,8 @@ class DefaultNoteRepository @Inject constructor(
         private const val FIELD_GENERATED_TEXT = "generatedText"
         private const val FIELD_GENERATED_OBJECTS = "generatedObjects"
         private const val FIELD_GENERATED_LABELS = "generatedLabels"
+        private const val FIELD_GENERATED_LANDMARKS = "generatedLandmarks"
+        private const val FIELD_GENERATED_LOGOS = "generatedLogos"
 
         // Detection field names
         private const val FIELD_OBJECT = "object"
@@ -392,6 +394,18 @@ class DefaultNoteRepository @Inject constructor(
             val label = map?.get(FIELD_LABEL) as? String
             val score = map?.get(FIELD_SCORE) as? Double
             if (label != null && score != null) DetectedLabel(label, score) else null
+        },
+        generatedLandmarks = (mediaMap[FIELD_GENERATED_LANDMARKS] as? List<*>)?.mapNotNull { labelItem ->
+            val map = labelItem as? Map<*, *>
+            val label = map?.get(FIELD_LABEL) as? String
+            val score = map?.get(FIELD_SCORE) as? Double
+            if (label != null && score != null) DetectedLabel(label, score) else null
+        },
+        generatedLogos = (mediaMap[FIELD_GENERATED_LOGOS] as? List<*>)?.mapNotNull { labelItem ->
+            val map = labelItem as? Map<*, *>
+            val label = map?.get(FIELD_LABEL) as? String
+            val score = map?.get(FIELD_SCORE) as? Double
+            if (label != null && score != null) DetectedLabel(label, score) else null
         }
     )
 
@@ -410,6 +424,12 @@ class DefaultNoteRepository @Inject constructor(
                                 it.objectName.contains(query, ignoreCase = true)
                             } == true ||
                             media.generatedLabels?.any {
+                                it.label.contains(query, ignoreCase = true)
+                            } == true ||
+                            media.generatedLandmarks?.any {
+                                it.label.contains(query, ignoreCase = true)
+                            } == true ||
+                            media.generatedLogos?.any {
                                 it.label.contains(query, ignoreCase = true)
                             } == true
                 } == true

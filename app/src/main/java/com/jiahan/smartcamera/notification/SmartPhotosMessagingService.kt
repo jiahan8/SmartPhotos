@@ -20,15 +20,17 @@ import coil3.SingletonImageLoader
 import coil3.asDrawable
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
+import coil3.request.allowHardware
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.jiahan.smartcamera.MainActivity
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.data.repository.UserRepository
+import com.jiahan.smartcamera.di.IoDispatcher
 import com.jiahan.smartcamera.util.ErrorHandler
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -45,7 +47,15 @@ class SmartPhotosMessagingService : FirebaseMessagingService() {
     @Inject
     lateinit var errorHandler: ErrorHandler
 
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Inject
+    @IoDispatcher
+    lateinit var ioDispatcher: CoroutineDispatcher
+
+    // Hilt field injection runs in onCreate(), after this class's constructor -- so
+    // ioDispatcher isn't available yet at property-initialization time. `by lazy` defers
+    // construction to first access (onNewToken()/onMessageReceived()), which always happens
+    // after onCreate().
+    private val serviceScope by lazy { CoroutineScope(SupervisorJob() + ioDispatcher) }
 
     // onNewToken() is deprecated in favor of onRegistered(installationId), but that callback
     // requires opting into the Firebase Installation ID model, which admin.messaging().send()
@@ -82,7 +92,11 @@ class SmartPhotosMessagingService : FirebaseMessagingService() {
     }
 
     private suspend fun loadRoundedIcon(url: String): Bitmap? {
-        val request = ImageRequest.Builder(this).data(url).build()
+        // toCircularBitmap() below draws the result onto a software Canvas, and a
+        // Bitmap.Config.HARDWARE bitmap can't be drawn that way -- it throws "Software
+        // rendering doesn't support hardware bitmaps". Coil defaults to allowHardware = true,
+        // so this request must opt out explicitly.
+        val request = ImageRequest.Builder(this).data(url).allowHardware(false).build()
         val result = SingletonImageLoader.get(this).execute(request)
         if (result !is SuccessResult) {
             return null

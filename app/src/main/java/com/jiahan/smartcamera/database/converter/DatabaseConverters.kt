@@ -17,6 +17,8 @@ class DatabaseConverters {
         private const val GENERATED_TEXT = "generatedText"
         private const val GENERATED_OBJECTS = "generatedObjects"
         private const val GENERATED_LABELS = "generatedLabels"
+        private const val GENERATED_LANDMARKS = "generatedLandmarks"
+        private const val GENERATED_LOGOS = "generatedLogos"
         private const val OBJECT_NAME = "objectName"
         private const val LABEL = "label"
         private const val SCORE = "score"
@@ -47,6 +49,20 @@ class DatabaseConverters {
                 }
                 obj.put(GENERATED_LABELS, arr)
             }
+            media.generatedLandmarks?.let { landmarks ->
+                val arr = JSONArray()
+                for (l in landmarks) {
+                    arr.put(JSONObject().put(LABEL, l.label).put(SCORE, l.score))
+                }
+                obj.put(GENERATED_LANDMARKS, arr)
+            }
+            media.generatedLogos?.let { logos ->
+                val arr = JSONArray()
+                for (l in logos) {
+                    arr.put(JSONObject().put(LABEL, l.label).put(SCORE, l.score))
+                }
+                obj.put(GENERATED_LOGOS, arr)
+            }
             array.put(obj)
         }
         return array.toString()
@@ -76,6 +92,24 @@ class DatabaseConverters {
                     }
                 },
                 generatedLabels = obj.optJSONArray(GENERATED_LABELS)?.let { arr ->
+                    (0 until arr.length()).map { j ->
+                        val l = arr.getJSONObject(j)
+                        DetectedLabel(
+                            label = l.getString(LABEL),
+                            score = l.getDouble(SCORE),
+                        )
+                    }
+                },
+                generatedLandmarks = obj.optJSONArray(GENERATED_LANDMARKS)?.let { arr ->
+                    (0 until arr.length()).map { j ->
+                        val l = arr.getJSONObject(j)
+                        DetectedLabel(
+                            label = l.getString(LABEL),
+                            score = l.getDouble(SCORE),
+                        )
+                    }
+                },
+                generatedLogos = obj.optJSONArray(GENERATED_LOGOS)?.let { arr ->
                     (0 until arr.length()).map { j ->
                         val l = arr.getJSONObject(j)
                         DetectedLabel(

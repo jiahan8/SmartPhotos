@@ -108,11 +108,12 @@ async function sendPushToUser(uid, data = {}) {
 }
 
 /**
- * Cloud Function to process text recognition, label detection, and
- * object detection on images in a note
+ * Cloud Function to process text, label, object, landmark, and logo
+ * detection on images in a note
  * This function is automatically triggered when a new note is created
  * It processes all images in the media_list and adds detection fields
- * Uses Google Cloud Vision API for text, label, and object detection
+ * Uses Google Cloud Vision API for text, label, object, landmark, and logo
+ * detection
  */
 exports.processTextRecognition = onDocumentCreated(
     {
@@ -163,14 +164,17 @@ exports.processTextRecognition = onDocumentCreated(
               }
 
               try {
-                // Request text, label, and object detection in a single
-                // Vision API call instead of three separate round trips.
+                // Request text, label, object, landmark, and logo detection
+                // in a single Vision API call instead of separate round
+                // trips.
                 const [result] = await visionClient.annotateImage({
                   image: {source: {imageUri: imageUrl}},
                   features: [
                     {type: "TEXT_DETECTION"},
                     {type: "LABEL_DETECTION"},
                     {type: "OBJECT_LOCALIZATION"},
+                    {type: "LANDMARK_DETECTION"},
+                    {type: "LOGO_DETECTION"},
                   ],
                 });
 
@@ -215,10 +219,38 @@ exports.processTextRecognition = onDocumentCreated(
                   });
                 }
 
+                // Process landmark detection
+                // Create array of maps with label and score
+                const generatedLandmarks = [];
+                const landmarks = result.landmarkAnnotations;
+                if (landmarks && landmarks.length > 0) {
+                  landmarks.forEach((landmark) => {
+                    generatedLandmarks.push({
+                      label: landmark.description,
+                      score: landmark.score,
+                    });
+                  });
+                }
+
+                // Process logo detection
+                // Create array of maps with label and score
+                const generatedLogos = [];
+                const logos = result.logoAnnotations;
+                if (logos && logos.length > 0) {
+                  logos.forEach((logo) => {
+                    generatedLogos.push({
+                      label: logo.description,
+                      score: logo.score,
+                    });
+                  });
+                }
+
                 logger.info(
                     `Detection results - Text: ${generatedText.length}, ` +
                     `Labels: ${generatedLabels.length}, ` +
-                    `Objects: ${generatedObjects.length}`,
+                    `Objects: ${generatedObjects.length}, ` +
+                    `Landmarks: ${generatedLandmarks.length}, ` +
+                    `Logos: ${generatedLogos.length}`,
                 );
 
                 // Return updated media object with all detection fields
@@ -227,6 +259,8 @@ exports.processTextRecognition = onDocumentCreated(
                   generatedText: generatedText,
                   generatedLabels: generatedLabels,
                   generatedObjects: generatedObjects,
+                  generatedLandmarks: generatedLandmarks,
+                  generatedLogos: generatedLogos,
                 };
               } catch (error) {
                 logger.error("Error processing image:", error);
@@ -236,6 +270,8 @@ exports.processTextRecognition = onDocumentCreated(
                   generatedText: [],
                   generatedLabels: [],
                   generatedObjects: [],
+                  generatedLandmarks: [],
+                  generatedLogos: [],
                 };
               }
             }),
@@ -280,10 +316,11 @@ exports.processTextRecognition = onDocumentCreated(
 
 /**
  * Strips a client-supplied media item down to the fields a client may
- * legitimately set before upload/detection finishes. generatedText/
- * generatedObjects/generatedLabels are intentionally dropped here: those may
- * only be added later, server-side, by processTextRecognition -- otherwise a
- * caller could fabricate detection results to manipulate search.
+ * legitimately set before upload/detection finishes. The generated*
+ * detection fields (text/objects/labels/landmarks/logos) are intentionally
+ * dropped here: those may only be added later, server-side, by
+ * processTextRecognition -- otherwise a caller could fabricate detection
+ * results to manipulate search.
  * @param {object} media A single client-supplied media item.
  * @return {object} The sanitized media item to persist.
  */
