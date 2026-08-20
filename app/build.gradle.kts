@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.google.services)
     alias(libs.plugins.parcelize)
     alias(libs.plugins.crashlytics)
+    alias(libs.plugins.firebase.perf)
     alias(libs.plugins.roborazzi)
 }
 
@@ -170,6 +171,9 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.functions)
     implementation(libs.firebase.inappmessaging.display)
+    implementation(libs.firebase.appcheck.playintegrity)
+    implementation(libs.firebase.appcheck.debug)
+    implementation(libs.firebase.perf)
 
     // Play Core (in-app updates)
     implementation(libs.play.app.update)

@@ -7,6 +7,10 @@ import android.content.Context
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.request.crossfade
+import com.google.firebase.Firebase
+import com.google.firebase.appcheck.appCheck
+import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
+import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
@@ -14,6 +18,7 @@ class MyApp : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
+        installAppCheckProviderFactory()
         createNotificationChannel()
     }
 
@@ -31,5 +36,14 @@ class MyApp : Application(), SingletonImageLoader.Factory {
             description = getString(R.string.notification_channel_description)
         }
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+    }
+
+    private fun installAppCheckProviderFactory() {
+        val providerFactory = if (BuildConfig.DEBUG) {
+            DebugAppCheckProviderFactory.getInstance()
+        } else {
+            PlayIntegrityAppCheckProviderFactory.getInstance()
+        }
+        Firebase.appCheck.installAppCheckProviderFactory(providerFactory)
     }
 }
