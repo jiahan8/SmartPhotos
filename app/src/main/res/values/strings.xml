@@ -29,18 +29,23 @@
     <!-- Note -->
     <string name="note">Note</string>
     <string name="new_note">New note</string>
+    <string name="edit_note">Edit note</string>
     <string name="whats_new">What\'s new?</string>
     <string name="create_note">Create a note</string>
     <string name="write_this_moment">Write about this moment</string>
     <string name="whats_on_mind">What\'s on your mind?</string>
     <string name="write_a_thought">Write a thought…</string>
     <string name="post">Post</string>
+    <string name="save">Save</string>
     <string name="post_success">Note uploaded successfully</string>
     <string name="post_validation">Note cannot exceed 500 characters</string>
     <string name="note_media_limit">You can attach up to 20 photos or videos per note</string>
     <string name="note_empty">Add some text or media before posting</string>
     <string name="no_media_available">No media URI available for upload</string>
     <string name="note_unavailable">This note is no longer available</string>
+    <string name="discard_changes">Discard changes?</string>
+    <string name="discard_changes_desc">Your edits to this note will not be saved.</string>
+    <string name="discard">Discard</string>
 
     <!-- Favorite -->
     <string name="favorite">Favorite</string>
@@ -142,6 +147,7 @@
     <string name="cd_take_photo">Take a photo</string>
     <string name="cd_take_video">Record a video</string>
     <string name="cd_marked_as_favorite">Marked as favorite</string>
+    <string name="cd_edit_note">Edit note</string>
     <string name="cd_open_settings">Open settings</string>
     <string name="cd_hide_password">Hide password</string>
     <string name="cd_show_password">Show password</string>

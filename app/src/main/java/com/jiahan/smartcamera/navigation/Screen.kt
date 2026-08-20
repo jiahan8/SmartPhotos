@@ -27,6 +27,9 @@ sealed interface Screen {
     data object Note : Screen
 
     @Serializable
+    data class EditNote(val noteId: String) : Screen
+
+    @Serializable
     data object Favorite : Screen
 
     @Serializable

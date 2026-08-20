@@ -89,6 +89,8 @@ class DefaultNoteRepository @Inject constructor(
 
         // Cloud Function names / argument keys
         private const val FUNCTION_CREATE_NOTE = "createNote"
+        private const val FUNCTION_UPDATE_NOTE = "updateNote"
+        private const val ARG_NOTE_ID = "noteId"
         private const val ARG_TEXT = "text"
         private const val ARG_MEDIA_LIST = "mediaList"
         private const val ARG_PHOTO_URL = "photoUrl"
@@ -173,6 +175,20 @@ class DefaultNoteRepository @Inject constructor(
         functions.getHttpsCallable(FUNCTION_CREATE_NOTE)
             .call(hashMapOf(ARG_TEXT to homeNote.text, ARG_MEDIA_LIST to mediaListPayload))
             .await()
+    }
+
+    // Delegates to the updateNote Cloud Function for the same reason addNote
+    // delegates to createNote: server-side validation and ownership checks a
+    // direct client-side Firestore update couldn't do. Only [homeNote]'s text
+    // is sent -- a note's media is fixed at creation time -- but the whole note
+    // is taken so the favorites cache can be refreshed with it below.
+    override suspend fun updateNote(homeNote: HomeNote): Result<Unit> = safeCall {
+        functions.getHttpsCallable(FUNCTION_UPDATE_NOTE)
+            .call(hashMapOf(ARG_NOTE_ID to homeNote.noteId, ARG_TEXT to homeNote.text))
+            .await()
+        if (homeNote.favorite) {
+            noteDao.upsertNotes(listOf(homeNote.toDatabaseNote()))
+        }
     }
 
     override suspend fun searchNotes(query: String): Result<List<HomeNote>> = safeCall {

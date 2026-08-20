@@ -67,6 +67,16 @@ class NotePreviewViewModel @Inject constructor(
                     }
                 }
         }
+
+        // Reflects an edit made on EditNoteScreen once the user navigates back here, since this
+        // ViewModel/screen instance stays on the back stack rather than reloading.
+        viewModelScope.launch {
+            noteHandler.noteUpdatedEvent.collect { updatedNote ->
+                if (updatedNote.noteId == noteId) {
+                    _uiState.update { it.copy(content = NotePreviewContent.Success(updatedNote)) }
+                }
+            }
+        }
     }
 
     fun logImageLoadError(throwable: Throwable) {

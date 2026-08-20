@@ -669,6 +669,78 @@ exports.cleanupNoteMedia = onDocumentDeleted(
 );
 
 /**
+ * Callable that edits the text of an existing note under
+ * user/{uid}/note/{noteId}. Only the text is editable: a note's media is
+ * fixed at creation time, so this never touches media_list -- which is also
+ * why it needs no Storage cleanup and no Vision re-run, and why the caller
+ * can't smuggle in fabricated detection results. Mirrors createNote's text
+ * validation and additionally verifies the caller owns the note.
+ */
+exports.updateNote = onCall(async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Sign-in required.");
+  }
+
+  const noteId = request.data && request.data.noteId;
+  if (typeof noteId !== "string" || !noteId) {
+    throw new HttpsError(
+        "invalid-argument", "noteId is required.",
+        {reason: "INVALID_NOTE_ID"},
+    );
+  }
+
+  const noteRef = admin.firestore()
+      .collection(COLLECTION_USER)
+      .doc(uid)
+      .collection(COLLECTION_NOTE)
+      .doc(noteId);
+  const noteSnapshot = await noteRef.get();
+  if (!noteSnapshot.exists) {
+    throw new HttpsError("not-found", "Note not found.");
+  }
+  const existingNote = noteSnapshot.data();
+  if (existingNote.user_id !== uid) {
+    throw new HttpsError("permission-denied", "You do not own this note.");
+  }
+
+  // Every invalid-argument error below carries a machine-readable `reason`
+  // in its details -- noteErrorMessageResId() on the client maps these to
+  // localized strings. All of them share the invalid-argument code, so the
+  // client can't tell them apart from the code alone.
+  const rawText = request.data && request.data.text;
+  if (rawText !== null && rawText !== undefined &&
+      typeof rawText !== "string") {
+    throw new HttpsError(
+        "invalid-argument", "Text must be a string.",
+        {reason: "INVALID_TEXT_TYPE"},
+    );
+  }
+  const trimmedText = typeof rawText === "string" ? rawText.trim() : null;
+  const text = trimmedText ? trimmedText : null;
+  if (text && text.length > MAX_POST_TEXT_LENGTH) {
+    throw new HttpsError(
+        "invalid-argument", "Text is too long.",
+        {reason: "TEXT_TOO_LONG"},
+    );
+  }
+
+  // Clearing the text of a note that carries no media would leave an empty
+  // note behind, so the same rule createNote enforces applies to an edit.
+  const existingMediaList = existingNote.media_list || [];
+  if (!text && existingMediaList.length === 0) {
+    throw new HttpsError(
+        "invalid-argument", "Note must have text or media.",
+        {reason: "EMPTY_NOTE"},
+    );
+  }
+
+  await noteRef.update({text: text});
+
+  return {success: true};
+});
+
+/**
  * Callable that proxies Unsplash's photo-listing endpoint so the Unsplash
  * access key stays server-side instead of being bundled into the app.
  */

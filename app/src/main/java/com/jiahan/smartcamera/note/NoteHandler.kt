@@ -17,6 +17,9 @@ class NoteHandler @Inject constructor() {
     private val _noteFavoritedEvent = MutableSharedFlow<HomeNote>()
     val noteFavoritedEvent = _noteFavoritedEvent.asSharedFlow()
 
+    private val _noteUpdatedEvent = MutableSharedFlow<HomeNote>()
+    val noteUpdatedEvent = _noteUpdatedEvent.asSharedFlow()
+
     suspend fun notifyNoteAdded() {
         _noteAddedEvent.emit(Unit)
     }
@@ -27,6 +30,10 @@ class NoteHandler @Inject constructor() {
 
     suspend fun notifyNoteFavorited(homeNote: HomeNote) {
         _noteFavoritedEvent.emit(homeNote)
+    }
+
+    suspend fun notifyNoteUpdated(homeNote: HomeNote) {
+        _noteUpdatedEvent.emit(homeNote)
     }
 
     fun observeNoteMutations(
@@ -42,6 +49,13 @@ class NoteHandler @Inject constructor() {
             noteFavoritedEvent.collect { updatedNote ->
                 updateNotes { notes ->
                     notes.map { if (it.noteId == updatedNote.noteId) it.copy(favorite = updatedNote.favorite) else it }
+                }
+            }
+        }
+        scope.launch {
+            noteUpdatedEvent.collect { updatedNote ->
+                updateNotes { notes ->
+                    notes.map { if (it.noteId == updatedNote.noteId) updatedNote else it }
                 }
             }
         }

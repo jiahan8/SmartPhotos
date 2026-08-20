@@ -29,18 +29,23 @@
     <!-- Note -->
     <string name="note">メモ</string>
     <string name="new_note">新しいメモ</string>
+    <string name="edit_note">メモを編集</string>
     <string name="whats_new">最近どう？</string>
     <string name="create_note">ノートを作成</string>
     <string name="write_this_moment">この瞬間について書く</string>
     <string name="whats_on_mind">今、何を考えていますか？</string>
     <string name="write_a_thought">思いついたことを書いてみよう…</string>
     <string name="post">投稿</string>
+    <string name="save">保存</string>
     <string name="post_success">ノートが正常にアップロードされました</string>
     <string name="post_validation">ノートは500文字以内で入力してください</string>
     <string name="note_media_limit">ノートには最大20枚の写真または動画を添付できます</string>
     <string name="note_empty">投稿する前にテキストかメディアを追加してください</string>
     <string name="no_media_available">アップロードするメディアがありません</string>
     <string name="note_unavailable">このメモは利用できなくなりました</string>
+    <string name="discard_changes">変更を破棄しますか？</string>
+    <string name="discard_changes_desc">このメモへの変更は保存されません。</string>
+    <string name="discard">破棄</string>
 
     <!-- Favorite -->
     <string name="favorite">お気に入り</string>
@@ -141,6 +146,7 @@
     <string name="cd_take_photo">写真を撮る</string>
     <string name="cd_take_video">動画を撮影</string>
     <string name="cd_marked_as_favorite">お気に入りに登録済み</string>
+    <string name="cd_edit_note">メモを編集</string>
     <string name="cd_open_settings">設定を開く</string>
     <string name="cd_hide_password">パスワードを非表示</string>
     <string name="cd_show_password">パスワードを表示</string>

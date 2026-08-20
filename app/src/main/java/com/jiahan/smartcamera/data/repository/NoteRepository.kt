@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.Flow
 interface NoteRepository {
     suspend fun getNotes(page: Int = 0, pageSize: Int = 10): Result<List<HomeNote>>
     suspend fun addNote(homeNote: HomeNote): Result<Unit>
+    suspend fun updateNote(homeNote: HomeNote): Result<Unit>
     suspend fun searchNotes(query: String): Result<List<HomeNote>>
     suspend fun deleteNote(noteId: String): Result<Unit>
     suspend fun favoriteNote(homeNote: HomeNote): Result<Unit>

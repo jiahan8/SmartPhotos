@@ -10,6 +10,7 @@ import com.jiahan.smartcamera.explore.ExploreScreen
 import com.jiahan.smartcamera.favorite.FavoriteScreen
 import com.jiahan.smartcamera.home.HomeScreen
 import com.jiahan.smartcamera.navigation.Screen.Search.SEARCH_DEEP_LINK_URI_PATTERN
+import com.jiahan.smartcamera.note.EditNoteScreen
 import com.jiahan.smartcamera.note.NoteScreen
 import com.jiahan.smartcamera.preview.NotePreviewScreen
 import com.jiahan.smartcamera.preview.PhotoPreviewScreen
@@ -82,6 +83,19 @@ fun NavGraphBuilder.smartPhotosNavGraph(
         )
     }
 
+    composable<Screen.EditNote> {
+        EditNoteScreen(
+            onBack = { navController.popBackStack() },
+            onNavigateToPhotoPreview = { url ->
+                navController.navigate(Screen.PhotoPreview(MediaSourceType.REMOTE, url))
+            },
+            onNavigateToVideoPreview = { url ->
+                navController.navigate(Screen.VideoPreview(MediaSourceType.REMOTE, url))
+            },
+            snackbarHostState = snackbarHostState,
+        )
+    }
+
     composable<Screen.Favorite> {
         FavoriteScreen(
             onNavigateToNotePreview = { noteId ->
@@ -131,6 +145,9 @@ fun NavGraphBuilder.smartPhotosNavGraph(
             },
             onNavigateToVideoPreview = { url ->
                 navController.navigate(Screen.VideoPreview(MediaSourceType.REMOTE, url))
+            },
+            onNavigateToEdit = { noteId ->
+                navController.navigate(Screen.EditNote(noteId))
             },
             snackbarHostState = snackbarHostState,
         )

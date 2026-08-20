@@ -88,6 +88,30 @@ class NotePreviewViewModelTest {
     }
 
     @Test
+    fun `noteUpdatedEvent for this note refreshes Success state`() = runTest {
+        val vm = createViewModel()
+        val editedNote = testNote.copy(text = "Edited text")
+
+        noteHandler.notifyNoteUpdated(editedNote)
+
+        val state = vm.uiState.value.content
+        assertTrue(state is NotePreviewContent.Success)
+        assertEquals(editedNote, (state as NotePreviewContent.Success).note)
+    }
+
+    @Test
+    fun `noteUpdatedEvent for a different note is ignored`() = runTest {
+        val vm = createViewModel()
+        val otherNote = HomeNote(noteId = "other-note", text = "Not this one", username = "someone")
+
+        noteHandler.notifyNoteUpdated(otherNote)
+
+        val state = vm.uiState.value.content
+        assertTrue(state is NotePreviewContent.Success)
+        assertEquals(testNote, (state as NotePreviewContent.Success).note)
+    }
+
+    @Test
     fun `init failure sets Error state`() = runTest {
         val exception = RuntimeException("not found")
         coEvery { noteRepository.getNote(noteId) } returns Result.failure(exception)

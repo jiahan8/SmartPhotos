@@ -91,4 +91,37 @@ class NoteHandlerTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    // -------------------------------------------------------------------------
+    // notifyNoteUpdated
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `notifyNoteUpdated emits the HomeNote`() = runTest {
+        val note = HomeNote(
+            noteId = "note1",
+            text = "Edited text",
+            username = "user1",
+            favorite = true
+        )
+        noteHandler.noteUpdatedEvent.test {
+            noteHandler.notifyNoteUpdated(note)
+            assertEquals(note, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `notifyNoteUpdated emits all notes in order`() = runTest {
+        val first = HomeNote(noteId = "note1", text = "First edit", username = "u")
+        val second = HomeNote(noteId = "note1", text = "Second edit", username = "u")
+
+        noteHandler.noteUpdatedEvent.test {
+            noteHandler.notifyNoteUpdated(first)
+            noteHandler.notifyNoteUpdated(second)
+            assertEquals(first, awaitItem())
+            assertEquals(second, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }

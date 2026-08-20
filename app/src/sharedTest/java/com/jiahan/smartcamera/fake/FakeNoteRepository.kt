@@ -22,6 +22,7 @@ class FakeNoteRepository : NoteRepository {
     var searchResult: Result<List<HomeNote>> = Result.success(emptyList())
     var deleteResult: Result<Unit> = Result.success(Unit)
     var favoriteResult: Result<Unit> = Result.success(Unit)
+    var updateResult: Result<Unit> = Result.success(Unit)
     var getNoteResult: Result<HomeNote>? = null
     var syncResult: Result<Unit> = Result.success(Unit)
 
@@ -29,8 +30,10 @@ class FakeNoteRepository : NoteRepository {
 
     var deleteCallCount = 0
     var favoriteCallCount = 0
+    var updateCallCount = 0
     var lastDeletedNoteId: String? = null
     var lastFavoritedNote: HomeNote? = null
+    var lastUpdatedNote: HomeNote? = null
 
     fun setFavorites(notes: List<HomeNote>) {
         favoritesFlow.value = notes
@@ -39,6 +42,12 @@ class FakeNoteRepository : NoteRepository {
     override suspend fun getNotes(page: Int, pageSize: Int): Result<List<HomeNote>> = notesResult
 
     override suspend fun addNote(homeNote: HomeNote): Result<Unit> = Result.success(Unit)
+
+    override suspend fun updateNote(homeNote: HomeNote): Result<Unit> {
+        updateCallCount++
+        lastUpdatedNote = homeNote
+        return updateResult
+    }
 
     override suspend fun searchNotes(query: String): Result<List<HomeNote>> = searchResult
 

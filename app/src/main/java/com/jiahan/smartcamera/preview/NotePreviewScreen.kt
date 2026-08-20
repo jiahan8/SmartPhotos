@@ -30,6 +30,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.AccountCircle
+import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -74,6 +75,7 @@ fun NotePreviewScreen(
     onBack: () -> Unit,
     onNavigateToPhotoPreview: (url: String) -> Unit,
     onNavigateToVideoPreview: (url: String) -> Unit,
+    onNavigateToEdit: (noteId: String) -> Unit,
     viewModel: NotePreviewViewModel = hiltViewModel(),
     snackbarHostState: SnackbarHostState
 ) {
@@ -362,6 +364,16 @@ fun NotePreviewScreen(
                                             .padding(start = 8.dp)
                                             .clickable {
                                                 viewModel.shareNote(note)
+                                            }
+                                    )
+
+                                    Icon(
+                                        imageVector = Icons.Rounded.EditNote,
+                                        contentDescription = stringResource(R.string.cd_edit_note),
+                                        modifier = Modifier
+                                            .padding(start = 8.dp)
+                                            .clickable {
+                                                onNavigateToEdit(note.noteId)
                                             }
                                     )
 
