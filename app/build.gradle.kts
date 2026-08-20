@@ -1,3 +1,5 @@
+import com.google.firebase.appdistribution.gradle.firebaseAppDistribution
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -9,6 +11,7 @@ plugins {
     alias(libs.plugins.parcelize)
     alias(libs.plugins.crashlytics)
     alias(libs.plugins.firebase.perf)
+    alias(libs.plugins.firebase.appdistribution)
     alias(libs.plugins.roborazzi)
 }
 
@@ -63,6 +66,16 @@ android {
         debug {
             isMinifyEnabled = false
             buildConfigField("boolean", "DEBUG_MODE", "true")
+
+            // Manual distribution to testers: `firebase login` once, then
+            // `./gradlew assembleDebug appDistributionUploadDebug`.
+            // The "testers" group must exist under Firebase console > App
+            // Distribution > Testers & Groups (or override `groups`/`testers`
+            // here) before the first upload.
+            firebaseAppDistribution {
+                groups = "testers"
+                releaseNotes = "Manual test build."
+            }
         }
     }
 

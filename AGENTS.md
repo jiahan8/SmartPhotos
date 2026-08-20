@@ -20,6 +20,12 @@ Run from the repo root (Gradle wrapper):
   `./gradlew connectedDebugAndroidTest`. They use a custom `HiltTestRunner` (installs
   `HiltTestApplication`), the AndroidX Test Orchestrator, and `clearPackageData=true` for hermetic,
   isolated runs — don't remove these from `app/build.gradle.kts` without understanding why.
+  - The same suite also runs on Firebase Test Lab's device farm via `./scripts/run-test-lab.sh`
+    (requires the `gcloud` CLI, auth, and the Blaze plan — see the script's header comment).
+- Distribute a debug build to testers via Firebase App Distribution: `firebase login` once, then
+  `./gradlew assembleDebug appDistributionUploadDebug`. Configured on the `debug` build type in
+  `app/build.gradle.kts`; the `testers` group must exist under Firebase console > App Distribution
+  first.
 - Cloud Functions (`functions/`, Node 24): `npm --prefix functions run lint` (eslint, google config).
   Deploy/emulate with `npm --prefix functions run serve` / `deploy` (requires Firebase CLI auth).
 

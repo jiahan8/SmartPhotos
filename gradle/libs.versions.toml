@@ -48,6 +48,7 @@ playAppUpdate = "2.1.0"
 firebaseAppcheckPlayintegrity = "19.4.0"
 firebasePerf = "22.0.6"
 firebasePerfPlugin = "2.0.2"
+firebaseAppdistributionPlugin = "5.3.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -131,4 +132,5 @@ google-services = { id = "com.google.gms.google-services", version.ref = "google
 parcelize = { id = "org.jetbrains.kotlin.plugin.parcelize", version.ref = "parcelize" }
 crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "crashlytics" }
 firebase-perf = { id = "com.google.firebase.firebase-perf", version.ref = "firebasePerfPlugin" }
+firebase-appdistribution = { id = "com.google.firebase.appdistribution", version.ref = "firebaseAppdistributionPlugin" }
 roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
