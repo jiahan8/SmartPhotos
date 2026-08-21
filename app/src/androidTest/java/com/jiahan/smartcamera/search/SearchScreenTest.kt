@@ -64,6 +64,7 @@ class SearchScreenTest {
             SmartCameraTheme {
                 SearchScreen(
                     onNavigateToNotePreview = {},
+                    onNavigateToEditNote = {},
                     onNavigateToPhotoPreview = {},
                     onNavigateToVideoPreview = {},
                     viewModel = viewModel,

@@ -30,6 +30,7 @@ class HomeItemScreenshotTest : BaseScreenshotTest() {
                     {},
                     {},
                     {},
+                    {},
                     {})
             }
         }
@@ -41,6 +42,7 @@ class HomeItemScreenshotTest : BaseScreenshotTest() {
             SmartCameraTheme(darkTheme = true) {
                 HomeItem(
                     sampleNote,
+                    {},
                     {},
                     {},
                     {},
@@ -64,6 +66,7 @@ class HomeItemScreenshotTest : BaseScreenshotTest() {
                     {},
                     {},
                     {},
+                    {},
                     {})
             }
         }
@@ -75,6 +78,7 @@ class HomeItemScreenshotTest : BaseScreenshotTest() {
             SmartCameraTheme(darkTheme = false) {
                 HomeItem(
                     noteWithMedia,
+                    {},
                     {},
                     {},
                     {},

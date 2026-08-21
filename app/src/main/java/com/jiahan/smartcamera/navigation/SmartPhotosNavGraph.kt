@@ -32,6 +32,9 @@ fun NavGraphBuilder.smartPhotosNavGraph(
             onNavigateToNotePreview = { noteId ->
                 navController.navigate(Screen.NotePreview(noteId))
             },
+            onNavigateToEditNote = { noteId ->
+                navController.navigate(Screen.EditNote(noteId))
+            },
             onNavigateToPhotoPreview = { url ->
                 navController.navigate(Screen.PhotoPreview(MediaSourceType.REMOTE, url))
             },
@@ -56,6 +59,9 @@ fun NavGraphBuilder.smartPhotosNavGraph(
         SearchScreen(
             onNavigateToNotePreview = { noteId ->
                 navController.navigate(Screen.NotePreview(noteId))
+            },
+            onNavigateToEditNote = { noteId ->
+                navController.navigate(Screen.EditNote(noteId))
             },
             onNavigateToPhotoPreview = { url ->
                 navController.navigate(Screen.PhotoPreview(MediaSourceType.REMOTE, url))
@@ -100,6 +106,9 @@ fun NavGraphBuilder.smartPhotosNavGraph(
         FavoriteScreen(
             onNavigateToNotePreview = { noteId ->
                 navController.navigate(Screen.NotePreview(noteId))
+            },
+            onNavigateToEditNote = { noteId ->
+                navController.navigate(Screen.EditNote(noteId))
             },
             onNavigateToPhotoPreview = { url ->
                 navController.navigate(Screen.PhotoPreview(MediaSourceType.REMOTE, url))

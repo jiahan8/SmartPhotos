@@ -29,15 +29,16 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Explore
-import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.rounded.AccountCircle
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -98,6 +99,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeScreen(
     onNavigateToNotePreview: (noteId: String) -> Unit,
+    onNavigateToEditNote: (noteId: String) -> Unit,
     onNavigateToPhotoPreview: (url: String) -> Unit,
     onNavigateToVideoPreview: (url: String) -> Unit,
     onNavigateToExplore: () -> Unit,
@@ -243,6 +245,7 @@ fun HomeScreen(
                                             onNavigateToNotePreview = {
                                                 onNavigateToNotePreview(note.noteId)
                                             },
+                                            onEditNote = { onNavigateToEditNote(note.noteId) },
                                             onFavoriteNote = { viewModel.favoriteNote(note) },
                                             onDeleteNote = { viewModel.setNoteToDelete(note) },
                                             onPhotoClick = { url ->
@@ -286,6 +289,7 @@ fun HomeScreen(
 @Stable
 data class HomeItemCallbacks(
     val onNavigateToNotePreview: () -> Unit,
+    val onEditNote: () -> Unit,
     val onFavoriteNote: () -> Unit,
     val onDeleteNote: () -> Unit,
     val onPhotoClick: (String) -> Unit,
@@ -300,6 +304,7 @@ data class HomeItemCallbacks(
 fun HomeItem(
     note: HomeNote,
     onNavigateToNotePreview: () -> Unit,
+    onEditNote: () -> Unit,
     onFavoriteNote: () -> Unit,
     onDeleteNote: () -> Unit,
     onPhotoClick: (String) -> Unit,
@@ -310,6 +315,7 @@ fun HomeItem(
 ) {
     val callbacks = remember(
         onNavigateToNotePreview,
+        onEditNote,
         onFavoriteNote,
         onDeleteNote,
         onPhotoClick,
@@ -320,6 +326,7 @@ fun HomeItem(
     ) {
         HomeItemCallbacks(
             onNavigateToNotePreview = onNavigateToNotePreview,
+            onEditNote = onEditNote,
             onFavoriteNote = onFavoriteNote,
             onDeleteNote = onDeleteNote,
             onPhotoClick = onPhotoClick,
@@ -445,7 +452,7 @@ fun HomeItem(
                                         interactionSource = null,
                                         indication = null
                                     ) {
-                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
                                         callbacks.onFavoriteNote()
                                     },
                                 tint = primaryColor
@@ -518,7 +525,7 @@ fun HomeItem(
             sheetState = sheetState
         ) {
             BottomSheetActionItem(
-                icon = Icons.Outlined.FavoriteBorder,
+                icon = Icons.Rounded.FavoriteBorder,
                 label = if (note.favorite)
                     stringResource(R.string.remove_like)
                 else
@@ -526,13 +533,18 @@ fun HomeItem(
                 onClick = { closeSheetThen(callbacks.onFavoriteNote) }
             )
             BottomSheetActionItem(
-                icon = Icons.Outlined.Share,
+                icon = Icons.Rounded.EditNote,
+                label = stringResource(R.string.edit_note),
+                onClick = { closeSheetThen(callbacks.onEditNote) }
+            )
+            BottomSheetActionItem(
+                icon = Icons.Rounded.Share,
                 label = stringResource(R.string.share),
                 onClick = { closeSheetThen(callbacks.onShareNote) }
             )
             note.text?.let { text ->
                 BottomSheetActionItem(
-                    icon = Icons.Outlined.ContentCopy,
+                    icon = Icons.Rounded.ContentCopy,
                     label = stringResource(R.string.copy_text),
                     onClick = {
                         closeSheetThen {
@@ -544,7 +556,7 @@ fun HomeItem(
                 )
             }
             BottomSheetActionItem(
-                icon = Icons.Outlined.Delete,
+                icon = Icons.Rounded.Delete,
                 label = stringResource(R.string.delete),
                 onClick = { closeSheetThen(callbacks.onDeleteNote) },
                 tint = MaterialTheme.colorScheme.error
@@ -620,6 +632,7 @@ private fun HomeItemPreview() {
                 createdDate = null
             ),
             onNavigateToNotePreview = {},
+            onEditNote = {},
             onFavoriteNote = {},
             onDeleteNote = {},
             onPhotoClick = {},
@@ -645,6 +658,7 @@ private fun HomeItemFavoritedPreview() {
                 createdDate = null
             ),
             onNavigateToNotePreview = {},
+            onEditNote = {},
             onFavoriteNote = {},
             onDeleteNote = {},
             onPhotoClick = {},

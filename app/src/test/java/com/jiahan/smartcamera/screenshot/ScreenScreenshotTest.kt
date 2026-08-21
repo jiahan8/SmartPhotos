@@ -68,6 +68,7 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
         captureSettled {
             HomeScreen(
                 onNavigateToNotePreview = {},
+                onNavigateToEditNote = {},
                 onNavigateToPhotoPreview = {},
                 onNavigateToVideoPreview = {},
                 onNavigateToExplore = {},
@@ -88,6 +89,7 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
         captureSettled {
             HomeScreen(
                 onNavigateToNotePreview = {},
+                onNavigateToEditNote = {},
                 onNavigateToPhotoPreview = {},
                 onNavigateToVideoPreview = {},
                 onNavigateToExplore = {},
@@ -104,6 +106,7 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
         captureSettled {
             HomeScreen(
                 onNavigateToNotePreview = {},
+                onNavigateToEditNote = {},
                 onNavigateToPhotoPreview = {},
                 onNavigateToVideoPreview = {},
                 onNavigateToExplore = {},
@@ -153,6 +156,7 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
         captureSettled {
             SearchScreen(
                 onNavigateToNotePreview = {},
+                onNavigateToEditNote = {},
                 onNavigateToPhotoPreview = {},
                 onNavigateToVideoPreview = {},
                 viewModel = viewModel,

@@ -37,6 +37,7 @@ import com.jiahan.smartcamera.home.HomeItem
 @Composable
 fun FavoriteScreen(
     onNavigateToNotePreview: (noteId: String) -> Unit,
+    onNavigateToEditNote: (noteId: String) -> Unit,
     onNavigateToPhotoPreview: (url: String) -> Unit,
     onNavigateToVideoPreview: (url: String) -> Unit,
     viewModel: FavoriteViewModel = hiltViewModel(),
@@ -162,6 +163,9 @@ fun FavoriteScreen(
                                         note = note,
                                         onNavigateToNotePreview = {
                                             onNavigateToNotePreview(note.noteId)
+                                        },
+                                        onEditNote = {
+                                            onNavigateToEditNote(note.noteId)
                                         },
                                         onFavoriteNote = {
                                             viewModel.favoriteNote(note)

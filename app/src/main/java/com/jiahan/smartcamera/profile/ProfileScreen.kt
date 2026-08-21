@@ -24,14 +24,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.PhotoCamera
-import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Clear
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -163,7 +163,7 @@ fun ProfileScreen(
         ) {
             Column(modifier = Modifier.wrapContentHeight()) {
                 BottomSheetActionItem(
-                    icon = Icons.Outlined.PhotoLibrary,
+                    icon = Icons.Rounded.PhotoLibrary,
                     label = stringResource(R.string.choose_from_library),
                     onClick = {
                         libraryLauncher.launch(
@@ -174,7 +174,7 @@ fun ProfileScreen(
                     }
                 )
                 BottomSheetActionItem(
-                    icon = Icons.Outlined.PhotoCamera,
+                    icon = Icons.Rounded.PhotoCamera,
                     label = stringResource(R.string.take_photo),
                     onClick = {
                         if (hasCameraPermission) {
@@ -188,7 +188,7 @@ fun ProfileScreen(
                 )
                 profilePictureUrl?.let {
                     BottomSheetActionItem(
-                        icon = Icons.Outlined.Delete,
+                        icon = Icons.Rounded.Delete,
                         label = stringResource(R.string.remove_current_picture),
                         onClick = { viewModel.showDeletePictureDialog() },
                         tint = MaterialTheme.colorScheme.error

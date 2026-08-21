@@ -69,6 +69,7 @@ class HomeScreenTest {
             SmartCameraTheme {
                 HomeScreen(
                     onNavigateToNotePreview = { navigatedToNotePreview = it },
+                    onNavigateToEditNote = {},
                     onNavigateToPhotoPreview = {},
                     onNavigateToVideoPreview = {},
                     onNavigateToExplore = {},

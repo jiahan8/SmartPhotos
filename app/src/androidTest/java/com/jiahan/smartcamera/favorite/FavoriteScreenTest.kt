@@ -60,6 +60,7 @@ class FavoriteScreenTest {
             SmartCameraTheme {
                 FavoriteScreen(
                     onNavigateToNotePreview = {},
+                    onNavigateToEditNote = {},
                     onNavigateToPhotoPreview = {},
                     onNavigateToVideoPreview = {},
                     viewModel = viewModel,
