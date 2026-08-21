@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import com.jiahan.smartcamera.MainDispatcherRule
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
+import com.jiahan.smartcamera.fake.FakeRemoteConfigRepository
 import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
@@ -52,6 +53,7 @@ class HomeViewModelTest {
         )
     }
     private val noteShare: NoteShareDelegate = mockk(relaxed = true)
+    private val remoteConfigRepository = FakeRemoteConfigRepository()
 
     private lateinit var viewModel: HomeViewModel
 
@@ -60,7 +62,14 @@ class HomeViewModelTest {
         every { errorHandler.logError(any()) } just runs
         every { errorHandler.getErrorMessage(any()) } returns "An error occurred"
         coEvery { noteRepository.getNotes(any(), any()) } returns Result.success(emptyList())
-        viewModel = HomeViewModel(noteRepository, noteHandler, noteActions, noteShare, errorHandler)
+        viewModel = HomeViewModel(
+            noteRepository,
+            noteHandler,
+            noteActions,
+            noteShare,
+            errorHandler,
+            remoteConfigRepository
+        )
     }
 
     @After
@@ -78,7 +87,14 @@ class HomeViewModelTest {
     )
 
     private fun createViewModel() =
-        HomeViewModel(noteRepository, noteHandler, noteActions, noteShare, errorHandler)
+        HomeViewModel(
+            noteRepository,
+            noteHandler,
+            noteActions,
+            noteShare,
+            errorHandler,
+            remoteConfigRepository
+        )
 
     // -------------------------------------------------------------------------
     // Initial load
@@ -365,5 +381,28 @@ class HomeViewModelTest {
 
         val content = vm.uiState.value.content as HomeContent.Success
         assertFalse(content.notes.first { it.noteId == "doc2" }.favorite)
+    }
+
+    // -------------------------------------------------------------------------
+    // Explore icon visibility (Remote Config)
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `isExploreIconVisible reflects Remote Config value at construction`() = runTest {
+        remoteConfigRepository.setExploreIconVisible(false)
+        val vm = createViewModel()
+
+        assertFalse(vm.uiState.value.isExploreIconVisible)
+    }
+
+    @Test
+    fun `isExploreIconVisible updates live when Remote Config pushes a change`() = runTest {
+        remoteConfigRepository.setExploreIconVisible(true)
+        val vm = createViewModel()
+        assertTrue(vm.uiState.value.isExploreIconVisible)
+
+        remoteConfigRepository.setExploreIconVisible(false)
+
+        assertFalse(vm.uiState.value.isExploreIconVisible)
     }
 }

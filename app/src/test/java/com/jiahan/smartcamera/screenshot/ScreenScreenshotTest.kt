@@ -9,6 +9,7 @@ import com.jiahan.smartcamera.fake.FakeAuthRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
 import com.jiahan.smartcamera.fake.FakeMediaFileRepository
 import com.jiahan.smartcamera.fake.FakeNoteRepository
+import com.jiahan.smartcamera.fake.FakeRemoteConfigRepository
 import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.fake.FakeUserPreferencesRepository
 import com.jiahan.smartcamera.home.HomeScreen
@@ -60,6 +61,7 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
                 FakeResourceProvider(RuntimeEnvironment.getApplication())
             ),
             errorHandler,
+            FakeRemoteConfigRepository(),
         )
     }
 

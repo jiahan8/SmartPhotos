@@ -104,6 +104,11 @@ fun NotePreviewScreen(
     var showActionsSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
 
+    fun openActionsSheet() {
+        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+        showActionsSheet = true
+    }
+
     fun closeSheetThen(action: () -> Unit) {
         coroutineScope.launch { sheetState.hide() }.invokeOnCompletion {
             showActionsSheet = false
@@ -273,7 +278,7 @@ fun NotePreviewScreen(
                                                 modifier = Modifier
                                                     .padding(start = 8.dp)
                                                     .clickable {
-                                                        showActionsSheet = true
+                                                        openActionsSheet()
                                                     }
                                             )
                                         }
@@ -363,7 +368,7 @@ fun NotePreviewScreen(
                                                 onClickLabel = stringResource(R.string.favorite)
                                             ) {
                                                 hapticFeedback.performHapticFeedback(
-                                                    HapticFeedbackType.Confirm
+                                                    HapticFeedbackType.LongPress
                                                 )
                                                 viewModel.favoriteNote(note)
                                             },

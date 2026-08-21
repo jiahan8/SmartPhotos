@@ -183,11 +183,13 @@ fun HomeScreen(
                     )
                 },
                 actions = {
-                    IconButton(onClick = onNavigateToExplore) {
-                        Icon(
-                            imageVector = Icons.Outlined.Explore,
-                            contentDescription = stringResource(R.string.explore)
-                        )
+                    if (uiState.isExploreIconVisible) {
+                        IconButton(onClick = onNavigateToExplore) {
+                            Icon(
+                                imageVector = Icons.Outlined.Explore,
+                                contentDescription = stringResource(R.string.explore)
+                            )
+                        }
                     }
                 }
             )
@@ -368,7 +370,10 @@ fun HomeItem(
         modifier = Modifier
             .combinedClickable(
                 onClick = callbacks.onNavigateToNotePreview,
-                onDoubleClick = callbacks.onFavoriteNote,
+                onDoubleClick = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                    callbacks.onFavoriteNote()
+                },
                 onLongClick = { openActionsSheet() }
             )
     ) {
@@ -452,7 +457,7 @@ fun HomeItem(
                                         interactionSource = null,
                                         indication = null
                                     ) {
-                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                         callbacks.onFavoriteNote()
                                     },
                                 tint = primaryColor
@@ -530,7 +535,12 @@ fun HomeItem(
                     stringResource(R.string.remove_like)
                 else
                     stringResource(R.string.like),
-                onClick = { closeSheetThen(callbacks.onFavoriteNote) }
+                onClick = {
+                    closeSheetThen {
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                        callbacks.onFavoriteNote()
+                    }
+                }
             )
             BottomSheetActionItem(
                 icon = Icons.Rounded.EditNote,

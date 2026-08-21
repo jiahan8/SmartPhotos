@@ -3,6 +3,7 @@ package com.jiahan.smartcamera.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.data.repository.NoteRepository
+import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteHandler
@@ -27,7 +28,8 @@ data class HomeUiState(
     val content: HomeContent = HomeContent.Loading,
     val isRefreshing: Boolean = false,
     val isLoadingMore: Boolean = false,
-    val noteToDelete: HomeNote? = null
+    val noteToDelete: HomeNote? = null,
+    val isExploreIconVisible: Boolean = false
 ) {
     val notes: List<HomeNote>?
         get() = (content as? HomeContent.Success)?.notes
@@ -39,7 +41,8 @@ class HomeViewModel @Inject constructor(
     private val noteHandler: NoteHandler,
     private val noteActions: NoteActionsDelegate,
     private val noteShare: NoteShareDelegate,
-    private val errorHandler: ErrorHandler
+    private val errorHandler: ErrorHandler,
+    private val remoteConfigRepository: RemoteConfigRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -55,6 +58,11 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch { fetchNotes(initialLoading = true) }
         viewModelScope.launch { noteHandler.noteAddedEvent.collect { fetchNotes(initialLoading = true) } }
         noteHandler.observeNoteMutations(viewModelScope) { transform -> updateSuccessNotes(transform) }
+        viewModelScope.launch {
+            remoteConfigRepository.observeExploreIconVisible().collect { visible ->
+                _uiState.update { it.copy(isExploreIconVisible = visible) }
+            }
+        }
     }
 
     fun logImageLoadError(throwable: Throwable) {

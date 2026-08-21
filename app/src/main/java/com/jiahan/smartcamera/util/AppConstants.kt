@@ -28,6 +28,7 @@ object AppConstants {
 
     // Remote Config
     const val REMOTE_CONFIG_FETCH_INTERVAL_SECONDS = 3600L // 1 hour
+    const val REMOTE_CONFIG_DEBUG_FETCH_INTERVAL_SECONDS = 0L
 
     // Animation durations
     const val ANIMATION_DURATION_SHORT_MS = 300

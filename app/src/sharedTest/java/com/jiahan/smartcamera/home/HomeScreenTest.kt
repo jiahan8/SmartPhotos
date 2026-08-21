@@ -14,6 +14,7 @@ import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.fake.FakeErrorHandler
 import com.jiahan.smartcamera.fake.FakeMediaFileRepository
 import com.jiahan.smartcamera.fake.FakeNoteRepository
+import com.jiahan.smartcamera.fake.FakeRemoteConfigRepository
 import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteHandler
@@ -64,6 +65,7 @@ class HomeScreenTest {
                 FakeResourceProvider(composeTestRule.activity)
             ),
             errorHandler = errorHandler,
+            remoteConfigRepository = FakeRemoteConfigRepository(),
         )
         composeTestRule.setContent {
             SmartCameraTheme {
