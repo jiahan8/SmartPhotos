@@ -5,7 +5,7 @@
     <string name="photo">写真</string>
     <string name="search_photos">写真を検索</string>
     <string name="no_photos_found">写真が見つかりません</string>
-    <string name="saved_at">%s に保存されました</string>
+    <string name="saved_at">%sに保存されました</string>
 
     <!-- Home -->
     <string name="home">ホーム</string>
@@ -19,10 +19,10 @@
 
     <!-- Search -->
     <string name="search">検索</string>
-    <string name="search_notes_photos">ノートや写真を検索</string>
+    <string name="search_notes_photos">メモや写真を検索</string>
     <string name="find_photos">自分の写真を探す</string>
     <string name="what_you_looking_for">お探しのものは何ですか？</string>
-    <string name="find_notes">保存したノートを探す</string>
+    <string name="find_notes">保存したメモを探す</string>
     <string name="look_up">書いた内容を調べる</string>
     <string name="no_results_found">結果が見つかりません</string>
 
@@ -31,16 +31,14 @@
     <string name="new_note">新しいメモ</string>
     <string name="edit_note">メモを編集</string>
     <string name="whats_new">最近どう？</string>
-    <string name="create_note">ノートを作成</string>
+    <string name="create_note">メモを作成</string>
     <string name="write_this_moment">この瞬間について書く</string>
     <string name="whats_on_mind">今、何を考えていますか？</string>
     <string name="write_a_thought">思いついたことを書いてみよう…</string>
-    <string name="post">投稿</string>
     <string name="save">保存</string>
-    <string name="post_success">ノートが正常にアップロードされました</string>
-    <string name="post_validation">ノートは500文字以内で入力してください</string>
-    <string name="note_media_limit">ノートには最大20枚の写真または動画を添付できます</string>
-    <string name="note_empty">投稿する前にテキストかメディアを追加してください</string>
+    <string name="note_validation">メモは500文字以内で入力してください</string>
+    <string name="note_media_limit">メモには最大20枚の写真または動画を添付できます</string>
+    <string name="note_empty">保存する前にテキストかメディアを追加してください</string>
     <string name="no_media_available">アップロードするメディアがありません</string>
     <string name="note_unavailable">このメモは利用できなくなりました</string>
     <string name="discard_changes">変更を破棄しますか？</string>
@@ -83,14 +81,14 @@
     <string name="note_preview">メモのプレビュー</string>
 
     <!-- Video -->
-    <string name="video">ビデオ</string>
+    <string name="video">動画</string>
 
     <!-- Explore -->
     <string name="explore">探索</string>
 
     <!-- Sharing -->
     <string name="share">共有</string>
-    <string name="share_note_failure">このノートを共有できませんでした。もう一度お試しください。</string>
+    <string name="share_note_failure">このメモを共有できませんでした。もう一度お試しください。</string>
     <string name="share_photo_failure">この写真を共有できませんでした。もう一度お試しください。</string>
     <string name="share_video_failure">この動画を共有できませんでした。もう一度お試しください。</string>
     <string name="cd_more_options">その他のオプション</string>
@@ -103,9 +101,9 @@
     <string name="username">ユーザー名</string>
     <string name="password">パスワード</string>
     <string name="login">ログイン</string>
-    <string name="sign_up">サインアップ</string>
-    <string name="need_account">アカウントをお持ちでない方はこちら</string>
-    <string name="already_have_account">すでにアカウントをお持ちですか？サインイン</string>
+    <string name="sign_up">新規登録</string>
+    <string name="need_account">アカウントをお持ちでない方は新規登録</string>
+    <string name="already_have_account">すでにアカウントをお持ちの方はログイン</string>
     <string name="forgot_password">パスワードをお忘れですか？</string>
     <string name="email_password_empty">メールアドレスとパスワードを入力してください</string>
     <string name="all_fields_required">すべての項目を入力してください</string>
@@ -134,9 +132,9 @@
 
     <!-- Notifications -->
     <string name="notification_channel_name">一般通知</string>
-    <string name="notification_channel_description">写真やノートに関するお知らせ</string>
-    <string name="notification_note_processed_title">ノートの準備ができました</string>
-    <string name="notification_note_processed_body">タップしてノートを表示</string>
+    <string name="notification_channel_description">写真やメモに関するお知らせ</string>
+    <string name="notification_note_processed_title">メモの準備ができました</string>
+    <string name="notification_note_processed_body">タップしてメモを表示</string>
     <string name="update_ready_message">新しいバージョンをダウンロードしました</string>
     <string name="update_ready_action">再起動</string>
 
@@ -144,7 +142,7 @@
     <string name="cd_back">前の画面に戻る</string>
     <string name="cd_profile_picture">プロフィール写真</string>
     <string name="cd_app_logo">スマートフォトのアプリロゴ</string>
-    <string name="cd_note_photo">ノートの写真</string>
+    <string name="cd_note_photo">メモの写真</string>
     <string name="cd_selected_photo">選択した写真</string>
     <string name="cd_play_video">動画を再生</string>
     <string name="cd_remove_image">画像を削除</string>

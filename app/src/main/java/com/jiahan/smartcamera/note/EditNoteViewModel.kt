@@ -136,7 +136,7 @@ class EditNoteViewModel @Inject constructor(
                 noteText = text,
                 noteTextError = when {
                     text.length > MAX_POST_TEXT_LENGTH ->
-                        resourceProvider.getString(R.string.post_validation)
+                        resourceProvider.getString(R.string.note_validation)
 
                     else -> null
                 }

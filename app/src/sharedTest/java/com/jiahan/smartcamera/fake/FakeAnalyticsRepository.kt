@@ -8,6 +8,10 @@ import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 class FakeAnalyticsRepository : AnalyticsRepository {
 
     var lastLoggedText: String? = null
+    var lastLoggedDisplayName: String? = null
+    var lastLoggedUsername: String? = null
+
+    override fun setUserId(userId: String?) {}
 
     override fun logSearchEvent(value: String) {}
 
@@ -19,5 +23,13 @@ class FakeAnalyticsRepository : AnalyticsRepository {
 
     override fun logTextCustomEvent(value: String) {
         lastLoggedText = value
+    }
+
+    override fun logDisplayNameCustomEvent(value: String) {
+        lastLoggedDisplayName = value
+    }
+
+    override fun logUsernameCustomEvent(value: String) {
+        lastLoggedUsername = value
     }
 }

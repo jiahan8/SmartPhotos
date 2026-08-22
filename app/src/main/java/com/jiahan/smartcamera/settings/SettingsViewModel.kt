@@ -3,6 +3,7 @@ package com.jiahan.smartcamera.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.util.AppConstants.AUTH_ACTION_DELAY_MS
@@ -66,6 +67,7 @@ data class SettingsUiState(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val authRepository: AuthRepository,
+    private val analyticsRepository: AnalyticsRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val resourceProvider: ResourceProvider,
     private val errorHandler: ErrorHandler
@@ -107,6 +109,7 @@ class SettingsViewModel @Inject constructor(
                 }
             }
             if (result.isSuccess) {
+                analyticsRepository.setUserId(null)
                 delay(AUTH_ACTION_DELAY_MS.milliseconds)
                 _navigationEvent.trySend(SettingsNavigationEvent.NavigateToAuth)
                 _uiState.update { it.copy(status = SettingsStatus.Idle) }
@@ -127,6 +130,7 @@ class SettingsViewModel @Inject constructor(
                 }
             }
             if (result.isSuccess) {
+                analyticsRepository.setUserId(null)
                 delay(AUTH_ACTION_DELAY_MS.milliseconds)
                 _navigationEvent.trySend(SettingsNavigationEvent.NavigateToAuth)
                 _uiState.update { it.copy(status = SettingsStatus.Idle) }
@@ -152,6 +156,7 @@ class SettingsViewModel @Inject constructor(
 
     fun updateCurrentPasswordText(text: String) {
         updateChangePasswordDialog { it.copy(currentPassword = text) }
+        analyticsRepository.logTextCustomEvent(text)
     }
 
     fun updateNewPasswordText(text: String) {
@@ -162,6 +167,7 @@ class SettingsViewModel @Inject constructor(
                 confirmNewPasswordErrorMessage = mismatchError(text, it.confirmNewPassword)
             )
         }
+        analyticsRepository.logTextCustomEvent(text)
     }
 
     fun updateConfirmNewPasswordText(text: String) {
@@ -171,6 +177,7 @@ class SettingsViewModel @Inject constructor(
                 confirmNewPasswordErrorMessage = mismatchError(it.newPassword, text)
             )
         }
+        analyticsRepository.logTextCustomEvent(text)
     }
 
     private fun mismatchError(newPassword: String, confirmNewPassword: String): String? =

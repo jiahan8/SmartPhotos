@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import com.jiahan.smartcamera.MainDispatcherRule
 import com.jiahan.smartcamera.data.datastore.UserPreferences
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
+import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.util.ErrorHandler
@@ -36,6 +37,7 @@ class SettingsViewModelTest {
     val mainDispatcherRule = MainDispatcherRule(StandardTestDispatcher())
 
     private val authRepository: AuthRepository = mockk()
+    private val analyticsRepository: AnalyticsRepository = mockk()
     private val userPreferencesRepository: UserPreferencesRepository = mockk()
     private val resourceProvider: ResourceProvider = mockk()
     private val errorHandler: ErrorHandler = mockk()
@@ -44,6 +46,8 @@ class SettingsViewModelTest {
 
     @Before
     fun setUp() {
+        every { analyticsRepository.setUserId(any()) } just runs
+        every { analyticsRepository.logTextCustomEvent(any()) } just runs
         every { errorHandler.logError(any()) } just runs
         every { errorHandler.getErrorMessage(any()) } returns "An error occurred"
         every { userPreferencesRepository.userPreferencesFlow } returns
@@ -53,6 +57,7 @@ class SettingsViewModelTest {
         every { resourceProvider.getString(R.string.change_password_success) } returns "Password changed successfully"
         viewModel = SettingsViewModel(
             authRepository,
+            analyticsRepository,
             userPreferencesRepository,
             resourceProvider,
             errorHandler

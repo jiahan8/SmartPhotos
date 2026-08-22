@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.domain.User
+import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeAuthRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
 import com.jiahan.smartcamera.fake.FakeMediaFileRepository
@@ -54,6 +55,7 @@ class ProfileScreenTest {
             authRepository = authRepository,
             userPreferencesRepository = FakeUserPreferencesRepository(),
             mediaFileRepository = FakeMediaFileRepository(),
+            analyticsRepository = FakeAnalyticsRepository(),
             resourceProvider = FakeResourceProvider(activity),
             errorHandler = FakeErrorHandler(),
         )

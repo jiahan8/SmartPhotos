@@ -16,6 +16,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeAuthRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
 import com.jiahan.smartcamera.fake.FakeResourceProvider
@@ -44,6 +45,7 @@ class SettingsScreenTest {
     private fun launchSettingsScreen() {
         val viewModel = SettingsViewModel(
             authRepository = authRepository,
+            analyticsRepository = FakeAnalyticsRepository(),
             userPreferencesRepository = preferencesRepository,
             resourceProvider = FakeResourceProvider(composeTestRule.activity),
             errorHandler = FakeErrorHandler(),

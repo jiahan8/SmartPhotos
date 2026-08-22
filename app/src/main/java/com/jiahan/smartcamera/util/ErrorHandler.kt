@@ -82,7 +82,7 @@ fun noteErrorMessageResId(throwable: Throwable): Int? {
     val reason = ((throwable as? FirebaseFunctionsException)?.details as? Map<*, *>)
         ?.get("reason") as? String
     return when (reason) {
-        "TEXT_TOO_LONG" -> R.string.post_validation
+        "TEXT_TOO_LONG" -> R.string.note_validation
         "TOO_MANY_MEDIA_ITEMS" -> R.string.note_media_limit
         "EMPTY_NOTE" -> R.string.note_empty
         else -> null

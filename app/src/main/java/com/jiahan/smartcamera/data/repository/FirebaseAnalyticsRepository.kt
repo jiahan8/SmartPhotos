@@ -19,6 +19,14 @@ class FirebaseAnalyticsRepository @Inject constructor(
         private const val NOTE_TERM_CUSTOM_PARAM = "note_term_custom"
         private const val TEXT_CUSTOM_EVENT = "text_custom"
         private const val TEXT_TERM_CUSTOM_PARAM = "text_term_custom"
+        private const val DISPLAY_NAME_CUSTOM_EVENT = "display_name_custom"
+        private const val DISPLAY_NAME_TERM_CUSTOM_PARAM = "display_name_term_custom"
+        private const val USERNAME_CUSTOM_EVENT = "username_custom"
+        private const val USERNAME_TERM_CUSTOM_PARAM = "username_term_custom"
+    }
+
+    override fun setUserId(userId: String?) {
+        firebaseAnalytics.setUserId(userId)
     }
 
     override fun logSearchEvent(value: String) {
@@ -54,5 +62,19 @@ class FirebaseAnalyticsRepository @Inject constructor(
             putString(TEXT_TERM_CUSTOM_PARAM, value)
         }
         firebaseAnalytics.logEvent(TEXT_CUSTOM_EVENT, params)
+    }
+
+    override fun logDisplayNameCustomEvent(value: String) {
+        val params = Bundle().apply {
+            putString(DISPLAY_NAME_TERM_CUSTOM_PARAM, value)
+        }
+        firebaseAnalytics.logEvent(DISPLAY_NAME_CUSTOM_EVENT, params)
+    }
+
+    override fun logUsernameCustomEvent(value: String) {
+        val params = Bundle().apply {
+            putString(USERNAME_TERM_CUSTOM_PARAM, value)
+        }
+        firebaseAnalytics.logEvent(USERNAME_CUSTOM_EVENT, params)
     }
 }

@@ -7,6 +7,7 @@ import com.google.android.play.core.appupdate.AppUpdateManager
 import com.google.android.play.core.ktx.AppUpdateResult
 import com.jiahan.smartcamera.data.datastore.UserPreferences
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
+import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AppUpdateRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
@@ -43,6 +44,7 @@ class MainViewModelTest {
     private val remoteConfigRepository: RemoteConfigRepository = mockk()
     private val authRepository: AuthRepository = mockk()
     private val userRepository: UserRepository = mockk()
+    private val analyticsRepository: AnalyticsRepository = mockk()
     private val userPreferencesRepository: UserPreferencesRepository = mockk()
     private val incomingShareHandler: IncomingShareHandler = mockk()
     private val appUpdateRepository: AppUpdateRepository = mockk()
@@ -54,6 +56,7 @@ class MainViewModelTest {
     @Before
     fun setUp() {
         coEvery { remoteConfigRepository.fetchAndActivateConfig() } returns Result.success(Unit)
+        every { analyticsRepository.setUserId(any()) } just runs
         every { errorHandler.logError(any()) } just runs
         every { userPreferencesRepository.userPreferencesFlow } returns flowOf(defaultPrefs)
         every { incomingShareHandler.incomingShare } returns MutableStateFlow(null)
@@ -74,6 +77,7 @@ class MainViewModelTest {
             errorHandler,
             authRepository,
             userRepository,
+            analyticsRepository,
             userPreferencesRepository,
             incomingShareHandler,
             appUpdateRepository

@@ -425,7 +425,7 @@ fun NoteScreen(
                                     onClick = { viewModel.uploadPost() },
                                     enabled = postButtonEnabled
                                 ) {
-                                    Text(text = stringResource(R.string.post))
+                                    Text(text = stringResource(R.string.save))
                                 }
                             }
                         }

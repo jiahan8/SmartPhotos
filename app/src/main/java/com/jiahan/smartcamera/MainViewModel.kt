@@ -6,6 +6,7 @@ import androidx.core.content.IntentCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.play.core.ktx.AppUpdateResult
+import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AppUpdateRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
@@ -42,6 +43,7 @@ class MainViewModel @Inject constructor(
     private val errorHandler: ErrorHandler,
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
+    private val analyticsRepository: AnalyticsRepository,
     userPreferencesRepository: UserPreferencesRepository,
     private val incomingShareHandler: IncomingShareHandler,
     appUpdateRepository: AppUpdateRepository
@@ -89,6 +91,7 @@ class MainViewModel @Inject constructor(
                     Screen.Auth
             _uiState.update { it.copy(startDestination = destination, isAppReady = true) }
             if (destination == Screen.Home) {
+                analyticsRepository.setUserId(authRepository.currentUserId)
                 userRepository.registerForPushNotifications()
                     .onFailure { e -> errorHandler.logError(e) }
                 userRepository.recordUserActivity(LocalDate.now())

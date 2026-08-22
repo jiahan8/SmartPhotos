@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
@@ -60,6 +61,7 @@ class ProfileViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val mediaFileRepository: MediaFileRepository,
+    private val analyticsRepository: AnalyticsRepository,
     private val resourceProvider: ResourceProvider,
     private val errorHandler: ErrorHandler,
 ) : ViewModel() {
@@ -117,6 +119,7 @@ class ProfileViewModel @Inject constructor(
             )
         }
         checkFormChanges()
+        analyticsRepository.logDisplayNameCustomEvent(text)
     }
 
     fun updateUsernameText(text: String) {
@@ -127,6 +130,7 @@ class ProfileViewModel @Inject constructor(
             }
         _uiState.update { it.copy(username = text, usernameErrorMessage = usernameErrorMessage) }
         checkFormChanges()
+        analyticsRepository.logUsernameCustomEvent(text)
     }
 
     private fun checkFormChanges() {

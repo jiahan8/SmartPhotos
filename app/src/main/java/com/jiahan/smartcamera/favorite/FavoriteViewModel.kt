@@ -74,6 +74,15 @@ class FavoriteViewModel @Inject constructor(
 
     init {
         viewModelScope.launch { syncNotes() }
+        viewModelScope.launch {
+            searchQuery
+                .debounce(DEBOUNCE_MS.milliseconds)
+                .collect { query ->
+                    if (query.isNotBlank()) {
+                        analyticsRepository.logFavoriteSearchCustomEvent(query)
+                    }
+                }
+        }
     }
 
     fun updateSearchQuery(query: String) {
@@ -91,7 +100,6 @@ class FavoriteViewModel @Inject constructor(
     private suspend fun syncNotes() {
         _isSyncing.value = true
         noteRepository.syncFavoriteNotes()
-            .onSuccess { analyticsRepository.logFavoriteSearchCustomEvent(_uiState.value.searchQuery) }
             .onFailure { e ->
                 errorHandler.logError(e)
                 _syncError.tryEmit(errorHandler.getErrorMessage(e))

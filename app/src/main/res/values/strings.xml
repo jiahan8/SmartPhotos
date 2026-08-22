@@ -35,12 +35,10 @@
     <string name="write_this_moment">Write about this moment</string>
     <string name="whats_on_mind">What\'s on your mind?</string>
     <string name="write_a_thought">Write a thought…</string>
-    <string name="post">Post</string>
     <string name="save">Save</string>
-    <string name="post_success">Note uploaded successfully</string>
-    <string name="post_validation">Note cannot exceed 500 characters</string>
+    <string name="note_validation">Note cannot exceed 500 characters</string>
     <string name="note_media_limit">You can attach up to 20 photos or videos per note</string>
-    <string name="note_empty">Add some text or media before posting</string>
+    <string name="note_empty">Add some text or media before saving</string>
     <string name="no_media_available">No media URI available for upload</string>
     <string name="note_unavailable">This note is no longer available</string>
     <string name="discard_changes">Discard changes?</string>

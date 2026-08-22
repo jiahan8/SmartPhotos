@@ -163,7 +163,7 @@ class NoteViewModel @Inject constructor(
             it.copy(
                 postText = text,
                 postTextError = when {
-                    text.length > MAX_POST_TEXT_LENGTH -> resourceProvider.getString(R.string.post_validation)
+                    text.length > MAX_POST_TEXT_LENGTH -> resourceProvider.getString(R.string.note_validation)
                     else -> null
                 }
             )

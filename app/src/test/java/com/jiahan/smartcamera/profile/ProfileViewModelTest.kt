@@ -4,6 +4,7 @@ import android.net.Uri
 import app.cash.turbine.test
 import com.jiahan.smartcamera.MainDispatcherRule
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
+import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
@@ -17,6 +18,7 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import io.mockk.unmockkAll
+import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -38,6 +40,7 @@ class ProfileViewModelTest {
     private val authRepository: AuthRepository = mockk()
     private val userPreferencesRepository: UserPreferencesRepository = mockk()
     private val mediaFileRepository: MediaFileRepository = mockk()
+    private val analyticsRepository: AnalyticsRepository = mockk()
     private val resourceProvider: ResourceProvider = mockk()
     private val errorHandler: ErrorHandler = mockk()
 
@@ -58,13 +61,15 @@ class ProfileViewModelTest {
         every { errorHandler.logError(any()) } just runs
         every { errorHandler.getErrorMessage(any()) } returns "Error"
         every { resourceProvider.getString(any()) } returns "Validation error"
+        every { analyticsRepository.logDisplayNameCustomEvent(any()) } just runs
+        every { analyticsRepository.logUsernameCustomEvent(any()) } just runs
         coEvery { userRepository.getUser() } returns Result.success(testUser)
         coEvery {
             userPreferencesRepository.updateLocalUserProfile(any(), any())
         } returns Result.success(Unit)
         viewModel = ProfileViewModel(
             userRepository, authRepository, userPreferencesRepository,
-            mediaFileRepository, resourceProvider, errorHandler
+            mediaFileRepository, analyticsRepository, resourceProvider, errorHandler
         )
     }
 
@@ -90,7 +95,7 @@ class ProfileViewModelTest {
         every { errorHandler.getErrorMessage(exception) } returns "load failed"
         val vm = ProfileViewModel(
             userRepository, authRepository, userPreferencesRepository,
-            mediaFileRepository, resourceProvider, errorHandler
+            mediaFileRepository, analyticsRepository, resourceProvider, errorHandler
         )
         assertEquals("load failed", vm.uiState.value.errorMessage)
     }
@@ -128,6 +133,20 @@ class ProfileViewModelTest {
         viewModel.updateUsernameText("bad user!")
 
         assertNotNull(viewModel.uiState.value.usernameErrorMessage)
+    }
+
+    @Test
+    fun `updateDisplayNameText logs analytics event`() = runTest {
+        viewModel.updateDisplayNameText("New Name")
+
+        verify { analyticsRepository.logDisplayNameCustomEvent("New Name") }
+    }
+
+    @Test
+    fun `updateUsernameText logs analytics event`() = runTest {
+        viewModel.updateUsernameText("newuser")
+
+        verify { analyticsRepository.logUsernameCustomEvent("newuser") }
     }
 
     // -------------------------------------------------------------------------
