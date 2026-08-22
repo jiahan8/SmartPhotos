@@ -31,6 +31,7 @@ setGlobalOptions({maxInstances: 10});
 const COLLECTION_USER = "user";
 const COLLECTION_USERNAME = "username";
 const COLLECTION_NOTE = "note";
+const COLLECTION_ARCHIVE = "archive";
 
 // Unsplash access key, set via:
 //   firebase functions:secrets:set UNSPLASH_ACCESS_KEY
@@ -597,32 +598,14 @@ exports.updateUsername = onCall(async (request) => {
   return {success: true};
 });
 
-const DOWNLOAD_URL_PATTERN = /\/v0\/b\/([^/]+)\/o\/([^?]+)/;
-
 /**
- * Extracts the storage bucket and object path from a Firebase Storage
- * download URL.
- * @param {string} url A Firebase Storage download URL.
- * @return {{bucket: string, path: string}|null} The parsed bucket/path,
- *   or null if the URL doesn't match the expected shape.
+ * Archives a note's Firestore data to `user/{userId}/archive/{noteId}`
+ * when the note document is deleted, so deleted notes are recoverable
+ * rather than permanently destroyed. Storage files (photo/video/
+ * thumbnail) referenced by the note are intentionally left untouched --
+ * this is a Firestore-only move, not a Storage cleanup.
  */
-function parseStorageDownloadUrl(url) {
-  if (typeof url !== "string") {
-    return null;
-  }
-  const match = url.match(DOWNLOAD_URL_PATTERN);
-  if (!match) {
-    return null;
-  }
-  return {bucket: match[1], path: decodeURIComponent(match[2])};
-}
-
-/**
- * Deletes the Storage objects (photo/video/thumbnail) referenced by a
- * note's `media_list` when the note document is deleted, so removing a
- * note doesn't leak Storage files.
- */
-exports.cleanupNoteMedia = onDocumentDeleted(
+exports.archiveDeletedNote = onDocumentDeleted(
     `${COLLECTION_USER}/{userId}/${COLLECTION_NOTE}/{noteId}`,
     async (event) => {
       const snapshot = event.data;
@@ -630,39 +613,22 @@ exports.cleanupNoteMedia = onDocumentDeleted(
         return null;
       }
 
-      const mediaList = snapshot.data().media_list || [];
-      const urls = mediaList
-          .reduce((acc, media) => acc.concat(
-              [media.photoUrl, media.videoUrl, media.thumbnailUrl],
-          ), [])
-          .filter(Boolean);
+      const {userId, noteId} = event.params;
 
-      if (urls.length === 0) {
-        return null;
+      try {
+        await admin.firestore()
+            .collection(COLLECTION_USER).doc(userId)
+            .collection(COLLECTION_ARCHIVE).doc(noteId)
+            .set({
+              ...snapshot.data(),
+              deleted_at: admin.firestore.FieldValue.serverTimestamp(),
+            });
+      } catch (error) {
+        logger.error(
+            `Failed to archive note ${noteId} for user ${userId}:`,
+            error,
+        );
       }
-
-      const results = await Promise.allSettled(
-          urls.map(async (url) => {
-            const parsed = parseStorageDownloadUrl(url);
-            if (!parsed) {
-              logger.warn(`Could not parse storage URL: ${url}`);
-              return;
-            }
-            await admin.storage()
-                .bucket(parsed.bucket)
-                .file(parsed.path)
-                .delete({ignoreNotFound: true});
-          }),
-      );
-
-      results.forEach((result, index) => {
-        if (result.status === "rejected") {
-          logger.error(
-              `Failed to delete storage object for ${urls[index]}:`,
-              result.reason,
-          );
-        }
-      });
 
       return null;
     },

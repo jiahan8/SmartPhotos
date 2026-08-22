@@ -108,8 +108,10 @@ on-device or in security rules:
    `user/{userId}/note/{noteId}`) fires server-side, calls Cloud Vision (text/label/object
    detection) on the uploaded image, and writes the results back onto the Firestore document.
 3. The app's Firestore listener picks up the update and refreshes the note's tags client-side.
-4. On note deletion, `cleanupNoteMedia` (`onDocumentDeleted`) removes the associated Storage
-   objects so orphaned media doesn't accumulate.
+4. On note deletion, `archiveDeletedNote` (`onDocumentDeleted`) copies the deleted note's
+   Firestore data to `user/{userId}/archive/{noteId}` (plus a `deleted_at` timestamp) so it's
+   recoverable rather than permanently destroyed; the note's Storage files (photo/video/
+   thumbnail) are left untouched.
 
 Other callable functions (`createNote`, `isUsernameAvailable`, `isEmailRegistered`,
 `createUserProfile`, `updateUsername`, `listUnsplashPhotos`) exist because they need a trusted
@@ -131,6 +133,10 @@ Collections referenced by `firestore.rules` (deny-by-default; rules below are ad
 - `username/{username}` — reservation records enforcing unique usernames (checked/written via the
   `isUsernameAvailable`/`updateUsername` callables rather than direct client writes, so the
   reserved-word list in `functions/index.js` is enforced consistently).
+- `user/{userId}/archive/{noteId}` — deleted notes' Firestore data plus a `deleted_at`
+  timestamp, written by `archiveDeletedNote` when a note is deleted; fully locked down (no
+  client access) since this only backs a server-side recovery mechanism, not a user-facing
+  feature yet.
 
 ## Local persistence
 

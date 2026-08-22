@@ -66,6 +66,16 @@ service cloud.firestore {
         allow update: if isOwner(userId) && onlyFavoriteChanged();
         allow delete: if isOwner(userId);
       }
+
+      match /archive/{noteId} {
+        // Archived notes are written exclusively by the archiveDeletedNote
+        // Cloud Function (Admin SDK, bypasses these rules) when a note is
+        // deleted, so deleted notes are recoverable rather than
+        // permanently destroyed. No client read/write path exists yet,
+        // so this stays fully locked down, matching username/{username}
+        // below.
+        allow read, write: if false;
+      }
     }
 
     // Username reservations back the uniqueness check in the
