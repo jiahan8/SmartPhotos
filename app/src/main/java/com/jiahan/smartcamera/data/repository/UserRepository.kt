@@ -3,6 +3,7 @@ package com.jiahan.smartcamera.data.repository
 import android.net.Uri
 import com.jiahan.smartcamera.domain.ProfilePictureUpdate
 import com.jiahan.smartcamera.domain.User
+import java.time.LocalDate
 
 interface UserRepository {
     suspend fun getUser(): Result<User?>
@@ -24,4 +25,7 @@ interface UserRepository {
 
     /** Unsubscribes the device from the announcements topic and clears the stored FCM token. */
     suspend fun unregisterFromPushNotifications(): Result<Unit>
+
+    /** Records the signed-in user's activity for [activeDay]; safe to call on every app open. */
+    suspend fun recordUserActivity(activeDay: LocalDate): Result<Unit>
 }

@@ -62,6 +62,7 @@ class MainViewModelTest {
         every { authRepository.currentUserId } returns null
         every { authRepository.isCurrentUserEmailVerified } returns false
         coEvery { userRepository.registerForPushNotifications() } returns Result.success(Unit)
+        coEvery { userRepository.recordUserActivity(any()) } returns Result.success(Unit)
     }
 
     @After

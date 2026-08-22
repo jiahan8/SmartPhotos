@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import javax.inject.Inject
 
 data class MainUiState(
@@ -89,6 +90,8 @@ class MainViewModel @Inject constructor(
             _uiState.update { it.copy(startDestination = destination, isAppReady = true) }
             if (destination == Screen.Home) {
                 userRepository.registerForPushNotifications()
+                    .onFailure { e -> errorHandler.logError(e) }
+                userRepository.recordUserActivity(LocalDate.now())
                     .onFailure { e -> errorHandler.logError(e) }
             }
         }

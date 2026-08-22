@@ -20,6 +20,7 @@ import com.jiahan.smartcamera.util.safeCall
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.tasks.await
 import java.time.Instant
+import java.time.LocalDate
 import java.util.UUID
 import javax.inject.Inject
 
@@ -43,6 +44,8 @@ class DefaultUserRepository @Inject constructor(
         private const val FIELD_FCM_TOKEN = "fcm_token"
         private const val FUNCTION_CREATE_USER_PROFILE = "createUserProfile"
         private const val FUNCTION_UPDATE_USERNAME = "updateUsername"
+        private const val FUNCTION_RECORD_USER_ACTIVITY = "recordUserActivity"
+        private const val FIELD_ACTIVE_DAY = "activeDay"
         private const val ANNOUNCEMENTS_TOPIC = "announcements"
     }
 
@@ -129,6 +132,14 @@ class DefaultUserRepository @Inject constructor(
     override suspend fun unregisterFromPushNotifications(): Result<Unit> = safeCall {
         messaging.unsubscribeFromTopic(ANNOUNCEMENTS_TOPIC).await()
         userDocumentReference?.update(FIELD_FCM_TOKEN, null)?.await()
+    }
+
+    // Delegates to the recordUserActivity Cloud Function, which computes streak
+    // continuation atomically in a Firestore transaction.
+    override suspend fun recordUserActivity(activeDay: LocalDate): Result<Unit> = safeCall {
+        functions.getHttpsCallable(FUNCTION_RECORD_USER_ACTIVITY)
+            .call(hashMapOf(FIELD_ACTIVE_DAY to activeDay.toString()))
+            .await()
     }
 
     private suspend fun updateFirebaseUserProfile(

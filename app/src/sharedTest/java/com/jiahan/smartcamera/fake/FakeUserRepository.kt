@@ -4,6 +4,7 @@ import android.net.Uri
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.domain.ProfilePictureUpdate
 import com.jiahan.smartcamera.domain.User
+import java.time.LocalDate
 
 /**
  * In-memory [UserRepository] test double. Returns [user] for lookups and records profile updates.
@@ -44,4 +45,7 @@ class FakeUserRepository : UserRepository {
     override suspend fun registerForPushNotifications(): Result<Unit> = Result.success(Unit)
 
     override suspend fun unregisterFromPushNotifications(): Result<Unit> = Result.success(Unit)
+
+    override suspend fun recordUserActivity(activeDay: LocalDate): Result<Unit> =
+        Result.success(Unit)
 }

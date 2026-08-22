@@ -114,12 +114,14 @@ on-device or in security rules:
    thumbnail) are left untouched.
 
 Other callable functions (`createNote`, `isUsernameAvailable`, `isEmailRegistered`,
-`createUserProfile`, `updateUsername`, `listUnsplashPhotos`) exist because they need a trusted
-environment: enforcing limits (`MAX_USERNAME_LENGTH`, `MAX_POST_TEXT_LENGTH`,
+`createUserProfile`, `updateUsername`, `recordUserActivity`, `listUnsplashPhotos`) exist because
+they need a trusted environment: enforcing limits (`MAX_USERNAME_LENGTH`, `MAX_POST_TEXT_LENGTH`,
 `MAX_NOTE_MEDIA_ITEMS`, reserved-username checks) that a compromised or modified client can't be
-trusted to self-enforce, or holding a secret (`UNSPLASH_ACCESS_KEY`, via `defineSecret`) that must
-never ship inside the APK. Client-side checks mirroring these (`ValidationUtils.kt`,
-`AppConstants.kt`) are UX-only — the functions are the actual enforcement boundary.
+trusted to self-enforce, holding a secret (`UNSPLASH_ACCESS_KEY`, via `defineSecret`) that must
+never ship inside the APK, or (for `recordUserActivity`) needing a Firestore transaction to
+compute streak continuation atomically, which the client SDK can't do against another device's
+concurrent write. Client-side checks mirroring these (`ValidationUtils.kt`, `AppConstants.kt`) are
+UX-only — the functions are the actual enforcement boundary.
 
 ## Firestore collections
 

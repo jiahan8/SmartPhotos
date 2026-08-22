@@ -599,6 +599,68 @@ exports.updateUsername = onCall(async (request) => {
 });
 
 /**
+ * Callable invoked once per app open (see MainViewModel's init block) to
+ * record the signed-in user's daily activity. Updates last_active_day,
+ * active_streak, longest_active_streak, and adds today to activity_log
+ * inside a transaction, so concurrent app opens on multiple devices can't
+ * race each other into an inconsistent streak. No-ops if activeDay is
+ * already the recorded last_active_day (or earlier), so it's safe to call
+ * on every app open rather than only once per calendar day.
+ */
+exports.recordUserActivity = onCall(async (request) => {
+  const uid = request.auth && request.auth.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Sign-in required.");
+  }
+
+  const activeDay = request.data && request.data.activeDay;
+  if (typeof activeDay !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(activeDay)) {
+    throw new HttpsError(
+        "invalid-argument", "activeDay must be a YYYY-MM-DD string.",
+    );
+  }
+
+  const requestedDate = new Date(`${activeDay}T00:00:00Z`);
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  if (isNaN(requestedDate.getTime()) ||
+      requestedDate.getTime() > Date.now() + oneDayMs) {
+    throw new HttpsError(
+        "invalid-argument", "activeDay is invalid or too far in the future.",
+    );
+  }
+
+  const userRef = admin.firestore().collection(COLLECTION_USER).doc(uid);
+
+  await admin.firestore().runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(userRef);
+    const data = snapshot.data() || {};
+    const lastActiveDay = data.last_active_day;
+
+    if (lastActiveDay && activeDay <= lastActiveDay) {
+      return;
+    }
+
+    const isConsecutive = lastActiveDay &&
+        requestedDate.getTime() -
+            new Date(`${lastActiveDay}T00:00:00Z`).getTime() === oneDayMs;
+
+    const newStreak = isConsecutive ? (data.active_streak || 0) + 1 : 1;
+    const longestStreak =
+        Math.max(newStreak, data.longest_active_streak || 0);
+
+    transaction.update(userRef, {
+      last_active_day: activeDay,
+      active_streak: newStreak,
+      longest_active_streak: longestStreak,
+      [`activity_log.${activeDay}`]: true,
+    });
+  });
+
+  return {success: true};
+});
+
+/**
  * Archives a note's Firestore data to `user/{userId}/archive/{noteId}`
  * when the note document is deleted, so deleted notes are recoverable
  * rather than permanently destroyed. Storage files (photo/video/
