@@ -1,5 +1,10 @@
 package com.jiahan.smartcamera
 
+import app.cash.turbine.test
+import com.google.android.gms.tasks.Tasks
+import com.google.android.play.core.appupdate.AppUpdateInfo
+import com.google.android.play.core.appupdate.AppUpdateManager
+import com.google.android.play.core.ktx.AppUpdateResult
 import com.jiahan.smartcamera.data.datastore.UserPreferences
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.data.repository.AppUpdateRepository
@@ -222,5 +227,55 @@ class MainViewModelTest {
         vm.consumePendingNoteId()
 
         assertNull(vm.uiState.value.pendingNoteId)
+    }
+
+    // -------------------------------------------------------------------------
+    // App update
+    // -------------------------------------------------------------------------
+    @Test
+    fun `updateState reflects an available update from the repository`() = runTest {
+        val available = AppUpdateResult.Available(mockk<AppUpdateManager>(), mockk<AppUpdateInfo>())
+        every { appUpdateRepository.observeUpdateState() } returns flowOf(available)
+
+        val vm = createViewModel()
+
+        vm.updateState.test {
+            assertEquals(available, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `completeUpdate completes the update once it has downloaded`() = runTest {
+        val appUpdateManager: AppUpdateManager = mockk()
+        every { appUpdateManager.completeUpdate() } returns Tasks.forResult(null)
+        val downloaded = AppUpdateResult.Downloaded(appUpdateManager)
+        every { appUpdateRepository.observeUpdateState() } returns flowOf(downloaded)
+
+        val vm = createViewModel()
+
+        vm.updateState.test {
+            assertEquals(downloaded, awaitItem())
+            vm.completeUpdate()
+            verify { appUpdateManager.completeUpdate() }
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `completeUpdate is a no-op when no update has downloaded`() = runTest {
+        val appUpdateManager: AppUpdateManager = mockk()
+        val available = AppUpdateResult.Available(appUpdateManager, mockk<AppUpdateInfo>())
+        every { appUpdateRepository.observeUpdateState() } returns flowOf(available)
+
+        val vm = createViewModel()
+
+        vm.updateState.test {
+            awaitItem()
+            vm.completeUpdate()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        verify(exactly = 0) { appUpdateManager.completeUpdate() }
     }
 }

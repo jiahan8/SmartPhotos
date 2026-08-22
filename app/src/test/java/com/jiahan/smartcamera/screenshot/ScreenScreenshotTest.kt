@@ -125,6 +125,7 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
         val viewModel = SettingsViewModel(
             authRepository = FakeAuthRepository(),
             userPreferencesRepository = FakeUserPreferencesRepository(),
+            resourceProvider = FakeResourceProvider(RuntimeEnvironment.getApplication()),
             errorHandler = FakeErrorHandler(),
         )
         captureSettled {

@@ -38,3 +38,7 @@ fun validateDisplayName(displayName: String, requireNonBlank: Boolean = false): 
         displayName.length > MAX_DISPLAY_NAME_LENGTH -> ValidationResult.Error(R.string.name_too_long)
         else -> ValidationResult.Success
     }
+
+fun validateNewPassword(password: String, requireNonBlank: Boolean = false): ValidationResult =
+    if (requireNonBlank && password.isBlank()) ValidationResult.Error(R.string.password_empty)
+    else ValidationResult.Success

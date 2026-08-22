@@ -17,6 +17,7 @@ class FakeAuthRepository : AuthRepository {
     var signUpResult: Result<Unit> = Result.success(Unit)
     var signOutResult: Result<Unit> = Result.success(Unit)
     var resetPasswordResult: Result<Unit> = Result.success(Unit)
+    var changePasswordResult: Result<Unit> = Result.success(Unit)
     var checkEmailVerifiedResult: Result<Boolean> = Result.success(true)
     var sendEmailVerificationResult: Result<Unit> = Result.success(Unit)
     var deleteAccountResult: Result<Unit> = Result.success(Unit)
@@ -26,7 +27,9 @@ class FakeAuthRepository : AuthRepository {
     var signInCallCount = 0
     var signOutCallCount = 0
     var deleteAccountCallCount = 0
+    var changePasswordCallCount = 0
     var lastSignInEmail: String? = null
+    var lastChangePasswordArgs: Pair<String, String>? = null
 
     override suspend fun signIn(email: String, password: String): Result<Unit> {
         signInCallCount++
@@ -47,6 +50,15 @@ class FakeAuthRepository : AuthRepository {
     }
 
     override suspend fun resetPassword(email: String): Result<Unit> = resetPasswordResult
+
+    override suspend fun changePassword(
+        currentPassword: String,
+        newPassword: String
+    ): Result<Unit> {
+        changePasswordCallCount++
+        lastChangePasswordArgs = currentPassword to newPassword
+        return changePasswordResult
+    }
 
     override suspend fun checkEmailVerified(): Result<Boolean> = checkEmailVerifiedResult
 

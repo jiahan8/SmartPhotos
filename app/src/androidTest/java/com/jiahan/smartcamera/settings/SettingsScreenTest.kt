@@ -14,9 +14,11 @@ import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.fake.FakeAuthRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
+import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.fake.FakeUserPreferencesRepository
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import org.junit.Assert.assertEquals
@@ -43,6 +45,7 @@ class SettingsScreenTest {
         val viewModel = SettingsViewModel(
             authRepository = authRepository,
             userPreferencesRepository = preferencesRepository,
+            resourceProvider = FakeResourceProvider(composeTestRule.activity),
             errorHandler = FakeErrorHandler(),
         )
         composeTestRule.setContent {
@@ -130,5 +133,98 @@ class SettingsScreenTest {
 
         composeTestRule.waitUntil(timeoutMillis = 5_000) { navigatedToAuth }
         assertEquals(1, authRepository.deleteAccountCallCount)
+    }
+
+    @Test
+    fun tappingChangePassword_showsDialog_andCancelDismissesIt() {
+        launchSettingsScreen()
+
+        composeTestRule.onNodeWithText(string(R.string.change_password)).performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText(string(R.string.current_password)).assertIsDisplayed()
+
+        composeTestRule.onNodeWithText(string(R.string.cancel)).performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText(string(R.string.current_password)).assertDoesNotExist()
+
+        assertEquals(0, authRepository.changePasswordCallCount)
+    }
+
+    @Test
+    fun fillingValidForm_confirmingChangesPassword_dismissesDialog() {
+        launchSettingsScreen()
+
+        composeTestRule.onNodeWithText(string(R.string.change_password)).performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(string(R.string.current_password))
+            .performTextInput("oldPass1")
+        composeTestRule.onNodeWithText(string(R.string.new_password)).performTextInput("newPass1")
+        composeTestRule.onNodeWithText(string(R.string.confirm_new_password))
+            .performTextInput("newPass1")
+
+        composeTestRule.onNode(
+            hasText(string(R.string.change_password)) and hasClickAction() and hasAnyAncestor(
+                isDialog()
+            )
+        ).performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            authRepository.changePasswordCallCount == 1
+        }
+        assertEquals("oldPass1" to "newPass1", authRepository.lastChangePasswordArgs)
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText(string(R.string.current_password)).assertDoesNotExist()
+    }
+
+    @Test
+    fun mismatchedConfirmPassword_blocksSubmission_dialogStaysOpen() {
+        launchSettingsScreen()
+
+        composeTestRule.onNodeWithText(string(R.string.change_password)).performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(string(R.string.current_password))
+            .performTextInput("oldPass1")
+        composeTestRule.onNodeWithText(string(R.string.new_password)).performTextInput("newPass1")
+        composeTestRule.onNodeWithText(string(R.string.confirm_new_password))
+            .performTextInput("different")
+
+        composeTestRule.onNode(
+            hasText(string(R.string.change_password)) and hasClickAction() and hasAnyAncestor(
+                isDialog()
+            )
+        ).performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(string(R.string.current_password)).assertIsDisplayed()
+        assertEquals(0, authRepository.changePasswordCallCount)
+    }
+
+    @Test
+    fun changePasswordFailure_keepsDialogOpen() {
+        authRepository.changePasswordResult = Result.failure(RuntimeException("wrong password"))
+        launchSettingsScreen()
+
+        composeTestRule.onNodeWithText(string(R.string.change_password)).performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(string(R.string.current_password))
+            .performTextInput("wrongPass1")
+        composeTestRule.onNodeWithText(string(R.string.new_password)).performTextInput("newPass1")
+        composeTestRule.onNodeWithText(string(R.string.confirm_new_password))
+            .performTextInput("newPass1")
+
+        composeTestRule.onNode(
+            hasText(string(R.string.change_password)) and hasClickAction() and hasAnyAncestor(
+                isDialog()
+            )
+        ).performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            authRepository.changePasswordCallCount == 1
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText(string(R.string.current_password)).assertIsDisplayed()
     }
 }

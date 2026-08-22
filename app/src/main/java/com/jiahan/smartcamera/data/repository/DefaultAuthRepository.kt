@@ -1,5 +1,6 @@
 package com.jiahan.smartcamera.data.repository
 
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.functions.FirebaseFunctions
@@ -64,6 +65,17 @@ class DefaultAuthRepository @Inject constructor(
 
     override suspend fun resetPassword(email: String): Result<Unit> = safeCall {
         auth.sendPasswordResetEmail(email).await()
+    }
+
+    override suspend fun changePassword(
+        currentPassword: String,
+        newPassword: String
+    ): Result<Unit> = safeCall {
+        val user = requireNotNull(auth.currentUser) { "" }
+        val email = requireNotNull(user.email) { "" }
+        val credential = EmailAuthProvider.getCredential(email, currentPassword)
+        user.reauthenticate(credential).await()
+        user.updatePassword(newPassword).await()
     }
 
     override suspend fun checkEmailVerified(): Result<Boolean> = safeCall {

@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -24,6 +27,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -41,6 +45,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -96,6 +104,15 @@ fun SettingsScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        viewModel.changePasswordEvent.collect { event ->
+            when (event) {
+                is SettingsChangePasswordEvent.Success ->
+                    snackbarHostState.showAppSnackbar(event.message)
+            }
+        }
+    }
+
     when (dialogState) {
         is SettingsDialogState.Logout -> {
             AlertDialog(
@@ -114,6 +131,151 @@ fun SettingsScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { viewModel.dismissDialog() }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            )
+        }
+
+        is SettingsDialogState.ChangePassword -> {
+            AlertDialog(
+                onDismissRequest = { if (!isLoading) viewModel.dismissDialog() },
+                title = { Text(stringResource(R.string.change_password)) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = dialogState.currentPassword,
+                            onValueChange = { viewModel.updateCurrentPasswordText(it) },
+                            label = { Text(stringResource(R.string.current_password)) },
+                            shape = MaterialTheme.shapes.large,
+                            singleLine = true,
+                            visualTransformation = if (dialogState.currentPasswordVisible)
+                                VisualTransformation.None
+                            else
+                                PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Password,
+                                imeAction = ImeAction.Next
+                            ),
+                            trailingIcon = {
+                                Icon(
+                                    modifier = Modifier.clickable(
+                                        interactionSource = null,
+                                        indication = null
+                                    ) {
+                                        viewModel.updateCurrentPasswordVisibility(!dialogState.currentPasswordVisible)
+                                    },
+                                    painter = if (dialogState.currentPasswordVisible)
+                                        painterResource(R.drawable.visibility)
+                                    else
+                                        painterResource(R.drawable.visibility_off),
+                                    contentDescription = if (dialogState.currentPasswordVisible)
+                                        stringResource(R.string.cd_hide_password)
+                                    else
+                                        stringResource(R.string.cd_show_password)
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = dialogState.newPassword,
+                            onValueChange = { viewModel.updateNewPasswordText(it) },
+                            label = { Text(stringResource(R.string.new_password)) },
+                            isError = dialogState.newPasswordErrorMessage != null,
+                            supportingText = dialogState.newPasswordErrorMessage?.let { { Text(it) } },
+                            shape = MaterialTheme.shapes.large,
+                            singleLine = true,
+                            visualTransformation = if (dialogState.newPasswordVisible)
+                                VisualTransformation.None
+                            else
+                                PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Password,
+                                imeAction = ImeAction.Next
+                            ),
+                            trailingIcon = {
+                                Icon(
+                                    modifier = Modifier.clickable(
+                                        interactionSource = null,
+                                        indication = null
+                                    ) {
+                                        viewModel.updateNewPasswordVisibility(!dialogState.newPasswordVisible)
+                                    },
+                                    painter = if (dialogState.newPasswordVisible)
+                                        painterResource(R.drawable.visibility)
+                                    else
+                                        painterResource(R.drawable.visibility_off),
+                                    contentDescription = if (dialogState.newPasswordVisible)
+                                        stringResource(R.string.cd_hide_password)
+                                    else
+                                        stringResource(R.string.cd_show_password)
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = dialogState.confirmNewPassword,
+                            onValueChange = { viewModel.updateConfirmNewPasswordText(it) },
+                            label = { Text(stringResource(R.string.confirm_new_password)) },
+                            isError = dialogState.confirmNewPasswordErrorMessage != null,
+                            supportingText = dialogState.confirmNewPasswordErrorMessage?.let {
+                                { Text(it) }
+                            },
+                            shape = MaterialTheme.shapes.large,
+                            singleLine = true,
+                            visualTransformation = if (dialogState.confirmNewPasswordVisible)
+                                VisualTransformation.None
+                            else
+                                PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Password,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = { viewModel.changePassword() }
+                            ),
+                            trailingIcon = {
+                                Icon(
+                                    modifier = Modifier.clickable(
+                                        interactionSource = null,
+                                        indication = null
+                                    ) {
+                                        viewModel.updateConfirmNewPasswordVisibility(!dialogState.confirmNewPasswordVisible)
+                                    },
+                                    painter = if (dialogState.confirmNewPasswordVisible)
+                                        painterResource(R.drawable.visibility)
+                                    else
+                                        painterResource(R.drawable.visibility_off),
+                                    contentDescription = if (dialogState.confirmNewPasswordVisible)
+                                        stringResource(R.string.cd_hide_password)
+                                    else
+                                        stringResource(R.string.cd_show_password)
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = { viewModel.changePassword() },
+                        enabled = !isLoading
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 1.5.dp
+                            )
+                        } else {
+                            Text(stringResource(R.string.change_password))
+                        }
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { viewModel.dismissDialog() },
+                        enabled = !isLoading
+                    ) {
                         Text(stringResource(R.string.cancel))
                     }
                 }
@@ -249,6 +411,20 @@ fun SettingsScreen(
                             }
                         }
                         HorizontalDivider(thickness = 1.dp)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.showChangePasswordDialog()
+                                }
+                                .padding(horizontal = 16.dp, vertical = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.change_password),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
