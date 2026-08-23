@@ -40,6 +40,10 @@ import androidx.navigation.compose.rememberNavController
 import com.jiahan.smartcamera.common.CustomSnackbarHost
 import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.navigation.bottomNavItems
+import com.jiahan.smartcamera.navigation.navEnterTransition
+import com.jiahan.smartcamera.navigation.navExitTransition
+import com.jiahan.smartcamera.navigation.navPopEnterTransition
+import com.jiahan.smartcamera.navigation.navPopExitTransition
 import com.jiahan.smartcamera.navigation.smartPhotosNavGraph
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
@@ -176,6 +180,10 @@ fun SmartPhotosApp(
                     NavHost(
                         navController = navController,
                         startDestination = startDestination,
+                        enterTransition = navEnterTransition,
+                        exitTransition = navExitTransition,
+                        popEnterTransition = navPopEnterTransition,
+                        popExitTransition = navPopExitTransition,
                     ) {
                         smartPhotosNavGraph(
                             navController = navController,

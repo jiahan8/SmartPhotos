@@ -33,6 +33,7 @@ object AppConstants {
     // Animation durations
     const val ANIMATION_DURATION_SHORT_MS = 300
     const val TEXT_FIELD_TRANSITION_FADE_DURATION_MS = 500
+    const val SHIMMER_DURATION_MS = 1200
     const val TEXT_FIELD_PLACEHOLDER_ROTATION_DELAY_MS = 3000L
     const val TEXT_FIELD_TRANSITION_DELAY_MS = 500L
     const val AUTH_ACTION_DELAY_MS = 1000L

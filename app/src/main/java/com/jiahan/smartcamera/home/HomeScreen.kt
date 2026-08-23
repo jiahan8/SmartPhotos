@@ -1,6 +1,7 @@
 package com.jiahan.smartcamera.home
 
 import android.content.ClipData
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -9,6 +10,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -87,6 +89,7 @@ import com.jiahan.smartcamera.common.BottomSheetActionItem
 import com.jiahan.smartcamera.common.ScrollDirectionEffect
 import com.jiahan.smartcamera.common.ScrollToTopEffect
 import com.jiahan.smartcamera.common.rememberShouldLoadMore
+import com.jiahan.smartcamera.common.shimmer
 import com.jiahan.smartcamera.common.showAppSnackbar
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
@@ -198,90 +201,99 @@ fun HomeScreen(
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                when (val state = uiState.content) {
-                    is HomeContent.Loading ->
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(strokeWidth = 1.5.dp)
-                        }
+                AnimatedContent(
+                    targetState = uiState.content,
+                    modifier = Modifier.fillMaxSize(),
+                    // Key on the branch, not the payload. Every favorite toggle, deletion and
+                    // appended page produces a fresh Success instance; those must recompose the
+                    // list in place, not crossfade the whole screen against itself.
+                    contentKey = { it::class },
+                    transitionSpec = {
+                        fadeIn(tween(ANIMATION_DURATION_SHORT_MS)) togetherWith
+                                fadeOut(tween(ANIMATION_DURATION_SHORT_MS))
+                    },
+                    label = "HomeContent"
+                ) { state ->
+                    when (state) {
+                        is HomeContent.Loading -> HomeListSkeleton()
 
-                    is HomeContent.Error ->
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(state.message)
-                        }
-
-                    is HomeContent.Success ->
-                        if (state.notes.isEmpty()) {
+                        is HomeContent.Error ->
                             Box(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(stringResource(R.string.create_first_note))
+                                Text(state.message)
                             }
-                        } else {
-                            PullToRefreshBox(
-                                modifier = Modifier.fillMaxSize(),
-                                state = pullToRefreshState,
-                                isRefreshing = uiState.isRefreshing,
-                                onRefresh = {
-                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
-                                    viewModel.refresh()
-                                },
-                            ) {
-                                LazyColumn(
-                                    state = listState,
-                                    modifier = Modifier.fillMaxSize()
-                                ) {
-                                    items(
-                                        count = state.notes.size,
-                                        key = { index -> state.notes[index].noteId }
-                                    ) { index ->
-                                        val note = state.notes[index]
-                                        HomeItem(
-                                            note = note,
-                                            onNavigateToNotePreview = {
-                                                onNavigateToNotePreview(note.noteId)
-                                            },
-                                            onEditNote = { onNavigateToEditNote(note.noteId) },
-                                            onFavoriteNote = { viewModel.favoriteNote(note) },
-                                            onDeleteNote = { viewModel.setNoteToDelete(note) },
-                                            onPhotoClick = { url ->
-                                                onNavigateToPhotoPreview(url)
-                                            },
-                                            onVideoClick = { url ->
-                                                onNavigateToVideoPreview(url)
-                                            },
-                                            onProfilePictureClick = { url ->
-                                                onNavigateToPhotoPreview(url)
-                                            },
-                                            onShareNote = { viewModel.shareNote(note) },
-                                            onImageLoadError = viewModel::logImageLoadError
-                                        )
-                                    }
 
-                                    if (uiState.isLoadingMore) {
-                                        item {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(16.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(32.dp),
-                                                    strokeWidth = 1.5.dp
-                                                )
+                        is HomeContent.Success ->
+                            if (state.notes.isEmpty()) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(stringResource(R.string.create_first_note))
+                                }
+                            } else {
+                                PullToRefreshBox(
+                                    modifier = Modifier.fillMaxSize(),
+                                    state = pullToRefreshState,
+                                    isRefreshing = uiState.isRefreshing,
+                                    onRefresh = {
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                        viewModel.refresh()
+                                    },
+                                ) {
+                                    LazyColumn(
+                                        state = listState,
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        items(
+                                            count = state.notes.size,
+                                            key = { index -> state.notes[index].noteId }
+                                        ) { index ->
+                                            val note = state.notes[index]
+                                            HomeItem(
+                                                note = note,
+                                                modifier = Modifier.animateItem(),
+                                                onNavigateToNotePreview = {
+                                                    onNavigateToNotePreview(note.noteId)
+                                                },
+                                                onEditNote = { onNavigateToEditNote(note.noteId) },
+                                                onFavoriteNote = { viewModel.favoriteNote(note) },
+                                                onDeleteNote = { viewModel.setNoteToDelete(note) },
+                                                onPhotoClick = { url ->
+                                                    onNavigateToPhotoPreview(url)
+                                                },
+                                                onVideoClick = { url ->
+                                                    onNavigateToVideoPreview(url)
+                                                },
+                                                onProfilePictureClick = { url ->
+                                                    onNavigateToPhotoPreview(url)
+                                                },
+                                                onShareNote = { viewModel.shareNote(note) },
+                                                onImageLoadError = viewModel::logImageLoadError
+                                            )
+                                        }
+
+                                        if (uiState.isLoadingMore) {
+                                            item {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(16.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(32.dp),
+                                                        strokeWidth = 1.5.dp
+                                                    )
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
+                    }
                 }
             }
         }
@@ -313,6 +325,7 @@ fun HomeItem(
     onVideoClick: (String) -> Unit,
     onProfilePictureClick: (String) -> Unit,
     onShareNote: () -> Unit,
+    modifier: Modifier = Modifier,
     onImageLoadError: (Throwable) -> Unit = {}
 ) {
     val callbacks = remember(
@@ -367,7 +380,7 @@ fun HomeItem(
     }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .combinedClickable(
                 onClick = callbacks.onNavigateToNotePreview,
                 onDoubleClick = {
@@ -574,6 +587,77 @@ fun HomeItem(
         }
     }
 }
+
+/**
+ * Placeholder shown in place of a [HomeItem] while the first page loads. Mirrors the real item's
+ * metrics (38dp avatar, 56dp text inset, 220x256 media block) so the list doesn't visibly reflow
+ * when the notes arrive.
+ */
+@Composable
+fun HomeItemSkeleton(modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, top = 16.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .shimmer(CircleShape)
+            )
+            Column(
+                modifier = Modifier
+                    .padding(start = 16.dp)
+                    .weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.45f)
+                        .height(14.dp)
+                        .shimmer()
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.9f)
+                        .height(12.dp)
+                        .shimmer()
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.6f)
+                        .height(12.dp)
+                        .shimmer()
+                )
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .padding(start = 56.dp, top = 8.dp)
+                .height(256.dp)
+                .width(220.dp)
+                .shimmer(MaterialTheme.shapes.medium)
+        )
+
+        HorizontalDivider(
+            modifier = Modifier.padding(top = 16.dp, start = 8.dp, end = 8.dp),
+            thickness = 0.5.dp
+        )
+    }
+}
+
+/** A short run of [HomeItemSkeleton]s filling the list area while the first page loads. */
+@Composable
+fun HomeListSkeleton(modifier: Modifier = Modifier) {
+    Column(modifier = modifier.fillMaxSize()) {
+        repeat(SKELETON_ITEM_COUNT) { HomeItemSkeleton() }
+    }
+}
+
+private const val SKELETON_ITEM_COUNT = 3
 
 @Composable
 private fun MediaItem(

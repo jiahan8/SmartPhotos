@@ -40,7 +40,6 @@ import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -81,6 +80,7 @@ import coil3.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.BottomSheetActionItem
 import com.jiahan.smartcamera.common.showAppSnackbar
+import com.jiahan.smartcamera.home.HomeItemSkeleton
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
 import com.jiahan.smartcamera.util.toFormattedDateTime
 import kotlinx.coroutines.launch
@@ -181,281 +181,291 @@ fun NotePreviewScreen(
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                when (val state = uiState.content) {
-                    is NotePreviewContent.Loading ->
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(strokeWidth = 1.5.dp)
-                        }
+                AnimatedContent(
+                    targetState = uiState.content,
+                    modifier = Modifier.fillMaxSize(),
+                    contentKey = { it::class },
+                    transitionSpec = {
+                        fadeIn(tween(ANIMATION_DURATION_SHORT_MS)) togetherWith
+                                fadeOut(tween(ANIMATION_DURATION_SHORT_MS))
+                    },
+                    label = "NotePreviewContent"
+                ) { state ->
+                    when (state) {
+                        is NotePreviewContent.Loading -> HomeItemSkeleton()
 
-                    is NotePreviewContent.Error ->
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(state.message)
-                        }
-
-                    is NotePreviewContent.Success -> {
-                        val note = state.note
-                        Box(
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .verticalScroll(scrollState)
+                        is NotePreviewContent.Error ->
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Row(
+                                Text(state.message)
+                            }
+
+                        is NotePreviewContent.Success -> {
+                            val note = state.note
+                            Box(
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(start = 16.dp, end = 16.dp, top = 16.dp)
+                                        .verticalScroll(scrollState)
                                 ) {
-                                    note.profilePictureUrl?.let { url ->
-                                        AsyncImage(
-                                            model = url,
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 16.dp, end = 16.dp, top = 16.dp)
+                                    ) {
+                                        note.profilePictureUrl?.let { url ->
+                                            AsyncImage(
+                                                model = url,
+                                                contentDescription = stringResource(R.string.cd_profile_picture),
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier
+                                                    .size(38.dp)
+                                                    .clip(CircleShape)
+                                                    .clickable {
+                                                        onNavigateToPhotoPreview(url)
+                                                    },
+                                                onError = { viewModel.logImageLoadError(it.result.throwable) }
+                                            )
+                                        } ?: Image(
+                                            imageVector = Icons.Rounded.AccountCircle,
                                             contentDescription = stringResource(R.string.cd_profile_picture),
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier
                                                 .size(38.dp)
-                                                .clip(CircleShape)
-                                                .clickable {
-                                                    onNavigateToPhotoPreview(url)
-                                                },
-                                            onError = { viewModel.logImageLoadError(it.result.throwable) }
-                                        )
-                                    } ?: Image(
-                                        imageVector = Icons.Rounded.AccountCircle,
-                                        contentDescription = stringResource(R.string.cd_profile_picture),
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .size(38.dp)
-                                            .clip(CircleShape),
-                                        colorFilter = ColorFilter.tint(
-                                            MaterialTheme.colorScheme.onSurface.copy(
-                                                alpha = 0.7f
+                                                .clip(CircleShape),
+                                            colorFilter = ColorFilter.tint(
+                                                MaterialTheme.colorScheme.onSurface.copy(
+                                                    alpha = 0.7f
+                                                )
                                             )
                                         )
-                                    )
 
-                                    Column(
-                                        modifier = Modifier.padding(start = 16.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.fillMaxWidth()
+                                        Column(
+                                            modifier = Modifier.padding(start = 16.dp)
                                         ) {
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
-                                                modifier = Modifier.weight(1f)
+                                                modifier = Modifier.fillMaxWidth()
                                             ) {
-                                                Text(
-                                                    text = note.username,
-                                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                                        fontWeight = FontWeight.Bold
-                                                    ),
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                    modifier = Modifier.weight(1f, fill = false)
-                                                )
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    Text(
+                                                        text = note.username,
+                                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                                            fontWeight = FontWeight.Bold
+                                                        ),
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                        modifier = Modifier.weight(1f, fill = false)
+                                                    )
 
-                                                Text(
-                                                    text = note.createdDate?.toEpochMilli()
-                                                        ?.toFormattedDateTime()
-                                                        ?: "",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    modifier = Modifier.padding(start = 8.dp),
-                                                    maxLines = 1
+                                                    Text(
+                                                        text = note.createdDate?.toEpochMilli()
+                                                            ?.toFormattedDateTime()
+                                                            ?: "",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.padding(start = 8.dp),
+                                                        maxLines = 1
+                                                    )
+                                                }
+
+                                                Icon(
+                                                    imageVector = Icons.Rounded.MoreHoriz,
+                                                    contentDescription = stringResource(R.string.cd_more_options),
+                                                    modifier = Modifier
+                                                        .padding(start = 8.dp)
+                                                        .clickable {
+                                                            openActionsSheet()
+                                                        }
                                                 )
                                             }
 
-                                            Icon(
-                                                imageVector = Icons.Rounded.MoreHoriz,
-                                                contentDescription = stringResource(R.string.cd_more_options),
-                                                modifier = Modifier
-                                                    .padding(start = 8.dp)
-                                                    .clickable {
-                                                        openActionsSheet()
-                                                    }
+                                            note.text?.let { text ->
+                                                Text(
+                                                    text = text,
+                                                    style = MaterialTheme.typography.bodyMedium
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    note.mediaList?.takeIf { it.isNotEmpty() }?.let { mediaList ->
+                                        LazyRow(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 8.dp),
+                                            contentPadding = PaddingValues(
+                                                start = 56.dp,
+                                                end = 8.dp
                                             )
+                                        ) {
+                                            items(
+                                                count = mediaList.size,
+                                                key = { index ->
+                                                    val media = mediaList[index]
+                                                    "${index}_${if (media.isVideo) media.videoUrl else media.photoUrl}"
+                                                }
+                                            ) { index ->
+                                                val mediaDetail = mediaList[index]
+                                                Box(
+                                                    modifier = Modifier
+                                                        .padding(end = 8.dp)
+                                                        .clickable {
+                                                            if (mediaList[index].isVideo) {
+                                                                onNavigateToVideoPreview(
+                                                                    mediaList[index].videoUrl.toString()
+                                                                )
+                                                            } else {
+                                                                onNavigateToPhotoPreview(
+                                                                    mediaList[index].photoUrl.toString()
+                                                                )
+                                                            }
+                                                        }
+                                                ) {
+                                                    AsyncImage(
+                                                        model = if (mediaDetail.isVideo) mediaDetail.thumbnailUrl else mediaDetail.photoUrl,
+                                                        modifier = Modifier
+                                                            .height(256.dp)
+                                                            .width(220.dp)
+                                                            .clip(MaterialTheme.shapes.medium),
+                                                        contentDescription = stringResource(R.string.cd_note_photo),
+                                                        contentScale = ContentScale.Crop,
+                                                        onError = { viewModel.logImageLoadError(it.result.throwable) }
+                                                    )
+
+                                                    if (mediaDetail.isVideo)
+                                                        Icon(
+                                                            imageVector = Icons.Rounded.PlayArrow,
+                                                            contentDescription = stringResource(R.string.cd_play_video),
+                                                            modifier = Modifier
+                                                                .align(Alignment.Center)
+                                                                .size(52.dp)
+                                                                .clip(CircleShape)
+                                                                .background(
+                                                                    MaterialTheme.colorScheme.surfaceVariant.copy(
+                                                                        alpha = 0.7f
+                                                                    )
+                                                                ),
+                                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 68.dp, end = 16.dp, top = 16.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .clickable(
+                                                    interactionSource = null,
+                                                    indication = null,
+                                                    role = Role.Button,
+                                                    onClickLabel = stringResource(R.string.favorite)
+                                                ) {
+                                                    hapticFeedback.performHapticFeedback(
+                                                        HapticFeedbackType.LongPress
+                                                    )
+                                                    viewModel.favoriteNote(note)
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            AnimatedContent(
+                                                targetState = note.favorite,
+                                                transitionSpec = {
+                                                    (scaleIn(
+                                                        animationSpec = spring(
+                                                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                            stiffness = Spring.StiffnessLow
+                                                        ),
+                                                        initialScale = 5f
+                                                    ) + fadeIn(tween(ANIMATION_DURATION_SHORT_MS)))
+                                                        .togetherWith(
+                                                            scaleOut(
+                                                                tween(ANIMATION_DURATION_SHORT_MS)
+                                                            ) + fadeOut(
+                                                                tween(ANIMATION_DURATION_SHORT_MS)
+                                                            )
+                                                        )
+                                                        .using(SizeTransform(clip = false))
+                                                },
+                                                label = "favoriteIconAnimation"
+                                            ) { isFavorite ->
+                                                Icon(
+                                                    imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Outlined.FavoriteBorder,
+                                                    contentDescription = null,
+                                                    tint = if (isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                                )
+                                            }
                                         }
 
-                                        note.text?.let { text ->
-                                            Text(
-                                                text = text,
-                                                style = MaterialTheme.typography.bodyMedium
-                                            )
-                                        }
+                                        Icon(
+                                            imageVector = Icons.Rounded.EditNote,
+                                            contentDescription = stringResource(R.string.cd_edit_note),
+                                            modifier = Modifier
+                                                .padding(start = 16.dp)
+                                                .clickable {
+                                                    onNavigateToEdit(note.noteId)
+                                                }
+                                        )
+
+                                        Icon(
+                                            imageVector = Icons.Rounded.IosShare,
+                                            contentDescription = stringResource(R.string.share),
+                                            modifier = Modifier
+                                                .padding(start = 16.dp)
+                                                .clickable {
+                                                    viewModel.shareNote(note)
+                                                }
+                                        )
                                     }
                                 }
 
-                                note.mediaList?.takeIf { it.isNotEmpty() }?.let { mediaList ->
-                                    LazyRow(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 8.dp),
-                                        contentPadding = PaddingValues(start = 56.dp, end = 8.dp)
+                                if (showActionsSheet) {
+                                    ModalBottomSheet(
+                                        onDismissRequest = { showActionsSheet = false },
+                                        sheetState = sheetState
                                     ) {
-                                        items(
-                                            count = mediaList.size,
-                                            key = { index ->
-                                                val media = mediaList[index]
-                                                "${index}_${if (media.isVideo) media.videoUrl else media.photoUrl}"
-                                            }
-                                        ) { index ->
-                                            val mediaDetail = mediaList[index]
-                                            Box(
-                                                modifier = Modifier
-                                                    .padding(end = 8.dp)
-                                                    .clickable {
-                                                        if (mediaList[index].isVideo) {
-                                                            onNavigateToVideoPreview(
-                                                                mediaList[index].videoUrl.toString()
-                                                            )
-                                                        } else {
-                                                            onNavigateToPhotoPreview(
-                                                                mediaList[index].photoUrl.toString()
+                                        note.text?.let { text ->
+                                            BottomSheetActionItem(
+                                                icon = Icons.Rounded.ContentCopy,
+                                                label = stringResource(R.string.copy_text),
+                                                onClick = {
+                                                    closeSheetThen {
+                                                        coroutineScope.launch {
+                                                            clipboard.setClipEntry(
+                                                                ClipEntry(
+                                                                    ClipData.newPlainText(
+                                                                        null,
+                                                                        text
+                                                                    )
+                                                                )
                                                             )
                                                         }
                                                     }
-                                            ) {
-                                                AsyncImage(
-                                                    model = if (mediaDetail.isVideo) mediaDetail.thumbnailUrl else mediaDetail.photoUrl,
-                                                    modifier = Modifier
-                                                        .height(256.dp)
-                                                        .width(220.dp)
-                                                        .clip(MaterialTheme.shapes.medium),
-                                                    contentDescription = stringResource(R.string.cd_note_photo),
-                                                    contentScale = ContentScale.Crop,
-                                                    onError = { viewModel.logImageLoadError(it.result.throwable) }
-                                                )
-
-                                                if (mediaDetail.isVideo)
-                                                    Icon(
-                                                        imageVector = Icons.Rounded.PlayArrow,
-                                                        contentDescription = stringResource(R.string.cd_play_video),
-                                                        modifier = Modifier
-                                                            .align(Alignment.Center)
-                                                            .size(52.dp)
-                                                            .clip(CircleShape)
-                                                            .background(
-                                                                MaterialTheme.colorScheme.surfaceVariant.copy(
-                                                                    alpha = 0.7f
-                                                                )
-                                                            ),
-                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
-                                            }
-                                        }
-                                    }
-                                }
-
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(start = 68.dp, end = 16.dp, top = 16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .clickable(
-                                                interactionSource = null,
-                                                indication = null,
-                                                role = Role.Button,
-                                                onClickLabel = stringResource(R.string.favorite)
-                                            ) {
-                                                hapticFeedback.performHapticFeedback(
-                                                    HapticFeedbackType.LongPress
-                                                )
-                                                viewModel.favoriteNote(note)
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        AnimatedContent(
-                                            targetState = note.favorite,
-                                            transitionSpec = {
-                                                (scaleIn(
-                                                    animationSpec = spring(
-                                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                        stiffness = Spring.StiffnessLow
-                                                    ),
-                                                    initialScale = 5f
-                                                ) + fadeIn(tween(ANIMATION_DURATION_SHORT_MS)))
-                                                    .togetherWith(
-                                                        scaleOut(tween(ANIMATION_DURATION_SHORT_MS)) +
-                                                                fadeOut(
-                                                                    tween(
-                                                                        ANIMATION_DURATION_SHORT_MS
-                                                                    )
-                                                                )
-                                                    )
-                                                    .using(SizeTransform(clip = false))
-                                            },
-                                            label = "favoriteIconAnimation"
-                                        ) { isFavorite ->
-                                            Icon(
-                                                imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Outlined.FavoriteBorder,
-                                                contentDescription = null,
-                                                tint = if (isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                                }
                                             )
                                         }
-                                    }
-
-                                    Icon(
-                                        imageVector = Icons.Rounded.EditNote,
-                                        contentDescription = stringResource(R.string.cd_edit_note),
-                                        modifier = Modifier
-                                            .padding(start = 16.dp)
-                                            .clickable {
-                                                onNavigateToEdit(note.noteId)
-                                            }
-                                    )
-
-                                    Icon(
-                                        imageVector = Icons.Rounded.IosShare,
-                                        contentDescription = stringResource(R.string.share),
-                                        modifier = Modifier
-                                            .padding(start = 16.dp)
-                                            .clickable {
-                                                viewModel.shareNote(note)
-                                            }
-                                    )
-                                }
-                            }
-
-                            if (showActionsSheet) {
-                                ModalBottomSheet(
-                                    onDismissRequest = { showActionsSheet = false },
-                                    sheetState = sheetState
-                                ) {
-                                    note.text?.let { text ->
                                         BottomSheetActionItem(
-                                            icon = Icons.Rounded.ContentCopy,
-                                            label = stringResource(R.string.copy_text),
+                                            icon = Icons.Rounded.Delete,
+                                            label = stringResource(R.string.delete),
                                             onClick = {
-                                                closeSheetThen {
-                                                    coroutineScope.launch {
-                                                        clipboard.setClipEntry(
-                                                            ClipEntry(
-                                                                ClipData.newPlainText(null, text)
-                                                            )
-                                                        )
-                                                    }
-                                                }
-                                            }
+                                                closeSheetThen { viewModel.setNoteToDelete(note) }
+                                            },
+                                            tint = MaterialTheme.colorScheme.error
                                         )
                                     }
-                                    BottomSheetActionItem(
-                                        icon = Icons.Rounded.Delete,
-                                        label = stringResource(R.string.delete),
-                                        onClick = {
-                                            closeSheetThen { viewModel.setNoteToDelete(note) }
-                                        },
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
                                 }
                             }
                         }
