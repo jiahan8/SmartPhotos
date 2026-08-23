@@ -125,7 +125,6 @@ fun NoteScreen(
         if (success) {
             photoUri?.let { uri -> viewModel.updateUriList(uriList = listOf(uri)) }
         } else {
-            // Delegate temp-file deletion to the ViewModel (it owns the context)
             photoUri?.let { uri -> viewModel.cancelPhotoCapture(uri) }
         }
     }
@@ -136,7 +135,6 @@ fun NoteScreen(
         if (success) {
             videoUri?.let { uri -> viewModel.updateUriList(uriList = listOf(uri)) }
         } else {
-            // Delegate temp-file deletion to the ViewModel (it owns the context)
             videoUri?.let { uri -> viewModel.cancelVideoCapture(uri) }
         }
     }

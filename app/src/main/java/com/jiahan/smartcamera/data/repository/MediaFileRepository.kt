@@ -4,8 +4,8 @@ import android.graphics.Bitmap
 import android.net.Uri
 
 /**
- * Handles creation and deletion of temporary media files used when capturing
- * photos/videos in the Note flow.
+ * Handles creation, inspection and deletion of temporary media files used when
+ * capturing photos/videos in the Note flow.
  *
  * Keeping these Android-framework operations in the data layer ensures that
  * no ViewModel needs to hold a reference to [android.content.Context].
@@ -39,6 +39,20 @@ interface MediaFileRepository {
      * intent. Returns `null` if the download fails.
      */
     suspend fun downloadToCacheFile(url: String, isVideo: Boolean): Uri?
+
+    /**
+     * True when [uri]'s MIME type identifies it as a video, so a caller can tell a picked or
+     * captured video apart from a photo. A URI whose provider reports no type is treated as a
+     * photo.
+     */
+    fun isVideoUri(uri: Uri): Boolean
+
+    /**
+     * True when [uri] resolves to a file with bytes in it. A canceled capture leaves behind the
+     * empty temp file that was handed to the camera, which is not worth uploading. A provider that
+     * can't report a size up front (`UNKNOWN_LENGTH`) is treated as having content.
+     */
+    fun hasContent(uri: Uri): Boolean
 
     /**
      * Deletes the file represented by [uri] via the content resolver.

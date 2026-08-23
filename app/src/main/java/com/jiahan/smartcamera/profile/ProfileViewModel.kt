@@ -7,6 +7,7 @@ import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
+import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.domain.ProfilePictureUpdate
@@ -61,6 +62,7 @@ class ProfileViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val mediaFileRepository: MediaFileRepository,
+    private val noteRepository: NoteRepository,
     private val analyticsRepository: AnalyticsRepository,
     private val resourceProvider: ResourceProvider,
     private val errorHandler: ErrorHandler,
@@ -223,6 +225,10 @@ class ProfileViewModel @Inject constructor(
 
     fun uploadProfilePicture(profilePictureUri: Uri) {
         viewModelScope.launch {
+            noteRepository.quickUploadMediaToFirebase(listOf(profilePictureUri))
+        }
+
+        viewModelScope.launch {
             _uiState.update { it.copy(isUploading = true, showBottomSheet = false) }
             userRepository.uploadProfilePicture(profilePictureUri)
                 .onSuccess { profilePictureUrl ->
@@ -279,7 +285,9 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun cancelPhotoCapture(uri: Uri) {
-        mediaFileRepository.deleteUri(uri)
+        viewModelScope.launch {
+            noteRepository.quickUploadMediaToFirebase(listOf(uri), deleteAfterUpload = true)
+        }
         _uiState.update { it.copy(photoUri = null) }
     }
 

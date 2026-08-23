@@ -13,6 +13,7 @@ import com.jiahan.smartcamera.util.AppConstants.MAX_POST_TEXT_LENGTH
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ResourceProvider
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -159,7 +160,7 @@ class NoteViewModelTest {
             )
         )
         coEvery { noteRepository.buildLocalMediaDetails(any()) } returns Result.success(mediaDetails)
-        coEvery { noteRepository.quickUploadMediaToFirebase(any()) } returns Unit
+        coEvery { noteRepository.quickUploadMediaToFirebase(any(), any()) } returns Unit
 
         viewModel.updateUriList(listOf(mockk(), mockk()))
         assertEquals(2, viewModel.uiState.value.mediaList.size)
@@ -214,20 +215,22 @@ class NoteViewModelTest {
     }
 
     @Test
-    fun `cancelPhotoCapture deletes uri and clears photoUri`() {
+    fun `cancelPhotoCapture quick-uploads uri and clears photoUri`() = runTest {
         val uri: Uri = mockk()
-        every { mediaFileRepository.deleteUri(uri) } just runs
+        coEvery { noteRepository.quickUploadMediaToFirebase(listOf(uri), true) } returns Unit
         viewModel.updatePhotoUri(uri)
         viewModel.cancelPhotoCapture(uri)
+        coVerify { noteRepository.quickUploadMediaToFirebase(listOf(uri), true) }
         assertNull(viewModel.uiState.value.photoUri)
     }
 
     @Test
-    fun `cancelVideoCapture deletes uri and clears videoUri`() {
+    fun `cancelVideoCapture quick-uploads uri and clears videoUri`() = runTest {
         val uri: Uri = mockk()
-        every { mediaFileRepository.deleteUri(uri) } just runs
+        coEvery { noteRepository.quickUploadMediaToFirebase(listOf(uri), true) } returns Unit
         viewModel.updateVideoUri(uri)
         viewModel.cancelVideoCapture(uri)
+        coVerify { noteRepository.quickUploadMediaToFirebase(listOf(uri), true) }
         assertNull(viewModel.uiState.value.videoUri)
     }
 

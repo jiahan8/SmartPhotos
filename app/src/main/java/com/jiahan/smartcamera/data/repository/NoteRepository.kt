@@ -22,7 +22,16 @@ interface NoteRepository {
     suspend fun deleteNote(noteId: String): Result<Unit>
     suspend fun favoriteNote(homeNote: HomeNote): Result<Unit>
     suspend fun getNote(noteId: String): Result<HomeNote>
-    suspend fun quickUploadMediaToFirebase(uriList: List<Uri>)
+
+    /**
+     * Fire-and-forget upload of [uriList] into the cache storage folder: failures are logged
+     * internally instead of returned, and files with no content are skipped.
+     *
+     * Pass `deleteAfterUpload = true` for temporary capture files the caller owns — each one is
+     * deleted once its upload is done, whether that upload succeeded, failed, or was skipped.
+     * Leave it `false` for URIs the app doesn't own, such as gallery picks.
+     */
+    suspend fun quickUploadMediaToFirebase(uriList: List<Uri>, deleteAfterUpload: Boolean = false)
     suspend fun uploadMediaToFirebase(noteMediaDetailList: List<NoteMediaDetail>): Result<List<MediaDetail>>
     suspend fun buildLocalMediaDetails(uriList: List<Uri>): Result<List<NoteMediaDetail>>
     fun getFavoriteNotesStream(query: String): Flow<List<HomeNote>>

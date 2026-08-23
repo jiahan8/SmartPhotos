@@ -9,6 +9,7 @@ import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_MP4
 import com.jiahan.smartcamera.util.FileConstants.FILE_PROVIDER_AUTHORITY
+import com.jiahan.smartcamera.util.FileConstants.MIME_TYPE_VIDEO_PREFIX
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_PHOTO
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_THUMBNAIL
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_VIDEO
@@ -75,6 +76,17 @@ class DefaultMediaFileRepository @Inject constructor(
                 null
             }
         }
+
+    override fun isVideoUri(uri: Uri): Boolean =
+        context.contentResolver.getType(uri)?.startsWith(MIME_TYPE_VIDEO_PREFIX) == true
+
+    override fun hasContent(uri: Uri): Boolean = try {
+        context.contentResolver.openAssetFileDescriptor(uri, "r")
+            ?.use { descriptor -> descriptor.length != 0L } == true
+    } catch (e: Exception) {
+        errorHandler.logError(e)
+        false
+    }
 
     override fun deleteUri(uri: Uri) {
         try {

@@ -7,6 +7,7 @@ import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
+import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.ErrorHandler
@@ -40,6 +41,7 @@ class ProfileViewModelTest {
     private val authRepository: AuthRepository = mockk()
     private val userPreferencesRepository: UserPreferencesRepository = mockk()
     private val mediaFileRepository: MediaFileRepository = mockk()
+    private val noteRepository: NoteRepository = mockk()
     private val analyticsRepository: AnalyticsRepository = mockk()
     private val resourceProvider: ResourceProvider = mockk()
     private val errorHandler: ErrorHandler = mockk()
@@ -67,9 +69,11 @@ class ProfileViewModelTest {
         coEvery {
             userPreferencesRepository.updateLocalUserProfile(any(), any())
         } returns Result.success(Unit)
+        coEvery { noteRepository.quickUploadMediaToFirebase(any(), any()) } returns Unit
         viewModel = ProfileViewModel(
             userRepository, authRepository, userPreferencesRepository,
-            mediaFileRepository, analyticsRepository, resourceProvider, errorHandler
+            mediaFileRepository, noteRepository, analyticsRepository, resourceProvider,
+            errorHandler
         )
     }
 
@@ -95,7 +99,8 @@ class ProfileViewModelTest {
         every { errorHandler.getErrorMessage(exception) } returns "load failed"
         val vm = ProfileViewModel(
             userRepository, authRepository, userPreferencesRepository,
-            mediaFileRepository, analyticsRepository, resourceProvider, errorHandler
+            mediaFileRepository, noteRepository, analyticsRepository, resourceProvider,
+            errorHandler
         )
         assertEquals("load failed", vm.uiState.value.errorMessage)
     }
@@ -237,12 +242,25 @@ class ProfileViewModelTest {
     }
 
     @Test
-    fun `cancelPhotoCapture deletes uri and clears photoUri`() {
+    fun `cancelPhotoCapture quick-uploads uri and clears photoUri`() = runTest {
         val uri: Uri = mockk()
-        every { mediaFileRepository.deleteUri(uri) } just runs
         viewModel.updatePhotoUri(uri)           // establish a non-null state first
         assertEquals(uri, viewModel.uiState.value.photoUri) // precondition
         viewModel.cancelPhotoCapture(uri)
+        coVerify { noteRepository.quickUploadMediaToFirebase(listOf(uri), true) }
         assertNull(viewModel.uiState.value.photoUri)
+    }
+
+    @Test
+    fun `uploadProfilePicture quick-uploads the picked uri without deleting it`() = runTest {
+        val uri: Uri = mockk()
+        coEvery { userRepository.uploadProfilePicture(uri) } returns Result.success("url")
+        coEvery {
+            userRepository.updateUserProfile(any(), any(), any())
+        } returns Result.success(Unit)
+
+        viewModel.uploadProfilePicture(uri)
+
+        coVerify { noteRepository.quickUploadMediaToFirebase(listOf(uri), false) }
     }
 }

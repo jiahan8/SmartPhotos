@@ -18,5 +18,9 @@ class FakeMediaFileRepository : MediaFileRepository {
 
     override suspend fun downloadToCacheFile(url: String, isVideo: Boolean): Uri? = null
 
+    override fun isVideoUri(uri: Uri): Boolean = false
+
+    override fun hasContent(uri: Uri): Boolean = true
+
     override fun deleteUri(uri: Uri) {}
 }

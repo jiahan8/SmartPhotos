@@ -297,13 +297,10 @@ class DefaultNoteRepository @Inject constructor(
             withContext(ioDispatcher) {
                 uriList.mapNotNull { uri ->
                     safeCall {
-                        val isVideo =
-                            context.contentResolver.getType(uri)?.startsWith("video/") == true
+                        val isVideo = mediaFileRepository.isVideoUri(uri)
                         val thumbnailUri = if (isVideo) {
-                            createVideoThumbnail(
-                                context,
-                                uri
-                            )?.let { mediaFileRepository.saveBitmapAsTempFile(it) }
+                            createVideoThumbnail(context, uri)
+                                ?.let { mediaFileRepository.saveBitmapAsTempFile(it) }
                         } else null
                         NoteMediaDetail(
                             photoUri = if (!isVideo) uri else null,
@@ -316,17 +313,23 @@ class DefaultNoteRepository @Inject constructor(
             }
         }
 
-    /** Fire-and-forget — no Result returned; errors logged internally. */
-    override suspend fun quickUploadMediaToFirebase(uriList: List<Uri>) {
-        val userId = authRepository.currentUserId ?: return
+    override suspend fun quickUploadMediaToFirebase(
+        uriList: List<Uri>,
+        deleteAfterUpload: Boolean
+    ) {
+        val userId = authRepository.currentUserId
         uriList.forEach { uri ->
             applicationScope.launch(ioDispatcher) {
-                safeCall {
-                    val mediaId = UUID.randomUUID().toString()
-                    val storageRef =
-                        storage.reference.child(userScopedPath(cacheStorageFolder, userId, mediaId))
-                    storageRef.putFile(uri).await()
-                }.onFailure { e -> errorHandler.logError(e) }
+                if (userId != null && mediaFileRepository.hasContent(uri)) {
+                    safeCall {
+                        val mediaId = UUID.randomUUID().toString()
+                        val storageRef = storage.reference.child(
+                            userScopedPath(cacheStorageFolder, userId, mediaId)
+                        )
+                        storageRef.putFile(uri).await()
+                    }.onFailure { e -> errorHandler.logError(e) }
+                }
+                if (deleteAfterUpload) mediaFileRepository.deleteUri(uri)
             }
         }
     }

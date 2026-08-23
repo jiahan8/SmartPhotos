@@ -66,7 +66,10 @@ class FakeNoteRepository : NoteRepository {
     override suspend fun getNote(noteId: String): Result<HomeNote> =
         getNoteResult ?: Result.failure(NoSuchElementException("No note for $noteId"))
 
-    override suspend fun quickUploadMediaToFirebase(uriList: List<Uri>) {}
+    override suspend fun quickUploadMediaToFirebase(
+        uriList: List<Uri>,
+        deleteAfterUpload: Boolean
+    ) = Unit
 
     override suspend fun uploadMediaToFirebase(
         noteMediaDetailList: List<NoteMediaDetail>

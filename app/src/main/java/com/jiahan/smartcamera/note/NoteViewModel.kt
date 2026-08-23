@@ -148,12 +148,16 @@ class NoteViewModel @Inject constructor(
     fun createVideoUri(): Uri? = mediaFileRepository.createVideoUri()
 
     fun cancelPhotoCapture(uri: Uri) {
-        mediaFileRepository.deleteUri(uri)
+        viewModelScope.launch {
+            noteRepository.quickUploadMediaToFirebase(listOf(uri), deleteAfterUpload = true)
+        }
         _uiState.update { it.copy(photoUri = null) }
     }
 
     fun cancelVideoCapture(uri: Uri) {
-        mediaFileRepository.deleteUri(uri)
+        viewModelScope.launch {
+            noteRepository.quickUploadMediaToFirebase(listOf(uri), deleteAfterUpload = true)
+        }
         _uiState.update { it.copy(videoUri = null) }
     }
 
