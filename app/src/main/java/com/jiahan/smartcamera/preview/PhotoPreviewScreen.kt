@@ -1,6 +1,5 @@
 package com.jiahan.smartcamera.preview
 
-import android.net.Uri
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.tween
@@ -31,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -43,6 +43,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.common.shimmer
 import com.jiahan.smartcamera.common.showAppSnackbar
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
 import com.jiahan.smartcamera.util.FileConstants.MIME_TYPE_IMAGE
@@ -89,6 +90,9 @@ fun PhotoPreviewScreen(
 
             // Remember the size of the image composable
             var composableSize by remember { mutableStateOf(IntSize.Zero) }
+
+            // Whether the photo is still being decoded/downloaded by Coil
+            var isPhotoLoading by remember { mutableStateOf(true) }
 
             // State for handling pinch-to-zoom and pan gestures
             val transformableState = rememberTransformableState { zoomChange, panChange, _ ->
@@ -176,6 +180,16 @@ fun PhotoPreviewScreen(
                 is PhotoSource.LocalUri -> photoSource.uri
                 is PhotoSource.RemoteUrl -> photoSource.url
             }
+            // Drawn before (and therefore behind) the photo, so it never tints the image
+            // during the frame where both are on screen.
+            if (isPhotoLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .shimmer(RectangleShape)
+                )
+            }
+
             AsyncImage(
                 model = model,
                 contentDescription = stringResource(R.string.cd_selected_photo),
@@ -190,7 +204,12 @@ fun PhotoPreviewScreen(
                     )
                     .then(doubleTapModifier)
                     .transformable(state = transformableState),
-                onError = { viewModel.logImageLoadError(it.result.throwable) }
+                onLoading = { isPhotoLoading = true },
+                onSuccess = { isPhotoLoading = false },
+                onError = {
+                    isPhotoLoading = false
+                    viewModel.logImageLoadError(it.result.throwable)
+                }
             )
         }
         TopAppBar(
@@ -226,9 +245,4 @@ fun PhotoPreviewScreen(
             )
         )
     }
-}
-
-sealed class PhotoSource {
-    data class LocalUri(val uri: Uri) : PhotoSource()
-    data class RemoteUrl(val url: String) : PhotoSource()
 }

@@ -1,6 +1,7 @@
 package com.jiahan.smartcamera.preview
 
-import android.net.Uri
+import android.content.res.ColorStateList
+import android.widget.ProgressBar
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
@@ -11,6 +12,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -22,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -32,12 +35,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.showAppSnackbar
 import com.jiahan.smartcamera.util.FileConstants.MIME_TYPE_VIDEO
 
+@androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VideoPreviewScreen(
@@ -80,6 +85,8 @@ fun VideoPreviewScreen(
         }
     }
 
+    val bufferingIndicatorColor = MaterialTheme.colorScheme.primary.toArgb()
+
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -91,6 +98,10 @@ fun VideoPreviewScreen(
                         .apply {
                             player = exoPlayer
                             useController = true
+                            setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
+                            findViewById<ProgressBar>(androidx.media3.ui.R.id.exo_buffering)
+                                ?.indeterminateTintList =
+                                ColorStateList.valueOf(bufferingIndicatorColor)
                         }
                 },
                 modifier = Modifier.fillMaxSize()
@@ -135,9 +146,4 @@ fun VideoPreviewScreen(
             exoPlayer.release()
         }
     }
-}
-
-sealed class VideoSource {
-    data class LocalUri(val uri: Uri) : VideoSource()
-    data class RemoteUrl(val url: String) : VideoSource()
 }
