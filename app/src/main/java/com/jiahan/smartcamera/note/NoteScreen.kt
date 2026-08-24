@@ -6,7 +6,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -24,7 +23,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -49,7 +47,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -65,6 +62,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.common.ProfileAvatar
 import com.jiahan.smartcamera.common.rememberCyclingPlaceholder
 import com.jiahan.smartcamera.common.showAppSnackbar
 
@@ -208,26 +206,12 @@ fun NoteScreen(
                             .fillMaxWidth()
                             .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp)
                     ) {
-                        profilePicture?.let { profilePicture ->
-                            AsyncImage(
-                                model = profilePicture,
-                                contentDescription = stringResource(R.string.cd_profile_picture),
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .clip(CircleShape),
-                                onError = { viewModel.logImageLoadError(it.result.throwable) }
-                            )
-                        } ?: Image(
-                            imageVector = Icons.Rounded.AccountCircle,
-                            contentDescription = stringResource(R.string.cd_profile_picture),
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(CircleShape),
-                            colorFilter = ColorFilter.tint(
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                            )
+                        ProfileAvatar(
+                            profilePictureUrl = profilePicture,
+                            onImageLoadError = viewModel::logImageLoadError,
+                            onClick = profilePicture?.let { url ->
+                                { onNavigateToPhotoPreview(url) }
+                            }
                         )
 
                         Column(modifier = Modifier.padding(start = 16.dp)) {
@@ -283,76 +267,13 @@ fun NoteScreen(
                                 }
                             )
 
-                            if (mediaList.isNotEmpty()) {
-                                HorizontalMultiBrowseCarousel(
-                                    state = rememberCarouselState { mediaList.count() },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .wrapContentHeight()
-                                        .padding(top = 16.dp, bottom = 16.dp),
-                                    preferredItemWidth = 186.dp,
-                                    itemSpacing = 8.dp,
-                                ) { index ->
-                                    val noteMediaDetail = mediaList[index]
-                                    Box(
-                                        modifier = Modifier.clickable {
-                                            if (noteMediaDetail.isVideo) {
-                                                onNavigateToVideoPreview(
-                                                    noteMediaDetail.videoUri.toString()
-                                                )
-                                            } else {
-                                                onNavigateToPhotoPreview(
-                                                    noteMediaDetail.photoUri.toString()
-                                                )
-                                            }
-                                        }
-                                    ) {
-                                        AsyncImage(
-                                            model = if (noteMediaDetail.isVideo) noteMediaDetail.thumbnailUri else noteMediaDetail.photoUri,
-                                            modifier = Modifier
-                                                .height(212.dp)
-                                                .maskClip(MaterialTheme.shapes.extraLarge),
-                                            contentDescription = stringResource(R.string.cd_note_photo),
-                                            contentScale = ContentScale.Crop,
-                                            onError = { viewModel.logImageLoadError(it.result.throwable) }
-                                        )
-
-                                        if (noteMediaDetail.isVideo)
-                                            Icon(
-                                                imageVector = Icons.Rounded.PlayArrow,
-                                                contentDescription = stringResource(R.string.cd_play_video),
-                                                modifier = Modifier
-                                                    .align(Alignment.Center)
-                                                    .size(52.dp)
-                                                    .clip(CircleShape)
-                                                    .background(
-                                                        MaterialTheme.colorScheme.surfaceVariant.copy(
-                                                            alpha = 0.7f
-                                                        )
-                                                    ),
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-
-                                        Icon(
-                                            imageVector = Icons.Rounded.Close,
-                                            contentDescription = stringResource(R.string.cd_remove_image),
-                                            modifier = Modifier
-                                                .align(Alignment.TopEnd)
-                                                .padding(8.dp)
-                                                .size(24.dp)
-                                                .clip(CircleShape)
-                                                .background(
-                                                    MaterialTheme.colorScheme.surfaceVariant.copy(
-                                                        alpha = 0.7f
-                                                    )
-                                                )
-                                                .clickable { viewModel.removeUriFromList(index) }
-                                                .padding(3.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
+                            NoteMediaCarousel(
+                                mediaList = mediaList,
+                                onPhotoClick = onNavigateToPhotoPreview,
+                                onVideoClick = onNavigateToVideoPreview,
+                                onRemoveMedia = { index -> viewModel.removeUriFromList(index) },
+                                onImageLoadError = viewModel::logImageLoadError
+                            )
 
                             postTextError?.let { error ->
                                 Text(
@@ -362,70 +283,34 @@ fun NoteScreen(
                                 )
                             }
 
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.photo_library),
-                                    contentDescription = stringResource(R.string.cd_choose_photos),
-                                    modifier = Modifier.clickable(enabled = !isUploading) {
-                                        libraryLauncher.launch(
-                                            PickVisualMediaRequest(PickVisualMedia.ImageAndVideo)
-                                        )
-                                    },
-                                    tint = if (isUploading)
-                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                    else MaterialTheme.colorScheme.onSurface
-                                )
-
-                                Icon(
-                                    painter = painterResource(R.drawable.photo_camera),
-                                    contentDescription = stringResource(R.string.cd_take_photo),
-                                    modifier = Modifier
-                                        .padding(start = 16.dp)
-                                        .clickable(enabled = !isUploading) {
-                                            if (hasCameraPermission) {
-                                                val uri = viewModel.createImageUri()
-                                                viewModel.updatePhotoUri(uri)
-                                                uri?.let { pictureLauncher.launch(it) }
-                                            } else {
-                                                photoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                                            }
-                                        },
-                                    tint = if (isUploading)
-                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                    else MaterialTheme.colorScheme.onSurface
-                                )
-
-                                Icon(
-                                    painter = painterResource(R.drawable.smart_display),
-                                    contentDescription = stringResource(R.string.cd_take_video),
-                                    modifier = Modifier
-                                        .padding(start = 16.dp)
-                                        .clickable(enabled = !isUploading) {
-                                            if (hasCameraPermission) {
-                                                val uri = viewModel.createVideoUri()
-                                                viewModel.updateVideoUri(uri)
-                                                uri?.let { videoLauncher.launch(it) }
-                                            } else {
-                                                videoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                                            }
-                                        },
-                                    tint = if (isUploading)
-                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                    else MaterialTheme.colorScheme.onSurface
-                                )
-
-                                Spacer(modifier = Modifier.weight(1f))
-
-                                TextButton(
-                                    onClick = { viewModel.uploadPost() },
-                                    enabled = postButtonEnabled
-                                ) {
-                                    Text(text = stringResource(R.string.save))
-                                }
-                            }
+                            NoteActionRow(
+                                isUploading = isUploading,
+                                postButtonEnabled = postButtonEnabled,
+                                onPickFromLibrary = {
+                                    libraryLauncher.launch(
+                                        PickVisualMediaRequest(PickVisualMedia.ImageAndVideo)
+                                    )
+                                },
+                                onTakePhoto = {
+                                    if (hasCameraPermission) {
+                                        val uri = viewModel.createImageUri()
+                                        viewModel.updatePhotoUri(uri)
+                                        uri?.let { pictureLauncher.launch(it) }
+                                    } else {
+                                        photoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                                    }
+                                },
+                                onTakeVideo = {
+                                    if (hasCameraPermission) {
+                                        val uri = viewModel.createVideoUri()
+                                        viewModel.updateVideoUri(uri)
+                                        uri?.let { videoLauncher.launch(it) }
+                                    } else {
+                                        videoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                                    }
+                                },
+                                onSave = { viewModel.uploadPost() }
+                            )
                         }
                     }
                 }
@@ -438,6 +323,132 @@ fun NoteScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NoteMediaCarousel(
+    mediaList: List<NoteMediaDetail>,
+    onPhotoClick: (uri: String) -> Unit,
+    onVideoClick: (uri: String) -> Unit,
+    onRemoveMedia: (index: Int) -> Unit,
+    onImageLoadError: (Throwable) -> Unit
+) {
+    if (mediaList.isEmpty()) return
+
+    HorizontalMultiBrowseCarousel(
+        state = rememberCarouselState { mediaList.count() },
+        modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentHeight()
+            .padding(top = 16.dp, bottom = 16.dp),
+        preferredItemWidth = 186.dp,
+        itemSpacing = 8.dp,
+    ) { index ->
+        val noteMediaDetail = mediaList[index]
+        Box(
+            modifier = Modifier.clickable {
+                if (noteMediaDetail.isVideo) {
+                    onVideoClick(noteMediaDetail.videoUri.toString())
+                } else {
+                    onPhotoClick(noteMediaDetail.photoUri.toString())
+                }
+            }
+        ) {
+            AsyncImage(
+                model = if (noteMediaDetail.isVideo) noteMediaDetail.thumbnailUri else noteMediaDetail.photoUri,
+                modifier = Modifier
+                    .height(212.dp)
+                    .maskClip(MaterialTheme.shapes.extraLarge),
+                contentDescription = stringResource(R.string.cd_note_photo),
+                contentScale = ContentScale.Crop,
+                onError = { onImageLoadError(it.result.throwable) }
+            )
+
+            if (noteMediaDetail.isVideo)
+                Icon(
+                    imageVector = Icons.Rounded.PlayArrow,
+                    contentDescription = stringResource(R.string.cd_play_video),
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(52.dp)
+                        .clip(CircleShape)
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                        ),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+            Icon(
+                imageVector = Icons.Rounded.Close,
+                contentDescription = stringResource(R.string.cd_remove_image),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                    )
+                    .clickable { onRemoveMedia(index) }
+                    .padding(3.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun NoteActionRow(
+    isUploading: Boolean,
+    postButtonEnabled: Boolean,
+    onPickFromLibrary: () -> Unit,
+    onTakePhoto: () -> Unit,
+    onTakeVideo: () -> Unit,
+    onSave: () -> Unit
+) {
+    val tint = if (isUploading)
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    else MaterialTheme.colorScheme.onSurface
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.photo_library),
+            contentDescription = stringResource(R.string.cd_choose_photos),
+            modifier = Modifier.clickable(enabled = !isUploading, onClick = onPickFromLibrary),
+            tint = tint
+        )
+
+        Icon(
+            painter = painterResource(R.drawable.photo_camera),
+            contentDescription = stringResource(R.string.cd_take_photo),
+            modifier = Modifier
+                .padding(start = 16.dp)
+                .clickable(enabled = !isUploading, onClick = onTakePhoto),
+            tint = tint
+        )
+
+        Icon(
+            painter = painterResource(R.drawable.smart_display),
+            contentDescription = stringResource(R.string.cd_take_video),
+            modifier = Modifier
+                .padding(start = 16.dp)
+                .clickable(enabled = !isUploading, onClick = onTakeVideo),
+            tint = tint
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        TextButton(
+            onClick = onSave,
+            enabled = postButtonEnabled
+        ) {
+            Text(text = stringResource(R.string.save))
         }
     }
 }

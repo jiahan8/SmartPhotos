@@ -209,7 +209,8 @@ fun SearchScreen(
                                                 onProfilePictureClick = { url ->
                                                     onNavigateToPhotoPreview(url)
                                                 },
-                                                onShareNote = { viewModel.shareNote(note) }
+                                                onShareNote = { viewModel.shareNote(note) },
+                                                onImageLoadError = viewModel::logImageLoadError
                                             )
                                         }
                                     }

@@ -15,6 +15,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
@@ -27,6 +28,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
+
+sealed interface FavoriteContent {
+    data object Loading : FavoriteContent
+    data class Success(val notes: List<HomeNote>) : FavoriteContent
+}
 
 data class FavoriteUiState(
     val searchQuery: String = "",
@@ -55,22 +61,25 @@ class FavoriteViewModel @Inject constructor(
         .map { it.searchQuery }
         .distinctUntilChanged()
 
-    val notes = searchQuery
+    private val notesStream = searchQuery
         .debounce(DEBOUNCE_MS.milliseconds)
         .flatMapLatest { query -> noteRepository.getFavoriteNotesStream(query) }
-        .stateIn(
+
+    // Merges the reactive notes stream and the one-shot sync flag into a single sealed state so
+    // the screen collects one flow instead of two independently-recomposing ones. (Mirrors
+    // HomeViewModel's HomeContent split, adapted for a live query rather than an imperative fetch.)
+    val content: StateFlow<FavoriteContent> =
+        combine(_isSyncing, notesStream) { syncing, notesList ->
+            if (syncing && notesList.isEmpty()) {
+                FavoriteContent.Loading
+            } else {
+                FavoriteContent.Success(notesList)
+            }
+        }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(STATEFLOW_WHILE_SUBSCRIBED_MS),
-            initialValue = emptyList(),
+            initialValue = FavoriteContent.Loading,
         )
-
-    val isLoading = combine(_isSyncing, notes) { syncing, notesList ->
-        syncing && notesList.isEmpty()
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(STATEFLOW_WHILE_SUBSCRIBED_MS),
-        initialValue = true,
-    )
 
     init {
         viewModelScope.launch { syncNotes() }

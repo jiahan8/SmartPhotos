@@ -96,7 +96,7 @@ fun SettingsScreen(
         }
     }
 
-    LaunchedEffect(uiState) {
+    LaunchedEffect(uiState.status) {
         val status = uiState.status
         if (status is SettingsStatus.Error) {
             snackbarHostState.showAppSnackbar(status.message, isError = true)

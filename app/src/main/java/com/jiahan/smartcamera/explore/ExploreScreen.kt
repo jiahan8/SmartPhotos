@@ -5,7 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,7 +21,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -38,8 +36,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -49,6 +45,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.common.ProfileAvatar
 import com.jiahan.smartcamera.common.rememberShouldLoadMore
 import com.jiahan.smartcamera.common.shimmer
 import com.jiahan.smartcamera.domain.Photo
@@ -227,7 +224,6 @@ private fun ExploreItem(
     modifier: Modifier = Modifier,
     onImageLoadError: (Throwable) -> Unit = {}
 ) {
-    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val aspectRatio = remember(photo.width, photo.height) {
         if (photo.width > 0 && photo.height > 0) {
             photo.width.toFloat() / photo.height.toFloat()
@@ -243,24 +239,10 @@ private fun ExploreItem(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            photo.userProfileImageUrl?.let { url ->
-                AsyncImage(
-                    model = url,
-                    contentDescription = stringResource(R.string.cd_profile_picture),
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape),
-                    onError = { onImageLoadError(it.result.throwable) }
-                )
-            } ?: Image(
-                imageVector = Icons.Rounded.AccountCircle,
-                contentDescription = stringResource(R.string.cd_profile_picture),
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape),
-                colorFilter = ColorFilter.tint(onSurfaceColor.copy(alpha = 0.7f))
+            ProfileAvatar(
+                profilePictureUrl = photo.userProfileImageUrl,
+                onImageLoadError = onImageLoadError,
+                size = 32.dp
             )
 
             Text(

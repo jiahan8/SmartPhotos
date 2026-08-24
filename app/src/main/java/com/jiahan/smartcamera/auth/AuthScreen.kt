@@ -1,5 +1,6 @@
 package com.jiahan.smartcamera.auth
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,7 +45,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 
@@ -86,8 +86,8 @@ fun AuthScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            AsyncImage(
-                model = R.mipmap.ic_launcher,
+            Image(
+                painter = painterResource(R.mipmap.ic_launcher),
                 contentDescription = stringResource(R.string.cd_app_logo),
                 contentScale = ContentScale.Crop,
             )

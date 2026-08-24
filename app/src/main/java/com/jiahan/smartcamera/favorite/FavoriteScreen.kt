@@ -50,9 +50,8 @@ fun FavoriteScreen(
     val pullToRefreshState = rememberPullToRefreshState()
     val listState = rememberLazyListState()
 
-    val notes by viewModel.notes.collectAsStateWithLifecycle()
+    val content by viewModel.content.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val searchQuery = uiState.searchQuery
 
     LaunchedEffect(Unit) {
@@ -71,14 +70,12 @@ fun FavoriteScreen(
         }
     }
 
-    val onRefresh: () -> Unit = { viewModel.refresh() }
-
     ScrollDirectionEffect(listState, onScrollDirectionChanged)
 
     ScrollToTopEffect(
         scrollToTop = scrollToTop,
         listState = listState,
-        hasItems = notes.isNotEmpty(),
+        hasItems = (content as? FavoriteContent.Success)?.notes?.isNotEmpty() == true,
         onConsumed = onScrollToTopConsumed
     )
 
@@ -124,8 +121,8 @@ fun FavoriteScreen(
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                when {
-                    isLoading ->
+                when (val state = content) {
+                    is FavoriteContent.Loading ->
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
@@ -135,55 +132,56 @@ fun FavoriteScreen(
                             )
                         }
 
-                    notes.isEmpty() ->
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(stringResource(R.string.no_results_found))
-                        }
-
-                    else ->
-                        PullToRefreshBox(
-                            modifier = Modifier.fillMaxSize(),
-                            state = pullToRefreshState,
-                            isRefreshing = uiState.isRefreshing,
-                            onRefresh = onRefresh,
-                        ) {
-                            LazyColumn(
-                                state = listState,
-                                modifier = Modifier.fillMaxSize()
+                    is FavoriteContent.Success ->
+                        if (state.notes.isEmpty()) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
                             ) {
-                                items(
-                                    count = notes.size,
-                                    key = { index -> notes[index].noteId }
-                                ) { index ->
-                                    val note = notes[index]
-                                    HomeItem(
-                                        note = note,
-                                        onNavigateToNotePreview = {
-                                            onNavigateToNotePreview(note.noteId)
-                                        },
-                                        onEditNote = {
-                                            onNavigateToEditNote(note.noteId)
-                                        },
-                                        onFavoriteNote = {
-                                            viewModel.favoriteNote(note)
-                                        },
-                                        onDeleteNote = {
-                                            viewModel.setNoteToDelete(note)
-                                        },
-                                        onPhotoClick = { url ->
-                                            onNavigateToPhotoPreview(url)
-                                        },
-                                        onVideoClick = { url ->
-                                            onNavigateToVideoPreview(url)
-                                        },
-                                        onProfilePictureClick = { url ->
-                                            onNavigateToPhotoPreview(url)
-                                        },
-                                        onShareNote = { viewModel.shareNote(note) }
-                                    )
+                                Text(stringResource(R.string.no_results_found))
+                            }
+                        } else {
+                            PullToRefreshBox(
+                                modifier = Modifier.fillMaxSize(),
+                                state = pullToRefreshState,
+                                isRefreshing = uiState.isRefreshing,
+                                onRefresh = { viewModel.refresh() },
+                            ) {
+                                LazyColumn(
+                                    state = listState,
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    items(
+                                        count = state.notes.size,
+                                        key = { index -> state.notes[index].noteId }
+                                    ) { index ->
+                                        val note = state.notes[index]
+                                        HomeItem(
+                                            note = note,
+                                            onNavigateToNotePreview = {
+                                                onNavigateToNotePreview(note.noteId)
+                                            },
+                                            onEditNote = {
+                                                onNavigateToEditNote(note.noteId)
+                                            },
+                                            onFavoriteNote = {
+                                                viewModel.favoriteNote(note)
+                                            },
+                                            onDeleteNote = {
+                                                viewModel.setNoteToDelete(note)
+                                            },
+                                            onPhotoClick = { url ->
+                                                onNavigateToPhotoPreview(url)
+                                            },
+                                            onVideoClick = { url ->
+                                                onNavigateToVideoPreview(url)
+                                            },
+                                            onProfilePictureClick = { url ->
+                                                onNavigateToPhotoPreview(url)
+                                            },
+                                            onShareNote = { viewModel.shareNote(note) }
+                                        )
+                                    }
                                 }
                             }
                         }

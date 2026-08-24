@@ -22,7 +22,6 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -41,7 +40,7 @@ fun SearchBar(
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    placeholder: @Composable (() -> Unit)? = null,
+    placeholder: @Composable () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
@@ -100,12 +99,7 @@ fun SearchBar(
                 }
             }
         },
-        placeholder = placeholder ?: {
-            Text(
-                text = stringResource(R.string.search_favorites),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        },
+        placeholder = placeholder,
         colors = TextFieldDefaults.colors(
             focusedContainerColor = containerColor,
             unfocusedContainerColor = containerColor,

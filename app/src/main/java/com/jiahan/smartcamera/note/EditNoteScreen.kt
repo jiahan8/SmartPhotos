@@ -1,7 +1,6 @@
 package com.jiahan.smartcamera.note
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -20,7 +19,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.AlertDialog
@@ -44,7 +42,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -56,6 +53,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.common.ProfileAvatar
 import com.jiahan.smartcamera.common.showAppSnackbar
 import com.jiahan.smartcamera.domain.HomeNote
 
@@ -199,9 +197,12 @@ fun EditNoteScreen(
                                 .fillMaxWidth()
                                 .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp)
                         ) {
-                            NoteAuthorAvatar(
+                            ProfileAvatar(
                                 profilePictureUrl = note.profilePictureUrl,
-                                onImageLoadError = viewModel::logImageLoadError
+                                onImageLoadError = viewModel::logImageLoadError,
+                                onClick = note.profilePictureUrl?.let { url ->
+                                    { onNavigateToPhotoPreview(url) }
+                                }
                             )
 
                             Column(modifier = Modifier.padding(start = 16.dp)) {
@@ -301,34 +302,6 @@ fun EditNoteScreen(
             }
         }
     }
-}
-
-@Composable
-private fun NoteAuthorAvatar(
-    profilePictureUrl: String?,
-    onImageLoadError: (Throwable) -> Unit
-) {
-    profilePictureUrl?.let { url ->
-        AsyncImage(
-            model = url,
-            contentDescription = stringResource(R.string.cd_profile_picture),
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(38.dp)
-                .clip(CircleShape),
-            onError = { onImageLoadError(it.result.throwable) }
-        )
-    } ?: Image(
-        imageVector = Icons.Rounded.AccountCircle,
-        contentDescription = stringResource(R.string.cd_profile_picture),
-        contentScale = ContentScale.Crop,
-        modifier = Modifier
-            .size(38.dp)
-            .clip(CircleShape),
-        colorFilter = ColorFilter.tint(
-            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-        )
-    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

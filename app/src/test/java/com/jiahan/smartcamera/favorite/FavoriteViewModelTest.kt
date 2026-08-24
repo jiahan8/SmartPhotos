@@ -140,21 +140,21 @@ class FavoriteViewModelTest {
     }
 
     @Test
-    fun `notes stream reflects search query after debounce`() =
+    fun `content reflects search query after debounce`() =
         runTest(mainDispatcherRule.testDispatcher) {
             val filteredNotes = listOf(makeNote("doc1"))
             every { noteRepository.getFavoriteNotesStream("cats") } returns flowOf(filteredNotes)
 
-            viewModel.notes.test {
-                assertEquals(emptyList<HomeNote>(), awaitItem()) // stateIn initialValue
-
-                // Let the initial debounce on "" fire; produces the same emptyList so no re-emission
-                advanceTimeBy((AppConstants.DEBOUNCE_MS + 1).milliseconds)
+            viewModel.content.test {
+                assertEquals(FavoriteContent.Loading, awaitItem()) // stateIn initialValue
 
                 viewModel.updateSearchQuery("cats")
                 advanceTimeBy((AppConstants.DEBOUNCE_MS + 1).milliseconds)
+                advanceUntilIdle()
 
-                assertEquals(filteredNotes, awaitItem())
+                // Settled state only -- the sync flag and the debounced query stream can interleave
+                // their intermediate emissions, so assert the final value rather than exact order.
+                assertEquals(FavoriteContent.Success(filteredNotes), expectMostRecentItem())
                 cancelAndIgnoreRemainingEvents()
             }
         }

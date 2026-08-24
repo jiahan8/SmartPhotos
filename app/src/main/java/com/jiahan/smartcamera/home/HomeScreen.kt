@@ -11,7 +11,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -32,7 +31,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Explore
-import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.EditNote
@@ -68,7 +66,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ClipEntry
@@ -86,6 +83,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.BottomSheetActionItem
+import com.jiahan.smartcamera.common.ProfileAvatar
 import com.jiahan.smartcamera.common.ScrollDirectionEffect
 import com.jiahan.smartcamera.common.ScrollToTopEffect
 import com.jiahan.smartcamera.common.rememberShouldLoadMore
@@ -352,7 +350,6 @@ fun HomeItem(
         )
     }
 
-    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant
     val primaryColor = MaterialTheme.colorScheme.primary
     val surfaceVariantColor = MaterialTheme.colorScheme.surfaceVariant
@@ -395,27 +392,12 @@ fun HomeItem(
                 .fillMaxWidth()
                 .padding(start = 16.dp, end = 16.dp, top = 16.dp)
         ) {
-            note.profilePictureUrl?.let { profilePictureUrl ->
-                AsyncImage(
-                    model = profilePictureUrl,
-                    contentDescription = stringResource(R.string.cd_profile_picture),
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .clickable {
-                            callbacks.onProfilePictureClick(profilePictureUrl)
-                        },
-                    onError = { callbacks.onImageLoadError(it.result.throwable) }
-                )
-            } ?: Image(
-                imageVector = Icons.Rounded.AccountCircle,
-                contentDescription = stringResource(R.string.cd_profile_picture),
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape),
-                colorFilter = ColorFilter.tint(onSurfaceColor.copy(alpha = 0.7f))
+            ProfileAvatar(
+                profilePictureUrl = note.profilePictureUrl,
+                onImageLoadError = callbacks.onImageLoadError,
+                onClick = note.profilePictureUrl?.let { url ->
+                    { callbacks.onProfilePictureClick(url) }
+                }
             )
 
             Column(
