@@ -134,6 +134,20 @@ class NoteDaoTest {
     }
 
     @Test
+    fun clearAllNotes_removesEveryNoteRegardlessOfFavoriteFlag() = runBlocking {
+        noteDao.upsertNotes(listOf(note("fav", favorite = true), note("notFav", favorite = false)))
+
+        noteDao.clearAllNotes()
+
+        // getFavoriteNotes() alone can't distinguish this from clearFavorites(), since both leave
+        // it empty — query the raw row count to confirm the non-favorite row is gone too.
+        database.query("SELECT COUNT(*) FROM notes", null).use { cursor ->
+            cursor.moveToFirst()
+            assertEquals(0, cursor.getInt(0))
+        }
+    }
+
+    @Test
     fun syncFavoriteNotes_replacesExistingFavorites() = runBlocking {
         noteDao.upsertNotes(listOf(note("old1"), note("old2")))
 

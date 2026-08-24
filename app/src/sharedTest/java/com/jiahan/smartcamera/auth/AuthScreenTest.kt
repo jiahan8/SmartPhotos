@@ -91,6 +91,98 @@ class AuthScreenTest {
         composeTestRule.onNodeWithText(string(R.string.sign_up)).assertExists()
     }
 
+    // -------------------------------------------------------------------------
+    // Sign up
+    // -------------------------------------------------------------------------
+
+    private fun toggleToSignUpMode() {
+        composeTestRule.onNodeWithText(string(R.string.need_account)).performScrollTo()
+            .performClick()
+        composeTestRule.waitForIdle()
+    }
+
+    private fun fillSignUpFields(
+        name: String = "New User",
+        username: String = "newuser",
+        email: String = "new@test.com",
+        password: String = "password123",
+    ) {
+        if (name.isNotEmpty()) {
+            composeTestRule.onNodeWithText(string(R.string.name)).performTextInput(name)
+        }
+        if (username.isNotEmpty()) {
+            composeTestRule.onNodeWithText(string(R.string.username)).performTextInput(username)
+        }
+        composeTestRule.onNodeWithText(string(R.string.email)).performTextInput(email)
+        composeTestRule.onNodeWithText(string(R.string.password)).performTextInput(password)
+    }
+
+    private fun tapSignUp() {
+        composeTestRule.onNodeWithText(string(R.string.sign_up)).performScrollTo().performClick()
+    }
+
+    @Test
+    fun successfulSignUp_showsVerificationEmailInfo_andResendButton() {
+        launchAuthScreen()
+        toggleToSignUpMode()
+        fillSignUpFields()
+
+        tapSignUp()
+
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithText(string(R.string.verification_email_sent))
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText(string(R.string.resend_verification_email))
+            .performScrollTo().assertIsDisplayed()
+        assertEquals(1, authRepository.signUpCallCount)
+    }
+
+    @Test
+    fun signUpWithMissingNameAndUsername_showsValidationError_andDoesNotCallRepository() {
+        launchAuthScreen()
+        toggleToSignUpMode()
+        fillSignUpFields(name = "", username = "")
+
+        tapSignUp()
+
+        composeTestRule.onNodeWithText(string(R.string.all_fields_required)).assertIsDisplayed()
+        assertEquals(0, authRepository.signUpCallCount)
+    }
+
+    @Test
+    fun signUpWithUnavailableUsername_showsError_andDoesNotCallSignUp() {
+        authRepository.usernameAvailableResult = Result.success(false)
+        launchAuthScreen()
+        toggleToSignUpMode()
+        fillSignUpFields()
+
+        tapSignUp()
+
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithText(string(R.string.username_not_available))
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        assertEquals(0, authRepository.signUpCallCount)
+    }
+
+    @Test
+    fun signUpFailure_showsErrorMessage() {
+        val errorMessage = "Email already in use"
+        authRepository.signUpResult = Result.failure(RuntimeException(errorMessage))
+        launchAuthScreen()
+        toggleToSignUpMode()
+        fillSignUpFields()
+
+        tapSignUp()
+
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithText(errorMessage).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText(errorMessage).assertIsDisplayed()
+        assertEquals(1, authRepository.signUpCallCount)
+    }
+
     @Test
     fun submittingWithEmptyCredentials_showsValidationError() {
         launchAuthScreen()

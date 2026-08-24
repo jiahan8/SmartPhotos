@@ -25,6 +25,7 @@ class FakeAuthRepository : AuthRepository {
     var emailRegisteredResult: Result<Boolean> = Result.success(true)
 
     var signInCallCount = 0
+    var signUpCallCount = 0
     var signOutCallCount = 0
     var deleteAccountCallCount = 0
     var changePasswordCallCount = 0
@@ -42,7 +43,10 @@ class FakeAuthRepository : AuthRepository {
         password: String,
         displayName: String,
         username: String
-    ): Result<Unit> = signUpResult
+    ): Result<Unit> {
+        signUpCallCount++
+        return signUpResult
+    }
 
     override suspend fun signOut(): Result<Unit> {
         signOutCallCount++

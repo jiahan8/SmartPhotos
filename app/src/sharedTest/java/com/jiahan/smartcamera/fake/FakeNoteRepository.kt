@@ -8,6 +8,7 @@ import com.jiahan.smartcamera.note.NoteMediaDetail
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 
 /**
  * In-memory [NoteRepository] test double.
@@ -23,17 +24,21 @@ class FakeNoteRepository : NoteRepository {
     var deleteResult: Result<Unit> = Result.success(Unit)
     var favoriteResult: Result<Unit> = Result.success(Unit)
     var updateResult: Result<Unit> = Result.success(Unit)
+    var addNoteResult: Result<Unit> = Result.success(Unit)
     var getNoteResult: Result<HomeNote>? = null
     var syncResult: Result<Unit> = Result.success(Unit)
+    var buildLocalMediaDetailsResult: Result<List<NoteMediaDetail>> = Result.success(emptyList())
 
     private val favoritesFlow = MutableStateFlow<List<HomeNote>>(emptyList())
 
     var deleteCallCount = 0
     var favoriteCallCount = 0
     var updateCallCount = 0
+    var addNoteCallCount = 0
     var lastDeletedNoteId: String? = null
     var lastFavoritedNote: HomeNote? = null
     var lastUpdatedNote: HomeNote? = null
+    var lastAddedNote: HomeNote? = null
 
     fun setFavorites(notes: List<HomeNote>) {
         favoritesFlow.value = notes
@@ -41,7 +46,11 @@ class FakeNoteRepository : NoteRepository {
 
     override suspend fun getNotes(page: Int, pageSize: Int): Result<List<HomeNote>> = notesResult
 
-    override suspend fun addNote(homeNote: HomeNote): Result<Unit> = Result.success(Unit)
+    override suspend fun addNote(homeNote: HomeNote): Result<Unit> {
+        addNoteCallCount++
+        lastAddedNote = homeNote
+        return addNoteResult
+    }
 
     override suspend fun updateNote(homeNote: HomeNote): Result<Unit> {
         updateCallCount++
@@ -54,12 +63,34 @@ class FakeNoteRepository : NoteRepository {
     override suspend fun deleteNote(noteId: String): Result<Unit> {
         deleteCallCount++
         lastDeletedNoteId = noteId
+        // Mirrors the real repository deleting the row and getFavoriteNotesStream's underlying
+        // Room query reactively dropping it, so tests exercising that pipeline (e.g. delete-then-
+        // assert-removed-from-list) see the same behavior as production.
+        if (deleteResult.isSuccess) {
+            favoritesFlow.update { notes -> notes.filterNot { it.noteId == noteId } }
+        }
         return deleteResult
     }
 
     override suspend fun favoriteNote(homeNote: HomeNote): Result<Unit> {
         favoriteCallCount++
         lastFavoritedNote = homeNote
+        // Mirrors the real repository toggling the favorite flag and getFavoriteNotesStream
+        // reactively reflecting it (added when newly favorited, dropped when un-favorited).
+        if (favoriteResult.isSuccess) {
+            val toggled = homeNote.copy(favorite = !homeNote.favorite)
+            favoritesFlow.update { notes ->
+                when {
+                    toggled.favorite && notes.none { it.noteId == toggled.noteId } ->
+                        notes + toggled
+
+                    !toggled.favorite ->
+                        notes.filterNot { it.noteId == toggled.noteId }
+
+                    else -> notes.map { if (it.noteId == toggled.noteId) toggled else it }
+                }
+            }
+        }
         return favoriteResult
     }
 
@@ -77,7 +108,7 @@ class FakeNoteRepository : NoteRepository {
 
     override suspend fun buildLocalMediaDetails(
         uriList: List<Uri>
-    ): Result<List<NoteMediaDetail>> = Result.success(emptyList())
+    ): Result<List<NoteMediaDetail>> = buildLocalMediaDetailsResult
 
     override fun getFavoriteNotesStream(query: String): Flow<List<HomeNote>> =
         favoritesFlow.map { notes ->

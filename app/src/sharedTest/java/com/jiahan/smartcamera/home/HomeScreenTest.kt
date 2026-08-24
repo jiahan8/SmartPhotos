@@ -5,6 +5,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -129,6 +130,45 @@ class HomeScreenTest {
         composeTestRule.onNodeWithContentDescription(string(R.string.cd_more_options))
             .performClick()
         waitForText(string(R.string.delete))
+    }
+
+    @Test
+    fun overflowMenu_deleteConfirmed_removesNoteFromList() {
+        noteRepository.notesResult = Result.success(listOf(note("doc1", "Deletable note")))
+        launchHomeScreen()
+        waitForText("Deletable note")
+
+        composeTestRule.onNodeWithContentDescription(string(R.string.cd_more_options))
+            .performClick()
+        waitForText(string(R.string.delete))
+        composeTestRule.onNodeWithText(string(R.string.delete)).performClick()
+
+        waitForText(string(R.string.delete_note))
+        composeTestRule.onNodeWithText(string(R.string.delete)).performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithText("Deletable note").fetchSemanticsNodes().isEmpty()
+        }
+        composeTestRule.onNodeWithText(string(R.string.create_first_note)).assertIsDisplayed()
+    }
+
+    @Test
+    fun overflowMenu_favoriteToggle_marksNoteAsFavorited() {
+        noteRepository.notesResult = Result.success(listOf(note("doc1", "Likeable note")))
+        launchHomeScreen()
+        waitForText("Likeable note")
+
+        composeTestRule.onNodeWithContentDescription(string(R.string.cd_more_options))
+            .performClick()
+        waitForText(string(R.string.like))
+        composeTestRule.onNodeWithText(string(R.string.like)).performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithContentDescription(string(R.string.cd_marked_as_favorite))
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithContentDescription(string(R.string.cd_marked_as_favorite))
+            .assertIsDisplayed()
     }
 
     @Test
