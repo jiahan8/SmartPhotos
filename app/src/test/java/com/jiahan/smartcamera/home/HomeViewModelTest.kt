@@ -153,6 +153,25 @@ class HomeViewModelTest {
         assertFalse(viewModel.uiState.value.isRefreshing)
     }
 
+    @Test
+    fun `refresh failure replaces existing notes with Error state`() = runTest {
+        val initialNotes = listOf(makeNote("a"), makeNote("b"))
+        coEvery { noteRepository.getNotes(0, any()) } returns Result.success(initialNotes)
+        val vm = createViewModel()
+        assertTrue(vm.uiState.value.content is HomeContent.Success)
+
+        val exception = RuntimeException("refresh failed")
+        coEvery { noteRepository.getNotes(0, any()) } returns Result.failure(exception)
+        every { errorHandler.getErrorMessage(exception) } returns "refresh failed"
+
+        vm.refresh()
+
+        val content = vm.uiState.value.content
+        assertTrue(content is HomeContent.Error)
+        assertEquals("refresh failed", (content as HomeContent.Error).message)
+        assertFalse(vm.uiState.value.isRefreshing)
+    }
+
     // -------------------------------------------------------------------------
     // Load more
     // -------------------------------------------------------------------------

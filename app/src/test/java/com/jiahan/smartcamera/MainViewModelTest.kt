@@ -1,5 +1,7 @@
 package com.jiahan.smartcamera
 
+import android.content.Intent
+import android.net.Uri
 import app.cash.turbine.test
 import com.google.android.gms.tasks.Tasks
 import com.google.android.play.core.appupdate.AppUpdateInfo
@@ -13,6 +15,7 @@ import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.navigation.Screen
+import com.jiahan.smartcamera.note.IncomingShare
 import com.jiahan.smartcamera.note.IncomingShareHandler
 import com.jiahan.smartcamera.util.ErrorHandler
 import io.mockk.coEvery
@@ -60,6 +63,7 @@ class MainViewModelTest {
         every { errorHandler.logError(any()) } just runs
         every { userPreferencesRepository.userPreferencesFlow } returns flowOf(defaultPrefs)
         every { incomingShareHandler.incomingShare } returns MutableStateFlow(null)
+        every { incomingShareHandler.postShare(any()) } just runs
         every { appUpdateRepository.observeUpdateState() } returns flowOf()
         // Default: unauthenticated user. Tests that need a different state override these.
         every { authRepository.currentUserId } returns null
@@ -282,5 +286,133 @@ class MainViewModelTest {
         }
 
         verify(exactly = 0) { appUpdateManager.completeUpdate() }
+    }
+
+    // -------------------------------------------------------------------------
+    // handleIncomingIntent
+    // -------------------------------------------------------------------------
+    @Test
+    fun `handleIncomingIntent with ACTION_SEND text posts a text-only share`() = runTest {
+        val vm = createViewModel()
+        val intent: Intent = mockk()
+        every { intent.action } returns Intent.ACTION_SEND
+        every { intent.getStringExtra(Intent.EXTRA_TEXT) } returns "hello"
+        every { intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM) } returns null
+
+        vm.handleIncomingIntent(intent)
+
+        verify { incomingShareHandler.postShare(IncomingShare(text = "hello", uris = emptyList())) }
+    }
+
+    @Test
+    fun `handleIncomingIntent with ACTION_SEND uri posts a uri-only share`() = runTest {
+        val vm = createViewModel()
+        val uri: Uri = mockk()
+        val intent: Intent = mockk()
+        every { intent.action } returns Intent.ACTION_SEND
+        every { intent.getStringExtra(Intent.EXTRA_TEXT) } returns null
+        every { intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM) } returns uri
+
+        vm.handleIncomingIntent(intent)
+
+        verify { incomingShareHandler.postShare(IncomingShare(text = null, uris = listOf(uri))) }
+    }
+
+    @Test
+    fun `handleIncomingIntent with ACTION_SEND text and uri posts both`() = runTest {
+        val vm = createViewModel()
+        val uri: Uri = mockk()
+        val intent: Intent = mockk()
+        every { intent.action } returns Intent.ACTION_SEND
+        every { intent.getStringExtra(Intent.EXTRA_TEXT) } returns "hello"
+        every { intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM) } returns uri
+
+        vm.handleIncomingIntent(intent)
+
+        verify {
+            incomingShareHandler.postShare(IncomingShare(text = "hello", uris = listOf(uri)))
+        }
+    }
+
+    @Test
+    fun `handleIncomingIntent with ACTION_SEND and no text or uri does not post a share`() =
+        runTest {
+            val vm = createViewModel()
+            val intent: Intent = mockk()
+            every { intent.action } returns Intent.ACTION_SEND
+            every { intent.getStringExtra(Intent.EXTRA_TEXT) } returns null
+            every { intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM) } returns null
+
+            vm.handleIncomingIntent(intent)
+
+            verify(exactly = 0) { incomingShareHandler.postShare(any()) }
+        }
+
+    @Test
+    fun `handleIncomingIntent with ACTION_SEND_MULTIPLE posts all uris`() = runTest {
+        val vm = createViewModel()
+        val uri1: Uri = mockk()
+        val uri2: Uri = mockk()
+        val intent: Intent = mockk()
+        every { intent.action } returns Intent.ACTION_SEND_MULTIPLE
+        every { intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM) } returns
+                arrayListOf(uri1, uri2)
+
+        vm.handleIncomingIntent(intent)
+
+        verify {
+            incomingShareHandler.postShare(IncomingShare(text = null, uris = listOf(uri1, uri2)))
+        }
+    }
+
+    @Test
+    fun `handleIncomingIntent with ACTION_SEND_MULTIPLE and no uris does not post a share`() =
+        runTest {
+            val vm = createViewModel()
+            val intent: Intent = mockk()
+            every { intent.action } returns Intent.ACTION_SEND_MULTIPLE
+            every { intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM) } returns null
+
+            vm.handleIncomingIntent(intent)
+
+            verify(exactly = 0) { incomingShareHandler.postShare(any()) }
+        }
+
+    @Test
+    fun `handleIncomingIntent with an unsupported action does not post a share`() = runTest {
+        val vm = createViewModel()
+        val intent: Intent = mockk()
+        every { intent.action } returns Intent.ACTION_VIEW
+
+        vm.handleIncomingIntent(intent)
+
+        verify(exactly = 0) { incomingShareHandler.postShare(any()) }
+    }
+
+    // -------------------------------------------------------------------------
+    // hasPendingShare
+    // -------------------------------------------------------------------------
+    @Test
+    fun `hasPendingShare is false when no share is pending`() = runTest {
+        val vm = createViewModel()
+
+        vm.hasPendingShare.test {
+            assertEquals(false, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `hasPendingShare becomes true once a share is posted`() = runTest {
+        val shareFlow = MutableStateFlow<IncomingShare?>(null)
+        every { incomingShareHandler.incomingShare } returns shareFlow
+        val vm = createViewModel()
+
+        vm.hasPendingShare.test {
+            assertEquals(false, awaitItem())
+            shareFlow.value = IncomingShare(text = "hello", uris = emptyList())
+            assertEquals(true, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 }

@@ -312,6 +312,24 @@ class AuthViewModelTest {
         assertEquals("Invalid credentials", (state as AuthStatus.Error).message)
     }
 
+    @Test
+    fun `signIn checkEmailVerified failure sets Error state`() = runTest {
+        viewModel.updateEmailText("user@example.com")
+        viewModel.updatePasswordText("password123")
+
+        coEvery { authRepository.signIn(any(), any()) } returns Result.success(Unit)
+        val exception = RuntimeException("verification check failed")
+        coEvery { authRepository.checkEmailVerified() } returns Result.failure(exception)
+        every { errorHandler.getErrorMessage(exception) } returns "verification check failed"
+
+        viewModel.signIn()
+
+        val state = viewModel.uiState.value.status
+        assertTrue(state is AuthStatus.Error)
+        assertEquals("verification check failed", (state as AuthStatus.Error).message)
+        assertFalse(viewModel.uiState.value.showResendButton)
+    }
+
     // -------------------------------------------------------------------------
     // signUp — validation
     // -------------------------------------------------------------------------
@@ -417,6 +435,49 @@ class AuthViewModelTest {
     }
 
     // -------------------------------------------------------------------------
+    // signUp — failure path
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `signUp isUsernameAvailable failure sets Error state`() = runTest {
+        viewModel.updateEmailText("new@example.com")
+        viewModel.updatePasswordText("password")
+        viewModel.updateDisplayNameText("John Doe")
+        viewModel.updateUsernameText("johndoe")
+
+        val exception = RuntimeException("network down")
+        coEvery { authRepository.isUsernameAvailable("johndoe") } returns Result.failure(exception)
+        every { errorHandler.getErrorMessage(exception) } returns "network down"
+
+        viewModel.signUp()
+
+        val state = viewModel.uiState.value.status
+        assertTrue(state is AuthStatus.Error)
+        assertEquals("network down", (state as AuthStatus.Error).message)
+    }
+
+    @Test
+    fun `signUp repository failure sets Error state`() = runTest {
+        viewModel.updateEmailText("new@example.com")
+        viewModel.updatePasswordText("password123")
+        viewModel.updateDisplayNameText("New User")
+        viewModel.updateUsernameText("newuser")
+
+        coEvery { authRepository.isUsernameAvailable("newuser") } returns Result.success(true)
+        val exception = RuntimeException("signup failed")
+        coEvery { authRepository.signUp(any(), any(), any(), any()) } returns
+                Result.failure(exception)
+        every { errorHandler.getErrorMessage(exception) } returns "signup failed"
+
+        viewModel.signUp()
+
+        val state = viewModel.uiState.value.status
+        assertTrue(state is AuthStatus.Error)
+        assertEquals("signup failed", (state as AuthStatus.Error).message)
+        assertFalse(viewModel.uiState.value.showResendButton)
+    }
+
+    // -------------------------------------------------------------------------
     // resetPassword
     // -------------------------------------------------------------------------
 
@@ -449,6 +510,24 @@ class AuthViewModelTest {
         viewModel.resetPassword()
 
         assertTrue(viewModel.uiState.value.status is AuthStatus.Info)
+    }
+
+    @Test
+    fun `resetPassword repository failure sets Error state`() = runTest {
+        viewModel.updateEmailText("user@example.com")
+        coEvery {
+            authRepository.isEmailRegistered("user@example.com")
+        } returns Result.success(true)
+        val exception = RuntimeException("reset failed")
+        coEvery { authRepository.resetPassword("user@example.com") } returns
+                Result.failure(exception)
+        every { errorHandler.getErrorMessage(exception) } returns "reset failed"
+
+        viewModel.resetPassword()
+
+        val state = viewModel.uiState.value.status
+        assertTrue(state is AuthStatus.Error)
+        assertEquals("reset failed", (state as AuthStatus.Error).message)
     }
 
     // -------------------------------------------------------------------------

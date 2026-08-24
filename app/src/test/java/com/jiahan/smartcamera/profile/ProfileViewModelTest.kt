@@ -9,6 +9,7 @@ import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
+import com.jiahan.smartcamera.domain.ProfilePictureUpdate
 import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ResourceProvider
@@ -205,6 +206,44 @@ class ProfileViewModelTest {
         assertFalse(viewModel.uiState.value.isErrorFree)
     }
 
+    @Test
+    fun `updateUserProfile isUsernameAvailable failure sets errorMessage and emits UpdateError`() =
+        runTest {
+            viewModel.updateUsernameText("newname")
+            val exception = RuntimeException("network down")
+            coEvery { authRepository.isUsernameAvailable("newname") } returns
+                    Result.failure(exception)
+            every { errorHandler.getErrorMessage(exception) } returns "network down"
+
+            viewModel.events.test {
+                viewModel.updateUserProfile()
+                assertEquals(ProfileEvent.UpdateError(), awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+            assertEquals("network down", viewModel.uiState.value.errorMessage)
+            assertFalse(viewModel.uiState.value.isLoading)
+            coVerify(exactly = 0) { userRepository.updateUserProfile(any(), any(), any()) }
+        }
+
+    @Test
+    fun `updateUserProfile repository failure sets errorMessage and emits UpdateError`() =
+        runTest {
+            viewModel.updateDisplayNameText("Updated Name")
+            val exception = RuntimeException("boom")
+            coEvery { userRepository.updateUserProfile(any(), any(), any()) } returns
+                    Result.failure(exception)
+            every { errorHandler.getErrorMessage(exception) } returns "boom"
+
+            viewModel.events.test {
+                viewModel.updateUserProfile()
+                assertEquals(ProfileEvent.UpdateError(), awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+            assertEquals("boom", viewModel.uiState.value.errorMessage)
+            assertNull(viewModel.uiState.value.usernameErrorMessage)
+            assertFalse(viewModel.uiState.value.isLoading)
+        }
+
     // -------------------------------------------------------------------------
     // Dialog / bottom sheet
     // -------------------------------------------------------------------------
@@ -262,5 +301,121 @@ class ProfileViewModelTest {
         viewModel.uploadProfilePicture(uri)
 
         coVerify { noteRepository.quickUploadMediaToFirebase(listOf(uri), false) }
+    }
+
+    @Test
+    fun `uploadProfilePicture success updates profile and emits UploadSuccess`() = runTest {
+        val uri: Uri = mockk()
+        viewModel.updateBottomSheetVisibility(true)
+        coEvery { userRepository.uploadProfilePicture(uri) } returns
+                Result.success("https://example.com/pic.jpg")
+        coEvery {
+            userRepository.updateUserProfile(
+                displayName = null,
+                username = null,
+                profilePicture = ProfilePictureUpdate.Set(
+                    uri = uri,
+                    url = "https://example.com/pic.jpg"
+                )
+            )
+        } returns Result.success(Unit)
+
+        viewModel.events.test {
+            viewModel.uploadProfilePicture(uri)
+            assertEquals(ProfileEvent.UploadSuccess, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+        coVerify(exactly = 2) { userRepository.getUser() } // init load + reload after success
+        assertFalse(viewModel.uiState.value.isUploading)
+        assertFalse(viewModel.uiState.value.showBottomSheet)
+    }
+
+    @Test
+    fun `uploadProfilePicture null url from repository emits UpdateError without updating profile`() =
+        runTest {
+            val uri: Uri = mockk()
+            coEvery { userRepository.uploadProfilePicture(uri) } returns Result.success(null)
+
+            viewModel.events.test {
+                viewModel.uploadProfilePicture(uri)
+                assertEquals(ProfileEvent.UpdateError(), awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+            coVerify(exactly = 0) { userRepository.updateUserProfile(any(), any(), any()) }
+            assertFalse(viewModel.uiState.value.isUploading)
+        }
+
+    @Test
+    fun `uploadProfilePicture upload failure emits UpdateError with message`() = runTest {
+        val uri: Uri = mockk()
+        val exception = RuntimeException("upload failed")
+        coEvery { userRepository.uploadProfilePicture(uri) } returns Result.failure(exception)
+        every { errorHandler.getErrorMessage(exception) } returns "upload failed"
+
+        viewModel.events.test {
+            viewModel.uploadProfilePicture(uri)
+            assertEquals(ProfileEvent.UpdateError("upload failed"), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertFalse(viewModel.uiState.value.isUploading)
+    }
+
+    @Test
+    fun `uploadProfilePicture nested profile update failure emits UpdateError with message`() =
+        runTest {
+            val uri: Uri = mockk()
+            val exception = RuntimeException("save failed")
+            coEvery { userRepository.uploadProfilePicture(uri) } returns
+                    Result.success("https://example.com/pic.jpg")
+            coEvery { userRepository.updateUserProfile(any(), any(), any()) } returns
+                    Result.failure(exception)
+            every { errorHandler.getErrorMessage(exception) } returns "save failed"
+
+            viewModel.events.test {
+                viewModel.uploadProfilePicture(uri)
+                assertEquals(ProfileEvent.UpdateError("save failed"), awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+            assertFalse(viewModel.uiState.value.isUploading)
+        }
+
+    // -------------------------------------------------------------------------
+    // deleteProfilePicture
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `deleteProfilePicture success updates profile and emits UploadSuccess`() = runTest {
+        viewModel.updateBottomSheetVisibility(true)
+        coEvery {
+            userRepository.updateUserProfile(
+                displayName = null,
+                username = null,
+                profilePicture = ProfilePictureUpdate.Delete
+            )
+        } returns Result.success(Unit)
+
+        viewModel.events.test {
+            viewModel.deleteProfilePicture()
+            assertEquals(ProfileEvent.UploadSuccess, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+        coVerify(exactly = 2) { userRepository.getUser() } // init load + reload after success
+        assertFalse(viewModel.uiState.value.isUploading)
+        assertFalse(viewModel.uiState.value.showBottomSheet)
+    }
+
+    @Test
+    fun `deleteProfilePicture failure emits UpdateError with message`() = runTest {
+        val exception = RuntimeException("delete failed")
+        coEvery { userRepository.updateUserProfile(any(), any(), any()) } returns
+                Result.failure(exception)
+        every { errorHandler.getErrorMessage(exception) } returns "delete failed"
+
+        viewModel.events.test {
+            viewModel.deleteProfilePicture()
+            assertEquals(ProfileEvent.UpdateError("delete failed"), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertFalse(viewModel.uiState.value.isUploading)
     }
 }

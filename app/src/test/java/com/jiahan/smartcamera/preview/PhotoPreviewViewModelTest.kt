@@ -1,5 +1,6 @@
 package com.jiahan.smartcamera.preview
 
+import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -20,13 +21,20 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
 
 /**
  * [PhotoPreviewViewModel] parses its typed nav route via [androidx.navigation.toRoute], whose
  * internal [androidx.navigation.serialization.RouteDecoder] constructs a real [android.os.Bundle]
  * — that needs Robolectric's shadow to work outside a real Android runtime, hence Robolectric here.
+ *
+ * A plain [Application] stands in for [com.jiahan.smartcamera.MyApp] (as in
+ * [com.jiahan.smartcamera.screenshot.BaseScreenshotTest]): the real one installs the Firebase App
+ * Check provider in `onCreate()`, which throws under Robolectric because no default `FirebaseApp`
+ * is initialized there.
  */
 @RunWith(AndroidJUnit4::class)
+@Config(application = Application::class)
 class PhotoPreviewViewModelTest {
 
     private val mediaFileRepository = mockk<MediaFileRepository>()

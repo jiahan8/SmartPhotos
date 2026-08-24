@@ -126,6 +126,25 @@ class ExploreViewModelTest {
         assertFalse(viewModel.uiState.value.isRefreshing)
     }
 
+    @Test
+    fun `refresh failure replaces existing photos with Error state`() = runTest {
+        val initialPhotos = listOf(makePhoto("a"), makePhoto("b"))
+        coEvery { photoRepository.listPhotos(1, any()) } returns Result.success(initialPhotos)
+        val vm = createViewModel()
+        assertTrue(vm.uiState.value.content is ExploreContent.Success)
+
+        val exception = RuntimeException("refresh failed")
+        coEvery { photoRepository.listPhotos(1, any()) } returns Result.failure(exception)
+        every { errorHandler.getErrorMessage(exception) } returns "refresh failed"
+
+        vm.refresh()
+
+        val content = vm.uiState.value.content
+        assertTrue(content is ExploreContent.Error)
+        assertEquals("refresh failed", (content as ExploreContent.Error).message)
+        assertFalse(vm.uiState.value.isRefreshing)
+    }
+
     // -------------------------------------------------------------------------
     // Load more
     // -------------------------------------------------------------------------

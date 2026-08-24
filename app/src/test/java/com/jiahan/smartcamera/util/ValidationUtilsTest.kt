@@ -67,6 +67,22 @@ class ValidationUtilsTest {
         assertTrue(validateUsername("a") is ValidationResult.Success)
     }
 
+    @Test
+    fun `validateUsername reserved name returns Error`() {
+        // Mirrors functions/index.js RESERVED_USERNAMES — keep both lists in sync.
+        assertTrue(validateUsername("admin") is ValidationResult.Error)
+    }
+
+    @Test
+    fun `validateUsername reserved name check is case-insensitive`() {
+        assertTrue(validateUsername("Admin") is ValidationResult.Error)
+    }
+
+    @Test
+    fun `validateUsername non-reserved name returns Success`() {
+        assertTrue(validateUsername("legituser") is ValidationResult.Success)
+    }
+
     // -------------------------------------------------------------------------
     // validateDisplayName
     // -------------------------------------------------------------------------
@@ -107,5 +123,31 @@ class ValidationUtilsTest {
     fun `validateDisplayName with special characters returns Success`() {
         // Display names have no character-set restriction, only length
         assertTrue(validateDisplayName("Ñoño 日本語") is ValidationResult.Success)
+    }
+
+    // -------------------------------------------------------------------------
+    // validateNewPassword
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `validateNewPassword empty without requireNonBlank returns Success`() {
+        assertTrue(validateNewPassword("") is ValidationResult.Success)
+    }
+
+    @Test
+    fun `validateNewPassword empty with requireNonBlank returns Error`() {
+        assertTrue(validateNewPassword("", requireNonBlank = true) is ValidationResult.Error)
+    }
+
+    @Test
+    fun `validateNewPassword blank with requireNonBlank returns Error`() {
+        assertTrue(validateNewPassword("   ", requireNonBlank = true) is ValidationResult.Error)
+    }
+
+    @Test
+    fun `validateNewPassword non-blank value returns Success`() {
+        assertTrue(
+            validateNewPassword("hunter2", requireNonBlank = true) is ValidationResult.Success
+        )
     }
 }
