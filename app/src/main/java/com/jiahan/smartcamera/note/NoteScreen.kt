@@ -63,6 +63,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.ProfileAvatar
+import com.jiahan.smartcamera.common.bounceClick
 import com.jiahan.smartcamera.common.rememberCyclingPlaceholder
 import com.jiahan.smartcamera.common.showAppSnackbar
 
@@ -420,7 +421,11 @@ private fun NoteActionRow(
         Icon(
             painter = painterResource(R.drawable.photo_library),
             contentDescription = stringResource(R.string.cd_choose_photos),
-            modifier = Modifier.clickable(enabled = !isUploading, onClick = onPickFromLibrary),
+            modifier = Modifier.bounceClick(
+                enabled = !isUploading,
+                scaleDown = 0.85f,
+                onClick = onPickFromLibrary
+            ),
             tint = tint
         )
 
@@ -429,7 +434,7 @@ private fun NoteActionRow(
             contentDescription = stringResource(R.string.cd_take_photo),
             modifier = Modifier
                 .padding(start = 16.dp)
-                .clickable(enabled = !isUploading, onClick = onTakePhoto),
+                .bounceClick(enabled = !isUploading, scaleDown = 0.85f, onClick = onTakePhoto),
             tint = tint
         )
 
@@ -438,7 +443,7 @@ private fun NoteActionRow(
             contentDescription = stringResource(R.string.cd_take_video),
             modifier = Modifier
                 .padding(start = 16.dp)
-                .clickable(enabled = !isUploading, onClick = onTakeVideo),
+                .bounceClick(enabled = !isUploading, scaleDown = 0.85f, onClick = onTakeVideo),
             tint = tint
         )
 

@@ -1,7 +1,6 @@
 package com.jiahan.smartcamera.common
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -39,7 +38,7 @@ fun ProfileAvatar(
             modifier = modifier
                 .size(size)
                 .clip(CircleShape)
-                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+                .then(if (onClick != null) Modifier.bounceClick(onClick = onClick) else Modifier),
             onError = { onImageLoadError(it.result.throwable) }
         )
     } ?: Image(

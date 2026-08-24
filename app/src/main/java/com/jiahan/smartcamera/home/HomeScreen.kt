@@ -11,7 +11,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
@@ -37,9 +36,7 @@ import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.MoreHoriz
-import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -49,7 +46,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -64,10 +60,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
@@ -80,9 +73,11 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.ShareCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.BottomSheetActionItem
+import com.jiahan.smartcamera.common.DeleteNoteConfirmationDialog
+import com.jiahan.smartcamera.common.FullScreenMessage
+import com.jiahan.smartcamera.common.MediaThumbnail
 import com.jiahan.smartcamera.common.ProfileAvatar
 import com.jiahan.smartcamera.common.ScrollDirectionEffect
 import com.jiahan.smartcamera.common.ScrollToTopEffect
@@ -90,7 +85,6 @@ import com.jiahan.smartcamera.common.rememberShouldLoadMore
 import com.jiahan.smartcamera.common.shimmer
 import com.jiahan.smartcamera.common.showAppSnackbar
 import com.jiahan.smartcamera.domain.HomeNote
-import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
 import com.jiahan.smartcamera.util.toFormattedDateTime
@@ -150,26 +144,11 @@ fun HomeScreen(
     }
 
     uiState.noteToDelete?.let { note ->
-        AlertDialog(
+        DeleteNoteConfirmationDialog(
             onDismissRequest = { viewModel.setNoteToDelete(null) },
-            title = { Text(stringResource(R.string.delete_note)) },
-            text = { Text(stringResource(R.string.delete_note_desc)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteNote(note.noteId)
-                        viewModel.setNoteToDelete(null)
-                    }
-                ) {
-                    Text(stringResource(R.string.delete))
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { viewModel.setNoteToDelete(null) }
-                ) {
-                    Text(stringResource(R.string.cancel))
-                }
+            onConfirmDelete = {
+                viewModel.deleteNote(note.noteId)
+                viewModel.setNoteToDelete(null)
             }
         )
     }
@@ -215,22 +194,11 @@ fun HomeScreen(
                     when (state) {
                         is HomeContent.Loading -> HomeListSkeleton()
 
-                        is HomeContent.Error ->
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(state.message)
-                            }
+                        is HomeContent.Error -> FullScreenMessage(state.message)
 
                         is HomeContent.Success ->
                             if (state.notes.isEmpty()) {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(stringResource(R.string.create_first_note))
-                                }
+                                FullScreenMessage(stringResource(R.string.create_first_note))
                             } else {
                                 PullToRefreshBox(
                                     modifier = Modifier.fillMaxSize(),
@@ -352,7 +320,6 @@ fun HomeItem(
 
     val onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant
     val primaryColor = MaterialTheme.colorScheme.primary
-    val surfaceVariantColor = MaterialTheme.colorScheme.surfaceVariant
 
     val formattedDate = remember(note.createdDate) {
         note.createdDate?.toEpochMilli()?.toFormattedDateTime() ?: ""
@@ -501,12 +468,10 @@ fun HomeItem(
                         "${note.noteId}_${index}_${if (media.isVideo) media.videoUrl else media.photoUrl}"
                     }
                 ) { index ->
-                    MediaItem(
+                    MediaThumbnail(
                         mediaDetail = mediaList[index],
                         onPhotoClick = callbacks.onPhotoClick,
                         onVideoClick = callbacks.onVideoClick,
-                        surfaceVariantColor = surfaceVariantColor,
-                        onSurfaceVariantColor = onSurfaceVariantColor,
                         onImageLoadError = callbacks.onImageLoadError
                     )
                 }
@@ -640,58 +605,6 @@ fun HomeListSkeleton(modifier: Modifier = Modifier) {
 }
 
 private const val SKELETON_ITEM_COUNT = 3
-
-@Composable
-private fun MediaItem(
-    mediaDetail: MediaDetail,
-    onPhotoClick: (String) -> Unit,
-    onVideoClick: (String) -> Unit,
-    surfaceVariantColor: Color,
-    onSurfaceVariantColor: Color,
-    onImageLoadError: (Throwable) -> Unit = {}
-) {
-    val isVideo = mediaDetail.isVideo
-    val imageUrl = if (isVideo) mediaDetail.thumbnailUrl else mediaDetail.photoUrl
-    val mediaUrl = if (isVideo) mediaDetail.videoUrl else mediaDetail.photoUrl
-
-    Box(
-        modifier = Modifier
-            .padding(end = 8.dp)
-            .clickable {
-                mediaUrl?.takeIf { it.isNotEmpty() }?.let { url ->
-                    if (isVideo) {
-                        onVideoClick(url)
-                    } else {
-                        onPhotoClick(url)
-                    }
-                }
-            }
-    ) {
-        AsyncImage(
-            model = imageUrl,
-            modifier = Modifier
-                .height(256.dp)
-                .width(220.dp)
-                .clip(MaterialTheme.shapes.medium),
-            contentDescription = stringResource(R.string.cd_note_photo),
-            contentScale = ContentScale.Crop,
-            onError = { onImageLoadError(it.result.throwable) }
-        )
-
-        if (isVideo) {
-            Icon(
-                imageVector = Icons.Rounded.PlayArrow,
-                contentDescription = stringResource(R.string.cd_play_video),
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(surfaceVariantColor.copy(alpha = 0.7f)),
-                tint = onSurfaceVariantColor
-            )
-        }
-    }
-}
 
 @Preview(showBackground = true, name = "HomeItem – text only")
 @Composable

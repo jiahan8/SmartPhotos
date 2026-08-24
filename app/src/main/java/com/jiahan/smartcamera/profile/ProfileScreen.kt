@@ -6,7 +6,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -20,7 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -54,9 +52,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -65,9 +60,10 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.BottomSheetActionItem
+import com.jiahan.smartcamera.common.ProfileAvatar
+import com.jiahan.smartcamera.common.bounceScale
 import com.jiahan.smartcamera.common.showAppSnackbar
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -255,32 +251,14 @@ fun ProfileScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    profilePictureUrl?.let { url ->
-                        AsyncImage(
-                            model = url,
-                            contentDescription = stringResource(R.string.cd_profile_picture),
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(88.dp)
-                                .clip(CircleShape)
-                                .clickable {
-                                    onNavigateToPhotoPreview(url)
-                                },
-                            alignment = Alignment.Center,
-                            onError = { viewModel.logImageLoadError(it.result.throwable) }
-                        )
-                    } ?: Image(
-                        imageVector = Icons.Rounded.AccountCircle,
-                        contentDescription = stringResource(R.string.cd_profile_picture),
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(88.dp)
-                            .clip(CircleShape),
-                        colorFilter = ColorFilter.tint(
-                            MaterialTheme.colorScheme.onSurface.copy(
-                                alpha = 0.7f
-                            )
-                        )
+                    ProfileAvatar(
+                        profilePictureUrl = profilePictureUrl,
+                        onImageLoadError = viewModel::logImageLoadError,
+                        size = 88.dp,
+                        onClick =
+                            profilePictureUrl?.let { url ->
+                                { onNavigateToPhotoPreview(url) }
+                            }
                     )
 
                     TextButton(
@@ -382,12 +360,15 @@ fun ProfileScreen(
 
                         Spacer(modifier = Modifier.weight(1f))
 
+                        val saveInteractionSource = remember { MutableInteractionSource() }
                         Button(
                             modifier = Modifier
                                 .padding(bottom = 16.dp)
                                 .fillMaxWidth()
-                                .height(52.dp),
+                                .height(52.dp)
+                                .bounceScale(saveInteractionSource),
                             onClick = { viewModel.updateUserProfile() },
+                            interactionSource = saveInteractionSource,
                             enabled = isFormChanged && isErrorFree && !isSaving
                         ) {
                             if (isSaving) {

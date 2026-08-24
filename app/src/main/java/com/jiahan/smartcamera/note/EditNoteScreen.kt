@@ -36,12 +36,15 @@ import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -53,7 +56,10 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.common.FullScreenMessage
 import com.jiahan.smartcamera.common.ProfileAvatar
+import com.jiahan.smartcamera.common.bounceClick
+import com.jiahan.smartcamera.common.shimmer
 import com.jiahan.smartcamera.common.showAppSnackbar
 import com.jiahan.smartcamera.domain.HomeNote
 
@@ -172,13 +178,7 @@ fun EditNoteScreen(
                         CircularProgressIndicator(strokeWidth = 1.5.dp)
                     }
 
-                is EditNoteContent.Error ->
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(content.message)
-                    }
+                is EditNoteContent.Error -> FullScreenMessage(content.message)
 
                 is EditNoteContent.Success -> {
                     val note = content.note
@@ -325,38 +325,65 @@ private fun ReadOnlyNoteMedia(
         itemSpacing = 8.dp,
     ) { index ->
         val mediaDetail = mediaList[index]
+        val imageUrl = if (mediaDetail.isVideo) mediaDetail.thumbnailUrl else mediaDetail.photoUrl
+
+        // Keyed on imageUrl so a recycled carousel slot resets to loading for its new media
+        // instead of keeping the previous item's loaded state.
+        var isImageLoading by remember(imageUrl) { mutableStateOf(true) }
+
         Box(
-            modifier = Modifier.clickable {
+            modifier = Modifier.bounceClick {
                 if (mediaDetail.isVideo) {
                     onNavigateToVideoPreview(mediaDetail.videoUrl.orEmpty())
                 } else {
                     onNavigateToPhotoPreview(mediaDetail.photoUrl.orEmpty())
                 }
-            }
+            },
         ) {
+            // Drawn before (and therefore behind) the media, so it never tints the image during
+            // the frame where both are on screen. maskClip already shapes/sizes this to the
+            // carousel item, so RectangleShape here only adds the shimmer sweep, not a re-clip.
+            if (isImageLoading) {
+                Box(
+                    modifier =
+                        Modifier
+                            .height(212.dp)
+                            .maskClip(MaterialTheme.shapes.extraLarge)
+                            .shimmer(RectangleShape)
+                )
+            }
+
             AsyncImage(
-                model = if (mediaDetail.isVideo) mediaDetail.thumbnailUrl else mediaDetail.photoUrl,
-                modifier = Modifier
-                    .height(212.dp)
-                    .maskClip(MaterialTheme.shapes.extraLarge),
+                model = imageUrl,
+                modifier =
+                    Modifier
+                        .height(212.dp)
+                        .maskClip(MaterialTheme.shapes.extraLarge),
                 contentDescription = stringResource(R.string.cd_note_photo),
                 contentScale = ContentScale.Crop,
-                onError = { onImageLoadError(it.result.throwable) }
+                onLoading = { isImageLoading = true },
+                onSuccess = { isImageLoading = false },
+                onError = {
+                    isImageLoading = false
+                    onImageLoadError(it.result.throwable)
+                }
             )
 
-            if (mediaDetail.isVideo)
+            if (mediaDetail.isVideo) {
                 Icon(
                     imageVector = Icons.Rounded.PlayArrow,
                     contentDescription = stringResource(R.string.cd_play_video),
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .size(52.dp)
-                        .clip(CircleShape)
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
-                        ),
+                    modifier =
+                        Modifier
+                            .align(Alignment.Center)
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                            ),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
         }
     }
 }

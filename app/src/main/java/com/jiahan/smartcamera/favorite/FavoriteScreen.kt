@@ -6,13 +6,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
@@ -27,6 +25,8 @@ import androidx.core.app.ShareCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.common.DeleteNoteConfirmationDialog
+import com.jiahan.smartcamera.common.FullScreenMessage
 import com.jiahan.smartcamera.common.ScrollDirectionEffect
 import com.jiahan.smartcamera.common.ScrollToTopEffect
 import com.jiahan.smartcamera.common.SearchBar
@@ -80,26 +80,11 @@ fun FavoriteScreen(
     )
 
     uiState.noteToDelete?.let { note ->
-        AlertDialog(
+        DeleteNoteConfirmationDialog(
             onDismissRequest = { viewModel.setNoteToDelete(null) },
-            title = { Text(stringResource(R.string.delete_note)) },
-            text = { Text(stringResource(R.string.delete_note_desc)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteNote(note.noteId)
-                        viewModel.setNoteToDelete(null)
-                    }
-                ) {
-                    Text(stringResource(R.string.delete))
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { viewModel.setNoteToDelete(null) }
-                ) {
-                    Text(stringResource(R.string.cancel))
-                }
+            onConfirmDelete = {
+                viewModel.deleteNote(note.noteId)
+                viewModel.setNoteToDelete(null)
             }
         )
     }
@@ -134,12 +119,7 @@ fun FavoriteScreen(
 
                     is FavoriteContent.Success ->
                         if (state.notes.isEmpty()) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(stringResource(R.string.no_results_found))
-                            }
+                            FullScreenMessage(stringResource(R.string.no_results_found))
                         } else {
                             PullToRefreshBox(
                                 modifier = Modifier.fillMaxSize(),

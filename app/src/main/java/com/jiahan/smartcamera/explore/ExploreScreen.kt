@@ -5,7 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -45,7 +44,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.common.FullScreenMessage
 import com.jiahan.smartcamera.common.ProfileAvatar
+import com.jiahan.smartcamera.common.bounceClick
 import com.jiahan.smartcamera.common.rememberShouldLoadMore
 import com.jiahan.smartcamera.common.shimmer
 import com.jiahan.smartcamera.domain.Photo
@@ -105,22 +106,11 @@ fun ExploreScreen(
                     when (state) {
                         is ExploreContent.Loading -> ExploreListSkeleton()
 
-                        is ExploreContent.Error ->
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(state.message)
-                            }
+                        is ExploreContent.Error -> FullScreenMessage(state.message)
 
                         is ExploreContent.Success ->
                             if (state.photos.isEmpty()) {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(stringResource(R.string.no_photos_found))
-                                }
+                                FullScreenMessage(stringResource(R.string.no_photos_found))
                             } else {
                                 PullToRefreshBox(
                                     modifier = Modifier.fillMaxSize(),
@@ -259,7 +249,7 @@ private fun ExploreItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(aspectRatio)
-                .clickable { onClick() },
+                .bounceClick(scaleDown = 0.97f, onClick = onClick),
             onError = { onImageLoadError(it.result.throwable) }
         )
     }

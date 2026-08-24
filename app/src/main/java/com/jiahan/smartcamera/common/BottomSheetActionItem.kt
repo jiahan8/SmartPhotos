@@ -1,6 +1,5 @@
 package com.jiahan.smartcamera.common
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,7 +27,7 @@ fun BottomSheetActionItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .bounceClick(scaleDown = 0.97f, onClick = onClick)
             .padding(horizontal = 24.dp, vertical = 16.dp)
     ) {
         Icon(imageVector = icon, contentDescription = null, tint = tint)
