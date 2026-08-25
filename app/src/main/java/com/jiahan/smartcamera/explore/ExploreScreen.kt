@@ -50,6 +50,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
@@ -80,31 +81,47 @@ fun ExploreScreen(
     val searchListState = rememberLazyListState()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(uiState.isSearchActive) {
         if (uiState.isSearchActive) {
             searchFocusRequester.requestFocus()
         }
     }
+    // Each new search submission (not load-more) replaces the result set entirely, so jump the
+    // list back to the top rather than leaving it wherever the previous query's results scrolled to.
+    LaunchedEffect(uiState.searchResultsVersion) {
+        searchListState.scrollToItem(0)
+    }
     BackHandler(enabled = uiState.isSearchActive) {
         viewModel.toggleSearch()
     }
 
-    val activeListState = if (uiState.hasSubmittedSearch) searchListState else browseListState
+    // Search results are only shown while the search bar is active -- closing it (isSearchActive
+    // false) reverts to the browse list/state even if a search was submitted this session, since
+    // toggleSearch() deliberately leaves searchContent/pagination in place so reopening search
+    // restores it for free rather than re-fetching.
+    val activeListState =
+        if (uiState.isSearchActive && uiState.hasSubmittedSearch) searchListState
+        else browseListState
     val displayedIsLoadingMore =
-        if (uiState.hasSubmittedSearch) uiState.isSearchLoadingMore else uiState.isLoadingMore
+        if (uiState.isSearchActive && uiState.hasSubmittedSearch) uiState.isSearchLoadingMore
+        else uiState.isLoadingMore
 
     // itemCount reads uiState directly (rather than through an intermediate local) since
     // rememberShouldLoadMore caches its derivedStateOf per listState identity -- a captured local
     // val would freeze at whatever it was when that listState was first seen, while a direct
     // property-delegate read stays live even from an old, cached lambda instance.
     val shouldLoadMore by rememberShouldLoadMore(activeListState) {
-        if (uiState.hasSubmittedSearch) uiState.searchPhotos?.size ?: 0 else uiState.photos?.size
-            ?: 0
+        if (uiState.isSearchActive && uiState.hasSubmittedSearch) {
+            uiState.searchPhotos?.size ?: 0
+        } else {
+            uiState.photos?.size ?: 0
+        }
     }
-    LaunchedEffect(shouldLoadMore, uiState.hasSubmittedSearch) {
+    LaunchedEffect(shouldLoadMore, uiState.isSearchActive, uiState.hasSubmittedSearch) {
         if (shouldLoadMore && !displayedIsLoadingMore) {
-            if (uiState.hasSubmittedSearch) {
+            if (uiState.isSearchActive && uiState.hasSubmittedSearch) {
                 viewModel.loadMoreSearchResults()
             } else {
                 viewModel.loadMorePhotos()
@@ -120,7 +137,10 @@ fun ExploreScreen(
                         ExploreSearchField(
                             searchQuery = uiState.searchQuery,
                             onSearchQueryChange = viewModel::updateSearchQuery,
-                            onSearch = viewModel::submitSearch,
+                            onSearch = {
+                                viewModel.submitSearch()
+                                keyboardController?.hide()
+                            },
                             focusRequester = searchFocusRequester
                         )
                     } else {
@@ -177,7 +197,9 @@ fun ExploreScreen(
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                val displayedContent = uiState.searchContent ?: uiState.content
+                val displayedContent =
+                    if (uiState.isSearchActive) uiState.searchContent ?: uiState.content
+                    else uiState.content
 
                 AnimatedContent(
                     targetState = displayedContent,
@@ -199,7 +221,7 @@ fun ExploreScreen(
                                 state.photos.isEmpty() ->
                                     FullScreenMessage(stringResource(R.string.no_photos_found))
 
-                                uiState.hasSubmittedSearch -> Box(
+                                uiState.isSearchActive && uiState.hasSubmittedSearch -> Box(
                                     modifier = Modifier.fillMaxSize()
                                 ) {
                                     ExplorePhotoList(

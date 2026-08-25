@@ -29,7 +29,9 @@ data class ExploreUiState(
     val isSearchActive: Boolean = false,
     val searchQuery: String = "",
     val searchContent: ExploreContent? = null,
-    val isSearchLoadingMore: Boolean = false
+    val isSearchLoadingMore: Boolean = false,
+    /** Bumped on every new (non-load-more) search submission, so the UI can reset scroll position. */
+    val searchResultsVersion: Int = 0
 ) {
     val photos: List<Photo>?
         get() = (content as? ExploreContent.Success)?.photos
@@ -88,6 +90,7 @@ class ExploreViewModel @Inject constructor(
         lastSubmittedQuery = query
         searchCurrentPage = UNSPLASH_FIRST_PAGE
         searchHasMoreData = true
+        _uiState.update { it.copy(searchResultsVersion = it.searchResultsVersion + 1) }
         viewModelScope.launch { fetchSearchResults(initialLoading = true) }
     }
 
