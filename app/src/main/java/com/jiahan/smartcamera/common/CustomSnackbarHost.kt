@@ -17,11 +17,13 @@ fun CustomSnackbarHost(
         modifier = modifier,
         snackbar = { snackbarData ->
             val isError = (snackbarData.visuals as? AppSnackbarVisuals)?.isError == true
+            val contentColor =
+                if (isError) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimary
             Snackbar(
                 snackbarData = snackbarData,
                 containerColor = if (isError) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primary,
-                contentColor = if (isError) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimary,
-                actionColor = MaterialTheme.colorScheme.secondary,
+                contentColor = contentColor,
+                actionColor = contentColor,
                 shape = MaterialTheme.shapes.medium
             )
         }
