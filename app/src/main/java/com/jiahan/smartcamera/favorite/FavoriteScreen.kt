@@ -119,7 +119,9 @@ fun FavoriteScreen(
 
                     is FavoriteContent.Success ->
                         if (state.notes.isEmpty()) {
-                            FullScreenMessage(stringResource(R.string.no_results_found))
+                            FullScreenMessage(
+                                stringResource(if (searchQuery.isBlank()) R.string.favorite_note_to_see_it_here else R.string.no_results_found)
+                            )
                         } else {
                             PullToRefreshBox(
                                 modifier = Modifier.fillMaxSize(),

@@ -12,8 +12,10 @@ class DefaultPhotoRepository @Inject constructor(
 
     companion object {
         private const val FUNCTION_LIST_UNSPLASH_PHOTOS = "listUnsplashPhotos"
+        private const val FUNCTION_SEARCH_UNSPLASH_PHOTOS = "searchUnsplashPhotos"
         private const val FIELD_PAGE = "page"
         private const val FIELD_PER_PAGE = "perPage"
+        private const val FIELD_QUERY = "query"
         private const val FIELD_PHOTOS = "photos"
         private const val FIELD_ID = "id"
         private const val FIELD_DESCRIPTION = "description"
@@ -37,6 +39,18 @@ class DefaultPhotoRepository @Inject constructor(
     override suspend fun listPhotos(page: Int, pageSize: Int): Result<List<Photo>> = safeCall {
         val result = functions.getHttpsCallable(FUNCTION_LIST_UNSPLASH_PHOTOS)
             .call(hashMapOf(FIELD_PAGE to page, FIELD_PER_PAGE to pageSize))
+            .await()
+        val photos = (result.data as? Map<*, *>)?.get(FIELD_PHOTOS) as? List<*> ?: emptyList<Any?>()
+        photos.mapNotNull { (it as? Map<*, *>)?.let(::parsePhoto) }
+    }
+
+    override suspend fun searchPhotos(
+        query: String,
+        page: Int,
+        pageSize: Int
+    ): Result<List<Photo>> = safeCall {
+        val result = functions.getHttpsCallable(FUNCTION_SEARCH_UNSPLASH_PHOTOS)
+            .call(hashMapOf(FIELD_QUERY to query, FIELD_PAGE to page, FIELD_PER_PAGE to pageSize))
             .await()
         val photos = (result.data as? Map<*, *>)?.get(FIELD_PHOTOS) as? List<*> ?: emptyList<Any?>()
         photos.mapNotNull { (it as? Map<*, *>)?.let(::parsePhoto) }

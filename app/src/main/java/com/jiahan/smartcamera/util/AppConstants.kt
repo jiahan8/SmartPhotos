@@ -8,6 +8,10 @@ object AppConstants {
     // Pagination
     const val DEFAULT_PAGE_SIZE = 10
 
+    // Unsplash API (Explore) — 1-indexed pagination; per_page capped at 30 by Unsplash.
+    const val UNSPLASH_FIRST_PAGE = 1
+    const val UNSPLASH_MAX_PAGE_SIZE = 30
+
     // Text limits
     const val MAX_POST_TEXT_LENGTH = 500
     const val MAX_USERNAME_LENGTH = 30

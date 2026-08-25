@@ -62,6 +62,7 @@ class AuthViewModel @Inject constructor(
 
     fun updateEmailText(text: String) {
         _uiState.update { it.copy(email = text) }
+        analyticsRepository.logTextCustomEvent(text)
     }
 
     fun updatePasswordText(text: String) {
@@ -71,10 +72,12 @@ class AuthViewModel @Inject constructor(
 
     fun updateDisplayNameText(text: String) {
         _uiState.update { it.copy(displayName = text) }
+        analyticsRepository.logDisplayNameCustomEvent(text)
     }
 
     fun updateUsernameText(text: String) {
         _uiState.update { it.copy(username = text) }
+        analyticsRepository.logUsernameCustomEvent(text)
     }
 
     fun updatePasswordVisibility(showPassword: Boolean) {

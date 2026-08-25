@@ -134,7 +134,7 @@ fun SearchScreen(
                 ) { state ->
                     when (state) {
                         is SearchContent.Idle ->
-                            FullScreenMessage(stringResource(R.string.no_results_found))
+                            FullScreenMessage(stringResource(R.string.search_your_notes))
 
                         is SearchContent.Loading -> HomeListSkeleton()
 

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.navigation.Screen
@@ -68,6 +69,7 @@ private val EditNoteUiState.isTextChanged: Boolean
 class EditNoteViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val noteRepository: NoteRepository,
+    private val analyticsRepository: AnalyticsRepository,
     private val noteHandler: NoteHandler,
     private val resourceProvider: ResourceProvider,
     private val errorHandler: ErrorHandler,
@@ -131,6 +133,7 @@ class EditNoteViewModel @Inject constructor(
         )
 
     fun updateNoteText(text: String) {
+        analyticsRepository.logEditNoteCustomEvent(text)
         _uiState.update {
             it.copy(
                 noteText = text,

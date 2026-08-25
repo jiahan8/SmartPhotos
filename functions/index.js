@@ -802,3 +802,44 @@ exports.listUnsplashPhotos = onCall(
       return {photos: await response.json()};
     },
 );
+
+/**
+ * Callable that proxies Unsplash's search-photos endpoint so the Unsplash
+ * access key stays server-side instead of being bundled into the app.
+ */
+exports.searchUnsplashPhotos = onCall(
+    {secrets: [UNSPLASH_ACCESS_KEY]},
+    async (request) => {
+      if (!(request.auth && request.auth.uid)) {
+        throw new HttpsError("unauthenticated", "Sign-in required.");
+      }
+
+      const query = ((request.data && request.data.query) || "").trim();
+      if (!query) {
+        throw new HttpsError("invalid-argument", "Search query is required.");
+      }
+
+      const page = (request.data && request.data.page) || 1;
+      const perPage = (request.data && request.data.perPage) || 10;
+
+      const url = new URL(`${UNSPLASH_API_BASE_URL}/search/photos`);
+      url.searchParams.set("query", query);
+      url.searchParams.set("page", String(page));
+      url.searchParams.set("per_page", String(perPage));
+
+      const response = await fetch(url, {
+        headers: {
+          "Authorization": `Client-ID ${UNSPLASH_ACCESS_KEY.value()}`,
+        },
+      });
+
+      if (!response.ok) {
+        logger.error(
+            `Unsplash search request failed with status ${response.status}`);
+        throw new HttpsError("unavailable", "Failed to search photos.");
+      }
+
+      const json = await response.json();
+      return {photos: json.results || []};
+    },
+);

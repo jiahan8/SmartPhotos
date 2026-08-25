@@ -2,9 +2,11 @@ package com.jiahan.smartcamera.explore
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.PhotoRepository
 import com.jiahan.smartcamera.domain.Photo
-import com.jiahan.smartcamera.util.AppConstants.DEFAULT_PAGE_SIZE
+import com.jiahan.smartcamera.util.AppConstants.UNSPLASH_FIRST_PAGE
+import com.jiahan.smartcamera.util.AppConstants.UNSPLASH_MAX_PAGE_SIZE
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorTag
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,29 +25,40 @@ sealed interface ExploreContent {
 data class ExploreUiState(
     val content: ExploreContent = ExploreContent.Loading,
     val isRefreshing: Boolean = false,
-    val isLoadingMore: Boolean = false
+    val isLoadingMore: Boolean = false,
+    val isSearchActive: Boolean = false,
+    val searchQuery: String = "",
+    val searchContent: ExploreContent? = null,
+    val isSearchLoadingMore: Boolean = false
 ) {
     val photos: List<Photo>?
         get() = (content as? ExploreContent.Success)?.photos
+
+    val searchPhotos: List<Photo>?
+        get() = (searchContent as? ExploreContent.Success)?.photos
+
+    /** True once the user has submitted at least one search this session. */
+    val hasSubmittedSearch: Boolean
+        get() = searchContent != null
 }
 
 @HiltViewModel
 class ExploreViewModel @Inject constructor(
     private val photoRepository: PhotoRepository,
+    private val analyticsRepository: AnalyticsRepository,
     private val errorHandler: ErrorHandler
 ) : ViewModel() {
-
-    companion object {
-        // Unsplash pagination is 1-indexed.
-        private const val FIRST_PAGE = 1
-    }
 
     private val _uiState = MutableStateFlow(ExploreUiState())
     val uiState = _uiState.asStateFlow()
 
-    private var currentPage = FIRST_PAGE
-    private val pageSize = DEFAULT_PAGE_SIZE
+    private var currentPage = UNSPLASH_FIRST_PAGE
+    private val pageSize = UNSPLASH_MAX_PAGE_SIZE
     private var hasMoreData = true
+
+    private var searchCurrentPage = UNSPLASH_FIRST_PAGE
+    private var searchHasMoreData = true
+    private var lastSubmittedQuery = ""
 
     init {
         viewModelScope.launch { fetchPhotos(initialLoading = true) }
@@ -53,6 +66,44 @@ class ExploreViewModel @Inject constructor(
 
     fun logImageLoadError(throwable: Throwable) {
         errorHandler.logError(throwable, tag = ErrorTag.IMAGE_LOAD)
+    }
+
+    fun toggleSearch() {
+        // Closing only hides the field — the search query/results/pagination are left in
+        // place, same as the browse feed, so reopening search shows them again for free.
+        _uiState.update { it.copy(isSearchActive = !it.isSearchActive) }
+    }
+
+    fun updateSearchQuery(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+        if (query.isNotBlank()) {
+            analyticsRepository.logExploreSearchCustomEvent(query)
+        }
+    }
+
+    fun submitSearch() {
+        val query = _uiState.value.searchQuery.trim()
+        if (query.isBlank()) return
+
+        lastSubmittedQuery = query
+        searchCurrentPage = UNSPLASH_FIRST_PAGE
+        searchHasMoreData = true
+        viewModelScope.launch { fetchSearchResults(initialLoading = true) }
+    }
+
+    fun loadMoreSearchResults() {
+        if (_uiState.value.isSearchLoadingMore ||
+            !searchHasMoreData ||
+            !_uiState.value.hasSubmittedSearch
+        ) {
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSearchLoadingMore = true) }
+            fetchSearchResults(initialLoading = false)
+            _uiState.update { it.copy(isSearchLoadingMore = false) }
+        }
     }
 
     fun refresh() {
@@ -78,7 +129,7 @@ class ExploreViewModel @Inject constructor(
             if (!_uiState.value.isRefreshing) {
                 _uiState.update { it.copy(content = ExploreContent.Loading) }
             }
-            currentPage = FIRST_PAGE
+            currentPage = UNSPLASH_FIRST_PAGE
             hasMoreData = true
         }
         if (!hasMoreData) return
@@ -96,6 +147,36 @@ class ExploreViewModel @Inject constructor(
                 if (initialLoading) {
                     _uiState.update {
                         it.copy(content = ExploreContent.Error(errorHandler.getErrorMessage(e)))
+                    }
+                }
+            }
+    }
+
+    private suspend fun fetchSearchResults(initialLoading: Boolean) {
+        if (initialLoading) {
+            _uiState.update { it.copy(searchContent = ExploreContent.Loading) }
+        }
+        if (!searchHasMoreData) return
+
+        photoRepository.searchPhotos(
+            query = lastSubmittedQuery,
+            page = searchCurrentPage,
+            pageSize = pageSize
+        )
+            .onSuccess { result ->
+                val prev = if (initialLoading) emptyList()
+                else _uiState.value.searchPhotos ?: emptyList()
+                _uiState.update { it.copy(searchContent = ExploreContent.Success(prev + result)) }
+                searchHasMoreData = result.size >= pageSize
+                searchCurrentPage++
+            }
+            .onFailure { e ->
+                errorHandler.logError(e)
+                if (initialLoading) {
+                    _uiState.update {
+                        it.copy(
+                            searchContent = ExploreContent.Error(errorHandler.getErrorMessage(e))
+                        )
                     }
                 }
             }

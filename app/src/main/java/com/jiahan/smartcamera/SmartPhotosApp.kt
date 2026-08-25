@@ -22,6 +22,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -38,6 +39,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.jiahan.smartcamera.common.CustomSnackbarHost
+import com.jiahan.smartcamera.common.LocalBottomBarPadding
 import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.navigation.bottomNavItems
 import com.jiahan.smartcamera.navigation.navEnterTransition
@@ -177,22 +179,26 @@ fun SmartPhotosApp(
                 }
             ) { padding ->
                 if (isAppReady) {
-                    NavHost(
-                        navController = navController,
-                        startDestination = startDestination,
-                        enterTransition = navEnterTransition,
-                        exitTransition = navExitTransition,
-                        popEnterTransition = navPopEnterTransition,
-                        popExitTransition = navPopExitTransition,
+                    CompositionLocalProvider(
+                        LocalBottomBarPadding provides padding.calculateBottomPadding()
                     ) {
-                        smartPhotosNavGraph(
+                        NavHost(
                             navController = navController,
-                            scrollToTop = scrollToTop,
-                            onScrollDirectionChanged = onScrollDirectionChanged,
-                            onScrollToTopConsumed = onScrollToTopConsumed,
-                            onUpdateStartDestination = onUpdateStartDestination,
-                            snackbarHostState = screenSnackbarHostState,
-                        )
+                            startDestination = startDestination,
+                            enterTransition = navEnterTransition,
+                            exitTransition = navExitTransition,
+                            popEnterTransition = navPopEnterTransition,
+                            popExitTransition = navPopExitTransition,
+                        ) {
+                            smartPhotosNavGraph(
+                                navController = navController,
+                                scrollToTop = scrollToTop,
+                                onScrollDirectionChanged = onScrollDirectionChanged,
+                                onScrollToTopConsumed = onScrollToTopConsumed,
+                                onUpdateStartDestination = onUpdateStartDestination,
+                                snackbarHostState = screenSnackbarHostState,
+                            )
+                        }
                     }
                 }
             }

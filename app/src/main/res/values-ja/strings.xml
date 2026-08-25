@@ -24,6 +24,7 @@
     <string name="what_you_looking_for">お探しのものは何ですか？</string>
     <string name="find_notes">保存したメモを探す</string>
     <string name="look_up">書いた内容を調べる</string>
+    <string name="search_your_notes">メモを検索</string>
     <string name="no_results_found">結果が見つかりません</string>
 
     <!-- Note -->
@@ -48,6 +49,7 @@
     <!-- Favorite -->
     <string name="favorite">お気に入り</string>
     <string name="search_favorites">お気に入りを検索</string>
+    <string name="favorite_note_to_see_it_here">メモをお気に入りに追加するとここに表示されます</string>
 
     <!-- Settings -->
     <string name="settings">設定</string>
@@ -147,6 +149,7 @@
     <string name="cd_play_video">動画を再生</string>
     <string name="cd_remove_image">画像を削除</string>
     <string name="cd_clear_field">テキストをクリア</string>
+    <string name="cd_close_search">検索を閉じる</string>
     <string name="cd_choose_photos">複数の写真を選択</string>
     <string name="cd_take_photo">写真を撮る</string>
     <string name="cd_take_video">動画を撮影</string>

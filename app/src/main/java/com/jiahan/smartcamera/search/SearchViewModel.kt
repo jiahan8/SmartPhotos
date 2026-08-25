@@ -81,6 +81,8 @@ class SearchViewModel @Inject constructor(
 
     fun updateSearchQuery(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
+        analyticsRepository.logSearchCustomEvent(query)
+        analyticsRepository.logSearchEvent(query)
     }
 
     fun logImageLoadError(throwable: Throwable) {
@@ -100,8 +102,6 @@ class SearchViewModel @Inject constructor(
         noteRepository.searchNotes(query = query)
             .onSuccess { results ->
                 _uiState.update { it.copy(content = SearchContent.Success(results)) }
-                analyticsRepository.logSearchCustomEvent(query)
-                analyticsRepository.logSearchEvent(query)
             }
             .onFailure { e ->
                 errorHandler.logError(e)

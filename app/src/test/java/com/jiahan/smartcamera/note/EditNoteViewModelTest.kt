@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.cash.turbine.test
 import com.jiahan.smartcamera.MainDispatcherRule
+import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
@@ -50,6 +51,7 @@ class EditNoteViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val noteRepository: NoteRepository = mockk()
+    private val analyticsRepository: AnalyticsRepository = mockk()
     private val noteHandler = NoteHandler()
     private val resourceProvider: ResourceProvider = mockk()
     private val errorHandler: ErrorHandler = mockk()
@@ -67,6 +69,7 @@ class EditNoteViewModelTest {
     private fun createViewModel() = EditNoteViewModel(
         savedStateHandle = SavedStateHandle(mapOf("noteId" to noteId)),
         noteRepository = noteRepository,
+        analyticsRepository = analyticsRepository,
         noteHandler = noteHandler,
         resourceProvider = resourceProvider,
         errorHandler = errorHandler
@@ -77,6 +80,7 @@ class EditNoteViewModelTest {
         every { errorHandler.logError(any()) } just runs
         every { errorHandler.getErrorMessage(any()) } returns "Error"
         every { resourceProvider.getString(any()) } returns "Text too long"
+        every { analyticsRepository.logEditNoteCustomEvent(any()) } just runs
         coEvery { noteRepository.getNote(noteId) } returns Result.success(testNote)
     }
 

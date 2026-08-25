@@ -19,7 +19,11 @@ class FakeAnalyticsRepository : AnalyticsRepository {
 
     override fun logNoteCustomEvent(value: String) {}
 
+    override fun logEditNoteCustomEvent(value: String) {}
+
     override fun logFavoriteSearchCustomEvent(value: String) {}
+
+    override fun logExploreSearchCustomEvent(value: String) {}
 
     override fun logTextCustomEvent(value: String) {
         lastLoggedText = value

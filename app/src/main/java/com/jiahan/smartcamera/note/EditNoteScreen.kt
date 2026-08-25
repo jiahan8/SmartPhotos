@@ -49,7 +49,9 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -187,6 +189,23 @@ fun EditNoteScreen(
                         focusRequester.requestFocus()
                     }
 
+                    // Places the cursor at the end of the pre-filled text rather than wherever a
+                    // String-only BasicTextField would default it to, and re-applies on any
+                    // external change (e.g. the trailing clear icon).
+                    var noteTextFieldValue by remember {
+                        mutableStateOf(
+                            TextFieldValue(text = noteText, selection = TextRange(noteText.length))
+                        )
+                    }
+                    LaunchedEffect(noteText) {
+                        if (noteTextFieldValue.text != noteText) {
+                            noteTextFieldValue = TextFieldValue(
+                                text = noteText,
+                                selection = TextRange(noteText.length)
+                            )
+                        }
+                    }
+
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -216,8 +235,11 @@ fun EditNoteScreen(
                                 )
 
                                 BasicTextField(
-                                    value = noteText,
-                                    onValueChange = { text -> viewModel.updateNoteText(text) },
+                                    value = noteTextFieldValue,
+                                    onValueChange = { newValue ->
+                                        noteTextFieldValue = newValue
+                                        viewModel.updateNoteText(newValue.text)
+                                    },
                                     textStyle = MaterialTheme.typography.bodyMedium.copy(
                                         color = MaterialTheme.colorScheme.onSurface
                                     ),

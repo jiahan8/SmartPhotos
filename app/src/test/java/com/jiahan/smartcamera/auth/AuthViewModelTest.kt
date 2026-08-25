@@ -52,6 +52,8 @@ class AuthViewModelTest {
     @Before
     fun setUp() {
         every { analyticsRepository.logTextCustomEvent(any()) } just runs
+        every { analyticsRepository.logDisplayNameCustomEvent(any()) } just runs
+        every { analyticsRepository.logUsernameCustomEvent(any()) } just runs
         every { analyticsRepository.setUserId(any()) } just runs
         every { authRepository.currentUserId } returns "test-uid"
         every { errorHandler.logError(any()) } just runs
