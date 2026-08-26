@@ -1,5 +1,6 @@
 package com.jiahan.smartcamera.navigation
 
+import androidx.annotation.Keep
 import kotlinx.serialization.Serializable
 
 /**
@@ -54,5 +55,9 @@ sealed interface Screen {
     data object Settings : Screen
 }
 
+// Navigation Compose's type-safe routes resolve enum route arguments via Class.forName() at
+// runtime (see the AndroidX Navigation NavType.EnumType source); @Keep stops R8 from renaming or
+// removing this class under minification, which would otherwise break that lookup in release builds.
+@Keep
 @Serializable
 enum class MediaSourceType { LOCAL, REMOTE }
