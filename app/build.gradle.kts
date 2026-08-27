@@ -23,8 +23,8 @@ android {
         applicationId = "com.jiahan.smartcamera"
         minSdk = 28
         targetSdk = 36
-        versionCode = 5
-        versionName = "3.0.1"
+        versionCode = 6
+        versionName = "3.1.0"
 
         // Custom runner installs HiltTestApplication so instrumented tests can inject the Hilt graph.
         testInstrumentationRunner = "com.jiahan.smartcamera.HiltTestRunner"
