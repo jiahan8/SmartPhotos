@@ -2,16 +2,18 @@ package com.jiahan.smartcamera
 
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.IntentSenderRequest
 import androidx.core.content.IntentCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.android.play.core.ktx.AppUpdateResult
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AppUpdateRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
+import com.jiahan.smartcamera.domain.AppUpdateState
 import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.note.IncomingShare
 import com.jiahan.smartcamera.note.IncomingShareHandler
@@ -46,7 +48,7 @@ class MainViewModel @Inject constructor(
     private val analyticsRepository: AnalyticsRepository,
     userPreferencesRepository: UserPreferencesRepository,
     private val incomingShareHandler: IncomingShareHandler,
-    appUpdateRepository: AppUpdateRepository
+    private val appUpdateRepository: AppUpdateRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -61,7 +63,7 @@ class MainViewModel @Inject constructor(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(STATEFLOW_WHILE_SUBSCRIBED_MS),
-            initialValue = null
+            initialValue = AppUpdateState.NotAvailable
         )
 
     val isDarkTheme = userPreferencesRepository.userPreferencesFlow
@@ -151,9 +153,15 @@ class MainViewModel @Inject constructor(
         _uiState.update { it.copy(pendingNoteId = null) }
     }
 
+    /**
+     * Forwards the Activity's launcher to the data layer, which owns the Play handle needed to
+     * start the flow. Nothing about the launcher is retained here.
+     */
+    fun startFlexibleUpdate(launcher: ActivityResultLauncher<IntentSenderRequest>) {
+        appUpdateRepository.startFlexibleUpdate(launcher)
+    }
+
     fun completeUpdate() {
-        viewModelScope.launch {
-            (updateState.value as? AppUpdateResult.Downloaded)?.completeUpdate()
-        }
+        viewModelScope.launch { appUpdateRepository.completeUpdate() }
     }
 }

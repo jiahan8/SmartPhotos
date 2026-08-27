@@ -3,10 +3,8 @@ package com.jiahan.smartcamera
 import android.content.Intent
 import android.net.Uri
 import app.cash.turbine.test
-import com.google.android.gms.tasks.Tasks
-import com.google.android.play.core.appupdate.AppUpdateInfo
-import com.google.android.play.core.appupdate.AppUpdateManager
-import com.google.android.play.core.ktx.AppUpdateResult
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.IntentSenderRequest
 import com.jiahan.smartcamera.data.datastore.UserPreferences
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
@@ -14,6 +12,7 @@ import com.jiahan.smartcamera.data.repository.AppUpdateRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
+import com.jiahan.smartcamera.domain.AppUpdateState
 import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.note.IncomingShare
 import com.jiahan.smartcamera.note.IncomingShareHandler
@@ -243,49 +242,56 @@ class MainViewModelTest {
     // -------------------------------------------------------------------------
     @Test
     fun `updateState reflects an available update from the repository`() = runTest {
-        val available = AppUpdateResult.Available(mockk<AppUpdateManager>(), mockk<AppUpdateInfo>())
-        every { appUpdateRepository.observeUpdateState() } returns flowOf(available)
+        every { appUpdateRepository.observeUpdateState() } returns
+                flowOf(AppUpdateState.Available)
 
         val vm = createViewModel()
 
         vm.updateState.test {
-            assertEquals(available, awaitItem())
+            assertEquals(AppUpdateState.Available, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `completeUpdate completes the update once it has downloaded`() = runTest {
-        val appUpdateManager: AppUpdateManager = mockk()
-        every { appUpdateManager.completeUpdate() } returns Tasks.forResult(null)
-        val downloaded = AppUpdateResult.Downloaded(appUpdateManager)
-        every { appUpdateRepository.observeUpdateState() } returns flowOf(downloaded)
+    fun `updateState reflects a downloaded update from the repository`() = runTest {
+        every { appUpdateRepository.observeUpdateState() } returns
+                flowOf(AppUpdateState.Downloaded)
 
         val vm = createViewModel()
 
         vm.updateState.test {
-            assertEquals(downloaded, awaitItem())
-            vm.completeUpdate()
-            verify { appUpdateManager.completeUpdate() }
+            assertEquals(AppUpdateState.Downloaded, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `completeUpdate is a no-op when no update has downloaded`() = runTest {
-        val appUpdateManager: AppUpdateManager = mockk()
-        val available = AppUpdateResult.Available(appUpdateManager, mockk<AppUpdateInfo>())
-        every { appUpdateRepository.observeUpdateState() } returns flowOf(available)
-
+    fun `updateState starts out NotAvailable before the repository emits`() = runTest {
         val vm = createViewModel()
 
-        vm.updateState.test {
-            awaitItem()
-            vm.completeUpdate()
-            cancelAndIgnoreRemainingEvents()
-        }
+        assertEquals(AppUpdateState.NotAvailable, vm.updateState.value)
+    }
 
-        verify(exactly = 0) { appUpdateManager.completeUpdate() }
+    // Whether an update is actually installable is the repository's call (it holds the Play
+    // handle), so the ViewModel's job here is only to delegate.
+    @Test
+    fun `completeUpdate delegates to the repository`() = runTest {
+        coEvery { appUpdateRepository.completeUpdate() } just runs
+
+        createViewModel().completeUpdate()
+
+        coVerify { appUpdateRepository.completeUpdate() }
+    }
+
+    @Test
+    fun `startFlexibleUpdate forwards the launcher to the repository`() = runTest {
+        val launcher: ActivityResultLauncher<IntentSenderRequest> = mockk()
+        every { appUpdateRepository.startFlexibleUpdate(launcher) } returns true
+
+        createViewModel().startFlexibleUpdate(launcher)
+
+        verify { appUpdateRepository.startFlexibleUpdate(launcher) }
     }
 
     // -------------------------------------------------------------------------

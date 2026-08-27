@@ -15,7 +15,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import com.google.android.play.core.ktx.AppUpdateResult
+import com.jiahan.smartcamera.domain.AppUpdateState
 import com.jiahan.smartcamera.navigation.Screen
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -91,7 +91,9 @@ class MainActivity : ComponentActivity() {
             }
 
             LaunchedEffect(updateState) {
-                (updateState as? AppUpdateResult.Available)?.startFlexibleUpdate(appUpdateLauncher)
+                if (updateState is AppUpdateState.Available) {
+                    viewModel.startFlexibleUpdate(appUpdateLauncher)
+                }
             }
 
             SmartPhotosApp(
@@ -102,7 +104,7 @@ class MainActivity : ComponentActivity() {
                 scrollToTop = scrollToTop,
                 hasPendingShare = hasPendingShare,
                 pendingNoteId = pendingNoteId,
-                isUpdateReadyToInstall = updateState is AppUpdateResult.Downloaded,
+                isUpdateReadyToInstall = updateState is AppUpdateState.Downloaded,
                 onScrollDirectionChanged = viewModel::updateBottomBarVisibility,
                 onScrollToTopConsumed = viewModel::consumeScrollToTopEvent,
                 onTriggerScrollToTop = viewModel::triggerScrollToTop,
