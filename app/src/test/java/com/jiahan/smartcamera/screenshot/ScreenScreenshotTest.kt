@@ -15,6 +15,7 @@ import com.jiahan.smartcamera.fake.FakeUserPreferencesRepository
 import com.jiahan.smartcamera.home.HomeScreen
 import com.jiahan.smartcamera.home.HomeViewModel
 import com.jiahan.smartcamera.note.NoteActionsDelegate
+import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.search.SearchScreen
@@ -50,14 +51,15 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
         val repo = FakeNoteRepository().apply { notesResult = notes }
         val noteHandler = NoteHandler()
         val errorHandler = FakeErrorHandler()
-        val noteActions = NoteActionsDelegate(repo, noteHandler, errorHandler)
+        val noteErrorReporter = NoteErrorReporter(errorHandler)
+        val noteActions = NoteActionsDelegate(repo, noteHandler, noteErrorReporter)
         return HomeViewModel(
             repo,
             noteHandler,
             noteActions,
             NoteShareDelegate(
                 FakeMediaFileRepository(),
-                noteActions,
+                noteErrorReporter,
                 FakeResourceProvider(RuntimeEnvironment.getApplication())
             ),
             errorHandler,
@@ -144,7 +146,8 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
         val noteRepository = FakeNoteRepository()
         val noteHandler = NoteHandler()
         val errorHandler = FakeErrorHandler()
-        val noteActions = NoteActionsDelegate(noteRepository, noteHandler, errorHandler)
+        val noteErrorReporter = NoteErrorReporter(errorHandler)
+        val noteActions = NoteActionsDelegate(noteRepository, noteHandler, noteErrorReporter)
         val viewModel = SearchViewModel(
             noteRepository = noteRepository,
             analyticsRepository = FakeAnalyticsRepository(),
@@ -152,7 +155,7 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
             noteActions = noteActions,
             noteShare = NoteShareDelegate(
                 FakeMediaFileRepository(),
-                noteActions,
+                noteErrorReporter,
                 FakeResourceProvider(RuntimeEnvironment.getApplication())
             ),
             errorHandler = errorHandler,

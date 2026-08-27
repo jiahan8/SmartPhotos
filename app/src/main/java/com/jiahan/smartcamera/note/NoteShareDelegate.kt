@@ -16,15 +16,15 @@ import javax.inject.Inject
 data class ShareContent(val text: String?, val uris: List<Uri>)
 
 /**
- * Scoped per ViewModel like [NoteActionsDelegate]: this owns a single [shareEvent] stream meant to
- * be shared by whatever depends on it within one ViewModel. No current dependent double-injects it,
- * but without this scope a future one could reintroduce the same silently-dropped-event bug that
- * [NoteActionsDelegate]'s scoping fixes.
+ * Scoped per ViewModel like [NoteActionsDelegate] and [NoteErrorReporter]: this owns a single
+ * [shareEvent] stream meant to be shared by whatever depends on it within one ViewModel. No current
+ * dependent double-injects it, but without this scope a future one could reintroduce the same
+ * silently-dropped-event bug that [NoteErrorReporter]'s scoping fixes for its reports.
  */
 @ViewModelScoped
 class NoteShareDelegate @Inject constructor(
     private val mediaFileRepository: MediaFileRepository,
-    private val noteActions: NoteActionsDelegate,
+    private val noteErrorReporter: NoteErrorReporter,
     private val resourceProvider: ResourceProvider
 ) {
     private val _shareEvent = MutableSharedFlow<ShareContent>(extraBufferCapacity = 1)
@@ -45,7 +45,7 @@ class NoteShareDelegate @Inject constructor(
         }
 
         if (mediaList.isNotEmpty() && uris.isEmpty()) {
-            noteActions.reportError(resourceProvider.getString(R.string.share_note_failure))
+            noteErrorReporter.reportError(resourceProvider.getString(R.string.share_note_failure))
             return
         }
 

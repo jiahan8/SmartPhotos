@@ -47,9 +47,6 @@ class NotePreviewViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(NotePreviewUiState())
     val uiState = _uiState.asStateFlow()
     private val _actionError = MutableSharedFlow<String>(extraBufferCapacity = 1)
-
-    // noteShare shares its NoteActionsDelegate instance with noteActions (see @ViewModelScoped on
-    // NoteActionsDelegate), so merging here surfaces share failures reported via noteActions too.
     val actionError = merge(_actionError, noteActions.actionError)
     val shareEvent = noteShare.shareEvent
 

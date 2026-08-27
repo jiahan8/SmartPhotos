@@ -18,6 +18,7 @@ import com.jiahan.smartcamera.fake.FakeMediaFileRepository
 import com.jiahan.smartcamera.fake.FakeNoteRepository
 import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.note.NoteActionsDelegate
+import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
@@ -65,7 +66,8 @@ class NotePreviewScreenTest {
 
     private fun launchNotePreviewScreen(noteId: String = "note1") {
         val errorHandler = FakeErrorHandler()
-        val noteActions = NoteActionsDelegate(noteRepository, noteHandler, errorHandler)
+        val noteErrorReporter = NoteErrorReporter(errorHandler)
+        val noteActions = NoteActionsDelegate(noteRepository, noteHandler, noteErrorReporter)
         val viewModel = NotePreviewViewModel(
             savedStateHandle = SavedStateHandle(mapOf("id" to noteId)),
             noteRepository = noteRepository,
@@ -74,7 +76,7 @@ class NotePreviewScreenTest {
             errorHandler = errorHandler,
             noteShare = NoteShareDelegate(
                 FakeMediaFileRepository(),
-                noteActions,
+                noteErrorReporter,
                 FakeResourceProvider(composeTestRule.activity)
             ),
         )

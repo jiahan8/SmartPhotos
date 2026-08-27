@@ -17,6 +17,7 @@ import com.jiahan.smartcamera.fake.FakeNoteRepository
 import com.jiahan.smartcamera.fake.FakeMediaFileRepository
 import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.note.NoteActionsDelegate
+import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
@@ -48,14 +49,15 @@ class FavoriteScreenTest {
 
     private fun launchFavoriteScreen() {
         val errorHandler = FakeErrorHandler()
-        val noteActions = NoteActionsDelegate(noteRepository, NoteHandler(), errorHandler)
+        val noteErrorReporter = NoteErrorReporter(errorHandler)
+        val noteActions = NoteActionsDelegate(noteRepository, NoteHandler(), noteErrorReporter)
         val viewModel = FavoriteViewModel(
             noteRepository = noteRepository,
             analyticsRepository = FakeAnalyticsRepository(),
             noteActions = noteActions,
             noteShare = NoteShareDelegate(
                 FakeMediaFileRepository(),
-                noteActions,
+                noteErrorReporter,
                 FakeResourceProvider(composeTestRule.activity)
             ),
             errorHandler = errorHandler,

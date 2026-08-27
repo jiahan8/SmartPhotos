@@ -22,6 +22,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.lifecycle.SavedStateHandle
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.domain.HomeNote
+import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
 import com.jiahan.smartcamera.fake.FakeNoteRepository
 import com.jiahan.smartcamera.fake.FakeResourceProvider
@@ -73,6 +74,7 @@ class EditNoteScreenTest {
         val viewModel = EditNoteViewModel(
             savedStateHandle = SavedStateHandle(mapOf("noteId" to noteId)),
             noteRepository = noteRepository,
+            analyticsRepository = FakeAnalyticsRepository(),
             noteHandler = noteHandler,
             resourceProvider = FakeResourceProvider(composeTestRule.activity),
             errorHandler = errorHandler,

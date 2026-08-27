@@ -6,6 +6,7 @@ import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteActionsDelegate
+import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.AppConstants
@@ -46,7 +47,7 @@ class FavoriteViewModelTest {
         NoteActionsDelegate(
             noteRepository,
             noteHandler,
-            errorHandler
+            NoteErrorReporter(errorHandler)
         )
     }
     private val noteShare: NoteShareDelegate = mockk(relaxed = true)
