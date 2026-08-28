@@ -27,11 +27,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.DeleteNoteConfirmationDialog
 import com.jiahan.smartcamera.common.FullScreenMessage
+import com.jiahan.smartcamera.common.NoteItem
 import com.jiahan.smartcamera.common.ScrollDirectionEffect
 import com.jiahan.smartcamera.common.ScrollToTopEffect
 import com.jiahan.smartcamera.common.SearchBar
 import com.jiahan.smartcamera.common.showAppSnackbar
-import com.jiahan.smartcamera.home.HomeItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -138,7 +138,7 @@ fun FavoriteScreen(
                                         key = { index -> state.notes[index].noteId }
                                     ) { index ->
                                         val note = state.notes[index]
-                                        HomeItem(
+                                        NoteItem(
                                             note = note,
                                             onNavigateToNotePreview = {
                                                 onNavigateToNotePreview(note.noteId)

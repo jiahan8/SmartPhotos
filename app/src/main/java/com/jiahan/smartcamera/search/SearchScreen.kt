@@ -30,13 +30,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.DeleteNoteConfirmationDialog
 import com.jiahan.smartcamera.common.FullScreenMessage
+import com.jiahan.smartcamera.common.NoteItem
+import com.jiahan.smartcamera.common.NoteListSkeleton
 import com.jiahan.smartcamera.common.ScrollDirectionEffect
 import com.jiahan.smartcamera.common.ScrollToTopEffect
 import com.jiahan.smartcamera.common.SearchBar
 import com.jiahan.smartcamera.common.rememberCyclingPlaceholder
 import com.jiahan.smartcamera.common.showAppSnackbar
-import com.jiahan.smartcamera.home.HomeItem
-import com.jiahan.smartcamera.home.HomeListSkeleton
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -136,7 +136,7 @@ fun SearchScreen(
                         is SearchContent.Idle ->
                             FullScreenMessage(stringResource(R.string.search_your_notes))
 
-                        is SearchContent.Loading -> HomeListSkeleton()
+                        is SearchContent.Loading -> NoteListSkeleton()
 
                         is SearchContent.Error -> FullScreenMessage(state.message)
 
@@ -159,7 +159,7 @@ fun SearchScreen(
                                             key = { index -> state.notes[index].noteId }
                                         ) { index ->
                                             val note = state.notes[index]
-                                            HomeItem(
+                                            NoteItem(
                                                 note = note,
                                                 modifier = Modifier.animateItem(),
                                                 onNavigateToNotePreview = {

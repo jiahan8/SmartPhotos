@@ -1,28 +1,28 @@
 package com.jiahan.smartcamera.screenshot
 
+import com.jiahan.smartcamera.common.NoteItem
 import com.jiahan.smartcamera.domain.DetectedLabel
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
-import com.jiahan.smartcamera.home.HomeItem
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import org.junit.Test
 import java.time.Instant
 
 /**
- * Roborazzi screenshot tests for [HomeItem]. Each test captures a PNG that is diffed against a
+ * Roborazzi screenshot tests for [NoteItem]. Each test captures a PNG that is diffed against a
  * checked-in reference under `src/test/screenshots`, catching visual/layout regressions that
  * semantic (text) assertions cannot.
  *
  * Deterministic by construction: no remote image URLs (the account-circle fallback is drawn
  * instead of a network image), so Coil never performs I/O during rendering.
  */
-class HomeItemScreenshotTest : BaseScreenshotTest() {
+class NoteItemScreenshotTest : BaseScreenshotTest() {
 
     @Test
-    fun homeItem_textOnly_light() {
+    fun noteItem_textOnly_light() {
         capture {
             SmartCameraTheme(darkTheme = false) {
-                HomeItem(
+                NoteItem(
                     sampleNote,
                     {},
                     {},
@@ -37,10 +37,10 @@ class HomeItemScreenshotTest : BaseScreenshotTest() {
     }
 
     @Test
-    fun homeItem_textOnly_dark() {
+    fun noteItem_textOnly_dark() {
         capture {
             SmartCameraTheme(darkTheme = true) {
-                HomeItem(
+                NoteItem(
                     sampleNote,
                     {},
                     {},
@@ -55,10 +55,10 @@ class HomeItemScreenshotTest : BaseScreenshotTest() {
     }
 
     @Test
-    fun homeItem_favorited_light() {
+    fun noteItem_favorited_light() {
         capture {
             SmartCameraTheme(darkTheme = false) {
-                HomeItem(
+                NoteItem(
                     favoritedNote,
                     {},
                     {},
@@ -73,10 +73,10 @@ class HomeItemScreenshotTest : BaseScreenshotTest() {
     }
 
     @Test
-    fun homeItem_withMediaThumbnail_light() {
+    fun noteItem_withMediaThumbnail_light() {
         capture {
             SmartCameraTheme(darkTheme = false) {
-                HomeItem(
+                NoteItem(
                     noteWithMedia,
                     {},
                     {},

@@ -68,9 +68,9 @@ import com.jiahan.smartcamera.common.BottomSheetActionItem
 import com.jiahan.smartcamera.common.DeleteNoteConfirmationDialog
 import com.jiahan.smartcamera.common.FullScreenMessage
 import com.jiahan.smartcamera.common.MediaThumbnail
+import com.jiahan.smartcamera.common.NoteItemSkeleton
 import com.jiahan.smartcamera.common.ProfileAvatar
 import com.jiahan.smartcamera.common.showAppSnackbar
-import com.jiahan.smartcamera.home.HomeItemSkeleton
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
 import com.jiahan.smartcamera.util.toFormattedDateTime
 import kotlinx.coroutines.launch
@@ -167,7 +167,7 @@ fun NotePreviewScreen(
                     label = "NotePreviewContent"
                 ) { state ->
                     when (state) {
-                        is NotePreviewContent.Loading -> HomeItemSkeleton()
+                        is NotePreviewContent.Loading -> NoteItemSkeleton()
 
                         is NotePreviewContent.Error -> FullScreenMessage(state.message)
 
