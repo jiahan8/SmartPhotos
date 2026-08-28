@@ -153,7 +153,6 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
-    testImplementation(libs.org.json)
     // Roborazzi + Robolectric: JVM Compose screenshot tests (no emulator required).
     testImplementation(libs.robolectric)
     testImplementation(libs.roborazzi)

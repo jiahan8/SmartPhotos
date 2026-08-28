@@ -235,4 +235,69 @@ class DatabaseConvertersTest {
         assertNull(restored[0].generatedLandmarks)
         assertNull(restored[0].generatedLogos)
     }
+
+    // -------------------------------------------------------------------------
+    // Backward compatibility with rows written by the previous hand-rolled converter
+    // -------------------------------------------------------------------------
+
+    /**
+     * The converter used to be hand-rolled with `org.json`, and rows it wrote are still on disk in
+     * installs that upgrade. Every round-trip test above encodes with the *current* serializer
+     * first, so none of them can catch a break in reading that older format — this one pins it by
+     * decoding a literal string in exactly the shape the old encoder produced (nulls omitted,
+     * `isVideo` always written).
+     */
+    @Test
+    fun `toMediaList decodes a row written by the legacy org_json converter`() {
+        val legacyJson = """
+            [{"photoUrl":"https://example.com/photo.jpg","isVideo":false,
+              "generatedText":["a cat","a dog"],
+              "generatedObjects":[{"objectName":"cat","score":0.95}],
+              "generatedLabels":[{"label":"outdoor","score":0.99}],
+              "generatedLandmarks":[{"label":"Eiffel Tower","score":0.92}],
+              "generatedLogos":[{"label":"Nike","score":0.97}]},
+             {"videoUrl":"https://example.com/video.mp4",
+              "thumbnailUrl":"https://example.com/thumb.jpg","isVideo":true}]
+        """.trimIndent()
+
+        val restored = requireNotNull(converters.toMediaList(legacyJson))
+
+        assertEquals(2, restored.size)
+
+        val photo = restored[0]
+        assertEquals("https://example.com/photo.jpg", photo.photoUrl)
+        assertNull(photo.videoUrl)
+        assertNull(photo.thumbnailUrl)
+        assertEquals(false, photo.isVideo)
+        assertEquals(listOf("a cat", "a dog"), photo.generatedText)
+        assertEquals("cat", requireNotNull(photo.generatedObjects)[0].objectName)
+        assertEquals(0.95, requireNotNull(photo.generatedObjects)[0].score, 0.001)
+        assertEquals("outdoor", requireNotNull(photo.generatedLabels)[0].label)
+        assertEquals(0.99, requireNotNull(photo.generatedLabels)[0].score, 0.001)
+        assertEquals("Eiffel Tower", requireNotNull(photo.generatedLandmarks)[0].label)
+        assertEquals("Nike", requireNotNull(photo.generatedLogos)[0].label)
+
+        val video = restored[1]
+        assertEquals("https://example.com/video.mp4", video.videoUrl)
+        assertEquals("https://example.com/thumb.jpg", video.thumbnailUrl)
+        assertTrue(video.isVideo)
+        assertNull(video.photoUrl)
+        assertNull(video.generatedText)
+    }
+
+    /**
+     * Locks in `ignoreUnknownKeys` so a later tweak to the `Json` instance can't silently
+     * reintroduce strict parsing, which would make rows written by a newer build undecodable by
+     * an older one.
+     */
+    @Test
+    fun `toMediaList ignores keys it does not model`() {
+        val jsonWithExtraKey =
+            """[{"photoUrl":"https://example.com/photo.jpg","isVideo":false,"futureField":42}]"""
+
+        val restored = requireNotNull(converters.toMediaList(jsonWithExtraKey))
+
+        assertEquals(1, restored.size)
+        assertEquals("https://example.com/photo.jpg", restored[0].photoUrl)
+    }
 }

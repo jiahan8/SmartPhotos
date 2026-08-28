@@ -38,7 +38,6 @@ exoplayer = "1.11.0"
 coreSplashScreen = "1.2.0"
 mockk = "1.14.11"
 turbine = "1.2.1"
-orgJson = "20260719"
 androidxTestOrchestrator = "1.6.1"
 androidxTestRunner = "1.7.0"
 roborazzi = "1.70.0"
@@ -109,7 +108,6 @@ androidx-material-icons-extended = { group = "androidx.compose.material", name =
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
-org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
 androidx-test-orchestrator = { group = "androidx.test", name = "orchestrator", version.ref = "androidxTestOrchestrator" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }

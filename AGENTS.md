@@ -83,7 +83,10 @@ MVVM with a layered structure, one Kotlin package per feature under
 - **Domain** (`domain/`) — plain data classes shared across features (e.g. `HomeNote`,
   `MediaDetail`, `User`).
 - **Local** — Room database in `database/` (schemas exported to `app/schemas/`), DataStore
-  preferences in `data/datastore/`.
+  preferences in `data/datastore/`. A note's media list is persisted into the `notes.media_list`
+  column as `kotlinx.serialization` JSON keyed by `MediaDetail`'s property names, so those names are
+  an on-disk format: renaming one makes already-cached rows undecodable unless you pin the old key
+  with `@SerialName`.
 - **Remote** — Firebase (Auth, Firestore, Storage, Remote Config, Analytics, Crashlytics, FCM) plus
   Cloud Functions in `functions/index.js` calling Google Cloud Vision API for text/label/object
   detection on uploaded photos.

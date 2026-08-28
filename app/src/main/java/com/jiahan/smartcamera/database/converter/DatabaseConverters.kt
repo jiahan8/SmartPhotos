@@ -1,124 +1,29 @@
 package com.jiahan.smartcamera.database.converter
 
 import androidx.room.TypeConverter
-import com.jiahan.smartcamera.domain.DetectedLabel
-import com.jiahan.smartcamera.domain.DetectedObject
 import com.jiahan.smartcamera.domain.MediaDetail
-import org.json.JSONArray
-import org.json.JSONObject
+import kotlinx.serialization.json.Json
 
+/**
+ * Room type converters for [MediaDetail], persisted as JSON in the `notes.media_list` column.
+ *
+ * The keys are the property names of [MediaDetail] and its nested types, which is the same shape
+ * the previous hand-rolled `org.json` implementation wrote — rows cached by older builds decode
+ * unchanged. That also makes those property names a persisted format; see [MediaDetail].
+ */
 class DatabaseConverters {
 
-    companion object {
-        private const val PHOTO_URL = "photoUrl"
-        private const val VIDEO_URL = "videoUrl"
-        private const val THUMBNAIL_URL = "thumbnailUrl"
-        private const val IS_VIDEO = "isVideo"
-        private const val GENERATED_TEXT = "generatedText"
-        private const val GENERATED_OBJECTS = "generatedObjects"
-        private const val GENERATED_LABELS = "generatedLabels"
-        private const val GENERATED_LANDMARKS = "generatedLandmarks"
-        private const val GENERATED_LOGOS = "generatedLogos"
-        private const val OBJECT_NAME = "objectName"
-        private const val LABEL = "label"
-        private const val SCORE = "score"
+    private companion object {
+        // ignoreUnknownKeys tolerates rows written by a build that models fields this one doesn't,
+        // so adding a field to MediaDetail can't make already-cached notes undecodable.
+        val json = Json { ignoreUnknownKeys = true }
     }
 
     @TypeConverter
-    fun fromMediaList(mediaList: List<MediaDetail>?): String? {
-        mediaList ?: return null
-        val array = JSONArray()
-        for (media in mediaList) {
-            val obj = JSONObject()
-            media.photoUrl?.let { obj.put(PHOTO_URL, it) }
-            media.videoUrl?.let { obj.put(VIDEO_URL, it) }
-            media.thumbnailUrl?.let { obj.put(THUMBNAIL_URL, it) }
-            obj.put(IS_VIDEO, media.isVideo)
-            media.generatedText?.let { obj.put(GENERATED_TEXT, JSONArray(it)) }
-            media.generatedObjects?.let { objects ->
-                val arr = JSONArray()
-                for (o in objects) {
-                    arr.put(JSONObject().put(OBJECT_NAME, o.objectName).put(SCORE, o.score))
-                }
-                obj.put(GENERATED_OBJECTS, arr)
-            }
-            media.generatedLabels?.let { labels ->
-                val arr = JSONArray()
-                for (l in labels) {
-                    arr.put(JSONObject().put(LABEL, l.label).put(SCORE, l.score))
-                }
-                obj.put(GENERATED_LABELS, arr)
-            }
-            media.generatedLandmarks?.let { landmarks ->
-                val arr = JSONArray()
-                for (l in landmarks) {
-                    arr.put(JSONObject().put(LABEL, l.label).put(SCORE, l.score))
-                }
-                obj.put(GENERATED_LANDMARKS, arr)
-            }
-            media.generatedLogos?.let { logos ->
-                val arr = JSONArray()
-                for (l in logos) {
-                    arr.put(JSONObject().put(LABEL, l.label).put(SCORE, l.score))
-                }
-                obj.put(GENERATED_LOGOS, arr)
-            }
-            array.put(obj)
-        }
-        return array.toString()
-    }
+    fun fromMediaList(mediaList: List<MediaDetail>?): String? =
+        mediaList?.let { json.encodeToString(it) }
 
     @TypeConverter
-    fun toMediaList(json: String?): List<MediaDetail>? {
-        json ?: return null
-        val array = JSONArray(json)
-        return (0 until array.length()).map { i ->
-            val obj = array.getJSONObject(i)
-            MediaDetail(
-                photoUrl = obj.optString(PHOTO_URL).ifEmpty { null },
-                videoUrl = obj.optString(VIDEO_URL).ifEmpty { null },
-                thumbnailUrl = obj.optString(THUMBNAIL_URL).ifEmpty { null },
-                isVideo = obj.optBoolean(IS_VIDEO, false),
-                generatedText = obj.optJSONArray(GENERATED_TEXT)?.let { arr ->
-                    (0 until arr.length()).map { arr.getString(it) }
-                },
-                generatedObjects = obj.optJSONArray(GENERATED_OBJECTS)?.let { arr ->
-                    (0 until arr.length()).map { j ->
-                        val o = arr.getJSONObject(j)
-                        DetectedObject(
-                            objectName = o.getString(OBJECT_NAME),
-                            score = o.getDouble(SCORE),
-                        )
-                    }
-                },
-                generatedLabels = obj.optJSONArray(GENERATED_LABELS)?.let { arr ->
-                    (0 until arr.length()).map { j ->
-                        val l = arr.getJSONObject(j)
-                        DetectedLabel(
-                            label = l.getString(LABEL),
-                            score = l.getDouble(SCORE),
-                        )
-                    }
-                },
-                generatedLandmarks = obj.optJSONArray(GENERATED_LANDMARKS)?.let { arr ->
-                    (0 until arr.length()).map { j ->
-                        val l = arr.getJSONObject(j)
-                        DetectedLabel(
-                            label = l.getString(LABEL),
-                            score = l.getDouble(SCORE),
-                        )
-                    }
-                },
-                generatedLogos = obj.optJSONArray(GENERATED_LOGOS)?.let { arr ->
-                    (0 until arr.length()).map { j ->
-                        val l = arr.getJSONObject(j)
-                        DetectedLabel(
-                            label = l.getString(LABEL),
-                            score = l.getDouble(SCORE),
-                        )
-                    }
-                },
-            )
-        }
-    }
+    fun toMediaList(value: String?): List<MediaDetail>? =
+        value?.let { json.decodeFromString<List<MediaDetail>>(it) }
 }
