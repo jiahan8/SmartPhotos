@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A new push to the same branch supersedes the run already in flight.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Build, test and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # JDK 21, not 17: the Robolectric-backed unit tests abort under 17 with
+      # "Android SDK 36 requires Java 21" before running any test code.
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Robolectric downloads its android-all-instrumented jars into ~/.m2 (~500MB), which
+      # setup-gradle's ~/.gradle cache does not cover -- without this they are re-fetched
+      # on every run. Keyed on the version catalog since that pins the Robolectric version.
+      - name: Cache Robolectric jars
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: robolectric-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: robolectric-
+
+      # The Google Services plugin fails the build if this file is missing, and it is
+      # gitignored (see app/.gitignore), so CI has to restore it from a secret.
+      # Create the secret once with:  base64 -i app/google-services.json | pbcopy
+      - name: Restore google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "::error::GOOGLE_SERVICES_JSON secret is not set. Generate it with 'base64 -i app/google-services.json'."
+            exit 1
+          fi
+          echo "$GOOGLE_SERVICES_JSON" | base64 --decode > app/google-services.json
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest
+
+      # Uploaded here, before the screenshot step below re-runs the test task with a filter and
+      # rewrites app/build/test-results/ down to just the screenshot classes.
+      - name: Upload unit test report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-report
+          path: |
+            app/build/reports/tests/testDebugUnitTest/
+            app/build/test-results/testDebugUnitTest/
+          if-no-files-found: ignore
+
+      # Split from the unit tests so a red X says which kind of thing broke: logic or pixels.
+      # testDebugUnitTest *runs* the Roborazzi tests but never diffs them against the goldens
+      # in app/src/test/screenshots/ -- only verifyRoborazziDebug compares. Scoping it to the
+      # screenshot package re-runs just those tests instead of the whole suite, which costs a
+      # few seconds rather than doubling the test time. The filter is on the package, not a
+      # class-name pattern, so a future screenshot test can't quietly escape verification.
+      #
+      # `!cancelled()` so a unit-test failure above still reports screenshot status in the same
+      # run, instead of hiding it behind a fix-and-push cycle.
+      #
+      # On failure, download the screenshot-and-lint-reports artifact: the *_compare.png files
+      # show reference / diff / actual. Re-record intended changes with recordRoborazziDebug.
+      - name: Screenshot verification
+        if: ${{ !cancelled() }}
+        run: ./gradlew verifyRoborazziDebug --tests "com.jiahan.smartcamera.screenshot.*"
+
+      # Also `!cancelled()`, for the same reason: report every check in one run rather than
+      # surfacing them one fix-and-push at a time.
+      - name: Android Lint
+        if: ${{ !cancelled() }}
+        run: ./gradlew lintDebug
+
+      - name: Upload screenshot and lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshot-and-lint-reports
+          path: |
+            app/build/outputs/roborazzi/
+            app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
+
+  functions:
+    name: Lint Cloud Functions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - run: npm ci --prefix functions
+      - run: npm --prefix functions run lint

@@ -14,8 +14,13 @@ Run from the repo root (Gradle wrapper):
   - ViewModel `StateFlow`/`SharedFlow` assertions use [Turbine](https://github.com/cashapp/turbine)
     (`.test { ... }`) rather than manually collecting into a list — follow this in new ViewModel
     tests.
-- Screenshot tests use Roborazzi and live under `app/src/test/.../screenshot/` — they run as part of
-  `testDebugUnitTest`. Record new/updated golden images with `./gradlew recordRoborazziDebug`.
+- Screenshot tests use Roborazzi and live under `app/src/test/.../screenshot/`. Note that
+  `testDebugUnitTest` *runs* them but does **not** diff them against the goldens in
+  `app/src/test/screenshots/` — only `./gradlew verifyRoborazziDebug` compares. Run it before
+  pushing UI changes; on its own it re-runs the whole suite, so to compare screenshots alone use
+  `./gradlew verifyRoborazziDebug --tests "com.jiahan.smartcamera.screenshot.*"` (this is what CI
+  does). Re-record with `./gradlew recordRoborazziDebug` when a diff reflects an intended change,
+  and look at the new PNGs before committing them.
 - Instrumented tests (`app/src/androidTest`) require a device/emulator and run via
   `./gradlew connectedDebugAndroidTest`. They use a custom `HiltTestRunner` (installs
   `HiltTestApplication`), the AndroidX Test Orchestrator, and `clearPackageData=true` for hermetic,
@@ -28,6 +33,32 @@ Run from the repo root (Gradle wrapper):
   first.
 - Cloud Functions (`functions/`, Node 24): `npm --prefix functions run lint` (eslint, google config).
   Deploy/emulate with `npm --prefix functions run serve` / `deploy` (requires Firebase CLI auth).
+
+### CI
+
+`.github/workflows/ci.yml` runs on every push to `main`, every pull request, and on demand: it
+builds the debug APK, then runs the unit tests, the screenshot comparison and `lintDebug` as three
+separate steps on JDK 21, and lints `functions/` in a parallel job. The three steps are split so a
+failure says which kind of thing broke, and each runs even if an earlier one failed, so one run
+reports every problem rather than revealing them one push at a time.
+
+It needs one repository secret, `GOOGLE_SERVICES_JSON`, because `app/google-services.json` is
+gitignored and the Google Services plugin fails the build without it. Generate the value with
+`base64 -i app/google-services.json` and paste it into Settings > Secrets and variables > Actions
+(a *repository* secret, not an environment one — the job declares no environment).
+
+Each run uploads two artifacts: `unit-test-report` (the full suite) and
+`screenshot-and-lint-reports`. When a run fails on a screenshot, download the latter — the
+`*_compare.png` files show reference / diff / actual side by side.
+
+Two things to know about the goldens:
+
+- They are recorded on macOS, and Robolectric's rendering is not guaranteed to be identical on the
+  Linux runner. If CI reports diffs that don't reproduce locally, that is the likely cause, and the
+  fix is to record the goldens in the same environment that verifies them (record on CI and commit
+  the result) rather than to drop the check.
+- `settingsScreen_default.png` renders the app version string, so it goes stale on every version
+  bump in `app/build.gradle.kts` and needs re-recording alongside one.
 
 ## Architecture
 
