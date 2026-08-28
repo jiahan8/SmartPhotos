@@ -1,4 +1,5 @@
 import com.google.firebase.appdistribution.gradle.firebaseAppDistribution
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 
 plugins {
     alias(libs.plugins.android.application)
@@ -105,6 +106,30 @@ roborazzi {
     // Store reference screenshots in a VCS-tracked directory (default is the transient build/ dir),
     // so they are committed and used as the baseline by verifyRoborazziDebug.
     outputDir.set(layout.projectDirectory.dir("src/test/screenshots"))
+}
+
+// Pin the unit-test JVM's timezone and locale. `Long.toFormattedDateTime()` resolves
+// ZoneId.systemDefault() and Locale.getDefault() at render time, so a note's timestamp renders
+// differently depending on the machine running the tests. That made the Roborazzi goldens
+// machine-dependent: every screenshot containing a note row passed on a UTC+8 laptop and failed
+// on the UTC CI runner, 8 hours out. UTC/en-US is chosen to match the CI runner, so goldens
+// recorded anywhere verify everywhere. Re-record goldens if you change these.
+tasks.withType<Test>().configureEach {
+    systemProperty("user.timezone", "UTC")
+    systemProperty("user.language", "en")
+    systemProperty("user.country", "US")
+
+    // Report a failure as its assertion message and nothing else. Both settings are needed and
+    // do opposite jobs: the default SHORT format collapses the exception to
+    // "AssertionError at Foo.kt:59", hiding the one line that makes a Roborazzi failure
+    // actionable (which golden changed, and where its comparison image was written), while FULL
+    // on its own appends ~20 lines of Roborazzi-internal frames per failure that say nothing
+    // about this codebase. FULL restores the message; showStackTraces = false drops the frames.
+    testLogging {
+        events("failed")
+        exceptionFormat = TestExceptionFormat.FULL
+        showStackTraces = false
+    }
 }
 
 ksp {

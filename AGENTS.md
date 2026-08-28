@@ -53,10 +53,14 @@ Each run uploads two artifacts: `unit-test-report` (the full suite) and
 
 Two things to know about the goldens:
 
-- They are recorded on macOS, and Robolectric's rendering is not guaranteed to be identical on the
-  Linux runner. If CI reports diffs that don't reproduce locally, that is the likely cause, and the
-  fix is to record the goldens in the same environment that verifies them (record on CI and commit
-  the result) rather than to drop the check.
+- Any screenshot showing a note renders a formatted timestamp, and `Long.toFormattedDateTime()`
+  resolves `ZoneId.systemDefault()`/`Locale.getDefault()` at render time. That made the goldens
+  machine-dependent — they passed on a UTC+8 laptop and failed on the UTC CI runner, eight hours
+  out. `app/build.gradle.kts` now pins the unit-test JVM to UTC/en-US (`tasks.withType<Test>`), so
+  goldens recorded on any machine verify on every other one. If you change that pin, re-record.
+  More generally: a golden diff that appears only on CI is far more likely to be non-determinism in
+  the test than a rendering difference between platforms — check for a clock, locale, or random
+  value in the fixture before assuming the environment is at fault.
 - `settingsScreen_default.png` renders the app version string, so it goes stale on every version
   bump in `app/build.gradle.kts` and needs re-recording alongside one.
 
