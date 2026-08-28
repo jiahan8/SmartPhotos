@@ -28,6 +28,7 @@ import io.mockk.verify
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.LocalDate
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -37,6 +38,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 class MainViewModelTest {
 
@@ -51,6 +54,14 @@ class MainViewModelTest {
     private val incomingShareHandler: IncomingShareHandler = mockk()
     private val appUpdateRepository: AppUpdateRepository = mockk()
     private val errorHandler: ErrorHandler = mockk()
+
+    // A fixed instant well in the past, so the assertion below cannot accidentally pass against
+    // the real system clock. 23:30 UTC deliberately: the UTC-pinned test JVM reads this as the 9th,
+    // while any UTC+n zone reads the 10th, so the fixture also fails loudly if the activity day
+    // ever stops being resolved in the system time zone.
+    private val fixedClock = object : Clock {
+        override fun now(): Instant = Instant.parse("2024-03-09T23:30:00Z")
+    }
 
     private val defaultPrefs =
         UserPreferences(isDarkTheme = false, username = "", profilePicture = null)
@@ -83,7 +94,8 @@ class MainViewModelTest {
             analyticsRepository,
             userPreferencesRepository,
             incomingShareHandler,
-            appUpdateRepository
+            appUpdateRepository,
+            fixedClock
         )
 
     // -------------------------------------------------------------------------
@@ -106,6 +118,16 @@ class MainViewModelTest {
 
         assertEquals(Screen.Home, vm.uiState.value.startDestination)
         coVerify { userRepository.registerForPushNotifications() }
+    }
+
+    @Test
+    fun `records user activity for today in the system time zone`() = runTest {
+        every { authRepository.currentUserId } returns "uid_123"
+        every { authRepository.isCurrentUserEmailVerified } returns true
+
+        createViewModel()
+
+        coVerify { userRepository.recordUserActivity(LocalDate(2024, 3, 9)) }
     }
 
     @Test

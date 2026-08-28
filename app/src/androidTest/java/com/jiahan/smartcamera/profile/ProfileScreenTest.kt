@@ -27,7 +27,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.time.Instant
+import kotlin.time.Instant
 
 /**
  * Compose UI tests for [ProfileScreen].
@@ -81,7 +81,7 @@ class ProfileScreenTest {
             displayName = "John Doe",
             username = "johndoe",
             profilePicture = null,
-            createdDate = Instant.EPOCH,
+            createdDate = Instant.fromEpochMilliseconds(0L),
         )
     }
 

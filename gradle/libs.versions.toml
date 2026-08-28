@@ -10,6 +10,9 @@ activityCompose = "1.13.0"
 composeBom = "2026.06.01"
 navigationCompose = "2.9.8"
 kotlinxSerialization = "1.11.0"
+# 0.8.0, not 0.8.0-0.6.x-compat: the compat variant keeps kotlinx's own Instant, while
+# plain 0.8.0 defers Instant to kotlin.time in the stdlib, which the domain models already use.
+kotlinxDatetime = "0.8.0"
 coil = "3.5.0"
 firebaseStorage = "22.0.1"
 mlkitText = "16.0.1"
@@ -117,6 +120,7 @@ roborazzi-junit-rule = { group = "io.github.takahirom.roborazzi", name = "robora
 play-app-update = { group = "com.google.android.play", name = "app-update", version.ref = "playAppUpdate" }
 play-app-update-ktx = { group = "com.google.android.play", name = "app-update-ktx", version.ref = "playAppUpdate" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "kotlinxDatetime" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

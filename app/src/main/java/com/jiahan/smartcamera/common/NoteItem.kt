@@ -126,7 +126,7 @@ fun NoteItem(
     val primaryColor = MaterialTheme.colorScheme.primary
 
     val formattedDate = remember(note.createdDate) {
-        note.createdDate?.toEpochMilli()?.toFormattedDateTime() ?: ""
+        note.createdDate?.toEpochMilliseconds()?.toFormattedDateTime() ?: ""
     }
 
     var showActionsSheet by remember { mutableStateOf(false) }

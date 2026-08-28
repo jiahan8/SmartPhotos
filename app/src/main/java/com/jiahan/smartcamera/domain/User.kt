@@ -1,6 +1,6 @@
 package com.jiahan.smartcamera.domain
 
-import java.time.Instant
+import kotlin.time.Instant
 
 data class User(
     val userId: String,

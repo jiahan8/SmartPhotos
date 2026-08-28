@@ -31,7 +31,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import java.time.Instant
+import kotlin.time.Clock
 
 class ProfileViewModelTest {
 
@@ -54,7 +54,7 @@ class ProfileViewModelTest {
         displayName = "Test User",
         username = "testuser",
         profilePicture = null,
-        createdDate = Instant.now(),
+        createdDate = Clock.System.now(),
     )
 
     private lateinit var viewModel: ProfileViewModel

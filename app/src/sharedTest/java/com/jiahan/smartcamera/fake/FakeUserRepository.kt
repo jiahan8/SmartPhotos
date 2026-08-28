@@ -4,7 +4,7 @@ import android.net.Uri
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.domain.ProfilePictureUpdate
 import com.jiahan.smartcamera.domain.User
-import java.time.LocalDate
+import kotlinx.datetime.LocalDate
 
 /**
  * In-memory [UserRepository] test double. Returns [user] for lookups and records profile updates.

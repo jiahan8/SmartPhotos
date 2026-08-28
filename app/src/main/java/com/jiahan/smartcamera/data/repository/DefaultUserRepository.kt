@@ -19,10 +19,11 @@ import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
 import com.jiahan.smartcamera.util.safeCall
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.tasks.await
-import java.time.Instant
-import java.time.LocalDate
-import java.util.UUID
+import kotlinx.datetime.LocalDate
 import javax.inject.Inject
+import kotlin.time.Clock
+import kotlin.time.Instant
+import kotlin.uuid.Uuid
 
 class DefaultUserRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
@@ -99,7 +100,7 @@ class DefaultUserRepository @Inject constructor(
     override suspend fun uploadProfilePicture(uri: Uri): Result<String?> = safeCall {
         val userId = auth.uid
             ?: throw IllegalStateException(context.getString(R.string.user_not_authenticated))
-        val mediaId = UUID.randomUUID().toString()
+        val mediaId = Uuid.random().toString()
         val storageRef =
             storage.reference.child("$storageFolder/$userId/$mediaId$EXTENSION_JPG")
         storageRef.putFile(uri).await()
@@ -182,6 +183,8 @@ class DefaultUserRepository @Inject constructor(
         displayName = snapshot.getString(FIELD_DISPLAY_NAME) ?: "",
         username = snapshot.getString(FIELD_USERNAME) ?: "",
         profilePicture = snapshot.getString(FIELD_PROFILE_PICTURE),
-        createdDate = snapshot.getDate(FIELD_CREATED)?.toInstant() ?: Instant.now(),
+        createdDate = snapshot.getDate(FIELD_CREATED)
+            ?.let { Instant.fromEpochMilliseconds(it.time) }
+            ?: Clock.System.now(),
     )
 }

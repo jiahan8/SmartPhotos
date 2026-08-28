@@ -217,7 +217,8 @@ fun NotePreviewScreen(
                                                     )
 
                                                     Text(
-                                                        text = note.createdDate?.toEpochMilli()
+                                                        text = note.createdDate
+                                                            ?.toEpochMilliseconds()
                                                             ?.toFormattedDateTime()
                                                             ?: "",
                                                         style = MaterialTheme.typography.bodySmall,

@@ -3,7 +3,7 @@ package com.jiahan.smartcamera.data.repository
 import android.net.Uri
 import com.jiahan.smartcamera.domain.ProfilePictureUpdate
 import com.jiahan.smartcamera.domain.User
-import java.time.LocalDate
+import kotlinx.datetime.LocalDate
 
 interface UserRepository {
     suspend fun getUser(): Result<User?>
@@ -20,7 +20,7 @@ interface UserRepository {
     /** Saves the given FCM registration token to the caller's own user doc. No-ops if signed out. */
     suspend fun updateFcmToken(token: String): Result<Unit>
 
-    /** Fetches the current FCM token, saves it, and subscribes the device to the announcements topic. */
+    /** Fetches the current FCM token, saves it, and subscribes the device to the announcements' topic. */
     suspend fun registerForPushNotifications(): Result<Unit>
 
     /** Unsubscribes the device from the announcements topic and clears the stored FCM token. */

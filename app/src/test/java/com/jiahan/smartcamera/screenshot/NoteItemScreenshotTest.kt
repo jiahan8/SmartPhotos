@@ -6,7 +6,7 @@ import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import org.junit.Test
-import java.time.Instant
+import kotlin.time.Instant
 
 /**
  * Roborazzi screenshot tests for [NoteItem]. Each test captures a PNG that is diffed against a
@@ -98,7 +98,7 @@ class NoteItemScreenshotTest : BaseScreenshotTest() {
             mediaList = null,
             profilePictureUrl = null,
             favorite = false,
-            createdDate = Instant.ofEpochMilli(1_700_000_000_000L),
+            createdDate = Instant.fromEpochMilliseconds(1_700_000_000_000L),
         )
 
         val favoritedNote = sampleNote.copy(

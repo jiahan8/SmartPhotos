@@ -28,8 +28,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import javax.inject.Inject
+import kotlin.time.Clock
 
 data class MainUiState(
     val isAppReady: Boolean = false,
@@ -48,7 +50,8 @@ class MainViewModel @Inject constructor(
     private val analyticsRepository: AnalyticsRepository,
     userPreferencesRepository: UserPreferencesRepository,
     private val incomingShareHandler: IncomingShareHandler,
-    private val appUpdateRepository: AppUpdateRepository
+    private val appUpdateRepository: AppUpdateRepository,
+    private val clock: Clock
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -96,7 +99,8 @@ class MainViewModel @Inject constructor(
                 analyticsRepository.setUserId(authRepository.currentUserId)
                 userRepository.registerForPushNotifications()
                     .onFailure { e -> errorHandler.logError(e) }
-                userRepository.recordUserActivity(LocalDate.now())
+                val today = clock.todayIn(TimeZone.currentSystemDefault())
+                userRepository.recordUserActivity(today)
                     .onFailure { e -> errorHandler.logError(e) }
             }
         }

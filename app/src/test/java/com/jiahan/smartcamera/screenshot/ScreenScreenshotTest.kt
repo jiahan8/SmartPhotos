@@ -25,7 +25,7 @@ import com.jiahan.smartcamera.settings.SettingsViewModel
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import org.junit.Test
 import org.robolectric.RuntimeEnvironment
-import java.time.Instant
+import kotlin.time.Instant
 
 /**
  * Full-screen Roborazzi screenshot tests. Each screen is driven by its real ViewModel wired to
@@ -44,7 +44,7 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
         text = text,
         username = "tester",
         favorite = favorite,
-        createdDate = Instant.ofEpochMilli(1_700_000_000_000L),
+        createdDate = Instant.fromEpochMilliseconds(1_700_000_000_000L),
     )
 
     private fun homeViewModel(notes: Result<List<HomeNote>>): HomeViewModel {

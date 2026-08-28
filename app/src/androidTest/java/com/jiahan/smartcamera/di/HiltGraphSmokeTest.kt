@@ -22,6 +22,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import javax.inject.Inject
+import kotlin.time.Clock
 
 /**
  * Validates that the real production Hilt graph assembles end-to-end.
@@ -82,6 +83,9 @@ class HiltGraphSmokeTest {
     @Inject
     lateinit var dataStore: DataStore<Preferences>
 
+    @Inject
+    lateinit var clock: Clock
+
     @Before
     fun inject() {
         hiltRule.inject()
@@ -103,5 +107,6 @@ class HiltGraphSmokeTest {
         assertNotNull(photoDao)
         assertNotNull(noteHandler)
         assertNotNull(dataStore)
+        assertNotNull(clock)
     }
 }

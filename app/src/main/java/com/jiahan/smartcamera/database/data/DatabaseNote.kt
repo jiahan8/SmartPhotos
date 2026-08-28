@@ -5,7 +5,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
-import java.time.Instant
+import kotlin.time.Instant
 
 /**
  * Notes Table in Room Database.
@@ -25,7 +25,7 @@ data class DatabaseNote(
 fun DatabaseNote.toHomeNote(): HomeNote = HomeNote(
     noteId = noteId,
     text = text,
-    createdDate = createdDate?.let { Instant.ofEpochMilli(it) },
+    createdDate = createdDate?.let { Instant.fromEpochMilliseconds(it) },
     favorite = favorite,
     mediaList = mediaList,
     username = username,
@@ -35,7 +35,7 @@ fun DatabaseNote.toHomeNote(): HomeNote = HomeNote(
 fun HomeNote.toDatabaseNote(): DatabaseNote = DatabaseNote(
     noteId = noteId,
     text = text,
-    createdDate = createdDate?.toEpochMilli(),
+    createdDate = createdDate?.toEpochMilliseconds(),
     favorite = favorite,
     mediaList = mediaList,
     username = username,

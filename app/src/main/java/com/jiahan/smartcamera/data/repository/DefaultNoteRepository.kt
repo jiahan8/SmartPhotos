@@ -40,9 +40,10 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
+import kotlin.time.Instant
+import kotlin.uuid.Uuid
 
 class DefaultNoteRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
@@ -245,7 +246,7 @@ class DefaultNoteRepository @Inject constructor(
             noteMediaDetailList.map { noteMediaDetail ->
                 async(ioDispatcher) {
                     safeCall {
-                        val mediaId = UUID.randomUUID().toString()
+                        val mediaId = Uuid.random().toString()
                         val extension =
                             if (noteMediaDetail.isVideo) EXTENSION_MP4 else EXTENSION_JPG
                         val storageRef =
@@ -262,7 +263,7 @@ class DefaultNoteRepository @Inject constructor(
                         val mediaUrl = storageRef.downloadUrl.await().toString()
 
                         val thumbnailUrl = noteMediaDetail.thumbnailUri?.let { thumbUri ->
-                            val thumbnailId = PREFIX_THUMBNAIL + UUID.randomUUID().toString()
+                            val thumbnailId = PREFIX_THUMBNAIL + Uuid.random().toString()
                             val thumbnailRef =
                                 storage.reference.child(
                                     userScopedPath(
@@ -322,7 +323,7 @@ class DefaultNoteRepository @Inject constructor(
             applicationScope.launch(ioDispatcher) {
                 if (userId != null && mediaFileRepository.hasContent(uri)) {
                     safeCall {
-                        val mediaId = UUID.randomUUID().toString()
+                        val mediaId = Uuid.random().toString()
                         val storageRef = storage.reference.child(
                             userScopedPath(cacheStorageFolder, userId, mediaId)
                         )
@@ -387,7 +388,8 @@ class DefaultNoteRepository @Inject constructor(
     ) = HomeNote(
         noteId = noteDocumentSnapshot.id,
         text = noteDocumentSnapshot.getString(FIELD_TEXT),
-        createdDate = noteDocumentSnapshot.getDate(FIELD_CREATED)?.toInstant(),
+        createdDate = noteDocumentSnapshot.getDate(FIELD_CREATED)
+            ?.let { Instant.fromEpochMilliseconds(it.time) },
         favorite = noteDocumentSnapshot.getBoolean(FIELD_FAVORITE) == true,
         mediaList = (noteDocumentSnapshot.get(FIELD_MEDIA_LIST) as? List<*>)?.mapNotNull { item ->
             (item as? Map<*, *>)?.let { parseMediaDetail(it) }

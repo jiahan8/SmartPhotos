@@ -16,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import javax.inject.Qualifier
 import javax.inject.Singleton
+import kotlin.time.Clock
 
 /**
  * Qualifier for an application-scoped [CoroutineScope] backed by a [SupervisorJob].
@@ -55,6 +56,16 @@ object AppModule {
     @Provides
     @IoDispatcher
     fun provideIoDispatcher(): CoroutineDispatcher = Dispatchers.IO
+
+    /**
+     * The system clock. Inject this wherever "now" feeds a decision a test should be able to
+     * pin — see [com.jiahan.smartcamera.MainViewModel], which derives from it the activity day
+     * the streak backend keys on. Incidental defaults, such as a fallback for a missing server
+     * timestamp, can still read [Clock.System] directly. Unscoped because [Clock.System] is
+     * already an object.
+     */
+    @Provides
+    fun provideClock(): Clock = Clock.System
 
     @Provides
     @Singleton
