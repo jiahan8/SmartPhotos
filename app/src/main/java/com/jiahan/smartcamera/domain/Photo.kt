@@ -1,9 +1,5 @@
 package com.jiahan.smartcamera.domain
 
-import android.os.Parcelable
-import kotlinx.parcelize.Parcelize
-
-@Parcelize
 data class Photo(
     val id: String,
     val description: String? = null,
@@ -15,4 +11,4 @@ data class Photo(
     val likes: Int = 0,
     val username: String,
     val userProfileImageUrl: String? = null
-) : Parcelable
+)

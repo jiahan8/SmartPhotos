@@ -8,7 +8,6 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.google.services)
-    alias(libs.plugins.parcelize)
     alias(libs.plugins.crashlytics)
     alias(libs.plugins.firebase.perf)
     alias(libs.plugins.firebase.appdistribution)

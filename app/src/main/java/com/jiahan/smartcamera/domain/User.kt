@@ -1,10 +1,7 @@
 package com.jiahan.smartcamera.domain
 
-import android.os.Parcelable
-import kotlinx.parcelize.Parcelize
 import java.time.Instant
 
-@Parcelize
 data class User(
     val userId: String,
     val email: String,
@@ -13,4 +10,4 @@ data class User(
     val username: String,
     val profilePicture: String?,
     val createdDate: Instant,
-) : Parcelable
+)

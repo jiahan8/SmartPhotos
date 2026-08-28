@@ -1,10 +1,7 @@
 package com.jiahan.smartcamera.domain
 
-import android.os.Parcelable
-import kotlinx.parcelize.Parcelize
 import java.time.Instant
 
-@Parcelize
 data class HomeNote(
     val noteId: String,
     val text: String? = null,
@@ -13,4 +10,4 @@ data class HomeNote(
     val mediaList: List<MediaDetail>? = null,
     val username: String,
     val profilePictureUrl: String? = null
-) : Parcelable
+)

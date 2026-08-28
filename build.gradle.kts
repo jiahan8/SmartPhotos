@@ -6,7 +6,6 @@ plugins {
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.hilt) apply false
     alias(libs.plugins.google.services) apply false
-    alias(libs.plugins.parcelize) apply false
     alias(libs.plugins.crashlytics) apply false
     alias(libs.plugins.firebase.perf) apply false
     alias(libs.plugins.roborazzi) apply false

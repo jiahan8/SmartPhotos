@@ -23,7 +23,6 @@ firebaseBom = "34.17.0"
 firebaseAnalytics = "23.2.0"
 firebaseConfig = "23.1.0"
 androidxMaterial3 = "1.4.0"
-parcelize = "2.4.10"
 room = "2.8.4"
 genai = "1.0.0-beta1"
 coroutinesGuava = "1.11.0"
@@ -129,7 +128,6 @@ kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", versi
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
-parcelize = { id = "org.jetbrains.kotlin.plugin.parcelize", version.ref = "parcelize" }
 crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "crashlytics" }
 firebase-perf = { id = "com.google.firebase.firebase-perf", version.ref = "firebasePerfPlugin" }
 firebase-appdistribution = { id = "com.google.firebase.appdistribution", version.ref = "firebaseAppdistributionPlugin" }
