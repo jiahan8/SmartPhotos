@@ -1,6 +1,6 @@
 package com.jiahan.smartcamera.data.repository
 
-import android.net.Uri
+import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.ProfilePictureUpdate
 import com.jiahan.smartcamera.domain.User
 import kotlinx.datetime.LocalDate
@@ -15,7 +15,7 @@ interface UserRepository {
         profilePicture: ProfilePictureUpdate = ProfilePictureUpdate.Keep
     ): Result<Unit>
 
-    suspend fun uploadProfilePicture(uri: Uri): Result<String?>
+    suspend fun uploadProfilePicture(uri: MediaUri): Result<String?>
 
     /** Saves the given FCM registration token to the caller's own user doc. No-ops if signed out. */
     suspend fun updateFcmToken(token: String): Result<Unit>

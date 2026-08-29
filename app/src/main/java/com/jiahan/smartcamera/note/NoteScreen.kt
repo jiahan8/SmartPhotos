@@ -349,17 +349,19 @@ private fun NoteMediaCarousel(
         itemSpacing = 8.dp,
     ) { index ->
         val noteMediaDetail = mediaList[index]
+        val displayedUri =
+            if (noteMediaDetail.isVideo) noteMediaDetail.thumbnailUri else noteMediaDetail.photoUri
         Box(
             modifier = Modifier.clickable {
                 if (noteMediaDetail.isVideo) {
-                    onVideoClick(noteMediaDetail.videoUri.toString())
+                    onVideoClick(noteMediaDetail.videoUri?.value.orEmpty())
                 } else {
-                    onPhotoClick(noteMediaDetail.photoUri.toString())
+                    onPhotoClick(noteMediaDetail.photoUri?.value.orEmpty())
                 }
             }
         ) {
             AsyncImage(
-                model = if (noteMediaDetail.isVideo) noteMediaDetail.thumbnailUri else noteMediaDetail.photoUri,
+                model = displayedUri?.value,
                 modifier = Modifier
                     .height(212.dp)
                     .maskClip(MaterialTheme.shapes.extraLarge),

@@ -17,6 +17,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.data.datastore.UserPreferences
+import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
 import com.jiahan.smartcamera.fake.FakeMediaFileRepository
@@ -143,7 +144,7 @@ class NoteScreenTest {
     @Test
     fun mediaAttached_showsCarousel_andEnablesSaveWithoutText() {
         noteRepository.buildLocalMediaDetailsResult = Result.success(
-            listOf(NoteMediaDetail(photoUri = Uri.parse("https://example.com/photo.jpg")))
+            listOf(NoteMediaDetail(photoUri = MediaUri("https://example.com/photo.jpg")))
         )
         launchNoteScreen()
         waitForText("tester")
@@ -160,7 +161,7 @@ class NoteScreenTest {
     @Test
     fun photoMediaTap_navigatesToPhotoPreview() {
         noteRepository.buildLocalMediaDetailsResult = Result.success(
-            listOf(NoteMediaDetail(photoUri = Uri.parse("https://example.com/photo.jpg")))
+            listOf(NoteMediaDetail(photoUri = MediaUri("https://example.com/photo.jpg")))
         )
         launchNoteScreen()
         waitForText("tester")
@@ -178,7 +179,7 @@ class NoteScreenTest {
     @Test
     fun removeMediaButton_removesItemFromCarousel_andDisablesSave() {
         noteRepository.buildLocalMediaDetailsResult = Result.success(
-            listOf(NoteMediaDetail(photoUri = Uri.parse("https://example.com/photo.jpg")))
+            listOf(NoteMediaDetail(photoUri = MediaUri("https://example.com/photo.jpg")))
         )
         launchNoteScreen()
         waitForText("tester")

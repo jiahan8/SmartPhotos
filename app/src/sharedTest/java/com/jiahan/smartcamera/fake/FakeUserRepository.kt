@@ -1,7 +1,7 @@
 package com.jiahan.smartcamera.fake
 
-import android.net.Uri
 import com.jiahan.smartcamera.data.repository.UserRepository
+import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.ProfilePictureUpdate
 import com.jiahan.smartcamera.domain.User
 import kotlinx.datetime.LocalDate
@@ -37,7 +37,7 @@ class FakeUserRepository : UserRepository {
         return updateUserProfileResult
     }
 
-    override suspend fun uploadProfilePicture(uri: Uri): Result<String?> =
+    override suspend fun uploadProfilePicture(uri: MediaUri): Result<String?> =
         Result.success(uploadedUrl)
 
     override suspend fun updateFcmToken(token: String): Result<Unit> = Result.success(Unit)

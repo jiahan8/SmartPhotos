@@ -1,9 +1,9 @@
 package com.jiahan.smartcamera.fake
 
-import android.net.Uri
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
+import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.NoteCursor
 import com.jiahan.smartcamera.domain.NotePage
 import com.jiahan.smartcamera.note.NoteMediaDetail
@@ -106,7 +106,7 @@ class FakeNoteRepository : NoteRepository {
         getNoteResult ?: Result.failure(NoSuchElementException("No note for $noteId"))
 
     override suspend fun quickUploadMediaToFirebase(
-        uriList: List<Uri>,
+        uriList: List<MediaUri>,
         deleteAfterUpload: Boolean
     ) = Unit
 
@@ -115,7 +115,7 @@ class FakeNoteRepository : NoteRepository {
     ): Result<List<MediaDetail>> = Result.success(emptyList())
 
     override suspend fun buildLocalMediaDetails(
-        uriList: List<Uri>
+        uriList: List<MediaUri>
     ): Result<List<NoteMediaDetail>> = buildLocalMediaDetailsResult
 
     override fun getFavoriteNotesStream(query: String): Flow<List<HomeNote>> =

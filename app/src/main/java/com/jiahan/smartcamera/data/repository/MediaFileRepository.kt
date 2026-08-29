@@ -9,6 +9,13 @@ import android.net.Uri
  *
  * Keeping these Android-framework operations in the data layer ensures that
  * no ViewModel needs to hold a reference to [android.content.Context].
+ *
+ * This is the one repository interface that deliberately keeps Android types in its signatures:
+ * every method here *is* a `ContentResolver`/`FileProvider` operation, and the URIs it hands back
+ * go straight to activity-result contracts. Wrapping them in
+ * [com.jiahan.smartcamera.domain.MediaUri] would add conversions at every call site while hiding
+ * that this seam is Android-only and will never move to a shared source set. Contracts that carry
+ * media *between* layers use `MediaUri` instead — see `NoteRepository` and `UserRepository`.
  */
 interface MediaFileRepository {
 

@@ -1,10 +1,10 @@
 package com.jiahan.smartcamera.note
 
-import android.net.Uri
+import com.jiahan.smartcamera.domain.MediaUri
 
 data class NoteMediaDetail(
-    val photoUri: Uri? = null,
-    val videoUri: Uri? = null,
-    val thumbnailUri: Uri? = null,
+    val photoUri: MediaUri? = null,
+    val videoUri: MediaUri? = null,
+    val thumbnailUri: MediaUri? = null,
     val isVideo: Boolean = false
 )

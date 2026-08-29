@@ -9,6 +9,7 @@ import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
+import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.ProfilePictureUpdate
 import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.ErrorHandler
@@ -269,6 +270,14 @@ class ProfileViewModelTest {
         assertFalse(viewModel.uiState.value.showBottomSheet)
     }
 
+    /**
+     * A [Uri] mock with a fixed [toString], paired with the [MediaUri] the ViewModel converts it
+     * into before calling the repository. Repository contracts take [MediaUri], so expectations
+     * have to be written against the converted value rather than the platform [Uri].
+     */
+    private fun fakeUri(value: String): Pair<Uri, MediaUri> =
+        mockk<Uri>().also { every { it.toString() } returns value } to MediaUri(value)
+
     // -------------------------------------------------------------------------
     // Photo URI
     // -------------------------------------------------------------------------
@@ -282,39 +291,39 @@ class ProfileViewModelTest {
 
     @Test
     fun `cancelPhotoCapture quick-uploads uri and clears photoUri`() = runTest {
-        val uri: Uri = mockk()
+        val (uri, mediaUri) = fakeUri("content://media/photo")
         viewModel.updatePhotoUri(uri)           // establish a non-null state first
         assertEquals(uri, viewModel.uiState.value.photoUri) // precondition
         viewModel.cancelPhotoCapture(uri)
-        coVerify { noteRepository.quickUploadMediaToFirebase(listOf(uri), true) }
+        coVerify { noteRepository.quickUploadMediaToFirebase(listOf(mediaUri), true) }
         assertNull(viewModel.uiState.value.photoUri)
     }
 
     @Test
     fun `uploadProfilePicture quick-uploads the picked uri without deleting it`() = runTest {
-        val uri: Uri = mockk()
-        coEvery { userRepository.uploadProfilePicture(uri) } returns Result.success("url")
+        val (uri, mediaUri) = fakeUri("content://media/profile")
+        coEvery { userRepository.uploadProfilePicture(mediaUri) } returns Result.success("url")
         coEvery {
             userRepository.updateUserProfile(any(), any(), any())
         } returns Result.success(Unit)
 
         viewModel.uploadProfilePicture(uri)
 
-        coVerify { noteRepository.quickUploadMediaToFirebase(listOf(uri), false) }
+        coVerify { noteRepository.quickUploadMediaToFirebase(listOf(mediaUri), false) }
     }
 
     @Test
     fun `uploadProfilePicture success updates profile and emits UploadSuccess`() = runTest {
-        val uri: Uri = mockk()
+        val (uri, mediaUri) = fakeUri("content://media/profile")
         viewModel.updateBottomSheetVisibility(true)
-        coEvery { userRepository.uploadProfilePicture(uri) } returns
+        coEvery { userRepository.uploadProfilePicture(mediaUri) } returns
                 Result.success("https://example.com/pic.jpg")
         coEvery {
             userRepository.updateUserProfile(
                 displayName = null,
                 username = null,
                 profilePicture = ProfilePictureUpdate.Set(
-                    uri = uri,
+                    uri = mediaUri,
                     url = "https://example.com/pic.jpg"
                 )
             )
@@ -333,8 +342,8 @@ class ProfileViewModelTest {
     @Test
     fun `uploadProfilePicture null url from repository emits UpdateError without updating profile`() =
         runTest {
-            val uri: Uri = mockk()
-            coEvery { userRepository.uploadProfilePicture(uri) } returns Result.success(null)
+            val (uri, mediaUri) = fakeUri("content://media/profile")
+            coEvery { userRepository.uploadProfilePicture(mediaUri) } returns Result.success(null)
 
             viewModel.events.test {
                 viewModel.uploadProfilePicture(uri)
@@ -347,9 +356,9 @@ class ProfileViewModelTest {
 
     @Test
     fun `uploadProfilePicture upload failure emits UpdateError with message`() = runTest {
-        val uri: Uri = mockk()
+        val (uri, mediaUri) = fakeUri("content://media/profile")
         val exception = RuntimeException("upload failed")
-        coEvery { userRepository.uploadProfilePicture(uri) } returns Result.failure(exception)
+        coEvery { userRepository.uploadProfilePicture(mediaUri) } returns Result.failure(exception)
         every { errorHandler.getErrorMessage(exception) } returns "upload failed"
 
         viewModel.events.test {
@@ -363,9 +372,9 @@ class ProfileViewModelTest {
     @Test
     fun `uploadProfilePicture nested profile update failure emits UpdateError with message`() =
         runTest {
-            val uri: Uri = mockk()
+            val (uri, mediaUri) = fakeUri("content://media/profile")
             val exception = RuntimeException("save failed")
-            coEvery { userRepository.uploadProfilePicture(uri) } returns
+            coEvery { userRepository.uploadProfilePicture(mediaUri) } returns
                     Result.success("https://example.com/pic.jpg")
             coEvery { userRepository.updateUserProfile(any(), any(), any()) } returns
                     Result.failure(exception)

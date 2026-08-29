@@ -1,7 +1,5 @@
 package com.jiahan.smartcamera.domain
 
-import android.net.Uri
-
 /**
  * Describes the intended change to a user's profile picture, replacing separate
  * uri/url/delete-flag parameters with a single tri-state value.
@@ -14,5 +12,5 @@ sealed interface ProfilePictureUpdate {
     data object Delete : ProfilePictureUpdate
 
     /** Set a new profile picture, already uploaded at [url] and locally available at [uri]. */
-    data class Set(val uri: Uri, val url: String) : ProfilePictureUpdate
+    data class Set(val uri: MediaUri, val url: String) : ProfilePictureUpdate
 }

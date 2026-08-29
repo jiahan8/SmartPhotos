@@ -1,8 +1,8 @@
 package com.jiahan.smartcamera.data.repository
 
-import android.net.Uri
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
+import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.NoteCursor
 import com.jiahan.smartcamera.domain.NotePage
 import com.jiahan.smartcamera.note.NoteMediaDetail
@@ -38,9 +38,12 @@ interface NoteRepository {
      * deleted once its upload is done, whether that upload succeeded, failed, or was skipped.
      * Leave it `false` for URIs the app doesn't own, such as gallery picks.
      */
-    suspend fun quickUploadMediaToFirebase(uriList: List<Uri>, deleteAfterUpload: Boolean = false)
+    suspend fun quickUploadMediaToFirebase(
+        uriList: List<MediaUri>,
+        deleteAfterUpload: Boolean = false
+    )
     suspend fun uploadMediaToFirebase(noteMediaDetailList: List<NoteMediaDetail>): Result<List<MediaDetail>>
-    suspend fun buildLocalMediaDetails(uriList: List<Uri>): Result<List<NoteMediaDetail>>
+    suspend fun buildLocalMediaDetails(uriList: List<MediaUri>): Result<List<NoteMediaDetail>>
     fun getFavoriteNotesStream(query: String): Flow<List<HomeNote>>
     suspend fun syncFavoriteNotes(): Result<Unit>
 }

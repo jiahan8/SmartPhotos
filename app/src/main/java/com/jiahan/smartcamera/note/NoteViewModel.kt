@@ -17,6 +17,7 @@ import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorTag
 import com.jiahan.smartcamera.util.ResourceProvider
 import com.jiahan.smartcamera.util.noteErrorMessageResId
+import com.jiahan.smartcamera.util.toMediaUri
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -149,14 +150,20 @@ class NoteViewModel @Inject constructor(
 
     fun cancelPhotoCapture(uri: Uri) {
         viewModelScope.launch {
-            noteRepository.quickUploadMediaToFirebase(listOf(uri), deleteAfterUpload = true)
+            noteRepository.quickUploadMediaToFirebase(
+                listOf(uri.toMediaUri()),
+                deleteAfterUpload = true
+            )
         }
         _uiState.update { it.copy(photoUri = null) }
     }
 
     fun cancelVideoCapture(uri: Uri) {
         viewModelScope.launch {
-            noteRepository.quickUploadMediaToFirebase(listOf(uri), deleteAfterUpload = true)
+            noteRepository.quickUploadMediaToFirebase(
+                listOf(uri.toMediaUri()),
+                deleteAfterUpload = true
+            )
         }
         _uiState.update { it.copy(videoUri = null) }
     }
@@ -175,10 +182,11 @@ class NoteViewModel @Inject constructor(
     }
 
     fun updateUriList(uriList: List<Uri>) {
-        viewModelScope.launch { noteRepository.quickUploadMediaToFirebase(uriList) }
+        val mediaUriList = uriList.map { it.toMediaUri() }
+        viewModelScope.launch { noteRepository.quickUploadMediaToFirebase(mediaUriList) }
 
         viewModelScope.launch {
-            noteRepository.buildLocalMediaDetails(uriList)
+            noteRepository.buildLocalMediaDetails(mediaUriList)
                 .onSuccess { newMediaDetailList ->
                     val combinedMediaList = newMediaDetailList + _uiState.value.mediaList
                     if (combinedMediaList.size > MAX_NOTE_MEDIA_ITEMS) {

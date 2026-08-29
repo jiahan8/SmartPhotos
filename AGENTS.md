@@ -11,9 +11,16 @@ Run from the repo root (Gradle wrapper):
 - Unit tests (JVM, Robolectric-backed): `./gradlew testDebugUnitTest`
   - Single class: `./gradlew testDebugUnitTest --tests "com.jiahan.smartcamera.home.HomeViewModelTest"`
   - Single method: `./gradlew testDebugUnitTest --tests "com.jiahan.smartcamera.home.HomeViewModelTest.methodName"`
-  - ViewModel `StateFlow`/`SharedFlow` assertions use [Turbine](https://github.com/cashapp/turbine)
-    (`.test { ... }`) rather than manually collecting into a list — follow this in new ViewModel
-    tests.
+  - Assert on a settled `StateFlow` by reading `.value`; that is what most of the suite does, and
+    it is the right tool, since a `StateFlow` always has a current value. Reach for
+    [Turbine](https://github.com/cashapp/turbine) (`.test { ... }`) when the *sequence* matters —
+    intermediate states, ordering — or for a `SharedFlow` event, which has no `.value` to read at
+    all. Never hand-roll a collector into a list; that is what Turbine replaces.
+  - ViewModel tests replace `Dispatchers.Main` with the `MainDispatcherRule` in
+    `app/src/test/java/com/jiahan/smartcamera/MainDispatcherRule.kt`
+    (`@get:Rule val mainDispatcherRule = MainDispatcherRule()`), since `viewModelScope` dispatches
+    to Main. It defaults to `UnconfinedTestDispatcher` so coroutines run eagerly; pass
+    `StandardTestDispatcher` when a test needs virtual-time control, such as a debounce.
 - Screenshot tests use Roborazzi and live under `app/src/test/.../screenshot/`. Note that
   `testDebugUnitTest` *runs* them but does **not** diff them against the goldens in
   `app/src/test/screenshots/` — only `./gradlew verifyRoborazziDebug` compares. Run it before
@@ -58,6 +65,10 @@ Two things to know about the goldens:
   machine-dependent — they passed on a UTC+8 laptop and failed on the UTC CI runner, eight hours
   out. `app/build.gradle.kts` now pins the unit-test JVM to UTC/en-US (`tasks.withType<Test>`), so
   goldens recorded on any machine verify on every other one. If you change that pin, re-record.
+  Note that the pin is a containment measure, not the fix: `toFormattedDateTime()` reads global
+  state, so it can't be tested at a chosen instant or locale. Giving it `zone` and `locale`
+  parameters (defaulted to the current lookups) would make it directly testable and drop the
+  dependency on a JVM-wide setting — worth doing if that formatter ever needs its own tests.
   More generally: a golden diff that appears only on CI is far more likely to be non-determinism in
   the test than a rendering difference between platforms — check for a clock, locale, or random
   value in the fixture before assuming the environment is at fault.
@@ -102,30 +113,72 @@ Each layer above has one job and talks to its neighbors through an interface, no
   *interfaces* (dependency inversion — the SOLID principle easiest to forget under time pressure),
   never on `Default*` implementations or Firebase/Room types directly, so they stay unit-testable
   without a real backend.
-- Repositories own data-source coordination (remote as source of truth, Room as a write-through
-  cache — writes go to Firestore first, then Room) and
-  expose domain models — never Firestore `DocumentSnapshot`/`QuerySnapshot` or Room entities — across
-  the repository interface boundary.
+- Repositories own data-source coordination and expose domain models — never Firestore
+  `DocumentSnapshot`/`QuerySnapshot` or Room entities — across the repository interface boundary.
+  Every fallible operation returns `Result<T>` rather than throwing, so callers never wrap a call in
+  try/catch; wrap the body in `util/safeCall`. The exemptions are the ones that can't carry a
+  `Result`: a `Flow`-returning stream, and fire-and-forget work like `quickUploadMediaToFirebase`,
+  which logs its failures internally. Match that shape in new methods.
+  Firestore is the source of truth and writes go to Firestore first, then Room; see
+  [Source of truth](#source-of-truth) below for what Room actually holds, and why that is a
+  deviation from the offline-first guidance rather than an implementation of it.
 - Domain models are plain data with no Android/Firebase/Room dependencies, so they can be shared
-  and unit-tested without those frameworks on the classpath.
+  and unit-tested without those frameworks on the classpath. A local media location crosses this
+  boundary as `domain/MediaUri.kt`, never as `android.net.Uri` — convert with `toMediaUri()` /
+  `toPlatformUri()` from `util/MediaUriExt.kt`, at the ViewModel boundary on the way down or inside
+  a `Default*` implementation on the way out. It mirrors how `MediaDetail` already carries remote
+  locations as plain `String` URLs.
 
 When adding a feature, prefer extending this layering over reaching across it (e.g. a screen
 calling `FirebaseFirestore` directly, or a repository returning a Room `@Entity` to a ViewModel).
+
+### Source of truth
+
+**This is a deliberate deviation from the architecture guide**, and it is the root of the
+[Cross-feature communication](#cross-feature-communication) deviation below. The offline-first
+guidance makes the local database the source of truth: the UI observes Room, writes land locally
+first, and a sync layer reconciles with the backend. This app does the opposite — Firestore is the
+source of truth, Home and Search render point-in-time `QuerySnapshot`s, and Room is written only
+after the Firestore write returns.
+
+Room is also not a cache of the feed, so don't call it a write-through one. Every `noteDao` write
+in `DefaultNoteRepository` is gated on favorite status, so the table only ever holds favorited
+notes, and Favorite is the only screen that reads from it. It is a local mirror for one feature,
+not a read path for the notes list.
+
+What that costs, listed so nobody rediscovers it as a bug:
+
+- No offline writes. A mutation with no network fails at the Firestore call and never reaches Room.
+- No reconciliation. If the Firestore write succeeds and the Room write then fails, the two diverge
+  silently until something rewrites that row.
+- No live query for Home or Search, which is the entire reason `NoteHandler` exists.
+
+**Trigger to revisit:** mirroring the notes feed into Room — a `Flow`-returning stream the feed
+observes, with Firestore writes syncing into it — removes all three costs at once and retires both
+this deviation and the handler. That is the direction to move when the feed's offline behavior next
+causes a problem. Until then keep new repositories on the same Firestore-first shape rather than
+introducing a third pattern.
 
 ### Cross-feature communication
 
 Screens that must reflect a mutation made on another screen use a per-domain `*Handler` singleton
 injected via Hilt (`note/NoteHandler.kt`), exposing read-only `SharedFlow`s (`noteAddedEvent`,
 `noteDeletedEvent`, `noteFavoritedEvent`, `noteUpdatedEvent`) over private `MutableSharedFlow`s.
-ViewModels emit into the handler on mutation and collect in `init {}` — Home, Search and
+ViewModels emit into the handler on mutation and subscribe in `init {}` — Home, Search and
 NotePreview do. Follow this rather than adding direct cross-ViewModel references.
+
+Subscribe through `NoteHandler.observeNoteMutations(scope) { transform -> ... }`, which collects the
+deleted/favorited/updated events and hands back a list transform to apply; Home and Search each use
+it as a single line. Don't hand-roll those three collectors. `noteAddedEvent` is the one collected
+directly, because it triggers a full `reload()` rather than a transform of the list in hand.
 
 **This is a deliberate deviation from the architecture guide.** The official answer to "screen A
 must reflect a change made on screen B" is a single source of truth in the data layer exposing a
 reactive stream both screens observe — not peer-to-peer events between ViewModels. It stands here
-only because Home's feed and Search's results are point-in-time Firestore snapshots with no local
-mirror: every `noteDao` write in `DefaultNoteRepository` is gated on favorite status, so the Room
-table only ever holds favorited notes and there is no live query for those two screens to observe.
+only because Home's feed and Search's results have no local mirror to observe — and that absence is
+itself a choice this project made ([Source of truth](#source-of-truth) above), not a constraint
+Firestore imposes. Treat "there is no live query" as a decision that can be reversed, not as a fact
+about the backend.
 
 Favorite is the counter-example, and the pattern to copy whenever you can: it never injects
 `NoteHandler`, because `getFavoriteNotesStream` is a Room-backed `Flow` that re-emits on its own.
@@ -148,9 +201,30 @@ Two rules while it exists:
 
 ### Error handling
 
-Route all thrown errors through `util/ErrorHandler` (`logError` then `getErrorMessage`) rather than
-reading `Throwable.localizedMessage` directly — this ensures Crashlytics logging in release builds
-and consistent user-facing messages via `ResourceProvider`.
+Route thrown errors through `util/ErrorHandler` rather than reading `Throwable.localizedMessage`
+directly. Its two methods belong to different layers, and that split is the rule:
+
+- **`logError(throwable, tag)` — any layer, repositories included.** It only touches `Log` (debug)
+  and Crashlytics (release), so a repository logging a failure it swallows is correct;
+  `DefaultNoteRepository`, `DefaultMediaFileRepository`, `DefaultAuthRepository` and
+  `FirebaseRemoteConfigRepository` all do.
+- **`getErrorMessage(throwable)` — ViewModel layer only.** It resolves a string resource through
+  `ResourceProvider`, which makes its result user-facing presentation, not data. Repositories must
+  not call it: they log and then either propagate the exception or fold it into a `Result`/null
+  return (`DefaultNoteRepository` does the latter), and the ViewModel converts that into an
+  `*UiState` error field. Every current call site is a ViewModel or a `@ViewModelScoped` helper
+  (`note/NoteErrorReporter.kt`) — keep it that way.
+
+The feature-specific mappers in the same file (`usernameErrorMessageResId`,
+`noteErrorMessageResId`) sit at that same ViewModel layer, tried ahead of `getErrorMessage` and
+falling back to it when they return null.
+
+This split is also what makes the [KMP readiness](#kotlin-multiplatform-readiness) rule satisfiable
+rather than self-contradictory. The `ErrorHandler` *interface* is Android-free in its signatures
+(`Throwable` in, `String` out), so injecting it into a repository imports no `android.*` type — only
+`DefaultErrorHandler` is Android-bound. If repository interfaces are ever extracted to a shared
+module, `logError` travels with them and `getErrorMessage` is the half that stays on the Android
+side.
 
 ### Kotlin Multiplatform readiness
 
@@ -159,12 +233,24 @@ Kotlin Multiplatform down the line. This isn't a mandate to add KMP tooling now,
 between otherwise-equivalent approaches, prefer the one that keeps that migration cheap:
 
 - Keep `domain/` models and repository *interfaces* free of Android/Firebase/Room types — already
-  required by the Separation of concerns rules above, and the main thing that makes this migration
-  tractable later.
+  required by the Separation of concerns rules above. Treat this as a prerequisite, not as the
+  migration itself: KMP moves Gradle *modules*, not Kotlin packages, so a perfectly pure `domain/`
+  package inside the single `:app` module still compiles against the Android plugin's classpath and
+  is no closer to a `commonMain` source set than an impure one. The actual first step is extracting
+  `:core:domain` / `:core:data` modules; type purity is what keeps that extraction from becoming a
+  rewrite. Don't read a clean `domain/` package as "we are nearly KMP-ready".
 - Prefer `kotlinx` libraries (`kotlinx.coroutines`, `kotlinx.datetime`, `kotlinx.serialization`)
-  over Android- or JVM-only equivalents (e.g. `java.time`, Gson) in shared-leaning code, when a
-  choice exists.
-- Avoid `android.*` imports leaking into anything below the ViewModel layer.
+  over equivalents that have no `commonMain` implementation (e.g. `java.time`, Gson) in
+  shared-leaning code, when a choice exists. `java.time` is not unavailable on Android — core
+  library desugaring provides it — the objection is only that it cannot cross into a shared source
+  set.
+- Keep `android.*` out of the *contracts*: domain models, repository interfaces, and the data
+  classes those interfaces carry (`NoteMediaDetail`, say). `Default*` implementations are
+  Android-bound by definition and are not what this rule targets — `DefaultErrorHandler` uses `Log`,
+  `ResourceProviderImpl` needs a `Context`. One interface is deliberately exempt:
+  `MediaFileRepository` exists precisely to wrap `ContentResolver`/`FileProvider` work behind a
+  seam, so it keeps its `Uri`/`Bitmap` parameters and is not a KMP candidate. Don't wrap those
+  parameters to satisfy the rule, and don't cite it as precedent for a new contract.
 
 ## Follow official Android guidance
 
@@ -173,13 +259,19 @@ guidance over ad-hoc approaches:
 
 - [Android app architecture guide](https://developer.android.com/topic/architecture) — unidirectional
   data flow, `StateFlow`/`UiState` exposed from ViewModels (not events polled by the UI), repositories
-  as the single source of truth.
+  as the single source of truth — with the one documented exception that the notes feed reads
+  Firestore directly ([Source of truth](#source-of-truth)).
 - [Jetpack Compose guidance](https://developer.android.com/develop/ui/compose/documentation) —
-  state hoisting, `remember`/`derivedStateOf` for recomposition efficiency, avoiding side effects
-  outside `LaunchedEffect`/`DisposableEffect`.
+  state hoisting, `remember` for recomposition efficiency, avoiding side effects outside
+  `LaunchedEffect`/`DisposableEffect`. Use `derivedStateOf` only where a frequently-changing state
+  feeds a rarely-changing derived value (a scroll offset driving an `isScrolled` boolean); applied
+  more broadly it adds overhead instead of removing it.
 - [Kotlin coroutines & Flow best practices](https://developer.android.com/kotlin/coroutines/coroutines-best-practices) —
-  scope coroutines to `viewModelScope`/`lifecycleScope`, inject `CoroutineDispatcher`s rather than
-  hardcoding `Dispatchers.IO`, avoid `GlobalScope`.
+  scope coroutines to `viewModelScope`, inject `CoroutineDispatcher`s rather than hardcoding
+  `Dispatchers.IO`, avoid `GlobalScope`. The UI here is Compose-only, so there are no
+  Fragment/Activity scopes to scope to: the composition-side equivalents are `LaunchedEffect` and
+  `rememberCoroutineScope`, and `lifecycleScope` appearing in a new file is a smell, not a
+  convention.
 - [Material Design 3](https://m3.material.io/) for new UI/theming work.
 - Kotlin style: follow the [Kotlin coding conventions](https://kotlinlang.org/docs/coding-conventions.html)
   (already enforced here via `kotlin.code.style=official` in `gradle.properties`) — see
@@ -195,17 +287,75 @@ calling out the discrepancy.
   `collectAsStateWithLifecycle()`) and hoist it down as plain parameters/lambdas; child composables
   should stay stateless and never take a ViewModel reference, so they can be previewed and tested
   with plain state.
-- Keep `remember`/`mutableStateOf` for state that's genuinely local and ephemeral to composition
-  (e.g. IME visibility, an animation trigger); anything that survives navigation or is needed by
-  another screen belongs in the ViewModel's `UiState` instead.
+- There are three tiers, not two. `remember`/`mutableStateOf` for state that is genuinely local
+  and ephemeral to composition (IME visibility, an animation trigger). `rememberSaveable` for local
+  state that must also survive configuration change and process death (a half-typed field, an
+  expanded section). The ViewModel's `UiState` for anything another screen needs or that outlives
+  the composition — with `SavedStateHandle` for the parts of it that must survive process death.
+- "Put it in the ViewModel" does not by itself mean "it survives". A ViewModel is scoped to its
+  `NavBackStackEntry`, so it is cleared when that entry is popped, and no ViewModel survives process
+  death. Today `rememberSaveable` appears nowhere in `app/src/main`, and `SavedStateHandle` is used
+  in four ViewModels only to read navigation arguments (`savedStateHandle.toRoute<Screen.X>()`), so
+  no UI state in this app currently survives process death. That is a gap, not a convention to
+  copy — reach for the right tier when adding state a user would be annoyed to lose.
+
+### One-off UI events
+
+Snackbars and other fire-and-forget signals travel from ViewModel to screen on a
+`MutableSharedFlow(extraBufferCapacity = 1)` exposed as a read-only `SharedFlow`, collected in the
+screen's `LaunchedEffect` and shown through `SnackbarHostState`. `actionError` (Home, Search,
+Favorite and the preview screens, all via `note/NoteErrorReporter.kt`) and `ProfileViewModel.events`
+are the existing instances — follow their shape rather than inventing a third.
+
+**This deviates from the official guidance**, which says a ViewModel event should update `UiState`
+with the UI signalling consumption back (see
+[UI events](https://developer.android.com/topic/architecture/ui-layer/events)). It stands because
+these signals have no state to restore — a snackbar already shown must not reappear, and modelling
+that as state means threading a consumed-flag round trip through every `UiState`. Two limits that
+come with it:
+
+- Anything that must survive configuration change or process death is not one of these. Error text
+  a screen keeps displaying belongs in `UiState` (as `HomeContent.Error` and its siblings already
+  do); only the transient, toast-like signal goes on the flow.
+- `tryEmit` into a one-slot buffer drops silently when events land back-to-back with no collector
+  ready, and a `LaunchedEffect` collector only exists while the composition does. Don't put
+  anything the user must not miss on this flow — the same replay caveat as
+  [Cross-feature communication](#cross-feature-communication) above.
+
+### Navigation
+
+`navigation/Screen.kt` uses Navigation Compose's type-safe routes: each destination is a
+`@Serializable` `data object`/`data class` under the `Screen` sealed interface, registered with
+`composable<Screen.Home> { ... }` and reached via `navController.navigate(Screen.NotePreview(id))`.
+Add destinations that way — no hand-built path strings, no `navArgument` lists, no manual URL
+escaping of arguments.
+
+- Route types stay plain data. UI-only metadata (bottom-bar icon and title) lives in
+  `navigation/BottomNavItem.kt`, because only some destinations appear in the bottom bar.
+- An enum used as a route argument needs `@Keep` (see `MediaSourceType`). Navigation resolves enum
+  arguments through `Class.forName()`, so R8 renaming one breaks navigation in release builds only —
+  a failure that shows up in neither debug runs nor unit tests.
 
 ## Conventions
 
-- DI: Hilt, all modules `@InstallIn(SingletonComponent::class)`. App-wide bindings live in
+- DI: Hilt, all *modules* `@InstallIn(SingletonComponent::class)`. Constructor-injected classes may
+  still be narrower — `note/NoteErrorReporter.kt` is `@ViewModelScoped` so the delegates sharing it
+  report onto one flow — so "all modules are singleton" is not "everything is a singleton". App-wide bindings live in
   `di/AppModule.kt` / `di/FirebaseModule.kt`; other cross-cutting layers have their own module
   (`data/di/DataModule.kt`, `util/di/UtilModule.kt`, `database/di/DatabaseModule.kt`) — there is no
   per-feature `di/` package yet (e.g. `note/`, `search/` have none); follow this layer-scoped
   pattern rather than introducing one.
+- Dispatchers and scopes: don't reference `Dispatchers.IO` directly in new code. Inject
+  `@param:IoDispatcher private val ioDispatcher: CoroutineDispatcher` — the qualifier and its
+  provider both live in `di/AppModule.kt` — so tests can substitute a `TestDispatcher`, and keep the
+  `@param:` use-site target the existing repositories use. `@ApplicationScope` provides the
+  app-lifetime `CoroutineScope` for work that must outlive a ViewModel. The single deliberate
+  exception is `data/datastore/DataStoreModule.kt`, where DataStore's own scope is built at module
+  level.
+- Dependencies: every version lives in `gradle/libs.versions.toml` and is referenced through the
+  generated `libs.*` accessors — `app/build.gradle.kts` holds no hardcoded version strings. Add a
+  library as a `[versions]` entry plus a `[libraries]` entry, never as an inline
+  `implementation("group:artifact:1.2.3")`.
 - Pagination: repositories hold no position state — the caller owns its place in the list, so two
   callers paginating at once can't corrupt each other. The key depends on the data source: notes
   page by an opaque `NoteCursor` (`getNotes(cursor)` returns a `NotePage` carrying the next one,
@@ -224,11 +374,12 @@ calling out the discrepancy.
     pull-to-refresh path is not enough; `HomeViewModel` had three such paths. A ViewModel running
     two independent paginated lists needs one pair of jobs per list — `ExploreViewModel` keeps a
     reload/load-more pair for the browse feed and another for search results.
-- Paging 3 is deliberately not a dependency. Firestore pages by `DocumentSnapshot` cursor, which
-  makes an awkward `PagingSource` key — Paging re-derives a key on refresh via `getRefreshKey`, and
-  a live snapshot object isn't something it can reconstruct — and Explore pages an Unsplash-backed
-  Cloud Function by page number instead. Revisit if the notes feed moves into Room, where
-  `PagingSource`/`RemoteMediator` is the natural fit.
+- Paging 3 is deliberately not a dependency. It could be made to work — `getRefreshKey` may return
+  null to restart from the first page, and a Firestore `PagingSource` exists in `firebase-ui` — but
+  a `DocumentSnapshot` cursor is an awkward `PagingSource` key, Explore pages an Unsplash-backed
+  Cloud Function by number rather than by cursor, and the hand-rolled pagination above already
+  covers what the two feeds need. The reason is cost/benefit, not impossibility. Revisit if the
+  notes feed moves into Room, where `PagingSource`/`RemoteMediator` is the natural fit.
 - Firestore security rules (`firestore.rules`) deny all access by default; per-collection rules are
   additive (OR'd). Keep new collections behind an explicit `request.auth != null` (or stricter) rule.
 - Cloud Functions code style is enforced by `eslint-config-google` — run the functions lint command
@@ -239,8 +390,11 @@ calling out the discrepancy.
 Follows the [official Kotlin style guide](https://kotlinlang.org/docs/coding-conventions.html)
 (`kotlin.code.style=official`). Project-specific points worth calling out beyond the official guide:
 
-- Prefer immutable collections (`List`, `Map`) over mutable ones across public API surfaces —
-  mutate locally, expose immutably.
+- Prefer the read-only collection types (`List`, `Map`) over `MutableList`/`MutableMap` across
+  public API surfaces — but note that read-only is not immutable. Upcasting a `MutableList` to
+  `List` hands the caller a live view the owner can still mutate underneath them, so when a property
+  or return value is backed by a mutable field, copy at the boundary (`.toList()`) instead of
+  relying on the declared type. "Mutate locally, expose read-only" only holds with that copy.
 - Prefer a sealed type over a nullable field where both express the same state, matching the
   nested loading/loaded/error content types each ViewModel's `*UiState` wraps (see Architecture
   above).

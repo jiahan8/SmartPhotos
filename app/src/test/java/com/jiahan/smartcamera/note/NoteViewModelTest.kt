@@ -9,6 +9,7 @@ import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.MediaDetail
+import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.util.AppConstants.MAX_POST_TEXT_LENGTH
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ResourceProvider
@@ -139,6 +140,14 @@ class NoteViewModelTest {
         verify { analyticsRepository.logNoteCustomEvent("cat photo") }
     }
 
+    /**
+     * A [Uri] mock with a fixed [toString], paired with the [MediaUri] the ViewModel converts it
+     * into before calling the repository. Repository contracts take [MediaUri], so expectations
+     * have to be written against the converted value rather than the platform [Uri].
+     */
+    private fun fakeUri(value: String): Pair<Uri, MediaUri> =
+        mockk<Uri>().also { every { it.toString() } returns value } to MediaUri(value)
+
     // -------------------------------------------------------------------------
     // removeUriFromList
     // -------------------------------------------------------------------------
@@ -147,13 +156,13 @@ class NoteViewModelTest {
     fun `removeUriFromList valid index removes item`() = runTest {
         val mediaDetails = listOf(
             NoteMediaDetail(
-                photoUri = mockk(),
+                photoUri = MediaUri("content://media/1"),
                 videoUri = null,
                 thumbnailUri = null,
                 isVideo = false
             ),
             NoteMediaDetail(
-                photoUri = mockk(),
+                photoUri = MediaUri("content://media/2"),
                 videoUri = null,
                 thumbnailUri = null,
                 isVideo = false
@@ -216,21 +225,21 @@ class NoteViewModelTest {
 
     @Test
     fun `cancelPhotoCapture quick-uploads uri and clears photoUri`() = runTest {
-        val uri: Uri = mockk()
-        coEvery { noteRepository.quickUploadMediaToFirebase(listOf(uri), true) } returns Unit
+        val (uri, mediaUri) = fakeUri("content://media/photo")
+        coEvery { noteRepository.quickUploadMediaToFirebase(listOf(mediaUri), true) } returns Unit
         viewModel.updatePhotoUri(uri)
         viewModel.cancelPhotoCapture(uri)
-        coVerify { noteRepository.quickUploadMediaToFirebase(listOf(uri), true) }
+        coVerify { noteRepository.quickUploadMediaToFirebase(listOf(mediaUri), true) }
         assertNull(viewModel.uiState.value.photoUri)
     }
 
     @Test
     fun `cancelVideoCapture quick-uploads uri and clears videoUri`() = runTest {
-        val uri: Uri = mockk()
-        coEvery { noteRepository.quickUploadMediaToFirebase(listOf(uri), true) } returns Unit
+        val (uri, mediaUri) = fakeUri("content://media/video")
+        coEvery { noteRepository.quickUploadMediaToFirebase(listOf(mediaUri), true) } returns Unit
         viewModel.updateVideoUri(uri)
         viewModel.cancelVideoCapture(uri)
-        coVerify { noteRepository.quickUploadMediaToFirebase(listOf(uri), true) }
+        coVerify { noteRepository.quickUploadMediaToFirebase(listOf(mediaUri), true) }
         assertNull(viewModel.uiState.value.videoUri)
     }
 

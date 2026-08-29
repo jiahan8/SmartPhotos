@@ -1,7 +1,6 @@
 package com.jiahan.smartcamera.data.repository
 
 import android.content.Context
-import android.net.Uri
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.DocumentSnapshot
@@ -18,6 +17,7 @@ import com.jiahan.smartcamera.domain.DetectedLabel
 import com.jiahan.smartcamera.domain.DetectedObject
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
+import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.NoteCursor
 import com.jiahan.smartcamera.domain.NotePage
 import com.jiahan.smartcamera.note.NoteMediaDetail
@@ -27,6 +27,8 @@ import com.jiahan.smartcamera.util.FileConstants.PREFIX_THUMBNAIL
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.createVideoThumbnail
 import com.jiahan.smartcamera.util.safeCall
+import com.jiahan.smartcamera.util.toMediaUri
+import com.jiahan.smartcamera.util.toPlatformUri
 import com.jiahan.smartcamera.di.ApplicationScope
 import com.jiahan.smartcamera.di.IoDispatcher
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -257,7 +259,7 @@ class DefaultNoteRepository @Inject constructor(
                             context.getString(R.string.no_media_available)
                         )
 
-                        storageRef.putFile(mediaUri).await()
+                        storageRef.putFile(mediaUri.toPlatformUri()).await()
                         val mediaUrl = storageRef.downloadUrl.await().toString()
 
                         val thumbnailUrl = noteMediaDetail.thumbnailUri?.let { thumbUri ->
@@ -270,7 +272,7 @@ class DefaultNoteRepository @Inject constructor(
                                         "$thumbnailId$EXTENSION_JPG"
                                     )
                                 )
-                            thumbnailRef.putFile(thumbUri).await()
+                            thumbnailRef.putFile(thumbUri.toPlatformUri()).await()
                             thumbnailRef.downloadUrl.await().toString()
                         }
 
@@ -291,19 +293,23 @@ class DefaultNoteRepository @Inject constructor(
         noteDao.syncFavoriteNotes(favorites.map { it.toDatabaseNote() })
     }
 
-    override suspend fun buildLocalMediaDetails(uriList: List<Uri>): Result<List<NoteMediaDetail>> =
+    override suspend fun buildLocalMediaDetails(
+        uriList: List<MediaUri>
+    ): Result<List<NoteMediaDetail>> =
         safeCall {
             withContext(ioDispatcher) {
-                uriList.mapNotNull { uri ->
+                uriList.mapNotNull { mediaUri ->
                     safeCall {
+                        val uri = mediaUri.toPlatformUri()
                         val isVideo = mediaFileRepository.isVideoUri(uri)
                         val thumbnailUri = if (isVideo) {
                             createVideoThumbnail(context, uri)
                                 ?.let { mediaFileRepository.saveBitmapAsTempFile(it) }
+                                ?.toMediaUri()
                         } else null
                         NoteMediaDetail(
-                            photoUri = if (!isVideo) uri else null,
-                            videoUri = if (isVideo) uri else null,
+                            photoUri = if (!isVideo) mediaUri else null,
+                            videoUri = if (isVideo) mediaUri else null,
                             thumbnailUri = thumbnailUri,
                             isVideo = isVideo
                         )
@@ -313,12 +319,13 @@ class DefaultNoteRepository @Inject constructor(
         }
 
     override suspend fun quickUploadMediaToFirebase(
-        uriList: List<Uri>,
+        uriList: List<MediaUri>,
         deleteAfterUpload: Boolean
     ) {
         val userId = authRepository.currentUserId
-        uriList.forEach { uri ->
+        uriList.forEach { mediaUri ->
             applicationScope.launch(ioDispatcher) {
+                val uri = mediaUri.toPlatformUri()
                 if (userId != null && mediaFileRepository.hasContent(uri)) {
                     safeCall {
                         val mediaId = Uuid.random().toString()

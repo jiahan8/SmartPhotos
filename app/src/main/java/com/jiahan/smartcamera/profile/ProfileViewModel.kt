@@ -16,6 +16,7 @@ import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorTag
 import com.jiahan.smartcamera.util.ResourceProvider
 import com.jiahan.smartcamera.util.ValidationResult
+import com.jiahan.smartcamera.util.toMediaUri
 import com.jiahan.smartcamera.util.usernameErrorMessageResId
 import com.jiahan.smartcamera.util.validateDisplayName
 import com.jiahan.smartcamera.util.validateUsername
@@ -224,13 +225,14 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun uploadProfilePicture(profilePictureUri: Uri) {
+        val mediaUri = profilePictureUri.toMediaUri()
         viewModelScope.launch {
-            noteRepository.quickUploadMediaToFirebase(listOf(profilePictureUri))
+            noteRepository.quickUploadMediaToFirebase(listOf(mediaUri))
         }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isUploading = true, showBottomSheet = false) }
-            userRepository.uploadProfilePicture(profilePictureUri)
+            userRepository.uploadProfilePicture(mediaUri)
                 .onSuccess { profilePictureUrl ->
                     if (profilePictureUrl == null) {
                         _events.tryEmit(ProfileEvent.UpdateError())
@@ -241,7 +243,7 @@ class ProfileViewModel @Inject constructor(
                         displayName = null,
                         username = null,
                         profilePicture = ProfilePictureUpdate.Set(
-                            uri = profilePictureUri,
+                            uri = mediaUri,
                             url = profilePictureUrl
                         )
                     ).onSuccess {
@@ -286,7 +288,10 @@ class ProfileViewModel @Inject constructor(
 
     fun cancelPhotoCapture(uri: Uri) {
         viewModelScope.launch {
-            noteRepository.quickUploadMediaToFirebase(listOf(uri), deleteAfterUpload = true)
+            noteRepository.quickUploadMediaToFirebase(
+                listOf(uri.toMediaUri()),
+                deleteAfterUpload = true
+            )
         }
         _uiState.update { it.copy(photoUri = null) }
     }
