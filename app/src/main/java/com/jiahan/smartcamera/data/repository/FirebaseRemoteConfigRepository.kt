@@ -5,7 +5,7 @@ import com.google.firebase.remoteconfig.ConfigUpdateListener
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigException
 import com.google.firebase.remoteconfig.remoteConfigSettings
-import com.jiahan.smartcamera.BuildConfig
+import com.jiahan.smartcamera.di.DebugBuild
 import com.jiahan.smartcamera.util.AppConstants.REMOTE_CONFIG_DEBUG_FETCH_INTERVAL_SECONDS
 import com.jiahan.smartcamera.util.AppConstants.REMOTE_CONFIG_FETCH_INTERVAL_SECONDS
 import com.jiahan.smartcamera.util.ErrorHandler
@@ -21,7 +21,8 @@ import javax.inject.Singleton
 @Singleton
 class FirebaseRemoteConfigRepository @Inject constructor(
     private val remoteConfig: FirebaseRemoteConfig,
-    private val errorHandler: ErrorHandler
+    private val errorHandler: ErrorHandler,
+    @param:DebugBuild private val isDebugBuild: Boolean
 ) : RemoteConfigRepository {
 
     companion object {
@@ -33,7 +34,7 @@ class FirebaseRemoteConfigRepository @Inject constructor(
 
     init {
         val configSettings = remoteConfigSettings {
-            minimumFetchIntervalInSeconds = if (BuildConfig.DEBUG)
+            minimumFetchIntervalInSeconds = if (isDebugBuild)
                 REMOTE_CONFIG_DEBUG_FETCH_INTERVAL_SECONDS
             else
                 REMOTE_CONFIG_FETCH_INTERVAL_SECONDS

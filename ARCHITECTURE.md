@@ -161,9 +161,12 @@ narrower [Hilt scope](https://developer.android.com/training/dependency-injectio
 that actually matches their lifetime, rather than defaulting everything to `@Singleton`.
 
 - `di/AppModule.kt`, `di/FirebaseModule.kt` — app-wide bindings (Firebase SDK instances,
-  `CoroutineDispatcher`s via `@IoDispatcher`/`@ApplicationScope` qualifiers, cross-feature
-  `@Singleton` `*Handler`s like `NoteHandler` provided via `@Provides` rather than a class-level
-  annotation, etc.).
+  `CoroutineDispatcher`s via `@IoDispatcher`/`@ApplicationScope`, the `@DebugBuild` flag,
+  cross-feature `@Singleton` `*Handler`s like `NoteHandler` provided via `@Provides` rather than a
+  class-level annotation, etc.).
+- `di/Qualifiers.kt` — the `@IoDispatcher`, `@ApplicationScope` and `@DebugBuild` annotations
+  themselves, kept apart from the providers above because they are plain JSR-330 and can move to a
+  shared module while the `@Provides` methods cannot.
 - `data/di/DataModule.kt` — binds each repository interface to its `Default*` implementation.
 - `database/di/` — provides `AppDatabase` and its DAOs.
 - `util/di/UtilModule.kt` — utilities like `ErrorHandler`.

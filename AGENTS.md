@@ -362,12 +362,32 @@ escaping of arguments.
   per-feature `di/` package yet (e.g. `note/`, `search/` have none); follow this layer-scoped
   pattern rather than introducing one.
 - Dispatchers and scopes: don't reference `Dispatchers.IO` directly in new code. Inject
-  `@param:IoDispatcher private val ioDispatcher: CoroutineDispatcher` — the qualifier and its
-  provider both live in `di/AppModule.kt` — so tests can substitute a `TestDispatcher`, and keep the
-  `@param:` use-site target the existing repositories use. `@ApplicationScope` provides the
+  `@param:IoDispatcher private val ioDispatcher: CoroutineDispatcher` — the qualifier lives in
+  `di/Qualifiers.kt` and its provider in `di/AppModule.kt` — so tests can substitute a
+  `TestDispatcher`, and keep the `@param:` use-site target the existing repositories use.
+  All three qualifiers sit apart from their providers deliberately: the annotations are plain
+  JSR-330 and can move to a shared module, the `@Provides` methods cannot. `@ApplicationScope` provides the
   app-lifetime `CoroutineScope` for work that must outlive a ViewModel. The single deliberate
   exception is `data/datastore/DataStoreModule.kt`, where DataStore's own scope is built at module
   level.
+- Build type: in code that will live below `:app`, don't read `BuildConfig.DEBUG` — inject
+  `@param:DebugBuild private val isDebugBuild: Boolean` (qualifier in `di/Qualifiers.kt`, provider
+  in `di/AppModule.kt`). `com.jiahan.smartcamera.BuildConfig` belongs to the application module's
+  namespace, so once `data/` moves to `:core:data` that import stops resolving — a compile error,
+  not a silent wrong value. (AGP 8 libraries don't generate `BuildConfig` at all without
+  `buildFeatures.buildConfig`, and if one does, its `DEBUG` tracks the *library's* variant, not the
+  app's — which is where a silent wrong value would actually come from, if someone "fixed" the
+  compile error by importing the local `BuildConfig`.) The concrete payoff today is testability:
+  the static read made the release branch unreachable from a unit test, and
+  `FirebaseRemoteConfigRepositoryTest` now pins both fetch intervals.
+
+  **Don't generalize this to application-module code.** `BuildConfig.DEBUG` is a `static final
+  boolean`, so R8 constant-folds it and strips the dead branch from the release binary; an injected
+  flag is a runtime value and ships both. That is why `MyApp.kt` and `util/DefaultErrorHandler.kt`
+  keep reading it directly — converting `DefaultErrorHandler` would ship its `Log.e` calls and make
+  the Crashlytics-suppressing branch reachable in release. `di/AppModule.kt` reads it too, in the
+  provider itself. (`settings/SettingsScreen.kt` reads `BuildConfig.VERSION_NAME`, which is
+  unrelated to this rule.)
 - Dependencies: every version lives in `gradle/libs.versions.toml` and is referenced through the
   generated `libs.*` accessors — `app/build.gradle.kts` holds no hardcoded version strings. Add a
   library as a `[versions]` entry plus a `[libraries]` entry, never as an inline
