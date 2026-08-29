@@ -18,6 +18,8 @@ import com.jiahan.smartcamera.domain.DetectedLabel
 import com.jiahan.smartcamera.domain.DetectedObject
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
+import com.jiahan.smartcamera.domain.NoteCursor
+import com.jiahan.smartcamera.domain.NotePage
 import com.jiahan.smartcamera.note.NoteMediaDetail
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_MP4
@@ -36,11 +38,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -108,11 +107,14 @@ class DefaultNoteRepository @Inject constructor(
     private fun userScopedPath(folder: String, userId: String, fileName: String) =
         "$folder/$userId/$fileName"
 
-    private val paginationMutex = Mutex()
-    private val pageToLastVisibleDocument = ConcurrentHashMap<Int, DocumentSnapshot>()
-
-    @Volatile
-    private var lastKnownUserId: String? = null
+    /**
+     * The Firestore document a page ended on. Carries the account it was issued for so a cursor
+     * left over from a previous sign-in is ignored rather than applied to another user's notes.
+     */
+    private data class FirestoreNoteCursor(
+        val userId: String,
+        val document: DocumentSnapshot
+    ) : NoteCursor
 
     private val noteCollectionReference: CollectionReference?
         get() = authRepository.currentUserId?.let { id ->
@@ -121,44 +123,40 @@ class DefaultNoteRepository @Inject constructor(
                 .collection(COLLECTION_NOTE)
         }
 
-    override suspend fun getNotes(page: Int, pageSize: Int): Result<List<HomeNote>> = safeCall {
-        val currentUserId = authRepository.currentUserId
-        paginationMutex.withLock {
-            if (currentUserId != lastKnownUserId) {
-                pageToLastVisibleDocument.clear()
-                lastKnownUserId = currentUserId
-            }
-        }
+    override suspend fun getNotes(cursor: NoteCursor?, pageSize: Int): Result<NotePage> = safeCall {
+        val currentUserId = authRepository.currentUserId ?: return@safeCall NotePage(emptyList())
 
         noteCollectionReference?.let { ref ->
             val baseQuery = ref
                 .orderBy(FIELD_CREATED, Query.Direction.DESCENDING)
                 .limit(pageSize.toLong())
 
-            val snapshot = if (page == 0) {
-                // First page - reset pagination state
-                paginationMutex.withLock { pageToLastVisibleDocument.clear() }
-                baseQuery.get().await()
+            val startAfterDocument = (cursor as? FirestoreNoteCursor)
+                ?.takeIf { it.userId == currentUserId }
+                ?.document
+            val snapshot = if (startAfterDocument != null) {
+                baseQuery.startAfter(startAfterDocument).get().await()
             } else {
-                val lastVisibleDoc = pageToLastVisibleDocument[page - 1]
-                if (lastVisibleDoc != null) {
-                    baseQuery.startAfter(lastVisibleDoc).get().await()
-                } else {
-                    baseQuery.get().await()
-                }
-            }
-
-            if (snapshot.documents.isNotEmpty()) {
-                pageToLastVisibleDocument[page] = snapshot.documents.last()
+                baseQuery.get().await()
             }
 
             val userIds = snapshot.documents.mapNotNull { it.getString(FIELD_USER_ID) }.distinct()
             val userDocumentsMap = getUserDocumentsInBatch(userIds)
-            snapshot.documents.mapNotNull { document ->
+            val notes = snapshot.documents.mapNotNull { document ->
                 val userId = document.getString(FIELD_USER_ID) ?: return@mapNotNull null
                 userDocumentsMap[userId]?.let { getHomeNote(document, it) }
             }
-        } ?: emptyList()
+            // The cursor comes from the documents the query returned, not from the mapped
+            // notes: getUserDocumentsInBatch tolerates a failed author lookup by dropping that
+            // note, so a short mapped list would otherwise be read as "end of feed".
+            val lastDocument = snapshot.documents
+                .takeIf { it.size >= pageSize }
+                ?.lastOrNull()
+            NotePage(
+                notes = notes,
+                nextCursor = lastDocument?.let { FirestoreNoteCursor(currentUserId, it) }
+            )
+        } ?: NotePage(emptyList())
     }
 
     // Delegates to the createNote Cloud Function, which enforces

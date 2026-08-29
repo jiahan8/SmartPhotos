@@ -4,6 +4,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import com.jiahan.smartcamera.domain.HomeNote
+import com.jiahan.smartcamera.domain.NotePage
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeAuthRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
@@ -47,7 +48,7 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
         createdDate = Instant.fromEpochMilliseconds(1_700_000_000_000L),
     )
 
-    private fun homeViewModel(notes: Result<List<HomeNote>>): HomeViewModel {
+    private fun homeViewModel(notes: Result<NotePage>): HomeViewModel {
         val repo = FakeNoteRepository().apply { notesResult = notes }
         val noteHandler = NoteHandler()
         val errorHandler = FakeErrorHandler()
@@ -76,7 +77,7 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
                 onNavigateToPhotoPreview = {},
                 onNavigateToVideoPreview = {},
                 onNavigateToExplore = {},
-                viewModel = homeViewModel(Result.success(emptyList())),
+                viewModel = homeViewModel(Result.success(NotePage(emptyList()))),
                 scrollToTop = null,
                 onScrollToTopConsumed = {},
                 snackbarHostState = remember { SnackbarHostState() },
@@ -97,7 +98,7 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
                 onNavigateToPhotoPreview = {},
                 onNavigateToVideoPreview = {},
                 onNavigateToExplore = {},
-                viewModel = homeViewModel(Result.success(notes)),
+                viewModel = homeViewModel(Result.success(NotePage(notes))),
                 scrollToTop = null,
                 onScrollToTopConsumed = {},
                 snackbarHostState = remember { SnackbarHostState() },

@@ -10,6 +10,8 @@ import com.jiahan.smartcamera.util.AppConstants.UNSPLASH_MAX_PAGE_SIZE
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorTag
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -58,12 +60,17 @@ class ExploreViewModel @Inject constructor(
     private val pageSize = UNSPLASH_MAX_PAGE_SIZE
     private var hasMoreData = true
 
+    private var reloadJob: Job? = null
+    private var loadMoreJob: Job? = null
+
     private var searchCurrentPage = UNSPLASH_FIRST_PAGE
     private var searchHasMoreData = true
     private var lastSubmittedQuery = ""
+    private var searchReloadJob: Job? = null
+    private var searchLoadMoreJob: Job? = null
 
     init {
-        viewModelScope.launch { fetchPhotos(initialLoading = true) }
+        reload(showRefreshIndicator = false)
     }
 
     fun logImageLoadError(throwable: Throwable) {
@@ -83,18 +90,35 @@ class ExploreViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Runs the query from page 1 — the one path that resets the search pagination, so it owns
+     * cancelling whatever the previous query left in flight.
+     *
+     * That page belongs to the *previous* query and page counter; letting it land would splice one
+     * search's results into another's list and then advance the wrong counter.
+     */
     fun submitSearch() {
         val query = _uiState.value.searchQuery.trim()
         if (query.isBlank()) return
 
-        lastSubmittedQuery = query
-        searchCurrentPage = UNSPLASH_FIRST_PAGE
-        searchHasMoreData = true
-        _uiState.update { it.copy(searchResultsVersion = it.searchResultsVersion + 1) }
-        viewModelScope.launch { fetchSearchResults(initialLoading = true) }
+        searchReloadJob?.cancel()
+        searchReloadJob = viewModelScope.launch {
+            searchLoadMoreJob?.cancelAndJoin()
+            lastSubmittedQuery = query
+            searchCurrentPage = UNSPLASH_FIRST_PAGE
+            searchHasMoreData = true
+            _uiState.update {
+                it.copy(
+                    searchResultsVersion = it.searchResultsVersion + 1,
+                    isSearchLoadingMore = false
+                )
+            }
+            fetchSearchResults(initialLoading = true)
+        }
     }
 
     fun loadMoreSearchResults() {
+        if (searchReloadJob?.isActive == true) return
         if (_uiState.value.isSearchLoadingMore ||
             !searchHasMoreData ||
             !_uiState.value.hasSubmittedSearch
@@ -102,7 +126,7 @@ class ExploreViewModel @Inject constructor(
             return
         }
 
-        viewModelScope.launch {
+        searchLoadMoreJob = viewModelScope.launch {
             _uiState.update { it.copy(isSearchLoadingMore = true) }
             fetchSearchResults(initialLoading = false)
             _uiState.update { it.copy(isSearchLoadingMore = false) }
@@ -110,17 +134,33 @@ class ExploreViewModel @Inject constructor(
     }
 
     fun refresh() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isRefreshing = true) }
+        reload(showRefreshIndicator = true)
+    }
+
+    /**
+     * Rebuilds the browse feed from page 1 — the one path that resets [currentPage], so every
+     * caller wanting a fresh list goes through it.
+     *
+     * A page load still in flight is cancelled first: it was issued against a page index this
+     * reset invalidates, so letting it land would splice a stale window into the new list.
+     */
+    private fun reload(showRefreshIndicator: Boolean) {
+        reloadJob?.cancel()
+        reloadJob = viewModelScope.launch {
+            loadMoreJob?.cancelAndJoin()
+            _uiState.update {
+                it.copy(isRefreshing = showRefreshIndicator, isLoadingMore = false)
+            }
             fetchPhotos(initialLoading = true)
             _uiState.update { it.copy(isRefreshing = false) }
         }
     }
 
     fun loadMorePhotos() {
+        if (reloadJob?.isActive == true) return
         if (_uiState.value.isLoadingMore || !hasMoreData) return
 
-        viewModelScope.launch {
+        loadMoreJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoadingMore = true) }
             fetchPhotos(initialLoading = false)
             _uiState.update { it.copy(isLoadingMore = false) }
@@ -138,11 +178,13 @@ class ExploreViewModel @Inject constructor(
         if (!hasMoreData) return
 
         photoRepository.listPhotos(page = currentPage, pageSize = pageSize)
-            .onSuccess { result ->
+            .onSuccess { photoPage ->
                 val prev = if (initialLoading) emptyList()
                 else _uiState.value.photos ?: emptyList()
-                _uiState.update { it.copy(content = ExploreContent.Success(prev + result)) }
-                hasMoreData = result.size >= pageSize
+                _uiState.update {
+                    it.copy(content = ExploreContent.Success(prev + photoPage.photos))
+                }
+                hasMoreData = photoPage.hasMore
                 currentPage++
             }
             .onFailure { e ->
@@ -166,11 +208,13 @@ class ExploreViewModel @Inject constructor(
             page = searchCurrentPage,
             pageSize = pageSize
         )
-            .onSuccess { result ->
+            .onSuccess { photoPage ->
                 val prev = if (initialLoading) emptyList()
                 else _uiState.value.searchPhotos ?: emptyList()
-                _uiState.update { it.copy(searchContent = ExploreContent.Success(prev + result)) }
-                searchHasMoreData = result.size >= pageSize
+                _uiState.update {
+                    it.copy(searchContent = ExploreContent.Success(prev + photoPage.photos))
+                }
+                searchHasMoreData = photoPage.hasMore
                 searchCurrentPage++
             }
             .onFailure { e ->

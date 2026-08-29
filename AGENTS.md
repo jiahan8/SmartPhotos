@@ -114,17 +114,37 @@ calling `FirebaseFirestore` directly, or a repository returning a Room `@Entity`
 
 ### Cross-feature communication
 
-Features that need to react to events in other features use a per-domain `*Handler` singleton
-injected via Hilt (e.g. `note/NoteHandler.kt`) exposing `MutableSharedFlow`s (`noteAddedEvent`,
-`noteDeletedEvent`, `noteFavoritedEvent`, …). ViewModels emit into these handlers on mutation and
-collect them in `init {}` to keep other screens (e.g. Home, Favorite) in sync without a shared
-ViewModel — follow this pattern instead of adding direct cross-ViewModel references.
+Screens that must reflect a mutation made on another screen use a per-domain `*Handler` singleton
+injected via Hilt (`note/NoteHandler.kt`), exposing read-only `SharedFlow`s (`noteAddedEvent`,
+`noteDeletedEvent`, `noteFavoritedEvent`, `noteUpdatedEvent`) over private `MutableSharedFlow`s.
+ViewModels emit into the handler on mutation and collect in `init {}` — Home, Search and
+NotePreview do. Follow this rather than adding direct cross-ViewModel references.
 
-This exists because Home/Favorite hold paginated, in-memory-cached lists rather than a live
-reactive query, so a plain Flow-from-repository wouldn't patch an already-loaded page on its own.
-Note the tradeoff: a default `MutableSharedFlow` has no replay, so a subscriber must already be
-collecting (i.e. its ViewModel must already be constructed and past its `init {}`) when the event
-fires, or it silently misses it — don't rely on this pattern for events a screen must never miss.
+**This is a deliberate deviation from the architecture guide.** The official answer to "screen A
+must reflect a change made on screen B" is a single source of truth in the data layer exposing a
+reactive stream both screens observe — not peer-to-peer events between ViewModels. It stands here
+only because Home's feed and Search's results are point-in-time Firestore snapshots with no local
+mirror: every `noteDao` write in `DefaultNoteRepository` is gated on favorite status, so the Room
+table only ever holds favorited notes and there is no live query for those two screens to observe.
+
+Favorite is the counter-example, and the pattern to copy whenever you can: it never injects
+`NoteHandler`, because `getFavoriteNotesStream` is a Room-backed `Flow` that re-emits on its own.
+
+**Trigger to retire the handler:** if the notes feed is ever mirrored into Room (the offline-first
+direction), Home and Search should observe that query and the handler should be deleted, not
+extended. Until then, don't add a `*Handler` for a list that *could* be backed by a live query —
+back it with the query instead.
+
+Two rules while it exists:
+
+- Emit the mutation once and let the collector apply it. Don't also patch the list locally at the
+  call site — `HomeViewModel.deleteNote` currently does both, which is harmless only because
+  filtering happens to be idempotent.
+- A default `MutableSharedFlow` has no replay, so a subscriber that isn't collecting yet (its
+  ViewModel not yet constructed, or still before its `init {}`) silently misses the event. That is
+  tolerable for list patches, where every subscriber re-fetches on construction anyway. For an
+  event a screen must never miss, use `note/IncomingShareHandler.kt` instead: a `StateFlow` holding
+  the pending value plus an explicit `consume()`, which survives having no subscriber yet.
 
 ### Error handling
 
@@ -186,9 +206,29 @@ calling out the discrepancy.
   (`data/di/DataModule.kt`, `util/di/UtilModule.kt`, `database/di/DatabaseModule.kt`) — there is no
   per-feature `di/` package yet (e.g. `note/`, `search/` have none); follow this layer-scoped
   pattern rather than introducing one.
-- Pagination: list screens use a `currentPage` / `pageSize` (see `AppConstants.DEFAULT_PAGE_SIZE`) /
-  `hasMoreData` triplet, with `isRefreshing` and `isLoadingMore` as separate fields on the
-  ViewModel's `*UiState` (not separate `StateFlow`s), as in `HomeViewModel`.
+- Pagination: repositories hold no position state — the caller owns its place in the list, so two
+  callers paginating at once can't corrupt each other. The key depends on the data source: notes
+  page by an opaque `NoteCursor` (`getNotes(cursor)` returns a `NotePage` carrying the next one,
+  null = first page), while Explore holds a page index because Unsplash pages by number. Either
+  way the ViewModel keeps that key plus `pageSize` and `hasMoreData`, with `isRefreshing` and
+  `isLoadingMore` as separate fields on the `*UiState` (not separate `StateFlow`s). Two rules that
+  are easy to get wrong:
+  - Derive "is there another page" from the rows the data source returned, never from the mapped
+    domain list's size — mapping can drop rows (a failed author lookup, say), and a short list
+    would then be read as "end of feed" and stop pagination for the rest of the session.
+  - Route *every* path that rebuilds the list from the first page through one `reload()` (pull-to-
+    refresh, a cross-feature add event, the initial load), and have it cancel any in-flight
+    load-more before resetting the position, with load-more no-opping while a reload is active. A
+    page fetched against the old position that lands after the reset splices a stale window into
+    the new list — duplicating or skipping items depending on which finishes first. Guarding only the
+    pull-to-refresh path is not enough; `HomeViewModel` had three such paths. A ViewModel running
+    two independent paginated lists needs one pair of jobs per list — `ExploreViewModel` keeps a
+    reload/load-more pair for the browse feed and another for search results.
+- Paging 3 is deliberately not a dependency. Firestore pages by `DocumentSnapshot` cursor, which
+  makes an awkward `PagingSource` key — Paging re-derives a key on refresh via `getRefreshKey`, and
+  a live snapshot object isn't something it can reconstruct — and Explore pages an Unsplash-backed
+  Cloud Function by page number instead. Revisit if the notes feed moves into Room, where
+  `PagingSource`/`RemoteMediator` is the natural fit.
 - Firestore security rules (`firestore.rules`) deny all access by default; per-collection rules are
   additive (OR'd). Keep new collections behind an explicit `request.auth != null` (or stricter) rule.
 - Cloud Functions code style is enforced by `eslint-config-google` — run the functions lint command

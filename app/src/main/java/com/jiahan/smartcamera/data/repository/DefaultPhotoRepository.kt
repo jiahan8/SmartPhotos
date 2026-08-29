@@ -2,6 +2,7 @@ package com.jiahan.smartcamera.data.repository
 
 import com.google.firebase.functions.FirebaseFunctions
 import com.jiahan.smartcamera.domain.Photo
+import com.jiahan.smartcamera.domain.PhotoPage
 import com.jiahan.smartcamera.util.safeCall
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -36,24 +37,35 @@ class DefaultPhotoRepository @Inject constructor(
         private const val FIELD_USER_PROFILE_IMAGE = "profile_image"
     }
 
-    override suspend fun listPhotos(page: Int, pageSize: Int): Result<List<Photo>> = safeCall {
+    override suspend fun listPhotos(page: Int, pageSize: Int): Result<PhotoPage> = safeCall {
         val result = functions.getHttpsCallable(FUNCTION_LIST_UNSPLASH_PHOTOS)
             .call(hashMapOf(FIELD_PAGE to page, FIELD_PER_PAGE to pageSize))
             .await()
-        val photos = (result.data as? Map<*, *>)?.get(FIELD_PHOTOS) as? List<*> ?: emptyList<Any?>()
-        photos.mapNotNull { (it as? Map<*, *>)?.let(::parsePhoto) }
+        toPhotoPage(result.data, pageSize)
     }
 
     override suspend fun searchPhotos(
         query: String,
         page: Int,
         pageSize: Int
-    ): Result<List<Photo>> = safeCall {
+    ): Result<PhotoPage> = safeCall {
         val result = functions.getHttpsCallable(FUNCTION_SEARCH_UNSPLASH_PHOTOS)
             .call(hashMapOf(FIELD_QUERY to query, FIELD_PAGE to page, FIELD_PER_PAGE to pageSize))
             .await()
-        val photos = (result.data as? Map<*, *>)?.get(FIELD_PHOTOS) as? List<*> ?: emptyList<Any?>()
-        photos.mapNotNull { (it as? Map<*, *>)?.let(::parsePhoto) }
+        toPhotoPage(result.data, pageSize)
+    }
+
+    /**
+     * `hasMore` counts the rows the callable returned, not the parsed photos: [parsePhoto] drops a
+     * malformed entry, and a short parsed list would otherwise be read as "end of feed" and stop
+     * pagination for the rest of the session.
+     */
+    private fun toPhotoPage(data: Any?, pageSize: Int): PhotoPage {
+        val rows = (data as? Map<*, *>)?.get(FIELD_PHOTOS) as? List<*> ?: emptyList<Any?>()
+        return PhotoPage(
+            photos = rows.mapNotNull { (it as? Map<*, *>)?.let(::parsePhoto) },
+            hasMore = rows.size >= pageSize
+        )
     }
 
     private fun parsePhoto(map: Map<*, *>): Photo? {

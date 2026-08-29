@@ -4,6 +4,8 @@ import android.net.Uri
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
+import com.jiahan.smartcamera.domain.NoteCursor
+import com.jiahan.smartcamera.domain.NotePage
 import com.jiahan.smartcamera.note.NoteMediaDetail
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +21,7 @@ import kotlinx.coroutines.flow.update
  */
 class FakeNoteRepository : NoteRepository {
 
-    var notesResult: Result<List<HomeNote>> = Result.success(emptyList())
+    var notesResult: Result<NotePage> = Result.success(NotePage(emptyList()))
     var searchResult: Result<List<HomeNote>> = Result.success(emptyList())
     var deleteResult: Result<Unit> = Result.success(Unit)
     var favoriteResult: Result<Unit> = Result.success(Unit)
@@ -44,7 +46,13 @@ class FakeNoteRepository : NoteRepository {
         favoritesFlow.value = notes
     }
 
-    override suspend fun getNotes(page: Int, pageSize: Int): Result<List<HomeNote>> = notesResult
+    /** Stubs a successful page. [nextCursor] drives pagination independently of [notes].size. */
+    fun setNotes(notes: List<HomeNote>, nextCursor: NoteCursor? = null) {
+        notesResult = Result.success(NotePage(notes, nextCursor))
+    }
+
+    override suspend fun getNotes(cursor: NoteCursor?, pageSize: Int): Result<NotePage> =
+        notesResult
 
     override suspend fun addNote(homeNote: HomeNote): Result<Unit> {
         addNoteCallCount++

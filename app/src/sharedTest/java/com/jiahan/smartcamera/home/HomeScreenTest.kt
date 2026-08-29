@@ -97,7 +97,7 @@ class HomeScreenTest {
 
     @Test
     fun emptyFeed_showsNoNotesFoundMessage() {
-        noteRepository.notesResult = Result.success(emptyList())
+        noteRepository.setNotes(emptyList())
         launchHomeScreen()
 
         waitForText(string(R.string.create_first_note))
@@ -106,7 +106,7 @@ class HomeScreenTest {
 
     @Test
     fun successState_rendersNoteContent() {
-        noteRepository.notesResult = Result.success(listOf(note("doc1", "Hello world note")))
+        noteRepository.setNotes(listOf(note("doc1", "Hello world note")))
         launchHomeScreen()
 
         waitForText("Hello world note")
@@ -125,7 +125,7 @@ class HomeScreenTest {
 
     @Test
     fun overflowMenu_exposesDeleteAction() {
-        noteRepository.notesResult = Result.success(listOf(note("doc1", "Deletable note")))
+        noteRepository.setNotes(listOf(note("doc1", "Deletable note")))
         launchHomeScreen()
         waitForText("Deletable note")
 
@@ -136,7 +136,7 @@ class HomeScreenTest {
 
     @Test
     fun overflowMenu_deleteConfirmed_removesNoteFromList() {
-        noteRepository.notesResult = Result.success(listOf(note("doc1", "Deletable note")))
+        noteRepository.setNotes(listOf(note("doc1", "Deletable note")))
         launchHomeScreen()
         waitForText("Deletable note")
 
@@ -156,7 +156,7 @@ class HomeScreenTest {
 
     @Test
     fun overflowMenu_favoriteToggle_marksNoteAsFavorited() {
-        noteRepository.notesResult = Result.success(listOf(note("doc1", "Likeable note")))
+        noteRepository.setNotes(listOf(note("doc1", "Likeable note")))
         launchHomeScreen()
         waitForText("Likeable note")
 
@@ -175,7 +175,7 @@ class HomeScreenTest {
 
     @Test
     fun tappingNote_navigatesToNotePreview() {
-        noteRepository.notesResult = Result.success(listOf(note("doc-nav", "Tap me")))
+        noteRepository.setNotes(listOf(note("doc-nav", "Tap me")))
         launchHomeScreen()
         waitForText("Tap me")
 

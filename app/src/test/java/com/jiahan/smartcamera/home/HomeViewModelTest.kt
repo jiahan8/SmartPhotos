@@ -4,6 +4,8 @@ import app.cash.turbine.test
 import com.jiahan.smartcamera.MainDispatcherRule
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
+import com.jiahan.smartcamera.domain.NoteCursor
+import com.jiahan.smartcamera.domain.NotePage
 import com.jiahan.smartcamera.fake.FakeRemoteConfigRepository
 import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteErrorReporter
@@ -62,7 +64,12 @@ class HomeViewModelTest {
     fun setUp() {
         every { errorHandler.logError(any()) } just runs
         every { errorHandler.getErrorMessage(any()) } returns "An error occurred"
-        coEvery { noteRepository.getNotes(any(), any()) } returns Result.success(emptyList())
+        coEvery {
+            noteRepository.getNotes(
+                any(),
+                any()
+            )
+        } returns Result.success(NotePage(emptyList()))
         viewModel = HomeViewModel(
             noteRepository,
             noteHandler,
@@ -79,6 +86,8 @@ class HomeViewModelTest {
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    private object TestCursor : NoteCursor
 
     private fun makeNote(id: String, favorite: Boolean = false) = HomeNote(
         noteId = id,
@@ -111,7 +120,7 @@ class HomeViewModelTest {
     @Test
     fun `init emits Success with notes when repository returns data`() = runTest {
         val notes = listOf(makeNote("a"), makeNote("b"))
-        coEvery { noteRepository.getNotes(0, any()) } returns Result.success(notes)
+        coEvery { noteRepository.getNotes(null, any()) } returns Result.success(NotePage(notes))
         val vm = createViewModel()
         assertEquals(HomeContent.Success(notes), vm.uiState.value.content)
     }
@@ -135,7 +144,11 @@ class HomeViewModelTest {
     @Test
     fun `refresh reloads page 0 and updates state`() = runTest {
         val refreshedNotes = listOf(makeNote("r1"), makeNote("r2"))
-        coEvery { noteRepository.getNotes(0, any()) } returns Result.success(refreshedNotes)
+        coEvery { noteRepository.getNotes(null, any()) } returns Result.success(
+            NotePage(
+                refreshedNotes
+            )
+        )
 
         viewModel.refresh()
 
@@ -145,7 +158,7 @@ class HomeViewModelTest {
     @Test
     fun `refresh always requests page 0`() = runTest {
         viewModel.refresh()
-        coVerify { noteRepository.getNotes(0, any()) }
+        coVerify { noteRepository.getNotes(null, any()) }
     }
 
     @Test
@@ -157,12 +170,16 @@ class HomeViewModelTest {
     @Test
     fun `refresh failure replaces existing notes with Error state`() = runTest {
         val initialNotes = listOf(makeNote("a"), makeNote("b"))
-        coEvery { noteRepository.getNotes(0, any()) } returns Result.success(initialNotes)
+        coEvery { noteRepository.getNotes(null, any()) } returns Result.success(
+            NotePage(
+                initialNotes
+            )
+        )
         val vm = createViewModel()
         assertTrue(vm.uiState.value.content is HomeContent.Success)
 
         val exception = RuntimeException("refresh failed")
-        coEvery { noteRepository.getNotes(0, any()) } returns Result.failure(exception)
+        coEvery { noteRepository.getNotes(null, any()) } returns Result.failure(exception)
         every { errorHandler.getErrorMessage(exception) } returns "refresh failed"
 
         vm.refresh()
@@ -181,8 +198,18 @@ class HomeViewModelTest {
     fun `loadMoreNotes appends second page to existing notes`() = runTest {
         val page0 = (1..10).map { makeNote("note$it") }
         val page1 = (11..15).map { makeNote("note$it") }
-        coEvery { noteRepository.getNotes(0, any()) } returns Result.success(page0)
-        coEvery { noteRepository.getNotes(1, any()) } returns Result.success(page1)
+        coEvery { noteRepository.getNotes(null, any()) } returns Result.success(
+            NotePage(
+                page0,
+                TestCursor
+            )
+        )
+        coEvery {
+            noteRepository.getNotes(
+                TestCursor,
+                any()
+            )
+        } returns Result.success(NotePage(page1))
         val vm = createViewModel()
 
         vm.loadMoreNotes()
@@ -192,10 +219,9 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `loadMoreNotes does nothing when first page was smaller than pageSize`() = runTest {
-        // 2 items < DEFAULT_PAGE_SIZE(10) → hasMoreData = false
+    fun `loadMoreNotes does nothing when the page reports no more data`() = runTest {
         val twoNotes = listOf(makeNote("a"), makeNote("b"))
-        coEvery { noteRepository.getNotes(any(), any()) } returns Result.success(twoNotes)
+        coEvery { noteRepository.getNotes(any(), any()) } returns Result.success(NotePage(twoNotes))
         val vm = createViewModel() // triggers the init fetch
 
         // Reset recorded calls (keep stubs) so we measure only what loadMoreNotes triggers
@@ -207,10 +233,38 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `loadMoreNotes still fetches when a full page mapped to fewer notes than pageSize`() =
+        runTest {
+            // A note whose author lookup failed is dropped from the page, so notes.size <
+            // DEFAULT_PAGE_SIZE even though the query had a full page of rows. hasMore, not the
+            // mapped list's length, decides whether pagination continues.
+            val shortPage = (1..9).map { makeNote("note$it") }
+            coEvery { noteRepository.getNotes(null, any()) } returns
+                    Result.success(NotePage(shortPage, TestCursor))
+            coEvery { noteRepository.getNotes(TestCursor, any()) } returns
+                    Result.success(NotePage(listOf(makeNote("note10"))))
+            val vm = createViewModel()
+
+            vm.loadMoreNotes()
+
+            val content = vm.uiState.value.content as HomeContent.Success
+            assertEquals(10, content.notes.size)
+        }
+
+    @Test
     fun `isLoadingMore is false after loadMoreNotes completes`() = runTest {
         val page0 = (1..10).map { makeNote("note$it") }
-        coEvery { noteRepository.getNotes(0, any()) } returns Result.success(page0)
-        coEvery { noteRepository.getNotes(1, any()) } returns Result.success(emptyList())
+        coEvery { noteRepository.getNotes(null, any()) } returns Result.success(
+            NotePage(
+                page0,
+                TestCursor
+            )
+        )
+        coEvery { noteRepository.getNotes(TestCursor, any()) } returns Result.success(
+            NotePage(
+                emptyList()
+            )
+        )
         val vm = createViewModel()
 
         vm.loadMoreNotes()
@@ -223,11 +277,14 @@ class HomeViewModelTest {
         val paused = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(paused)
         val page0 = (1..10).map { makeNote("note$it") }
-        coEvery { noteRepository.getNotes(0, any()) } returns Result.success(page0)
-        coEvery { noteRepository.getNotes(1, any()) } coAnswers {
-            delay(1.seconds); Result.success(
-            emptyList()
+        coEvery { noteRepository.getNotes(null, any()) } returns Result.success(
+            NotePage(
+                page0,
+                TestCursor
+            )
         )
+        coEvery { noteRepository.getNotes(TestCursor, any()) } coAnswers {
+            delay(1.seconds); Result.success(NotePage(emptyList()))
         }
         val vm = createViewModel()
         advanceUntilIdle() // let init fetch complete
@@ -243,10 +300,15 @@ class HomeViewModelTest {
     @Test
     fun `loadMoreNotes failure preserves existing Success state`() = runTest {
         val page0 = (1..10).map { makeNote("note$it") }
-        coEvery { noteRepository.getNotes(0, any()) } returns Result.success(page0)
+        coEvery { noteRepository.getNotes(null, any()) } returns Result.success(
+            NotePage(
+                page0,
+                TestCursor
+            )
+        )
         coEvery {
             noteRepository.getNotes(
-                1,
+                TestCursor,
                 any()
             )
         } returns Result.failure(RuntimeException("page fail"))
@@ -260,6 +322,84 @@ class HomeViewModelTest {
         assertFalse(vm.uiState.value.isLoadingMore)
     }
 
+    @Test
+    fun `loadMoreNotes is ignored while a refresh is in flight`() = runTest {
+        val paused = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(paused)
+        val page0 = (1..10).map { makeNote("note$it") }
+        coEvery { noteRepository.getNotes(null, any()) } returns
+                Result.success(NotePage(page0, TestCursor))
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        coEvery { noteRepository.getNotes(null, any()) } coAnswers {
+            delay(1.seconds); Result.success(NotePage(page0, TestCursor))
+        }
+        vm.refresh()
+        advanceTimeBy(1.milliseconds) // refresh is suspended mid-fetch
+        clearMocks(noteRepository, answers = false)
+
+        vm.loadMoreNotes()
+        advanceUntilIdle()
+
+        // refresh() has already reset the cursor, so an unguarded load-more would refetch the
+        // first page and append it to the list refresh is replacing, duplicating notes.
+        coVerify(exactly = 0) { noteRepository.getNotes(any(), any()) }
+    }
+
+    @Test
+    fun `refresh cancels an in-flight load more instead of appending its page`() = runTest {
+        val paused = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(paused)
+        val page0 = (1..10).map { makeNote("note$it") }
+        val refreshed = listOf(makeNote("fresh"))
+        coEvery { noteRepository.getNotes(null, any()) } returns
+                Result.success(NotePage(page0, TestCursor))
+        coEvery { noteRepository.getNotes(TestCursor, any()) } coAnswers {
+            delay(1.seconds); Result.success(NotePage((11..20).map { makeNote("note$it") }))
+        }
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.loadMoreNotes()
+        advanceTimeBy(1.milliseconds) // page-2 fetch is suspended
+
+        coEvery { noteRepository.getNotes(null, any()) } returns
+                Result.success(NotePage(refreshed))
+        vm.refresh()
+        advanceUntilIdle()
+
+        val content = vm.uiState.value.content as HomeContent.Success
+        assertEquals(refreshed, content.notes)
+        assertFalse(vm.uiState.value.isLoadingMore)
+    }
+
+    @Test
+    fun `noteAddedEvent cancels an in-flight load more instead of splicing its page`() = runTest {
+        val paused = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(paused)
+        val page0 = (1..10).map { makeNote("note$it") }
+        coEvery { noteRepository.getNotes(null, any()) } returns
+                Result.success(NotePage(page0, TestCursor))
+        coEvery { noteRepository.getNotes(TestCursor, any()) } coAnswers {
+            delay(1.seconds); Result.success(NotePage((11..20).map { makeNote("note$it") }))
+        }
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.loadMoreNotes()
+        advanceTimeBy(1.milliseconds) // page-2 fetch is suspended
+
+        // The added note shifts the feed, so the in-flight page-2 window is now stale
+        val reloaded = listOf(makeNote("added")) + page0
+        coEvery { noteRepository.getNotes(null, any()) } returns Result.success(NotePage(reloaded))
+        noteHandler.notifyNoteAdded()
+        advanceUntilIdle()
+
+        val content = vm.uiState.value.content as HomeContent.Success
+        assertEquals(reloaded, content.notes)
+    }
+
     // -------------------------------------------------------------------------
     // Delete note
     // -------------------------------------------------------------------------
@@ -267,7 +407,7 @@ class HomeViewModelTest {
     @Test
     fun `deleteNote success removes the note from Success state`() = runTest {
         val notes = listOf(makeNote("doc1"), makeNote("doc2"))
-        coEvery { noteRepository.getNotes(0, any()) } returns Result.success(notes)
+        coEvery { noteRepository.getNotes(null, any()) } returns Result.success(NotePage(notes))
         coEvery { noteRepository.deleteNote("doc1") } returns Result.success(Unit)
         val vm = createViewModel()
 
@@ -293,7 +433,7 @@ class HomeViewModelTest {
     @Test
     fun `deleteNote failure does not change Success state`() = runTest {
         val notes = listOf(makeNote("doc1"), makeNote("doc2"))
-        coEvery { noteRepository.getNotes(0, any()) } returns Result.success(notes)
+        coEvery { noteRepository.getNotes(null, any()) } returns Result.success(NotePage(notes))
         coEvery { noteRepository.deleteNote(any()) } returns Result.failure(RuntimeException())
         val vm = createViewModel()
 
@@ -369,7 +509,7 @@ class HomeViewModelTest {
     @Test
     fun `noteDeletedEvent removes matching note from Success state`() = runTest {
         val notes = listOf(makeNote("doc1"), makeNote("doc2"), makeNote("doc3"))
-        coEvery { noteRepository.getNotes(0, any()) } returns Result.success(notes)
+        coEvery { noteRepository.getNotes(null, any()) } returns Result.success(NotePage(notes))
         val vm = createViewModel()
 
         noteHandler.notifyNoteDeleted("doc2")
@@ -382,7 +522,7 @@ class HomeViewModelTest {
     @Test
     fun `noteFavoritedEvent updates favorite flag for matching note`() = runTest {
         val notes = listOf(makeNote("doc1", favorite = false), makeNote("doc2"))
-        coEvery { noteRepository.getNotes(0, any()) } returns Result.success(notes)
+        coEvery { noteRepository.getNotes(null, any()) } returns Result.success(NotePage(notes))
         val vm = createViewModel()
 
         noteHandler.notifyNoteFavorited(makeNote("doc1", favorite = true))
@@ -394,7 +534,7 @@ class HomeViewModelTest {
     @Test
     fun `noteFavoritedEvent does not affect other notes`() = runTest {
         val notes = listOf(makeNote("doc1", favorite = false), makeNote("doc2", favorite = false))
-        coEvery { noteRepository.getNotes(0, any()) } returns Result.success(notes)
+        coEvery { noteRepository.getNotes(null, any()) } returns Result.success(NotePage(notes))
         val vm = createViewModel()
 
         noteHandler.notifyNoteFavorited(makeNote("doc1", favorite = true))

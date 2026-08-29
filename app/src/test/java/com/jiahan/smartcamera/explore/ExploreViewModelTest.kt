@@ -4,6 +4,7 @@ import com.jiahan.smartcamera.MainDispatcherRule
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.PhotoRepository
 import com.jiahan.smartcamera.domain.Photo
+import com.jiahan.smartcamera.domain.PhotoPage
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorTag
 import io.mockk.clearMocks
@@ -51,7 +52,8 @@ class ExploreViewModelTest {
         every { errorHandler.logError(any(), any()) } just runs
         every { errorHandler.getErrorMessage(any()) } returns "An error occurred"
         every { analyticsRepository.logExploreSearchCustomEvent(any()) } just runs
-        coEvery { photoRepository.listPhotos(any(), any()) } returns Result.success(emptyList())
+        coEvery { photoRepository.listPhotos(any(), any()) } returns
+                Result.success(PhotoPage(emptyList(), hasMore = false))
         viewModel = ExploreViewModel(photoRepository, analyticsRepository, errorHandler)
     }
 
@@ -88,7 +90,8 @@ class ExploreViewModelTest {
     @Test
     fun `init emits Success with photos when repository returns data`() = runTest {
         val photos = listOf(makePhoto("a"), makePhoto("b"))
-        coEvery { photoRepository.listPhotos(1, any()) } returns Result.success(photos)
+        coEvery { photoRepository.listPhotos(1, any()) } returns
+                Result.success(PhotoPage(photos, hasMore = false))
         val vm = createViewModel()
         assertEquals(ExploreContent.Success(photos), vm.uiState.value.content)
     }
@@ -112,7 +115,8 @@ class ExploreViewModelTest {
     @Test
     fun `refresh reloads first page and updates state`() = runTest {
         val refreshedPhotos = listOf(makePhoto("r1"), makePhoto("r2"))
-        coEvery { photoRepository.listPhotos(1, any()) } returns Result.success(refreshedPhotos)
+        coEvery { photoRepository.listPhotos(1, any()) } returns
+                Result.success(PhotoPage(refreshedPhotos, hasMore = false))
 
         viewModel.refresh()
 
@@ -134,7 +138,8 @@ class ExploreViewModelTest {
     @Test
     fun `refresh failure replaces existing photos with Error state`() = runTest {
         val initialPhotos = listOf(makePhoto("a"), makePhoto("b"))
-        coEvery { photoRepository.listPhotos(1, any()) } returns Result.success(initialPhotos)
+        coEvery { photoRepository.listPhotos(1, any()) } returns
+                Result.success(PhotoPage(initialPhotos, hasMore = false))
         val vm = createViewModel()
         assertTrue(vm.uiState.value.content is ExploreContent.Success)
 
@@ -158,8 +163,10 @@ class ExploreViewModelTest {
     fun `loadMorePhotos appends second page to existing photos`() = runTest {
         val page1 = (1..30).map { makePhoto("photo$it") }
         val page2 = (31..35).map { makePhoto("photo$it") }
-        coEvery { photoRepository.listPhotos(1, any()) } returns Result.success(page1)
-        coEvery { photoRepository.listPhotos(2, any()) } returns Result.success(page2)
+        coEvery { photoRepository.listPhotos(1, any()) } returns
+                Result.success(PhotoPage(page1, hasMore = true))
+        coEvery { photoRepository.listPhotos(2, any()) } returns
+                Result.success(PhotoPage(page2, hasMore = false))
         val vm = createViewModel()
 
         vm.loadMorePhotos()
@@ -169,10 +176,10 @@ class ExploreViewModelTest {
     }
 
     @Test
-    fun `loadMorePhotos does nothing when first page was smaller than pageSize`() = runTest {
-        // 2 items < UNSPLASH_MAX_PAGE_SIZE(30) → hasMoreData = false
+    fun `loadMorePhotos does nothing when the page reports no more data`() = runTest {
         val twoPhotos = listOf(makePhoto("a"), makePhoto("b"))
-        coEvery { photoRepository.listPhotos(any(), any()) } returns Result.success(twoPhotos)
+        coEvery { photoRepository.listPhotos(any(), any()) } returns
+                Result.success(PhotoPage(twoPhotos, hasMore = false))
         val vm = createViewModel() // triggers the init fetch
 
         // Reset recorded calls (keep stubs) so we measure only what loadMorePhotos triggers
@@ -186,8 +193,10 @@ class ExploreViewModelTest {
     @Test
     fun `isLoadingMore is false after loadMorePhotos completes`() = runTest {
         val page1 = (1..30).map { makePhoto("photo$it") }
-        coEvery { photoRepository.listPhotos(1, any()) } returns Result.success(page1)
-        coEvery { photoRepository.listPhotos(2, any()) } returns Result.success(emptyList())
+        coEvery { photoRepository.listPhotos(1, any()) } returns
+                Result.success(PhotoPage(page1, hasMore = true))
+        coEvery { photoRepository.listPhotos(2, any()) } returns
+                Result.success(PhotoPage(emptyList(), hasMore = false))
         val vm = createViewModel()
 
         vm.loadMorePhotos()
@@ -200,10 +209,11 @@ class ExploreViewModelTest {
         val paused = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(paused)
         val page1 = (1..30).map { makePhoto("photo$it") }
-        coEvery { photoRepository.listPhotos(1, any()) } returns Result.success(page1)
+        coEvery { photoRepository.listPhotos(1, any()) } returns
+                Result.success(PhotoPage(page1, hasMore = true))
         coEvery { photoRepository.listPhotos(2, any()) } coAnswers {
             delay(1.seconds)
-            Result.success(emptyList())
+            Result.success(PhotoPage(emptyList(), hasMore = false))
         }
         val vm = createViewModel()
         advanceUntilIdle() // let init fetch complete
@@ -219,7 +229,8 @@ class ExploreViewModelTest {
     @Test
     fun `loadMorePhotos failure preserves existing Success state`() = runTest {
         val page1 = (1..30).map { makePhoto("photo$it") }
-        coEvery { photoRepository.listPhotos(1, any()) } returns Result.success(page1)
+        coEvery { photoRepository.listPhotos(1, any()) } returns
+                Result.success(PhotoPage(page1, hasMore = true))
         coEvery {
             photoRepository.listPhotos(2, any())
         } returns Result.failure(RuntimeException("page fail"))
@@ -230,6 +241,78 @@ class ExploreViewModelTest {
         // Existing photos are unchanged despite the page-2 failure
         val content = vm.uiState.value.content as ExploreContent.Success
         assertEquals(30, content.photos.size)
+        assertFalse(vm.uiState.value.isLoadingMore)
+    }
+
+    @Test
+    fun `loadMorePhotos still fetches when a full page parsed to fewer photos`() =
+        runTest {
+            // A malformed Unsplash entry is dropped by parsePhoto, so photos.size <
+            // UNSPLASH_MAX_PAGE_SIZE even though the callable returned a full page. hasMore, not
+            // the parsed list's length, decides whether pagination continues.
+            val shortPage = (1..29).map { makePhoto("photo$it") }
+            coEvery { photoRepository.listPhotos(1, any()) } returns
+                    Result.success(PhotoPage(shortPage, hasMore = true))
+            coEvery { photoRepository.listPhotos(2, any()) } returns
+                    Result.success(PhotoPage(listOf(makePhoto("photo30")), hasMore = false))
+            val vm = createViewModel()
+
+            vm.loadMorePhotos()
+
+            val content = vm.uiState.value.content as ExploreContent.Success
+            assertEquals(30, content.photos.size)
+        }
+
+    @Test
+    fun `loadMorePhotos is ignored while a refresh is in flight`() = runTest {
+        val paused = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(paused)
+        val page1 = (1..30).map { makePhoto("photo$it") }
+        coEvery { photoRepository.listPhotos(1, any()) } returns
+                Result.success(PhotoPage(page1, hasMore = true))
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        coEvery { photoRepository.listPhotos(1, any()) } coAnswers {
+            delay(1.seconds); Result.success(PhotoPage(page1, hasMore = true))
+        }
+        vm.refresh()
+        advanceTimeBy(1.milliseconds) // refresh is suspended mid-fetch
+        clearMocks(photoRepository, answers = false)
+
+        vm.loadMorePhotos()
+        advanceUntilIdle()
+
+        // refresh() has already reset the page counter, so an unguarded load-more would refetch
+        // page 1 and append it to the list refresh is replacing, duplicating photos.
+        coVerify(exactly = 0) { photoRepository.listPhotos(any(), any()) }
+    }
+
+    @Test
+    fun `refresh cancels an in-flight load more instead of appending its page`() = runTest {
+        val paused = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(paused)
+        val page1 = (1..30).map { makePhoto("photo$it") }
+        val refreshed = listOf(makePhoto("fresh"))
+        coEvery { photoRepository.listPhotos(1, any()) } returns
+                Result.success(PhotoPage(page1, hasMore = true))
+        coEvery { photoRepository.listPhotos(2, any()) } coAnswers {
+            delay(1.seconds)
+            Result.success(PhotoPage((31..60).map { makePhoto("photo$it") }, hasMore = false))
+        }
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.loadMorePhotos()
+        advanceTimeBy(1.milliseconds) // page-2 fetch is suspended
+
+        coEvery { photoRepository.listPhotos(1, any()) } returns
+                Result.success(PhotoPage(refreshed, hasMore = false))
+        vm.refresh()
+        advanceUntilIdle()
+
+        val content = vm.uiState.value.content as ExploreContent.Success
+        assertEquals(refreshed, content.photos)
         assertFalse(vm.uiState.value.isLoadingMore)
     }
 
@@ -247,7 +330,8 @@ class ExploreViewModelTest {
     @Test
     fun `toggleSearch when closing preserves searchQuery and searchContent`() = runTest {
         val results = listOf(makePhoto("s1"))
-        coEvery { photoRepository.searchPhotos("cats", 1, any()) } returns Result.success(results)
+        coEvery { photoRepository.searchPhotos("cats", 1, any()) } returns
+                Result.success(PhotoPage(results, hasMore = false))
 
         viewModel.toggleSearch()
         viewModel.updateSearchQuery("cats")
@@ -264,7 +348,8 @@ class ExploreViewModelTest {
     @Test
     fun `reopening search after close shows preserved results without re-fetching`() = runTest {
         val results = listOf(makePhoto("s1"))
-        coEvery { photoRepository.searchPhotos("cats", 1, any()) } returns Result.success(results)
+        coEvery { photoRepository.searchPhotos("cats", 1, any()) } returns
+                Result.success(PhotoPage(results, hasMore = false))
 
         viewModel.toggleSearch()
         viewModel.updateSearchQuery("cats")
@@ -282,7 +367,7 @@ class ExploreViewModelTest {
     fun `closing search does not re-invoke photoRepository listPhotos`() = runTest {
         coEvery {
             photoRepository.searchPhotos(any(), any(), any())
-        } returns Result.success(emptyList())
+        } returns Result.success(PhotoPage(emptyList(), hasMore = false))
 
         viewModel.toggleSearch()
         viewModel.updateSearchQuery("dogs")
@@ -323,7 +408,7 @@ class ExploreViewModelTest {
     fun `submitSearch calls searchPhotos with trimmed query and page 1`() = runTest {
         coEvery {
             photoRepository.searchPhotos("cats", 1, any())
-        } returns Result.success(emptyList())
+        } returns Result.success(PhotoPage(emptyList(), hasMore = false))
 
         viewModel.updateSearchQuery("  cats  ")
         viewModel.submitSearch()
@@ -334,7 +419,8 @@ class ExploreViewModelTest {
     @Test
     fun `submitSearch emits Success with results`() = runTest {
         val results = listOf(makePhoto("s1"), makePhoto("s2"))
-        coEvery { photoRepository.searchPhotos("cats", 1, any()) } returns Result.success(results)
+        coEvery { photoRepository.searchPhotos("cats", 1, any()) } returns
+                Result.success(PhotoPage(results, hasMore = false))
 
         viewModel.updateSearchQuery("cats")
         viewModel.submitSearch()
@@ -361,13 +447,32 @@ class ExploreViewModelTest {
     // -------------------------------------------------------------------------
     // Search — load more
     // -------------------------------------------------------------------------
+    @Test
+    fun `loadMoreSearchResults still fetches when a full page parsed to fewer photos`() =
+        runTest {
+            val shortPage = (1..29).map { makePhoto("s$it") }
+            coEvery { photoRepository.searchPhotos("cats", 1, any()) } returns
+                    Result.success(PhotoPage(shortPage, hasMore = true))
+            coEvery { photoRepository.searchPhotos("cats", 2, any()) } returns
+                    Result.success(PhotoPage(listOf(makePhoto("s30")), hasMore = false))
+
+            viewModel.updateSearchQuery("cats")
+            viewModel.submitSearch()
+            viewModel.loadMoreSearchResults()
+
+            val content = viewModel.uiState.value.searchContent as ExploreContent.Success
+            assertEquals(30, content.photos.size)
+        }
+
 
     @Test
     fun `loadMoreSearchResults appends second page to existing search results`() = runTest {
         val page1 = (1..30).map { makePhoto("s$it") }
         val page2 = (31..35).map { makePhoto("s$it") }
-        coEvery { photoRepository.searchPhotos("cats", 1, any()) } returns Result.success(page1)
-        coEvery { photoRepository.searchPhotos("cats", 2, any()) } returns Result.success(page2)
+        coEvery { photoRepository.searchPhotos("cats", 1, any()) } returns
+                Result.success(PhotoPage(page1, hasMore = true))
+        coEvery { photoRepository.searchPhotos("cats", 2, any()) } returns
+                Result.success(PhotoPage(page2, hasMore = false))
 
         viewModel.updateSearchQuery("cats")
         viewModel.submitSearch()
@@ -382,7 +487,7 @@ class ExploreViewModelTest {
         runTest {
             coEvery {
                 photoRepository.searchPhotos("cats", any(), any())
-            } returns Result.success(listOf(makePhoto("s1")))
+            } returns Result.success(PhotoPage(listOf(makePhoto("s1")), hasMore = false))
 
             viewModel.updateSearchQuery("cats")
             viewModel.submitSearch()
@@ -409,10 +514,11 @@ class ExploreViewModelTest {
         val paused = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(paused)
         val page1 = (1..30).map { makePhoto("s$it") }
-        coEvery { photoRepository.searchPhotos("cats", 1, any()) } returns Result.success(page1)
+        coEvery { photoRepository.searchPhotos("cats", 1, any()) } returns
+                Result.success(PhotoPage(page1, hasMore = true))
         coEvery { photoRepository.searchPhotos("cats", 2, any()) } coAnswers {
             delay(1.seconds)
-            Result.success(emptyList())
+            Result.success(PhotoPage(emptyList(), hasMore = false))
         }
         val vm = createViewModel()
         advanceUntilIdle() // let init fetch complete
@@ -432,7 +538,8 @@ class ExploreViewModelTest {
     @Test
     fun `loadMoreSearchResults failure preserves existing search Success state`() = runTest {
         val page1 = (1..30).map { makePhoto("s$it") }
-        coEvery { photoRepository.searchPhotos("cats", 1, any()) } returns Result.success(page1)
+        coEvery { photoRepository.searchPhotos("cats", 1, any()) } returns
+                Result.success(PhotoPage(page1, hasMore = true))
         coEvery {
             photoRepository.searchPhotos("cats", 2, any())
         } returns Result.failure(RuntimeException("page fail"))
@@ -452,10 +559,10 @@ class ExploreViewModelTest {
         val dogsPage1 = listOf(makePhoto("dog1"))
         coEvery {
             photoRepository.searchPhotos("cats", 1, any())
-        } returns Result.success(catsPage1)
+        } returns Result.success(PhotoPage(catsPage1, hasMore = true))
         coEvery {
             photoRepository.searchPhotos("dogs", 1, any())
-        } returns Result.success(dogsPage1)
+        } returns Result.success(PhotoPage(dogsPage1, hasMore = false))
 
         viewModel.updateSearchQuery("cats")
         viewModel.submitSearch()
@@ -467,6 +574,69 @@ class ExploreViewModelTest {
         val content = viewModel.uiState.value.searchContent as ExploreContent.Success
         assertEquals(dogsPage1, content.photos)
     }
+
+    @Test
+    fun `loadMoreSearchResults is ignored while a search submission is in flight`() = runTest {
+        val paused = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(paused)
+        val page1 = (1..30).map { makePhoto("s$it") }
+        coEvery { photoRepository.searchPhotos("cats", 1, any()) } returns
+                Result.success(PhotoPage(page1, hasMore = true))
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.updateSearchQuery("cats")
+        vm.submitSearch()
+        advanceUntilIdle()
+
+        coEvery { photoRepository.searchPhotos("dogs", 1, any()) } coAnswers {
+            delay(1.seconds); Result.success(PhotoPage(listOf(makePhoto("d1")), hasMore = false))
+        }
+        vm.updateSearchQuery("dogs")
+        vm.submitSearch()
+        advanceTimeBy(1.milliseconds) // the dogs query is suspended mid-fetch
+        clearMocks(photoRepository, answers = false)
+
+        vm.loadMoreSearchResults()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { photoRepository.searchPhotos(any(), any(), any()) }
+    }
+
+    @Test
+    fun `submitSearch cancels an in-flight load more instead of mixing the previous query`() =
+        runTest {
+            val paused = StandardTestDispatcher(testScheduler)
+            Dispatchers.setMain(paused)
+            val catsPage1 = (1..30).map { makePhoto("cat$it") }
+            val dogsPage1 = listOf(makePhoto("dog1"))
+            coEvery { photoRepository.searchPhotos("cats", 1, any()) } returns
+                    Result.success(PhotoPage(catsPage1, hasMore = true))
+            coEvery { photoRepository.searchPhotos("cats", 2, any()) } coAnswers {
+                delay(1.seconds)
+                Result.success(PhotoPage((31..60).map { makePhoto("cat$it") }, hasMore = false))
+            }
+            coEvery { photoRepository.searchPhotos("dogs", 1, any()) } returns
+                    Result.success(PhotoPage(dogsPage1, hasMore = false))
+            val vm = createViewModel()
+            advanceUntilIdle()
+
+            vm.updateSearchQuery("cats")
+            vm.submitSearch()
+            advanceUntilIdle()
+
+            vm.loadMoreSearchResults()
+            advanceTimeBy(1.milliseconds) // the cats page-2 fetch is suspended
+
+            vm.updateSearchQuery("dogs")
+            vm.submitSearch()
+            advanceUntilIdle()
+
+            // The cats page-2 result must not land in the dogs list
+            val content = vm.uiState.value.searchContent as ExploreContent.Success
+            assertEquals(dogsPage1, content.photos)
+            assertFalse(vm.uiState.value.isSearchLoadingMore)
+        }
 
     // -------------------------------------------------------------------------
     // logImageLoadError

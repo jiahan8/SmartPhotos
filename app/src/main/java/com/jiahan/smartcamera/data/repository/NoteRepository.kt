@@ -3,6 +3,8 @@ package com.jiahan.smartcamera.data.repository
 import android.net.Uri
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
+import com.jiahan.smartcamera.domain.NoteCursor
+import com.jiahan.smartcamera.domain.NotePage
 import com.jiahan.smartcamera.note.NoteMediaDetail
 import kotlinx.coroutines.flow.Flow
 
@@ -15,7 +17,12 @@ import kotlinx.coroutines.flow.Flow
  * the former is a reactive Flow and the latter is fire-and-forget.
  */
 interface NoteRepository {
-    suspend fun getNotes(page: Int = 0, pageSize: Int = 10): Result<List<HomeNote>>
+    /**
+     * Returns the page starting after [cursor], or the first page when it is null. Pass
+     * [NotePage.nextCursor] back to advance; callers own their own position, so two callers
+     * paginating at once do not interfere.
+     */
+    suspend fun getNotes(cursor: NoteCursor? = null, pageSize: Int = 10): Result<NotePage>
     suspend fun addNote(homeNote: HomeNote): Result<Unit>
     suspend fun updateNote(homeNote: HomeNote): Result<Unit>
     suspend fun searchNotes(query: String): Result<List<HomeNote>>

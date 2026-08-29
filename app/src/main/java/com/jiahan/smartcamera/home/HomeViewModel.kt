@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.domain.HomeNote
+import com.jiahan.smartcamera.domain.NoteCursor
 import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
@@ -12,6 +13,8 @@ import com.jiahan.smartcamera.util.AppConstants.DEFAULT_PAGE_SIZE
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorTag
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -50,13 +53,17 @@ class HomeViewModel @Inject constructor(
     val actionError = noteActions.actionError
     val shareEvent = noteShare.shareEvent
 
-    private var currentPage = 0
     private val pageSize = DEFAULT_PAGE_SIZE
+    private var nextCursor: NoteCursor? = null
     private var hasMoreData = true
+    private var reloadJob: Job? = null
+    private var loadMoreJob: Job? = null
 
     init {
-        viewModelScope.launch { fetchNotes(initialLoading = true) }
-        viewModelScope.launch { noteHandler.noteAddedEvent.collect { fetchNotes(initialLoading = true) } }
+        reload(showRefreshIndicator = false)
+        viewModelScope.launch {
+            noteHandler.noteAddedEvent.collect { reload(showRefreshIndicator = false) }
+        }
         noteHandler.observeNoteMutations(viewModelScope) { transform -> updateSuccessNotes(transform) }
         viewModelScope.launch {
             remoteConfigRepository.observeExploreIconVisible().collect { visible ->
@@ -70,8 +77,23 @@ class HomeViewModel @Inject constructor(
     }
 
     fun refresh() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isRefreshing = true) }
+        reload(showRefreshIndicator = true)
+    }
+
+    /**
+     * Rebuilds the feed from the first page — the one path that resets [nextCursor], so every
+     * caller that wants a fresh list goes through it.
+     *
+     * A page load still in flight is cancelled first: it was issued against a cursor this reset
+     * invalidates, so letting it land would splice a stale window into the new list.
+     */
+    private fun reload(showRefreshIndicator: Boolean) {
+        reloadJob?.cancel()
+        reloadJob = viewModelScope.launch {
+            loadMoreJob?.cancelAndJoin()
+            _uiState.update {
+                it.copy(isRefreshing = showRefreshIndicator, isLoadingMore = false)
+            }
             fetchNotes(initialLoading = true)
             _uiState.update { it.copy(isRefreshing = false) }
         }
@@ -82,18 +104,18 @@ class HomeViewModel @Inject constructor(
             if (!_uiState.value.isRefreshing) {
                 _uiState.update { it.copy(content = HomeContent.Loading) }
             }
-            currentPage = 0
+            nextCursor = null
             hasMoreData = true
         }
         if (!hasMoreData) return
 
-        noteRepository.getNotes(page = currentPage, pageSize = pageSize)
-            .onSuccess { result ->
+        noteRepository.getNotes(cursor = nextCursor, pageSize = pageSize)
+            .onSuccess { notePage ->
                 val prev = if (initialLoading) emptyList()
                 else _uiState.value.notes ?: emptyList()
-                _uiState.update { it.copy(content = HomeContent.Success(prev + result)) }
-                hasMoreData = result.size >= pageSize
-                currentPage++
+                _uiState.update { it.copy(content = HomeContent.Success(prev + notePage.notes)) }
+                nextCursor = notePage.nextCursor
+                hasMoreData = notePage.hasMore
             }
             .onFailure { e ->
                 errorHandler.logError(e)
@@ -106,9 +128,10 @@ class HomeViewModel @Inject constructor(
     }
 
     fun loadMoreNotes() {
+        if (reloadJob?.isActive == true) return
         if (_uiState.value.isLoadingMore || !hasMoreData) return
 
-        viewModelScope.launch {
+        loadMoreJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoadingMore = true) }
             fetchNotes(initialLoading = false)
             _uiState.update { it.copy(isLoadingMore = false) }
