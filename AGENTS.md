@@ -1,14 +1,30 @@
 # SmartPhotos
 
-Android app (Kotlin, single `:app` module) for organizing photos/notes with ML-based tagging.
+Android app (Kotlin) for organizing photos/notes with ML-based tagging.
 Firebase backend + a Node.js Cloud Functions project live in `functions/`.
+
+Two Gradle modules:
+
+- `:app` — UI, ViewModels, navigation, and every Android/Firebase/Room-bound implementation.
+  Sources under `app/src/main/java/com/jiahan/smartcamera/`.
+- `:core:domain` — a pure Kotlin JVM module (no Android Gradle plugin, no Hilt plugin) holding the
+  domain models, the repository *interfaces*, `safeCall`, the `ErrorHandler` interface and the DI
+  qualifiers. Sources under `core/domain/src/main/kotlin/com/jiahan/smartcamera/`.
+
+Kotlin package names are deliberately identical across the two: `com.jiahan.smartcamera.util`,
+`.di` and `.data.repository` each exist in both modules, which is what made the extraction a pure
+`git mv` with no import churn. A bare path like `util/ErrorHandler.kt` below is therefore
+disambiguated by the module it is attributed to, not by its package.
 
 ## Build, test, lint
 
 Run from the repo root (Gradle wrapper):
 
 - Build debug APK: `./gradlew assembleDebug`
-- Unit tests (JVM, Robolectric-backed): `./gradlew testDebugUnitTest`
+- Unit tests (JVM, Robolectric-backed): `./gradlew testDebugUnitTest :core:domain:test`
+  - Both tasks, because they are different tasks. `testDebugUnitTest` is an Android *variant* task
+    and `:core:domain` is a plain Kotlin JVM module, so its tests run under `test` and a bare
+    `testDebugUnitTest` skips them without failing. CI names both for the same reason.
   - Single class: `./gradlew testDebugUnitTest --tests "com.jiahan.smartcamera.home.HomeViewModelTest"`
   - Single method: `./gradlew testDebugUnitTest --tests "com.jiahan.smartcamera.home.HomeViewModelTest.methodName"`
   - Assert on a settled `StateFlow` by reading `.value`; that is what most of the suite does, and
@@ -79,7 +95,9 @@ Two things to know about the goldens:
 
 MVVM with a layered structure, one Kotlin package per feature under
 `app/src/main/java/com/jiahan/smartcamera/` (e.g. `home`, `note`, `favorite`, `search`, `profile`,
-`settings`, `auth`, `preview`). Cross-cutting layers:
+`settings`, `auth`, `preview`). Every feature package is in `:app`; the module boundary runs
+underneath them, between the contracts in `:core:domain` and the implementations that satisfy them.
+Cross-cutting layers:
 
 - **UI** — Jetpack Compose screens (`*Screen.kt`) + Navigation Compose graph in
   `navigation/SmartPhotosNavGraph.kt` / `navigation/Screen.kt`.
@@ -90,9 +108,13 @@ MVVM with a layered structure, one Kotlin package per feature under
 - **Repository** (`data/repository/`) — one interface + one `Default*` implementation per
   repository (e.g. `NoteRepository` / `DefaultNoteRepository`), all bound in
   `data/di/DataModule.kt`. Coordinates Firebase Firestore/Storage (remote) and Room/DataStore
-  (local).
-- **Domain** (`domain/`) — plain data classes shared across features (e.g. `HomeNote`,
-  `MediaDetail`, `User`).
+  (local). The two halves now live in different modules: the interfaces are in `:core:domain`, the
+  `Default*` implementations and `DataModule` in `:app`. Two interfaces stay with the
+  implementations — `AppUpdateRepository` takes `ActivityResultLauncher`/`IntentSenderRequest` and
+  `MediaFileRepository` takes `Bitmap`/`Uri`, so neither compiles in a module without Android.
+- **Domain** (`domain/`, in `:core:domain`) — plain data classes shared across features (e.g.
+  `HomeNote`, `MediaDetail`, `User`). Their purity is no longer a convention to uphold by review:
+  the module has no Android plugin, so a stray `import android.*` fails the build.
 - **Local** — Room database in `database/` (schemas exported to `app/schemas/`), DataStore
   preferences in `data/datastore/`. A note's media list is persisted into the `notes.media_list`
   column as `kotlinx.serialization` JSON keyed by `MediaDetail`'s property names, so those names are
@@ -222,7 +244,9 @@ falling back to it when they return null.
 The three pieces live in three files, by layer rather than by topic: `util/ErrorHandler.kt` holds
 the interface and `ErrorTag` and imports nothing; `util/DefaultErrorHandler.kt` holds the
 Android/Firebase-bound implementation; `util/ErrorMessageMappers.kt` holds the `R`-resolving
-mappers. Keep a new mapper in the third file rather than reuniting them.
+mappers. Keep a new mapper in the third file rather than reuniting them. That split is now also a
+module boundary — the first file is in `:core:domain` and the other two are in `:app`, which is
+exactly the division the KMP note below predicted.
 
 **A repository that needs to raise its own failure throws a `domain/AppError`, never a message.**
 Resolving a string resource is presentation, so a repository building one —
@@ -248,13 +272,16 @@ We may migrate parts of this codebase (`domain/`, repository interfaces, other b
 Kotlin Multiplatform down the line. This isn't a mandate to add KMP tooling now, but when choosing
 between otherwise-equivalent approaches, prefer the one that keeps that migration cheap:
 
-- Keep `domain/` models and repository *interfaces* free of Android/Firebase/Room types — already
-  required by the Separation of concerns rules above. Treat this as a prerequisite, not as the
-  migration itself: KMP moves Gradle *modules*, not Kotlin packages, so a perfectly pure `domain/`
-  package inside the single `:app` module still compiles against the Android plugin's classpath and
-  is no closer to a `commonMain` source set than an impure one. The actual first step is extracting
-  `:core:domain` / `:core:data` modules; type purity is what keeps that extraction from becoming a
-  rewrite. Don't read a clean `domain/` package as "we are nearly KMP-ready".
+- Keep `domain/` models and repository *interfaces* free of Android/Firebase/Room types — required
+  by the Separation of concerns rules above, and since the extraction, enforced by the compiler
+  rather than by review: they live in `:core:domain`, which has no Android Gradle plugin.
+  Extracting that module was the actual first step and it is done; the type purity built up
+  beforehand is what kept it to a `git mv`. What remains is `:core:data` — `data/`, `database/` and
+  every `Default*` implementation are still in `:app`. Keep the reading of this honest in both
+  directions: a pure package inside `:app` was never progress on its own, because KMP moves Gradle
+  *modules*, not Kotlin packages; and a module that compiles without the Android plugin is real
+  progress but still not a `commonMain` source set. The next step toward one is `:core:data`, not
+  KMP tooling.
 - Prefer `kotlinx` libraries (`kotlinx.coroutines`, `kotlinx.datetime`, `kotlinx.serialization`)
   over equivalents that have no `commonMain` implementation (e.g. `java.time`, Gson) in
   shared-leaning code, when a choice exists. `java.time` is not unavailable on Android — core
@@ -267,6 +294,18 @@ between otherwise-equivalent approaches, prefer the one that keeps that migratio
   `MediaFileRepository` exists precisely to wrap `ContentResolver`/`FileProvider` work behind a
   seam, so it keeps its `Uri`/`Bitmap` parameters and is not a KMP candidate. Don't wrap those
   parameters to satisfy the rule, and don't cite it as precedent for a new contract.
+- The module *names* deviate from Google's, deliberately. The
+  [modularization patterns](https://developer.android.com/topic/modularization/patterns) guide keeps
+  a repository, its data sources and its models together in a single data module; Now in Android
+  splits that into `core:model` (model classes), `core:common` (`NiaDispatchers`, `Result`) and
+  `core:data` (repository interfaces *and* implementations). Our `:core:domain` is those three minus
+  the implementations: domain models, the pure repository interfaces, `safeCall`, the
+  `ErrorHandler` interface and the DI qualifiers. It is split that way because `:core:data` has to
+  be an Android library — Firebase and Room — so the contracts need a pure-JVM home to be worth
+  anything; NiA is not KMP and has no such pressure. The cost is the name: `core:domain` means *use
+  cases* in Google's usage, not models. Keep the name and this note together rather than renaming to
+  `:core:model` (which would be inaccurate — it holds more than models) or splitting into three
+  modules at this size, and don't read `:core:domain` here as a use-case layer.
 
 ## Follow official Android guidance
 
@@ -363,23 +402,23 @@ escaping of arguments.
   pattern rather than introducing one.
 - Dispatchers and scopes: don't reference `Dispatchers.IO` directly in new code. Inject
   `@param:IoDispatcher private val ioDispatcher: CoroutineDispatcher` — the qualifier lives in
-  `di/Qualifiers.kt` and its provider in `di/AppModule.kt` — so tests can substitute a
-  `TestDispatcher`, and keep the `@param:` use-site target the existing repositories use.
-  All three qualifiers sit apart from their providers deliberately: the annotations are plain
-  JSR-330 and can move to a shared module, the `@Provides` methods cannot. `@ApplicationScope` provides the
-  app-lifetime `CoroutineScope` for work that must outlive a ViewModel. The single deliberate
-  exception is `data/datastore/DataStoreModule.kt`, where DataStore's own scope is built at module
-  level.
-- Build type: in code that will live below `:app`, don't read `BuildConfig.DEBUG` — inject
-  `@param:DebugBuild private val isDebugBuild: Boolean` (qualifier in `di/Qualifiers.kt`, provider
-  in `di/AppModule.kt`). `com.jiahan.smartcamera.BuildConfig` belongs to the application module's
-  namespace, so once `data/` moves to `:core:data` that import stops resolving — a compile error,
-  not a silent wrong value. (AGP 8 libraries don't generate `BuildConfig` at all without
-  `buildFeatures.buildConfig`, and if one does, its `DEBUG` tracks the *library's* variant, not the
-  app's — which is where a silent wrong value would actually come from, if someone "fixed" the
-  compile error by importing the local `BuildConfig`.) The concrete payoff today is testability:
-  the static read made the release branch unreachable from a unit test, and
-  `FirebaseRemoteConfigRepositoryTest` now pins both fetch intervals.
+  `di/Qualifiers.kt` in `:core:domain` and its provider in `di/AppModule.kt` in `:app` — so tests
+  can substitute a `TestDispatcher`, and keep the `@param:` use-site target the existing
+  repositories use. All three qualifiers sit apart from their providers deliberately: the
+  annotations are plain JSR-330 and have moved to the shared module, the `@Provides` methods
+  cannot follow. `@ApplicationScope` provides the app-lifetime `CoroutineScope` for work that must
+  outlive a ViewModel. The single deliberate exception is `data/datastore/DataStoreModule.kt`,
+  where DataStore's own scope is built at module level.
+- Build type: in code that lives below `:app`, or is headed there, don't read `BuildConfig.DEBUG` —
+  inject `@param:DebugBuild private val isDebugBuild: Boolean` (qualifier in `di/Qualifiers.kt` in
+  `:core:domain`, provider in `di/AppModule.kt` in `:app`). `com.jiahan.smartcamera.BuildConfig`
+  belongs to the application module's namespace, so once `data/` moves to `:core:data` that import
+  stops resolving — a compile error, not a silent wrong value. (AGP 8 libraries don't generate
+  `BuildConfig` at all without `buildFeatures.buildConfig`, and if one does, its `DEBUG` tracks
+  the *library's* variant, not the app's — which is where a silent wrong value would actually come
+  from, if someone "fixed" the compile error by importing the local `BuildConfig`.) The concrete
+  payoff today is testability: the static read made the release branch unreachable from a unit
+  test, and `FirebaseRemoteConfigRepositoryTest` now pins both fetch intervals.
 
   **Don't generalize this to application-module code.** `BuildConfig.DEBUG` is a `static final
   boolean`, so R8 constant-folds it and strips the dead branch from the release binary; an injected

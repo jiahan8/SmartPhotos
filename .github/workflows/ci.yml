@@ -59,8 +59,11 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug
 
+      # :core:domain is named explicitly because it is a plain Kotlin JVM module: its unit tests
+      # run under `test`, not the Android `testDebugUnitTest` variant task, so a bare
+      # testDebugUnitTest would skip them silently rather than fail.
       - name: Unit tests
-        run: ./gradlew testDebugUnitTest
+        run: ./gradlew testDebugUnitTest :core:domain:test
 
       # Uploaded here, before the screenshot step below re-runs the test task with a filter and
       # rewrites app/build/test-results/ down to just the screenshot classes.
@@ -72,6 +75,8 @@ jobs:
           path: |
             app/build/reports/tests/testDebugUnitTest/
             app/build/test-results/testDebugUnitTest/
+            core/domain/build/reports/tests/test/
+            core/domain/build/test-results/test/
           if-no-files-found: ignore
 
       # Split from the unit tests so a red X says which kind of thing broke: logic or pixels.

@@ -140,6 +140,10 @@ ksp {
 
 dependencies {
 
+    // Domain models, repository contracts, safeCall and the DI qualifiers. A pure-JVM
+    // module with no Android plugin, so it is the compiler's copy of the purity rule.
+    implementation(project(":core:domain"))
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
