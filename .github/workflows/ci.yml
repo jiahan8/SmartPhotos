@@ -61,7 +61,10 @@ jobs:
 
       # :core:domain is named explicitly because it is a plain Kotlin JVM module: its unit tests
       # run under `test`, not the Android `testDebugUnitTest` variant task, so a bare
-      # testDebugUnitTest would skip them silently rather than fail.
+      # testDebugUnitTest would skip them silently rather than fail. :core:data needs no such
+      # mention -- it is an Android library, so the unqualified testDebugUnitTest reaches it, as
+      # does lintDebug below. (verifyRoborazziDebug is app-only for a different reason: the
+      # roborazzi plugin is applied to :app alone, so the task exists nowhere else.)
       - name: Unit tests
         run: ./gradlew testDebugUnitTest :core:domain:test
 
@@ -75,6 +78,8 @@ jobs:
           path: |
             app/build/reports/tests/testDebugUnitTest/
             app/build/test-results/testDebugUnitTest/
+            core/data/build/reports/tests/testDebugUnitTest/
+            core/data/build/test-results/testDebugUnitTest/
             core/domain/build/reports/tests/test/
             core/domain/build/test-results/test/
           if-no-files-found: ignore
@@ -109,6 +114,7 @@ jobs:
           path: |
             app/build/outputs/roborazzi/
             app/build/reports/lint-results-debug.html
+            core/data/build/reports/lint-results-debug.html
           if-no-files-found: ignore
 
   functions:

@@ -3,18 +3,28 @@
 Android app (Kotlin) for organizing photos/notes with ML-based tagging.
 Firebase backend + a Node.js Cloud Functions project live in `functions/`.
 
-Two Gradle modules:
+Three Gradle modules:
 
-- `:app` — UI, ViewModels, navigation, and every Android/Firebase/Room-bound implementation.
-  Sources under `app/src/main/java/com/jiahan/smartcamera/`.
+- `:app` — UI, ViewModels, navigation, and the Android plumbing that is genuinely app-level:
+  `MyApp`, the messaging service, `DefaultErrorHandler`/`ResourceProviderImpl`, `FirebaseModule`
+  and `AppModule`. Sources under `app/src/main/java/com/jiahan/smartcamera/`.
 - `:core:domain` — a pure Kotlin JVM module (no Android Gradle plugin, no Hilt plugin) holding the
   domain models, the repository *interfaces*, `safeCall`, the `ErrorHandler` interface and the DI
   qualifiers. Sources under `core/domain/src/main/kotlin/com/jiahan/smartcamera/`.
+- `:core:data` — an Android library holding every implementation that satisfies one of those
+  contracts: the `Default*`/`Firebase*` repositories, the Room database, the DataStore wiring and
+  `DataModule`. Sources under `core/data/src/main/kotlin/com/jiahan/smartcamera/`.
 
-Kotlin package names are deliberately identical across the two: `com.jiahan.smartcamera.util`,
-`.di` and `.data.repository` each exist in both modules, which is what made the extraction a pure
-`git mv` with no import churn. A bare path like `util/ErrorHandler.kt` below is therefore
-disambiguated by the module it is attributed to, not by its package.
+Kotlin package names are deliberately identical across all three: `com.jiahan.smartcamera.util`,
+`.di`, `.data.repository` and `.data.datastore` each exist in more than one module, which is what
+made both extractions a pure `git mv` with no import churn. A bare path like `util/ErrorHandler.kt`
+below is therefore disambiguated by the module it is attributed to, not by its package —
+`util/ErrorHandler.kt` is `:core:domain`, `util/DefaultErrorHandler.kt` is `:app`, and
+`util/MediaUriExt.kt` is `:core:data`.
+
+The dependency arrows run one way: `:app` → `:core:data` → `:core:domain`. Nothing depends on
+`:app`, so a repository implementation can no longer reach a ViewModel, an `R` string or
+`BuildConfig` even by accident.
 
 ## Build, test, lint
 
@@ -25,6 +35,8 @@ Run from the repo root (Gradle wrapper):
   - Both tasks, because they are different tasks. `testDebugUnitTest` is an Android *variant* task
     and `:core:domain` is a plain Kotlin JVM module, so its tests run under `test` and a bare
     `testDebugUnitTest` skips them without failing. CI names both for the same reason.
+    `:core:data` needs no such mention — it is an Android library, so the unqualified
+    `testDebugUnitTest` already reaches it, as do `lintDebug` and `connectedDebugAndroidTest`.
   - Single class: `./gradlew testDebugUnitTest --tests "com.jiahan.smartcamera.home.HomeViewModelTest"`
   - Single method: `./gradlew testDebugUnitTest --tests "com.jiahan.smartcamera.home.HomeViewModelTest.methodName"`
   - Assert on a settled `StateFlow` by reading `.value`; that is what most of the suite does, and
@@ -44,8 +56,14 @@ Run from the repo root (Gradle wrapper):
   `./gradlew verifyRoborazziDebug --tests "com.jiahan.smartcamera.screenshot.*"` (this is what CI
   does). Re-record with `./gradlew recordRoborazziDebug` when a diff reflects an intended change,
   and look at the new PNGs before committing them.
-- Instrumented tests (`app/src/androidTest`) require a device/emulator and run via
-  `./gradlew connectedDebugAndroidTest`. They use a custom `HiltTestRunner` (installs
+- **`./gradlew compileDebugAndroidTestKotlin` catches Hilt graph errors that nothing else does.**
+  `assembleDebug`, the unit tests, Roborazzi and lint all pass without ever compiling the
+  androidTest sources, and `di/HiltGraphSmokeTest.kt`'s member injection is what walks the binding
+  graph furthest — so a missing binding or an unresolvable constructor parameter shows up there
+  first. Run it after any change to a module's dependencies or to an `@Inject` constructor, and
+  especially when you can't run the instrumented suite for lack of a device.
+- Instrumented tests (`app/src/androidTest` and `core/data/src/androidTest`) require a
+  device/emulator and run via `./gradlew connectedDebugAndroidTest`. They use a custom `HiltTestRunner` (installs
   `HiltTestApplication`), the AndroidX Test Orchestrator, and `clearPackageData=true` for hermetic,
   isolated runs — don't remove these from `app/build.gradle.kts` without understanding why.
   - The same suite also runs on Firebase Test Lab's device farm via `./scripts/run-test-lab.sh`
@@ -109,14 +127,18 @@ Cross-cutting layers:
   repository (e.g. `NoteRepository` / `DefaultNoteRepository`), all bound in
   `data/di/DataModule.kt`. Coordinates Firebase Firestore/Storage (remote) and Room/DataStore
   (local). The two halves now live in different modules: the interfaces are in `:core:domain`, the
-  `Default*` implementations and `DataModule` in `:app`. Two interfaces stay with the
+  `Default*` implementations and `DataModule` in `:core:data`. Two interfaces stay with the
   implementations — `AppUpdateRepository` takes `ActivityResultLauncher`/`IntentSenderRequest` and
-  `MediaFileRepository` takes `Bitmap`/`Uri`, so neither compiles in a module without Android.
+  `MediaFileRepository` takes `Bitmap`/`Uri`, so neither compiles in a module without Android; both
+  therefore live in `:core:data` beside their `Default*`, not in `:core:domain` with the rest.
 - **Domain** (`domain/`, in `:core:domain`) — plain data classes shared across features (e.g.
   `HomeNote`, `MediaDetail`, `User`). Their purity is no longer a convention to uphold by review:
   the module has no Android plugin, so a stray `import android.*` fails the build.
-- **Local** — Room database in `database/` (schemas exported to `app/schemas/`), DataStore
-  preferences in `data/datastore/`. A note's media list is persisted into the `notes.media_list`
+- **Local** — Room database in `database/` (schemas exported to `core/data/schemas/`), DataStore
+  preferences in `data/datastore/`, whose contract and model (`UserPreferencesRepository`,
+  `UserPreferences`) sit in `:core:domain` while the DataStore wiring sits in `:core:data`. Note that
+  `UserPreferences` is a domain model living outside the `domain/` package: it keeps its
+  `data.datastore` package so the extraction stayed a pure `git mv`. A note's media list is persisted into the `notes.media_list`
   column as `kotlinx.serialization` JSON keyed by `MediaDetail`'s property names, so those names are
   an on-disk format: renaming one makes already-cached rows undecodable unless you pin the old key
   with `@SerialName`.
@@ -276,12 +298,31 @@ between otherwise-equivalent approaches, prefer the one that keeps that migratio
   by the Separation of concerns rules above, and since the extraction, enforced by the compiler
   rather than by review: they live in `:core:domain`, which has no Android Gradle plugin.
   Extracting that module was the actual first step and it is done; the type purity built up
-  beforehand is what kept it to a `git mv`. What remains is `:core:data` — `data/`, `database/` and
-  every `Default*` implementation are still in `:app`. Keep the reading of this honest in both
-  directions: a pure package inside `:app` was never progress on its own, because KMP moves Gradle
-  *modules*, not Kotlin packages; and a module that compiles without the Android plugin is real
-  progress but still not a `commonMain` source set. The next step toward one is `:core:data`, not
-  KMP tooling.
+  beforehand is what kept it to a `git mv`. `:core:data` is now extracted too — but be honest about
+  what that bought: it is an Android library full of Firebase and Play Core, so **nothing in it
+  became shareable by moving**. It was modularization, not KMP progress, and the two should not be
+  conflated. Keep the reading of this honest in both directions: a pure package inside `:app` was
+  never progress on its own, because KMP moves Gradle *modules*, not Kotlin packages; and a module
+  that compiles without the Android plugin is real progress but still not a `commonMain` source set.
+
+  **The next actual KMP step is converting `:core:domain` from `kotlin.jvm` to
+  `kotlin.multiplatform`** (`commonMain` + `androidTarget()`). Every import in its `main` sources is
+  already multiplatform — `kotlin.time.Instant`, `kotlinx.coroutines`, `kotlinx.datetime`,
+  `kotlinx.serialization` — with exactly one exception: `javax.inject.Qualifier` in
+  `di/Qualifiers.kt`, which belongs in an `androidMain` source set, since Hilt is Android-only.
+  `SafeCallTest.kt` needs three small edits to reach `commonTest` (JUnit4 → `kotlin.test`,
+  `java.io.IOException` → any exception, and its deliberate `runBlocking` case has no common
+  equivalent, so that one test stays platform-side). Note that `androidTarget()` requires an Android
+  library plugin on `:core:domain`, which sounds like it gives up the no-Android-plugin property
+  above — it doesn't: `commonMain` resolves only against the common stdlib, so it blocks `java.*` as
+  well as `android.*`. The enforcement gets stricter, and `androidMain` becomes the visible place
+  for the exceptions.
+
+  **The ceiling to know about before planning further:** Hilt has no KMP support, and it is
+  load-bearing below `:app` — every `Default*` is `@Inject constructor` and `DataModule` is
+  `@InstallIn(SingletonComponent::class)`. A shared data layer would need Koin or hand-written
+  constructor wiring with Hilt confined to the Android edge. That decision, not module splitting,
+  is what sets how far KMP can go here.
 - Prefer `kotlinx` libraries (`kotlinx.coroutines`, `kotlinx.datetime`, `kotlinx.serialization`)
   over equivalents that have no `commonMain` implementation (e.g. `java.time`, Gson) in
   shared-leaning code, when a choice exists. `java.time` is not unavailable on Android — core
@@ -300,8 +341,8 @@ between otherwise-equivalent approaches, prefer the one that keeps that migratio
   splits that into `core:model` (model classes), `core:common` (`NiaDispatchers`, `Result`) and
   `core:data` (repository interfaces *and* implementations). Our `:core:domain` is those three minus
   the implementations: domain models, the pure repository interfaces, `safeCall`, the
-  `ErrorHandler` interface and the DI qualifiers. It is split that way because `:core:data` has to
-  be an Android library — Firebase and Room — so the contracts need a pure-JVM home to be worth
+  `ErrorHandler` interface and the DI qualifiers. It is split that way because `:core:data` is
+  an Android library — Firebase and Room — so the contracts need a pure-JVM home to be worth
   anything; NiA is not KMP and has no such pressure. The cost is the name: `core:domain` means *use
   cases* in Google's usage, not models. Keep the name and this note together rather than renaming to
   `:core:model` (which would be inaccurate — it holds more than models) or splitting into three
@@ -396,10 +437,25 @@ escaping of arguments.
 - DI: Hilt, all *modules* `@InstallIn(SingletonComponent::class)`. Constructor-injected classes may
   still be narrower — `note/NoteErrorReporter.kt` is `@ViewModelScoped` so the delegates sharing it
   report onto one flow — so "all modules are singleton" is not "everything is a singleton". App-wide bindings live in
-  `di/AppModule.kt` / `di/FirebaseModule.kt`; other cross-cutting layers have their own module
-  (`data/di/DataModule.kt`, `util/di/UtilModule.kt`, `database/di/DatabaseModule.kt`) — there is no
+  `di/AppModule.kt` / `di/FirebaseModule.kt` (both in `:app`); other cross-cutting layers have
+  their own module — `util/di/UtilModule.kt` in `:app`, `data/di/DataModule.kt` and
+  `database/di/DatabaseModule.kt` in `:core:data`. `FirebaseModule` deliberately stayed in `:app`
+  even though only `:core:data` consumes what it provides: `:app` is where Firebase is initialised
+  (the `google-services` plugin, and App Check in `MyApp.kt`), so the module handing out the
+  initialised SDK singletons sits beside that initialisation, and `:core:data` receives them
+  through constructor injection. Moving it down is a reasonable follow-up, not a correction — there is no
   per-feature `di/` package yet (e.g. `note/`, `search/` have none); follow this layer-scoped
   pattern rather than introducing one.
+- `:core:data` dependency configurations: **anything whose type appears in an `@Inject
+  constructor` parameter there must be `api`, not `implementation`.** Hilt aggregates every
+  `@InstallIn(SingletonComponent::class)` binding into a single component generated in `:app`, so
+  `:app`'s annotation processor has to resolve those parameter types itself; hiding one behind
+  `implementation` fails with `InjectProcessingStep was unable to process 'x' because 'Y' could not
+  be resolved`. Under Hilt a library's constructor parameters are effectively part of its API. A
+  dependency used only inside function bodies stays `implementation` — `firebase-storage` and
+  `play-app-update-ktx` are the current examples. The failure surfaces in
+  `compileDebugAndroidTestKotlin` well before `connectedDebugAndroidTest`, and can hide from
+  `assembleDebug` entirely.
 - Dispatchers and scopes: don't reference `Dispatchers.IO` directly in new code. Inject
   `@param:IoDispatcher private val ioDispatcher: CoroutineDispatcher` — the qualifier lives in
   `di/Qualifiers.kt` in `:core:domain` and its provider in `di/AppModule.kt` in `:app` — so tests
@@ -412,8 +468,10 @@ escaping of arguments.
 - Build type: in code that lives below `:app`, or is headed there, don't read `BuildConfig.DEBUG` —
   inject `@param:DebugBuild private val isDebugBuild: Boolean` (qualifier in `di/Qualifiers.kt` in
   `:core:domain`, provider in `di/AppModule.kt` in `:app`). `com.jiahan.smartcamera.BuildConfig`
-  belongs to the application module's namespace, so once `data/` moves to `:core:data` that import
-  stops resolving — a compile error, not a silent wrong value. (AGP 8 libraries don't generate
+  belongs to the application module's namespace, so now that `data/` lives in `:core:data` that
+  import no longer resolves there — a compile error, not a silent wrong value. `:core:data` declares
+  its own namespace (`com.jiahan.smartcamera.core.data`), so it has neither `:app`'s `R` nor its
+  `BuildConfig`. (AGP 8 libraries don't generate
   `BuildConfig` at all without `buildFeatures.buildConfig`, and if one does, its `DEBUG` tracks
   the *library's* variant, not the app's — which is where a silent wrong value would actually come
   from, if someone "fixed" the compile error by importing the local `BuildConfig`.) The concrete

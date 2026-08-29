@@ -8,7 +8,11 @@ conversation, so it stays intentionally terse; this one is for when you need the
 
 Two deployables share one Firebase project:
 
-- **Android app** (`app/`) — single `:app` module, Kotlin + Jetpack Compose, MVVM.
+- **Android app** — Kotlin + Jetpack Compose, MVVM, split across three Gradle modules:
+  `:app` (UI, ViewModels, navigation, app-level Android plumbing), `:core:data` (an Android
+  library: every `Default*` repository, Room, DataStore) and `:core:domain` (a pure-JVM module:
+  domain models, repository interfaces, `safeCall`, the DI qualifiers). Dependencies run
+  `:app` → `:core:data` → `:core:domain` and never the other way.
 - **Cloud Functions** (`functions/`) — Node.js, triggered by Firestore writes and callable from
   the app, does the work that shouldn't run on-device: calling Google Cloud Vision, enforcing
   limits the client can't be trusted to enforce, proxying secrets.
@@ -46,14 +50,14 @@ flowchart LR
 
 ## Layers
 
-| Layer      | Location                                          | Responsibility                                                                                                                                                                                                                                           |
-|------------|---------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| UI         | `<feature>/*Screen.kt`, `navigation/`             | Render `UiState`, forward user intents. No Firebase/Room/DataStore calls, no business logic beyond UI-only state (scroll position, sheet visibility).                                                                                                    |
-| ViewModel  | `<feature>/*ViewModel.kt`                         | `@HiltViewModel`, exposes a `*UiState` data class via `StateFlow` wrapping a nested sealed loading/loaded/error content type (e.g. `HomeContent`). Depends on repository *interfaces* only.                                                              |
-| Repository | `data/repository/`                                | One interface + one `Default*` impl per repository. Coordinates remote (Firestore/Storage/Functions) and local (Room/DataStore) sources; the single source of truth for its domain. Exposes domain models only, never `DocumentSnapshot`/Room `@Entity`. |
-| Domain     | `domain/`                                         | Plain data classes (`HomeNote`, `MediaDetail`, `Photo`, `User`, …), no Android/Firebase/Room dependency.                                                                                                                                                 |
-| Local      | `database/` (Room), `data/datastore/` (DataStore) | On-device cache/persistence. Room schemas exported to `app/schemas/`.                                                                                                                                                                                    |
-| Remote     | Firebase SDKs + `functions/index.js`              | Auth, Firestore, Storage, Remote Config, Analytics, Crashlytics, FCM; Cloud Functions for anything that needs a trusted server (Vision API calls, validation, secrets).                                                                                  |
+| Layer      | Location                                                        | Responsibility                                                                                                                                                                                                                                           |
+|------------|-----------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| UI         | `<feature>/*Screen.kt`, `navigation/`                           | Render `UiState`, forward user intents. No Firebase/Room/DataStore calls, no business logic beyond UI-only state (scroll position, sheet visibility).                                                                                                    |
+| ViewModel  | `<feature>/*ViewModel.kt`                                       | `@HiltViewModel`, exposes a `*UiState` data class via `StateFlow` wrapping a nested sealed loading/loaded/error content type (e.g. `HomeContent`). Depends on repository *interfaces* only.                                                              |
+| Repository | `data/repository/` (`:core:data`; interfaces in `:core:domain`) | One interface + one `Default*` impl per repository. Coordinates remote (Firestore/Storage/Functions) and local (Room/DataStore) sources; the single source of truth for its domain. Exposes domain models only, never `DocumentSnapshot`/Room `@Entity`. |
+| Domain     | `domain/` (`:core:domain`)                                      | Plain data classes (`HomeNote`, `MediaDetail`, `Photo`, `User`, …), no Android/Firebase/Room dependency.                                                                                                                                                 |
+| Local      | `database/`, `data/datastore/` (both `:core:data`)              | On-device cache/persistence. Room schemas exported to `core/data/schemas/`.                                                                                                                                                                              |
+| Remote     | Firebase SDKs + `functions/index.js`                            | Auth, Firestore, Storage, Remote Config, Analytics, Crashlytics, FCM; Cloud Functions for anything that needs a trusted server (Vision API calls, validation, secrets).                                                                                  |
 
 Each feature (`home`, `note`, `favorite`, `search`, `profile`, `settings`, `auth`, `explore`,
 `preview`, `notification`) is a self-contained Kotlin package following UI → ViewModel →
@@ -167,9 +171,15 @@ that actually matches their lifetime, rather than defaulting everything to `@Sin
 - `di/Qualifiers.kt` — the `@IoDispatcher`, `@ApplicationScope` and `@DebugBuild` annotations
   themselves, kept apart from the providers above because they are plain JSR-330 and can move to a
   shared module while the `@Provides` methods cannot.
-- `data/di/DataModule.kt` — binds each repository interface to its `Default*` implementation.
-- `database/di/` — provides `AppDatabase` and its DAOs.
-- `util/di/UtilModule.kt` — utilities like `ErrorHandler`.
+- `data/di/DataModule.kt` (`:core:data`) — binds each repository interface to its `Default*`
+  implementation.
+- `database/di/` (`:core:data`) — provides `AppDatabase` and its DAOs.
+- `util/di/UtilModule.kt` (`:app`) — utilities like `ErrorHandler`.
+
+Hilt aggregates these across module boundaries: every module above is
+`@InstallIn(SingletonComponent::class)`, and the component is assembled in `:app`. That is why
+`:core:data` can inject `@IoDispatcher` and `@DebugBuild` while their `@Provides` methods stay in
+`:app`'s `AppModule`.
 
 There is currently no per-feature `di/` package (`note/`, `search/`, etc. have none) — all
 `@Provides`-based `SingletonComponent` bindings live in one of the four module locations above,

@@ -30,12 +30,6 @@ android {
         testInstrumentationRunner = "com.jiahan.smartcamera.HiltTestRunner"
         // Wipe app data (DataStore/Room/prefs) between tests for full isolation. Requires orchestrator.
         testInstrumentationRunnerArguments["clearPackageData"] = "true"
-
-        javaCompileOptions {
-            annotationProcessorOptions {
-                arguments += "room.incremental" to "true"
-            }
-        }
     }
 
     buildFeatures {
@@ -132,17 +126,17 @@ tasks.withType<Test>().configureEach {
     }
 }
 
-ksp {
-    // Export Room schema JSON per version to app/schemas, used as the source of truth
-    // for writing and testing future Room migrations.
-    arg("room.schemaLocation", "$projectDir/schemas")
-}
-
 dependencies {
 
     // Domain models, repository contracts, safeCall and the DI qualifiers. A pure-JVM
     // module with no Android plugin, so it is the compiler's copy of the purity rule.
     implementation(project(":core:domain"))
+
+    // Every Default* repository, the Room database and the DataStore wiring. Room and DataStore
+    // left :app with them; the Firebase and Play Core artifacts below stay because :app still
+    // compiles against those itself. Several arrive from :core:data as `api` too (Hilt needs
+    // them resolvable here) -- declaring them anyway states what :app's own code uses.
+    implementation(project(":core:data"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -201,10 +195,12 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)
 
-    // Firebase
+    // Firebase: what :app's own code compiles against -- FirebaseModule's providers, MyApp's
+    // App Check setup, the messaging service, DefaultErrorHandler and ErrorMessageMappers.
+    // firebase-storage is deliberately absent: nothing in :app has referenced it since
+    // DefaultNoteRepository/DefaultUserRepository moved to :core:data.
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
-    implementation(libs.firebase.storage)
     implementation(libs.firebase.config)
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.messaging)
@@ -214,24 +210,17 @@ dependencies {
     implementation(libs.firebase.inappmessaging.display)
     implementation(libs.firebase.appcheck.playintegrity)
     implementation(libs.firebase.appcheck.debug)
+    // No source reference: the firebase-perf Gradle plugin above instruments the build and needs
+    // the SDK present, and the SDK auto-initialises. Don't remove it as an unused dependency.
     implementation(libs.firebase.perf)
 
-    // Play Core (in-app updates)
+    // Play Core: AppModule builds the AppUpdateManager. The ktx wrapper the update flow
+    // itself uses is in :core:data, with DefaultAppUpdateRepository.
     implementation(libs.play.app.update)
-    implementation(libs.play.app.update.ktx)
-
-    // Room
-    ksp(libs.room.runtime)
-    ksp(libs.room.compiler)
-    implementation(libs.room.ktx)
 
     // GenAI
     implementation(libs.genai.image.description)
     implementation(libs.kotlinx.coroutines.guava)
-
-    // DataStore
-    implementation(libs.datastore.preferences)
-    implementation(libs.datastore.preferences.core)
 
     // ExoPlayer
     implementation(libs.media3.exoplayer)

@@ -22,4 +22,4 @@ dependencyResolutionManagement {
 rootProject.name = "Smart Camera"
 include(":app")
 include(":core:domain")
- 
+include(":core:data")
