@@ -10,6 +10,7 @@ import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.domain.MediaUri
+import com.jiahan.smartcamera.domain.NoteMediaDetail
 import com.jiahan.smartcamera.util.AppConstants.MAX_POST_TEXT_LENGTH
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ResourceProvider

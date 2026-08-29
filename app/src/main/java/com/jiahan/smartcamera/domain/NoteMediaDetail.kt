@@ -1,6 +1,4 @@
-package com.jiahan.smartcamera.note
-
-import com.jiahan.smartcamera.domain.MediaUri
+package com.jiahan.smartcamera.domain
 
 data class NoteMediaDetail(
     val photoUri: MediaUri? = null,

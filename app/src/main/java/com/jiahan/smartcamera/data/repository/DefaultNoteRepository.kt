@@ -9,18 +9,18 @@ import com.google.firebase.firestore.Query
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.storage
-import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.database.dao.NoteDao
 import com.jiahan.smartcamera.database.data.toDatabaseNote
 import com.jiahan.smartcamera.database.data.toHomeNote
+import com.jiahan.smartcamera.domain.AppError
 import com.jiahan.smartcamera.domain.DetectedLabel
 import com.jiahan.smartcamera.domain.DetectedObject
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.NoteCursor
+import com.jiahan.smartcamera.domain.NoteMediaDetail
 import com.jiahan.smartcamera.domain.NotePage
-import com.jiahan.smartcamera.note.NoteMediaDetail
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_MP4
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_THUMBNAIL
@@ -228,20 +228,20 @@ class DefaultNoteRepository @Inject constructor(
     override suspend fun getNote(noteId: String): Result<HomeNote> = safeCall {
         noteCollectionReference?.let { ref ->
             val noteDocument = ref.document(noteId).get().await()
-            check(noteDocument.exists()) { context.getString(R.string.note_unavailable) }
+            if (!noteDocument.exists()) throw AppError.NoteUnavailable()
             val userId = noteDocument.getString(FIELD_USER_ID)
-                ?: throw IllegalStateException(context.getString(R.string.note_unavailable))
+                ?: throw AppError.NoteUnavailable()
             val userDocument = getUserDocumentSnapshot(userId)
-            check(userDocument.exists()) { context.getString(R.string.note_unavailable) }
+            if (!userDocument.exists()) throw AppError.NoteUnavailable()
             getHomeNote(noteDocument, userDocument)
-        } ?: throw IllegalStateException(context.getString(R.string.user_not_authenticated))
+        } ?: throw AppError.NotAuthenticated()
     }
 
     override suspend fun uploadMediaToFirebase(
         noteMediaDetailList: List<NoteMediaDetail>
     ): Result<List<MediaDetail>> = safeCall {
         val userId = authRepository.currentUserId
-            ?: throw IllegalStateException(context.getString(R.string.user_not_authenticated))
+            ?: throw AppError.NotAuthenticated()
         coroutineScope {
             noteMediaDetailList.map { noteMediaDetail ->
                 async(ioDispatcher) {
@@ -255,9 +255,7 @@ class DefaultNoteRepository @Inject constructor(
                             )
 
                         val mediaUri = noteMediaDetail.photoUri ?: noteMediaDetail.videoUri
-                        ?: throw IllegalStateException(
-                            context.getString(R.string.no_media_available)
-                        )
+                        ?: throw AppError.NoMediaAvailable()
 
                         storageRef.putFile(mediaUri.toPlatformUri()).await()
                         val mediaUrl = storageRef.downloadUrl.await().toString()

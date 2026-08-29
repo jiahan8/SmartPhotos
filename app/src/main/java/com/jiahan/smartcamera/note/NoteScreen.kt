@@ -66,6 +66,7 @@ import com.jiahan.smartcamera.common.ProfileAvatar
 import com.jiahan.smartcamera.common.bounceClick
 import com.jiahan.smartcamera.common.rememberCyclingPlaceholder
 import com.jiahan.smartcamera.common.showAppSnackbar
+import com.jiahan.smartcamera.domain.NoteMediaDetail
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

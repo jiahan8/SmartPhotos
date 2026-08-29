@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.firebase.functions.FirebaseFunctionsException
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.domain.AppError
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
@@ -23,7 +24,7 @@ import org.robolectric.annotation.Config
  */
 @RunWith(AndroidJUnit4::class)
 @Config(application = Application::class)
-class ErrorHandlerTest {
+class ErrorMessageMappersTest {
 
     private fun functionsException(
         code: FirebaseFunctionsException.Code,
@@ -132,5 +133,30 @@ class ErrorHandlerTest {
     @Test
     fun `noteErrorMessageResId non-FirebaseFunctionsException returns null`() {
         assertNull(noteErrorMessageResId(RuntimeException("boom")))
+    }
+
+    // -------------------------------------------------------------------------
+    // appErrorMessageResId
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `appErrorMessageResId NotAuthenticated returns user_not_authenticated`() {
+        assertEquals(
+            R.string.user_not_authenticated,
+            appErrorMessageResId(AppError.NotAuthenticated())
+        )
+    }
+
+    @Test
+    fun `appErrorMessageResId NoteUnavailable returns note_unavailable`() {
+        assertEquals(R.string.note_unavailable, appErrorMessageResId(AppError.NoteUnavailable()))
+    }
+
+    @Test
+    fun `appErrorMessageResId NoMediaAvailable returns no_media_available`() {
+        assertEquals(
+            R.string.no_media_available,
+            appErrorMessageResId(AppError.NoMediaAvailable())
+        )
     }
 }

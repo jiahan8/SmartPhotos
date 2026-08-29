@@ -10,6 +10,7 @@ import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
+import com.jiahan.smartcamera.domain.NoteMediaDetail
 import com.jiahan.smartcamera.util.AppConstants.MAX_NOTE_MEDIA_ITEMS
 import com.jiahan.smartcamera.util.AppConstants.MAX_POST_TEXT_LENGTH
 import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS

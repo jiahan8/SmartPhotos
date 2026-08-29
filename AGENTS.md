@@ -215,9 +215,25 @@ directly. Its two methods belong to different layers, and that split is the rule
   `*UiState` error field. Every current call site is a ViewModel or a `@ViewModelScoped` helper
   (`note/NoteErrorReporter.kt`) — keep it that way.
 
-The feature-specific mappers in the same file (`usernameErrorMessageResId`,
+The feature-specific mappers in `util/ErrorMessageMappers.kt` (`usernameErrorMessageResId`,
 `noteErrorMessageResId`) sit at that same ViewModel layer, tried ahead of `getErrorMessage` and
 falling back to it when they return null.
+
+The three pieces live in three files, by layer rather than by topic: `util/ErrorHandler.kt` holds
+the interface and `ErrorTag` and imports nothing; `util/DefaultErrorHandler.kt` holds the
+Android/Firebase-bound implementation; `util/ErrorMessageMappers.kt` holds the `R`-resolving
+mappers. Keep a new mapper in the third file rather than reuniting them.
+
+**A repository that needs to raise its own failure throws a `domain/AppError`, never a message.**
+Resolving a string resource is presentation, so a repository building one —
+`IllegalStateException(context.getString(...))` — puts ViewModel-layer work in the data layer and
+forces an Android `Context` into a class that otherwise needs none. `AppError` is a sealed type carrying an
+identity (`NotAuthenticated`, `NoteUnavailable`, `NoMediaAvailable`); `appErrorMessageResId` maps
+each to its string. That mapper is the one applied *inside* `getErrorMessage` rather than at the
+call site, because an `AppError` is the app's own cross-cutting vocabulary and every caller wants
+the same string for it — so a ViewModel already routing failures through `ErrorHandler` renders it
+with no extra code. Add a case to the sealed type and to the mapper together; don't reach for
+`Context` in a repository to build the message instead.
 
 This split is also what makes the [KMP readiness](#kotlin-multiplatform-readiness) rule satisfiable
 rather than self-contradictory. The `ErrorHandler` *interface* is Android-free in its signatures

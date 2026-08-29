@@ -18,6 +18,7 @@ import androidx.compose.ui.test.performTextInput
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.data.datastore.UserPreferences
 import com.jiahan.smartcamera.domain.MediaUri
+import com.jiahan.smartcamera.domain.NoteMediaDetail
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
 import com.jiahan.smartcamera.fake.FakeMediaFileRepository
