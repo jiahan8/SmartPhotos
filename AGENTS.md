@@ -172,7 +172,8 @@ them, and between the feature screens and the shared Compose they all draw with 
 Cross-cutting layers:
 
 - **UI** — Jetpack Compose screens (`*Screen.kt`) + Navigation Compose graph in
-  `navigation/SmartPhotosNavGraph.kt` / `navigation/Screen.kt`.
+  `navigation/SmartPhotosNavGraph.kt`, with each destination's route type in the feature package
+  that owns it (`home/HomeRoute.kt`, `preview/PreviewRoutes.kt`, …).
 - **ViewModel** — `@HiltViewModel` classes exposing a `*UiState` data class via `StateFlow`. The
   loading/loaded/error branch is a nested sealed sub-type (e.g. `HomeContent` in
   `home/HomeViewModel.kt`), kept separate from flat fields on the outer `*UiState` for orthogonal
@@ -485,17 +486,36 @@ come with it:
 
 ### Navigation
 
-`navigation/Screen.kt` uses Navigation Compose's type-safe routes: each destination is a
-`@Serializable` `data object`/`data class` under the `Screen` sealed interface, registered with
-`composable<Screen.Home> { ... }` and reached via `navController.navigate(Screen.NotePreview(id))`.
-Add destinations that way — no hand-built path strings, no `navArgument` lists, no manual URL
-escaping of arguments.
+Navigation Compose's type-safe routes: each destination is a top-level `@Serializable`
+`data object`/`data class`, registered with `composable<HomeRoute> { ... }` and reached via
+`navController.navigate(NotePreviewRoute(id))`. Add destinations that way — no hand-built path
+strings, no `navArgument` lists, no manual URL escaping of arguments.
 
+- **The route type lives in the feature package, beside the screen it names** — `home/HomeRoute.kt`,
+  `search/SearchRoute.kt`, `note/NoteRoutes.kt`, `preview/PreviewRoutes.kt` and so on. What stays in
+  `navigation/` is the wiring: `SmartPhotosNavGraph.kt`, `BottomNavItem.kt` and `NavTransitions.kt`,
+  the three things that legitimately need to see every route at once. Put a new route with its
+  screen, not in `navigation/`. This is what lets a feature package become its own module later, and
+  what lets a feature's ViewModel read its own arguments back with `toRoute<…>()` without importing
+  upward — `EditNoteViewModel` and the three in `preview/` were the last four to do so. They were
+  the last upward imports *into `navigation/`*, not the last upward imports full stop: every feature
+  package still reaches `:app` for its `R`, and most also for `util/ResourceProvider.kt`,
+  `util/ValidationUtils.kt` or `util/ErrorMessageMappers.kt`. Those are what a feature module hits
+  next.
+- **The routes share no supertype, deliberately.** They were nested in a `sealed interface Screen`
+  until that hierarchy became unrepresentable: a route in a feature module cannot implement an
+  interface declared in `:app`. So `startDestination` and `BottomNavItem.route` are typed `Any`,
+  which is what Navigation Compose itself uses for a destination. Don't reintroduce a marker
+  interface to get the exhaustiveness back.
 - Route types stay plain data. UI-only metadata (bottom-bar icon and title) lives in
   `navigation/BottomNavItem.kt`, because only some destinations appear in the bottom bar.
-- An enum used as a route argument needs `@Keep` (see `MediaSourceType`). Navigation resolves enum
-  arguments through `Class.forName()`, so R8 renaming one breaks navigation in release builds only —
-  a failure that shows up in neither debug runs nor unit tests.
+- A route's property names are its argument names — Navigation serializes by property name, and the
+  ViewModel tests build a `SavedStateHandle` from the same keys (`mapOf("noteId" to …)`). Renaming
+  one changes the generated route pattern and breaks its test; renaming the route *class* changes
+  the route pattern too, which invalidates a back stack saved by an older build.
+- An enum used as a route argument needs `@Keep` (see `MediaSourceType` in `preview/PreviewRoutes.kt`).
+  Navigation resolves enum arguments through `Class.forName()`, so R8 renaming one breaks navigation
+  in release builds only — a failure that shows up in neither debug runs nor unit tests.
 
 ## Conventions
 

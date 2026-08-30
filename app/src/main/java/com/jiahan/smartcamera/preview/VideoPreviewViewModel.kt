@@ -8,8 +8,6 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
-import com.jiahan.smartcamera.navigation.MediaSourceType
-import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorTag
 import com.jiahan.smartcamera.util.ResourceProvider
@@ -30,7 +28,7 @@ class VideoPreviewViewModel @Inject constructor(
 ) : ViewModel() {
 
     val videoSource: VideoSource = run {
-        val route = savedStateHandle.toRoute<Screen.VideoPreview>()
+        val route = savedStateHandle.toRoute<VideoPreviewRoute>()
         when (route.type) {
             MediaSourceType.LOCAL -> VideoSource.LocalUri(route.source.toUri())
             MediaSourceType.REMOTE -> VideoSource.RemoteUrl(route.source)

@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
-import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
@@ -42,7 +41,7 @@ class NotePreviewViewModel @Inject constructor(
     private val noteShare: NoteShareDelegate
 ) : ViewModel() {
 
-    private val noteId: String = savedStateHandle.toRoute<Screen.NotePreview>().id
+    private val noteId: String = savedStateHandle.toRoute<NotePreviewRoute>().id
 
     private val _uiState = MutableStateFlow(NotePreviewUiState())
     val uiState = _uiState.asStateFlow()

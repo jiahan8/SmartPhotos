@@ -32,7 +32,7 @@ import org.junit.Test
  * Compose UI tests for [NotePreviewScreen].
  *
  * A real [NotePreviewViewModel] is built from in-memory fakes and a manually-constructed
- * [SavedStateHandle] (standing in for the `Screen.NotePreview` nav route), so the screen renders
+ * [SavedStateHandle] (standing in for the `NotePreviewRoute` nav route), so the screen renders
  * end-to-end with no Firebase, no network, and no real navigation graph.
  *
  * Deliberately NOT covered here: the favorite-toggle icon (identified only by an accessibility
@@ -162,7 +162,8 @@ class NotePreviewScreenTest {
         launchNotePreviewScreen()
         waitForText("Note body")
 
-        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_note_photo)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_note_photo))
+            .performClick()
 
         assertEquals("https://example.com/photo.jpg", navigatedToPhotoPreviewUrl)
     }
@@ -183,7 +184,8 @@ class NotePreviewScreenTest {
         launchNotePreviewScreen()
         waitForText("Note body")
 
-        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_note_photo)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_note_photo))
+            .performClick()
 
         assertEquals("https://example.com/video.mp4", navigatedToVideoPreviewUrl)
     }

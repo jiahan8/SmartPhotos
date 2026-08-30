@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.ui.unit.IntOffset
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination.Companion.hasRoute
+import com.jiahan.smartcamera.auth.AuthRoute
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
 
 /**
@@ -24,12 +25,13 @@ import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
  * half-fade/half-slide.
  *
  * The rule, following the Material motion patterns for navigation:
- * - Switching between top-level destinations (the bottom-bar tabs, plus [Screen.Auth] as the
+ * - Switching between top-level destinations (the bottom-bar tabs, plus [AuthRoute] as the
  *   signed-out root) is lateral movement with no hierarchy, so it *fades through*.
  * - Anything else pushes deeper into the hierarchy (a note, a preview, settings), so it slides
  *   along the X axis — toward the start on push, back toward the end on pop.
  */
-private val topLevelRoutes = bottomNavItems.map { it.route::class } + Screen.Auth::class
+private val topLevelRoutes =
+    TopLevelDestination.entries.map { it.route::class } + AuthRoute::class
 
 private fun NavBackStackEntry.isTopLevel(): Boolean =
     topLevelRoutes.any { destination.hasRoute(it) }

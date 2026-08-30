@@ -38,7 +38,7 @@ import org.junit.Test
  * Compose UI tests for [EditNoteScreen].
  *
  * A real [EditNoteViewModel] is built from in-memory fakes and a manually-constructed
- * [SavedStateHandle] (standing in for the `Screen.EditNote` nav route), so the screen renders
+ * [SavedStateHandle] (standing in for the `EditNoteRoute` nav route), so the screen renders
  * end-to-end with no Firebase, no network, and no real navigation graph. Media picking/upload is
  * out of scope here by design — per [EditNoteScreen]'s own doc comment, media is fixed at note
  * creation time and shown read-only on this screen (that's [NoteScreen]'s job).
@@ -169,7 +169,8 @@ class EditNoteScreenTest {
         launchEditNoteScreen()
         waitForText("Original text")
 
-        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_clear_field)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_clear_field))
+            .performClick()
 
         composeTestRule.onAllNodesWithText("Original text").assertCountEquals(0)
         // Clearing the only text of a note with no media would leave nothing behind, so saving a

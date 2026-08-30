@@ -16,7 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.jiahan.smartcamera.domain.AppUpdateState
-import com.jiahan.smartcamera.navigation.Screen
+import com.jiahan.smartcamera.home.HomeRoute
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -78,7 +78,7 @@ class MainActivity : ComponentActivity() {
             ) {}
 
             LaunchedEffect(startDestination) {
-                if (startDestination == Screen.Home &&
+                if (startDestination == HomeRoute &&
                     Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                     ContextCompat.checkSelfPermission(
                         this@MainActivity,

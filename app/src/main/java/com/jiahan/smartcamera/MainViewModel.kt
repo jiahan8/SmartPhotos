@@ -7,6 +7,7 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.core.content.IntentCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jiahan.smartcamera.auth.AuthRoute
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AppUpdateRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
@@ -14,7 +15,7 @@ import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.domain.AppUpdateState
-import com.jiahan.smartcamera.navigation.Screen
+import com.jiahan.smartcamera.home.HomeRoute
 import com.jiahan.smartcamera.note.IncomingShare
 import com.jiahan.smartcamera.note.IncomingShareHandler
 import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
@@ -35,7 +36,7 @@ import kotlin.time.Clock
 
 data class MainUiState(
     val isAppReady: Boolean = false,
-    val startDestination: Screen = Screen.Auth,
+    val startDestination: Any = AuthRoute,
     val showBottomBar: Boolean = true,
     val scrollToTop: Long? = null,
     val pendingNoteId: String? = null
@@ -91,11 +92,11 @@ class MainViewModel @Inject constructor(
                 .onFailure { e -> errorHandler.logError(e) }
             val destination =
                 if (authRepository.currentUserId != null && authRepository.isCurrentUserEmailVerified)
-                    Screen.Home
+                    HomeRoute
                 else
-                    Screen.Auth
+                    AuthRoute
             _uiState.update { it.copy(startDestination = destination, isAppReady = true) }
-            if (destination == Screen.Home) {
+            if (destination == HomeRoute) {
                 analyticsRepository.setUserId(authRepository.currentUserId)
                 userRepository.registerForPushNotifications()
                     .onFailure { e -> errorHandler.logError(e) }
@@ -110,7 +111,7 @@ class MainViewModel @Inject constructor(
         _uiState.update { it.copy(showBottomBar = showBottomBar) }
     }
 
-    fun updateStartDestination(destination: Screen) {
+    fun updateStartDestination(destination: Any) {
         _uiState.update { it.copy(startDestination = destination) }
     }
 

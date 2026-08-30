@@ -8,7 +8,6 @@ import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
-import com.jiahan.smartcamera.navigation.Screen
 import com.jiahan.smartcamera.util.AppConstants.MAX_POST_TEXT_LENGTH
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorTag
@@ -75,7 +74,7 @@ class EditNoteViewModel @Inject constructor(
     private val errorHandler: ErrorHandler,
 ) : ViewModel() {
 
-    private val noteId: String = savedStateHandle.toRoute<Screen.EditNote>().noteId
+    private val noteId: String = savedStateHandle.toRoute<EditNoteRoute>().noteId
 
     private val _uiState = MutableStateFlow(EditNoteUiState())
     val uiState = _uiState.asStateFlow()
