@@ -38,10 +38,9 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
-import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.showAppSnackbar
-import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.util.FileConstants.MIME_TYPE_VIDEO
+import com.jiahan.smartcamera.core.ui.R as UiR
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -114,7 +113,7 @@ fun VideoPreviewScreen(
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.cd_back)
+                        contentDescription = stringResource(UiR.string.cd_back)
                     )
                 }
             },

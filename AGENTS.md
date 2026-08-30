@@ -3,7 +3,7 @@
 Android app (Kotlin) for organizing photos/notes with ML-based tagging.
 Firebase backend + a Node.js Cloud Functions project live in `functions/`.
 
-Four Gradle modules, plus an included build for the shared Gradle config:
+Five Gradle modules, plus an included build for the shared Gradle config:
 
 - `:app` — UI, ViewModels, navigation, and the Android plumbing that is genuinely app-level:
   `MyApp`, the messaging service, `DefaultErrorHandler`/`ResourceProviderImpl`, `FirebaseModule`
@@ -19,20 +19,33 @@ Four Gradle modules, plus an included build for the shared Gradle config:
   (`DateTimeUtils`, `FlowUtils`). Sources under `core/ui/src/main/kotlin/com/jiahan/smartcamera/`.
   It exists so a feature package can become its own module — while shared Compose sat in `:app`,
   nothing could leave.
+- `:feature:explore` — an Android library holding the Explore screen, its ViewModel and its route.
+  The first feature module, and deliberately the smallest slice: `explore` is the only feature
+  package that imports nothing from `note/`, and its route carries no arguments, so no ViewModel
+  reads it back. It depends on `:core:ui` and `:core:domain` and **nothing else** — not even
+  `:core:data`, since the repositories it injects are interfaces and Hilt binds them up in `:app`.
+  Sources under `feature/explore/src/main/kotlin/com/jiahan/smartcamera/`. Every other feature is
+  still a package in `:app`; see [Cross-feature communication](#cross-feature-communication) for
+  what blocks the four that share `note/`'s helpers.
 - `build-logic/` — not a module but an included build, holding the four convention plugins
   (`smartphotos.android.application`, `.android.library`, `.android.compose`, `.jvm.library`) that
   carry `compileSdk`/`minSdk`, the Java 11 pair, the Kotlin JVM target and the unit-test JVM pin.
   See [Convention plugins](#convention-plugins).
 
-Kotlin package names are deliberately identical across all four: `com.jiahan.smartcamera.util`,
+Kotlin package names are deliberately identical across all five: `com.jiahan.smartcamera.util`,
 `.di`, `.common`, `.data.repository` and `.data.datastore` each exist in more than one module,
 which is what made the first two extractions a pure `git mv` with no import churn. A bare path like
 `util/ErrorHandler.kt` below is therefore disambiguated by the module it is attributed to, not by
 its package — `util/ErrorHandler.kt` is `:core:domain`, `util/DefaultErrorHandler.kt` is `:app`,
-`util/MediaUriExt.kt` is `:core:data` and `util/DateTimeUtils.kt` is `:core:ui`.
+`util/MediaUriExt.kt` is `:core:data` and `util/DateTimeUtils.kt` is `:core:ui`. `:feature:explore`
+follows the same rule: its Kotlin package stayed `com.jiahan.smartcamera.explore` when it moved, so
+`SmartPhotosNavGraph`'s two imports of it did not change at all — but its *namespace* is
+`com.jiahan.smartcamera.feature.explore`, so its `R` is reached as
+`import com.jiahan.smartcamera.feature.explore.R`.
 
-The dependency arrows run one way: `:app` → `:core:data` → `:core:domain`, and `:app` →
-`:core:ui` → `:core:domain`. Nothing depends on `:app`, so a repository implementation can no
+The dependency arrows run one way: `:app` → `:core:data` → `:core:domain`, `:app` →
+`:core:ui` → `:core:domain`, and `:app` → `:feature:explore` → both `:core` libraries. Nothing
+depends on `:app`, so a repository implementation can no
 longer reach a ViewModel, an `R` string or `BuildConfig` even by accident. `:core:ui` and
 `:core:data` are **siblings** — neither depends on the other, and `:core:ui` reaches no
 repository, Room or DataStore. They are the build's first pair with anything to overlap, which is
@@ -593,8 +606,16 @@ strings, no `navArgument` lists, no manual URL escaping of arguments.
   `stringResource` lives in `core/ui/src/main/res/`, translations included; `:app` then reaches it
   as `com.jiahan.smartcamera.core.ui.R`, imported as **`import com.jiahan.smartcamera.core.ui.R as
   UiR`** and used as `UiR.string.x`. The alias is needed because those files also use `:app`'s own
-  `R`, and the two collide on the simple name. Nine `:app` screens and six test files do this
-  today, for the sixteen strings that moved with `common/`.
+  `R`, and the two collide on the simple name. Ten `:app` files and six test files do this today,
+  for the seventeen strings in `:core:ui` — sixteen that moved with `common/`, plus `cd_back`,
+  which went there when `:feature:explore` was extracted rather than travelling with it.
+  - **A string moves to the module that owns it, and "owns" means the only consumer.** Extracting
+    `:feature:explore` needed six `:app` strings decided one at a time: four were exclusive and
+    went with the code, `cd_back` had seven consumers across five packages and went *down* to
+    `:core:ui` instead, and `explore` turned out to be two strings sharing one piece of copy — a
+    screen title and Home's `contentDescription` for the button that opens it. The title travelled
+    and Home got its own `cd_open_explore`. Expect this split at every feature extraction, and note
+    that a consumer *count* cannot tell the last case from the second: only the call sites can.
   - Don't "solve" a cross-module string by declaring it in both modules. Two resources with one
     name is legal — the application's value wins the merge — but it silently duplicates
     user-visible text and its `values-ja/` translation, and the two drift.

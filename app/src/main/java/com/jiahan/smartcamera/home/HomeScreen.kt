@@ -126,7 +126,7 @@ fun HomeScreen(
                         IconButton(onClick = onNavigateToExplore) {
                             Icon(
                                 imageVector = Icons.Outlined.Explore,
-                                contentDescription = stringResource(R.string.explore)
+                                contentDescription = stringResource(R.string.cd_open_explore)
                             )
                         }
                     }

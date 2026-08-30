@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cd_close_search">Close search</string>
+    <string name="explore">Explore</string>
+    <string name="no_photos_found">No photos found</string>
+    <string name="photo">Photo</string>
+    <string name="search_photos">Search photos</string>
+</resources>

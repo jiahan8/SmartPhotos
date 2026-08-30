@@ -132,7 +132,7 @@ class EditNoteScreenTest {
         launchEditNoteScreen()
         waitForText("Original text")
 
-        composeTestRule.onNodeWithContentDescription(string(R.string.cd_back)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_back)).performClick()
 
         assertTrue(navigatedBack)
         composeTestRule.onNodeWithText(string(R.string.discard_changes)).assertDoesNotExist()
@@ -217,7 +217,7 @@ class EditNoteScreenTest {
         waitForText("Original text")
         replaceText("New text")
 
-        composeTestRule.onNodeWithContentDescription(string(R.string.cd_back)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_back)).performClick()
 
         waitForText(string(R.string.discard_changes))
         composeTestRule.onNodeWithText(string(R.string.discard)).performClick()
@@ -232,7 +232,7 @@ class EditNoteScreenTest {
         waitForText("Original text")
         replaceText("New text")
 
-        composeTestRule.onNodeWithContentDescription(string(R.string.cd_back)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_back)).performClick()
         waitForText(string(R.string.discard_changes))
         // The screen's own inline Cancel button is still in the tree behind the dialog, so scope
         // the match to the dialog's dismiss button (same pattern as SettingsScreenTest).

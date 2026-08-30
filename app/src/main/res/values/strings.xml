@@ -2,9 +2,7 @@
     <string name="app_name">Smart Photos</string>
 
     <!-- Photo -->
-    <string name="photo">Photo</string>
-    <string name="search_photos">Search photos</string>
-    <string name="no_photos_found">No photos found</string>
+    <string name="cd_open_explore">Explore</string>
     <string name="saved_at">Saved: %s</string>
 
     <!-- Home -->
@@ -78,7 +76,6 @@
     <string name="video">Video</string>
 
     <!-- Explore -->
-    <string name="explore">Explore</string>
 
     <!-- Sharing -->
     <string name="share_note_failure">Couldn\'t share this note. Please try again.</string>
@@ -131,11 +128,9 @@
     <string name="update_ready_action">Restart</string>
 
     <!-- Content descriptions (accessibility) -->
-    <string name="cd_back">Navigate back</string>
     <string name="cd_app_logo">Smart Photos app logo</string>
     <string name="cd_selected_photo">Selected photo</string>
     <string name="cd_remove_image">Remove image</string>
-    <string name="cd_close_search">Close search</string>
     <string name="cd_choose_photos">Choose photos</string>
     <string name="cd_take_photo">Take a photo</string>
     <string name="cd_take_video">Record a video</string>

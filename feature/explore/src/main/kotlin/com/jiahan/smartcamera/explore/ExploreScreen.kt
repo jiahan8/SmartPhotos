@@ -60,7 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.feature.explore.R
 import com.jiahan.smartcamera.common.FullScreenMessage
 import com.jiahan.smartcamera.common.ProfileAvatar
 import com.jiahan.smartcamera.common.bounceClick
@@ -159,7 +159,7 @@ fun ExploreScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.cd_back)
+                            contentDescription = stringResource(UiR.string.cd_back)
                         )
                     }
                 },

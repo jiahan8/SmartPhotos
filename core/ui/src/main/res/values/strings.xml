@@ -9,6 +9,7 @@
     only in this module.
 -->
     <string name="cancel">Cancel</string>
+    <string name="cd_back">Navigate back</string>
     <string name="cd_clear_field">Clear text</string>
     <string name="cd_marked_as_favorite">Marked as favorite</string>
     <string name="cd_more_options">More options</string>

@@ -107,6 +107,10 @@ dependencies {
     // them resolvable here) -- declaring them anyway states what :app's own code uses.
     implementation(project(":core:data"))
 
+    // The first feature module. :app supplies its navigation lambdas and hosts its route in
+    // the graph; the Kotlin package is unchanged, so SmartPhotosNavGraph's imports did not move.
+    implementation(project(":feature:explore"))
+
     // The shared Compose vocabulary -- common/, ui/theme and the two util helpers that follow
     // them. Every feature screen in this module draws with it, and nine of them also resolve
     // strings from its R, imported there as `UiR`.

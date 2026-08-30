@@ -1,6 +1,7 @@
 <resources>
 <!-- Japanese translations for this module's strings. Moved with them from :app. -->
     <string name="cancel">キャンセル</string>
+    <string name="cd_back">前の画面に戻る</string>
     <string name="cd_clear_field">テキストをクリア</string>
     <string name="cd_marked_as_favorite">お気に入りに登録済み</string>
     <string name="cd_more_options">その他のオプション</string>
