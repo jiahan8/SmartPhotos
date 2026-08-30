@@ -67,6 +67,8 @@ dependencies {
 
     debugImplementation(libs.androidx.ui.tooling)
 
+    // MainDispatcherRule lived here in duplicate until :core:testing landed.
+    testImplementation(project(":core:testing"))
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)

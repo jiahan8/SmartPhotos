@@ -3,7 +3,7 @@
 Android app (Kotlin) for organizing photos/notes with ML-based tagging.
 Firebase backend + a Node.js Cloud Functions project live in `functions/`.
 
-Five Gradle modules, plus an included build for the shared Gradle config:
+Six Gradle modules, plus an included build for the shared Gradle config:
 
 - `:app` — UI, ViewModels, navigation, and the Android plumbing that is genuinely app-level:
   `MyApp`, the messaging service, `DefaultErrorHandler`/`ResourceProviderImpl`, `FirebaseModule`
@@ -27,12 +27,22 @@ Five Gradle modules, plus an included build for the shared Gradle config:
   Sources under `feature/explore/src/main/kotlin/com/jiahan/smartcamera/`. Every other feature is
   still a package in `:app`; see [Cross-feature communication](#cross-feature-communication) for
   what blocks the four that share `note/`'s helpers.
+- `:core:testing` — an Android library holding the fixtures more than one module needs: the nine
+  `fake/` repository doubles, `MainDispatcherRule` and `BaseScreenshotTest`. Consumers take it with
+  `testImplementation` (and `androidTestImplementation` in `:app`, whose `sharedTest/` runs in
+  both), so nothing in it reaches a production classpath. It is a **regular library module, not
+  AGP's `testFixtures`** — that was tried and does not work, since the Kotlin Android plugin creates
+  no Kotlin compilation for the testFixtures variant (only `compileDebugTestFixturesJavaWithJavac`,
+  `NO-SOURCE` against a `.kt` file; verified on Kotlin 2.4.10 / AGP 9.3.1). Its dependencies are
+  `api` throughout, which inverts the usual advice for a good reason: a fixtures module's entire API
+  surface is *other* modules' types — `FakeNoteRepository` **is** a `NoteRepository`, and a test
+  assigning one to a ViewModel parameter has to resolve that interface.
 - `build-logic/` — not a module but an included build, holding the four convention plugins
   (`smartphotos.android.application`, `.android.library`, `.android.compose`, `.jvm.library`) that
   carry `compileSdk`/`minSdk`, the Java 11 pair, the Kotlin JVM target and the unit-test JVM pin.
   See [Convention plugins](#convention-plugins).
 
-Kotlin package names are deliberately identical across all five: `com.jiahan.smartcamera.util`,
+Kotlin package names are deliberately identical across all six: `com.jiahan.smartcamera.util`,
 `.di`, `.common`, `.data.repository` and `.data.datastore` each exist in more than one module,
 which is what made the first two extractions a pure `git mv` with no import churn. A bare path like
 `util/ErrorHandler.kt` below is therefore disambiguated by the module it is attributed to, not by
@@ -44,8 +54,9 @@ follows the same rule: its Kotlin package stayed `com.jiahan.smartcamera.explore
 `import com.jiahan.smartcamera.feature.explore.R`.
 
 The dependency arrows run one way: `:app` → `:core:data` → `:core:domain`, `:app` →
-`:core:ui` → `:core:domain`, and `:app` → `:feature:explore` → both `:core` libraries. Nothing
-depends on `:app`, so a repository implementation can no
+`:core:ui` → `:core:domain`, and `:app` → `:feature:explore` → both `:core` libraries.
+`:core:testing` hangs off the test classpaths of `:app`, `:core:ui` and `:feature:explore` and
+depends on `:core:data` and `:core:domain`. Nothing depends on `:app`, so a repository implementation can no
 longer reach a ViewModel, an `R` string or `BuildConfig` even by accident. `:core:ui` and
 `:core:data` are **siblings** — neither depends on the other, and `:core:ui` reaches no
 repository, Room or DataStore. They are the build's first pair with anything to overlap, which is
@@ -82,6 +93,13 @@ Run from the repo root (Gradle wrapper):
   `./gradlew verifyRoborazziDebug --tests "com.jiahan.smartcamera.screenshot.*"` (this is what CI
   does). Re-record with `./gradlew recordRoborazziDebug` when a diff reflects an intended change,
   and look at the new PNGs before committing them.
+- **Moving a type between modules can leave KSP's incremental state stale.** The symptom is a wall
+  of `InjectProcessingStep was unable to process 'X(…,Foo,…)' because 'Foo' could not be resolved`
+  from `:app:kspDebugKotlin`, for a type that is on the classpath and whose module compiles fine on
+  its own. It looks exactly like the `api`-vs-`implementation` failure described under
+  [Conventions](#conventions) and is not that: the tell is that the unresolved name appears
+  *unqualified* while its neighbours from the same module are fully qualified. `./gradlew clean`
+  fixes it. Check this before re-plumbing dependency configurations.
 - **`./gradlew compileDebugAndroidTestKotlin` catches Hilt graph errors that nothing else does.**
   `assembleDebug`, the unit tests, Roborazzi and lint all pass without ever compiling the
   androidTest sources, and `di/HiltGraphSmokeTest.kt`'s member injection is what walks the binding
@@ -403,7 +421,13 @@ between otherwise-equivalent approaches, prefer the one that keeps that migratio
 - Keep `android.*` out of the *contracts*: domain models, repository interfaces, and the data
   classes those interfaces carry (`NoteMediaDetail`, say). `Default*` implementations are
   Android-bound by definition and are not what this rule targets — `DefaultErrorHandler` uses `Log`,
-  `ResourceProviderImpl` needs a `Context`. One interface is deliberately exempt:
+  `ResourceProviderImpl` needs a `Context` — the interface itself is in `:core:domain`, moved there
+  when `:core:testing` was extracted, because `FakeResourceProvider` implements it and a fixtures
+  module cannot depend on `:app`. It is the same interface-down/implementation-up split as
+  `ErrorHandler`, and since the package was already `com.jiahan.smartcamera.util` it was a pure
+  `git mv`. Note what it carries: `getString(resId: Int)` takes a resource id as a bare `Int`, which
+  compiles in a pure-JVM module but is an Android concept in everything but its type — so it is not
+  a KMP asset, just a testable seam. One interface is deliberately exempt:
   `MediaFileRepository` exists precisely to wrap `ContentResolver`/`FileProvider` work behind a
   seam, so it keeps its `Uri`/`Bitmap` parameters and is not a KMP candidate. Don't wrap those
   parameters to satisfy the rule, and don't cite it as precedent for a new contract.
@@ -512,9 +536,9 @@ strings, no `navArgument` lists, no manual URL escaping of arguments.
   what lets a feature's ViewModel read its own arguments back with `toRoute<…>()` without importing
   upward — `EditNoteViewModel` and the three in `preview/` were the last four to do so. They were
   the last upward imports *into `navigation/`*, not the last upward imports full stop: every feature
-  package still reaches `:app` for its `R`, and most also for `util/ResourceProvider.kt`,
-  `util/ValidationUtils.kt` or `util/ErrorMessageMappers.kt`. Those are what a feature module hits
-  next.
+  package still reaches `:app` for its `R`, and most also for `util/ValidationUtils.kt` or
+  `util/ErrorMessageMappers.kt`. Those are what a feature module hits next.
+  (`util/ResourceProvider.kt` was on that list until `:core:testing` moved it to `:core:domain`.)
 - **The routes share no supertype, deliberately.** They were nested in a `sealed interface Screen`
   until that hierarchy became unrepresentable: a route in a feature module cannot implement an
   interface declared in `:app`. So `startDestination` and `BottomNavItem.route` are typed `Any`,

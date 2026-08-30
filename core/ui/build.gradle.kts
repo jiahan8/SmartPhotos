@@ -87,6 +87,7 @@ dependencies {
     // DateTimeUtilsTest and FlowUtilsTest only -- both plain JVM tests with no Robolectric and no
     // Compose. The screenshot tests that render this module's composables stayed in :app; see the
     // comment above the module header for why.
+    testImplementation(project(":core:testing"))
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
 }

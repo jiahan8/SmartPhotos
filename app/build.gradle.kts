@@ -125,6 +125,11 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.core)
+    // The fakes, MainDispatcherRule and BaseScreenshotTest, shared with :core:ui and
+    // :feature:explore. androidTest too: sharedTest/ runs in both source sets.
+    testImplementation(project(":core:testing"))
+    androidTestImplementation(project(":core:testing"))
+
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
