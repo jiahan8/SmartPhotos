@@ -45,6 +45,7 @@ import coil3.compose.AsyncImage
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.shimmer
 import com.jiahan.smartcamera.common.showAppSnackbar
+import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
 import com.jiahan.smartcamera.util.FileConstants.MIME_TYPE_IMAGE
 import kotlinx.coroutines.launch
@@ -235,7 +236,7 @@ fun PhotoPreviewScreen(
                     } else {
                         Icon(
                             imageVector = Icons.Rounded.IosShare,
-                            contentDescription = stringResource(R.string.share)
+                            contentDescription = stringResource(UiR.string.share)
                         )
                     }
                 }

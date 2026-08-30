@@ -15,7 +15,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.core.ui.R
 
 /**
  * A circular user profile picture, falling back to a generic account icon when

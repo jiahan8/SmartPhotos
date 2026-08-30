@@ -1,0 +1,27 @@
+<resources>
+<!--
+    Strings resolved by the composables in this module.
+
+    They live here rather than in :app because a library cannot reach up to its consumer's R.
+    With android.nonTransitiveRClass=true each module's R holds only its own resources, so :app
+    reaches these as com.jiahan.smartcamera.core.ui.R, imported there as UiR in the nine screens
+    that share this vocabulary. Ten of the sixteen are shared that way; the other six are resolved
+    only in this module.
+-->
+    <string name="cancel">Cancel</string>
+    <string name="cd_clear_field">Clear text</string>
+    <string name="cd_marked_as_favorite">Marked as favorite</string>
+    <string name="cd_more_options">More options</string>
+    <string name="cd_note_photo">Note photo</string>
+    <string name="cd_play_video">Play video</string>
+    <string name="cd_profile_picture">Profile picture</string>
+    <string name="copy_text">Copy text</string>
+    <string name="delete">Delete</string>
+    <string name="delete_note">Delete note</string>
+    <string name="delete_note_desc">Are you sure you want to delete this note?</string>
+    <string name="edit_note">Edit note</string>
+    <string name="like">Like</string>
+    <string name="remove_like">Remove like</string>
+    <string name="search">Search</string>
+    <string name="share">Share</string>
+</resources>

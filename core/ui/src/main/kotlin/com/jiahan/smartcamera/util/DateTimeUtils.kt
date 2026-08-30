@@ -15,8 +15,13 @@ import java.util.Locale
  * abbreviated, full year, no weekday, no seconds) while letting each locale order and punctuate it
  * natively: `Nov 14, 2023, 10:13 PM` for en-US, `2023/11/14 22:13` for ja-JP.
  *
- * The locale and zone are resolved per call, not cached in a top-level formatter, so a locale or
- * time-zone change takes effect without a process restart.
+ * [zone] and [locale] default to the platform's current values and are resolved per call, not
+ * cached in a top-level formatter, so a locale or time-zone change takes effect without a process
+ * restart. Passing them explicitly is what makes this function directly testable: the defaults read
+ * JVM-wide state, which a test can otherwise only influence by mutating it globally. The unit-test
+ * JVM is still pinned to UTC/en-US (see `build-logic`), because the Roborazzi goldens render notes
+ * through composables that call this with the defaults -- the pin is what those need, and the
+ * parameters are what this function's own tests need.
  *
  * This is the app's only remaining `java.time` usage, and it stays deliberately. The localized
  * style comes from platform locale data that `kotlinx.datetime` intentionally doesn't carry: its
@@ -26,11 +31,14 @@ import java.util.Locale
  * Multiplatform move this file becomes an `expect`/`actual` rather than shared code, and the
  * Android `actual` keeps what is written here.
  */
-fun Long.toFormattedDateTime(): String {
+fun Long.toFormattedDateTime(
+    zone: ZoneId = ZoneId.systemDefault(),
+    locale: Locale = Locale.getDefault(),
+): String {
     val instant = Instant.ofEpochMilli(this)
     val formatter = DateTimeFormatter
         .ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
-        .withLocale(Locale.getDefault())
-        .withZone(ZoneId.systemDefault())
+        .withLocale(locale)
+        .withZone(zone)
     return formatter.format(instant)
 }

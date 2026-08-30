@@ -63,6 +63,7 @@ import com.jiahan.smartcamera.common.ProfileAvatar
 import com.jiahan.smartcamera.common.bounceClick
 import com.jiahan.smartcamera.common.shimmer
 import com.jiahan.smartcamera.common.showAppSnackbar
+import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.domain.HomeNote
 
 /**
@@ -125,7 +126,7 @@ fun EditNoteScreen(
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.setShowDiscardDialog(false) }) {
-                    Text(stringResource(R.string.cancel))
+                    Text(stringResource(UiR.string.cancel))
                 }
             }
         )
@@ -153,7 +154,7 @@ fun EditNoteScreen(
         TopAppBar(
             title = {
                 Text(
-                    text = stringResource(R.string.edit_note),
+                    text = stringResource(UiR.string.edit_note),
                     style = MaterialTheme.typography.titleMedium,
                 )
             },
@@ -258,7 +259,7 @@ fun EditNoteScreen(
                                             if (noteText.isNotBlank() && !isSaving) {
                                                 Icon(
                                                     imageVector = Icons.Rounded.Clear,
-                                                    contentDescription = stringResource(R.string.cd_clear_field),
+                                                    contentDescription = stringResource(UiR.string.cd_clear_field),
                                                     modifier = Modifier
                                                         .padding(end = 12.dp)
                                                         .size(16.dp)
@@ -296,7 +297,7 @@ fun EditNoteScreen(
                                         enabled = !isSaving
                                     ) {
                                         Text(
-                                            text = stringResource(R.string.cancel),
+                                            text = stringResource(UiR.string.cancel),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
@@ -381,7 +382,7 @@ private fun ReadOnlyNoteMedia(
                     Modifier
                         .height(212.dp)
                         .maskClip(MaterialTheme.shapes.extraLarge),
-                contentDescription = stringResource(R.string.cd_note_photo),
+                contentDescription = stringResource(UiR.string.cd_note_photo),
                 contentScale = ContentScale.Crop,
                 onLoading = { isImageLoading = true },
                 onSuccess = { isImageLoading = false },
@@ -394,7 +395,7 @@ private fun ReadOnlyNoteMedia(
             if (mediaDetail.isVideo) {
                 Icon(
                     imageVector = Icons.Rounded.PlayArrow,
-                    contentDescription = stringResource(R.string.cd_play_video),
+                    contentDescription = stringResource(UiR.string.cd_play_video),
                     modifier =
                         Modifier
                             .align(Alignment.Center)

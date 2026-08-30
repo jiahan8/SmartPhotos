@@ -66,6 +66,7 @@ import com.jiahan.smartcamera.common.ProfileAvatar
 import com.jiahan.smartcamera.common.bounceClick
 import com.jiahan.smartcamera.common.rememberShouldLoadMore
 import com.jiahan.smartcamera.common.shimmer
+import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.domain.Photo
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
 
@@ -170,7 +171,7 @@ fun ExploreScreen(
                         !uiState.isSearchActive -> IconButton(onClick = viewModel::toggleSearch) {
                             Icon(
                                 imageVector = Icons.Rounded.Search,
-                                contentDescription = stringResource(R.string.search)
+                                contentDescription = stringResource(UiR.string.search)
                             )
                         }
 
@@ -179,7 +180,7 @@ fun ExploreScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Clear,
-                                contentDescription = stringResource(R.string.cd_clear_field)
+                                contentDescription = stringResource(UiR.string.cd_clear_field)
                             )
                         }
 

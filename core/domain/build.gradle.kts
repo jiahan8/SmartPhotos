@@ -10,21 +10,12 @@
  * annotation processing in this module. The @Provides/@Binds that satisfy them stay above.
  */
 plugins {
-    alias(libs.plugins.kotlin.jvm)
+    // Applies the Kotlin JVM plugin -- and nothing Android -- plus the Java/JVM target shared
+    // with the other modules. Keeping those in one place is what stops this module's target
+    // drifting from :app's, a mismatch that surfaces as an opaque Gradle variant-resolution
+    // failure rather than an obvious version error.
+    id("smartphotos.jvm.library")
     alias(libs.plugins.kotlin.serialization)
-}
-
-// Matches :app. A mismatch here surfaces as an unhelpful Gradle variant-resolution failure
-// rather than an obvious version error, so keep the two in step.
-java {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
-    }
 }
 
 dependencies {

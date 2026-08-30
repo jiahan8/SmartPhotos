@@ -17,8 +17,10 @@
  * section of AGENTS.md for what would be.
  */
 plugins {
-    alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.android)
+    // Applies AGP's library plugin and the Kotlin Android plugin, and sets compileSdk/minSdk,
+    // the Java 11 pair and the Kotlin JVM target. It deliberately does not set `namespace` --
+    // every library needs its own, so the convention leaves it to be declared below.
+    id("smartphotos.android.library")
     // No @Serializable is declared in this module -- the annotated models are in :core:domain --
     // and removing this plugin still compiles and still passes DatabaseConvertersTest (verified).
     // It stays because DatabaseConverters calls Json.encodeToString/decodeFromString at reified
@@ -36,11 +38,8 @@ android {
     // collide. Kotlin packages are unchanged -- files here still live in com.jiahan.smartcamera.data
     // and .database, which is what kept the extraction a pure `git mv` with no import churn.
     namespace = "com.jiahan.smartcamera.core.data"
-    compileSdk = 37
 
     defaultConfig {
-        minSdk = 28
-
         // The Room DAO and DataStore tests here use neither Hilt nor Compose, so the plain
         // AndroidX runner is enough -- :app's HiltTestRunner stays in :app with the tests that
         // need a Hilt component. Orchestrator + clearPackageData for the same reason as :app:
@@ -51,17 +50,6 @@ android {
 
     testOptions {
         execution = "ANDROIDX_TEST_ORCHESTRATOR"
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    kotlin {
-        compilerOptions {
-            jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
-        }
     }
 }
 

@@ -66,6 +66,7 @@ import com.jiahan.smartcamera.common.ProfileAvatar
 import com.jiahan.smartcamera.common.bounceClick
 import com.jiahan.smartcamera.common.rememberCyclingPlaceholder
 import com.jiahan.smartcamera.common.showAppSnackbar
+import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.domain.NoteMediaDetail
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -257,7 +258,7 @@ fun NoteScreen(
                                         if (postText.isNotBlank() && !isUploading) {
                                             Icon(
                                                 imageVector = Icons.Rounded.Clear,
-                                                contentDescription = stringResource(R.string.cd_clear_field),
+                                                contentDescription = stringResource(UiR.string.cd_clear_field),
                                                 modifier = Modifier
                                                     .padding(end = 12.dp)
                                                     .size(16.dp)
@@ -366,7 +367,7 @@ private fun NoteMediaCarousel(
                 modifier = Modifier
                     .height(212.dp)
                     .maskClip(MaterialTheme.shapes.extraLarge),
-                contentDescription = stringResource(R.string.cd_note_photo),
+                contentDescription = stringResource(UiR.string.cd_note_photo),
                 contentScale = ContentScale.Crop,
                 onError = { onImageLoadError(it.result.throwable) }
             )
@@ -374,7 +375,7 @@ private fun NoteMediaCarousel(
             if (noteMediaDetail.isVideo)
                 Icon(
                     imageVector = Icons.Rounded.PlayArrow,
-                    contentDescription = stringResource(R.string.cd_play_video),
+                    contentDescription = stringResource(UiR.string.cd_play_video),
                     modifier = Modifier
                         .align(Alignment.Center)
                         .size(52.dp)

@@ -40,6 +40,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.showAppSnackbar
+import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.util.FileConstants.MIME_TYPE_VIDEO
 
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -130,7 +131,7 @@ fun VideoPreviewScreen(
                     } else {
                         Icon(
                             imageVector = Icons.Rounded.IosShare,
-                            contentDescription = stringResource(R.string.share)
+                            contentDescription = stringResource(UiR.string.share)
                         )
                     }
                 }

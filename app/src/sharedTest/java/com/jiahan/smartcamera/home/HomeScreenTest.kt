@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.fake.FakeErrorHandler
 import com.jiahan.smartcamera.fake.FakeMediaFileRepository
@@ -129,9 +130,9 @@ class HomeScreenTest {
         launchHomeScreen()
         waitForText("Deletable note")
 
-        composeTestRule.onNodeWithContentDescription(string(R.string.cd_more_options))
+        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_more_options))
             .performClick()
-        waitForText(string(R.string.delete))
+        waitForText(string(UiR.string.delete))
     }
 
     @Test
@@ -140,13 +141,13 @@ class HomeScreenTest {
         launchHomeScreen()
         waitForText("Deletable note")
 
-        composeTestRule.onNodeWithContentDescription(string(R.string.cd_more_options))
+        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_more_options))
             .performClick()
-        waitForText(string(R.string.delete))
-        composeTestRule.onNodeWithText(string(R.string.delete)).performClick()
+        waitForText(string(UiR.string.delete))
+        composeTestRule.onNodeWithText(string(UiR.string.delete)).performClick()
 
-        waitForText(string(R.string.delete_note))
-        composeTestRule.onNodeWithText(string(R.string.delete)).performClick()
+        waitForText(string(UiR.string.delete_note))
+        composeTestRule.onNodeWithText(string(UiR.string.delete)).performClick()
 
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
             composeTestRule.onAllNodesWithText("Deletable note").fetchSemanticsNodes().isEmpty()
@@ -160,16 +161,16 @@ class HomeScreenTest {
         launchHomeScreen()
         waitForText("Likeable note")
 
-        composeTestRule.onNodeWithContentDescription(string(R.string.cd_more_options))
+        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_more_options))
             .performClick()
-        waitForText(string(R.string.like))
-        composeTestRule.onNodeWithText(string(R.string.like)).performClick()
+        waitForText(string(UiR.string.like))
+        composeTestRule.onNodeWithText(string(UiR.string.like)).performClick()
 
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
-            composeTestRule.onAllNodesWithContentDescription(string(R.string.cd_marked_as_favorite))
+            composeTestRule.onAllNodesWithContentDescription(string(UiR.string.cd_marked_as_favorite))
                 .fetchSemanticsNodes().isNotEmpty()
         }
-        composeTestRule.onNodeWithContentDescription(string(R.string.cd_marked_as_favorite))
+        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_marked_as_favorite))
             .assertIsDisplayed()
     }
 

@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.lifecycle.SavedStateHandle
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.fake.FakeErrorHandler
@@ -138,13 +139,13 @@ class NotePreviewScreenTest {
         launchNotePreviewScreen(noteId = "note-to-delete")
         waitForText("Note body")
 
-        composeTestRule.onNodeWithContentDescription(string(R.string.cd_more_options))
+        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_more_options))
             .performClick()
-        waitForText(string(R.string.delete))
-        composeTestRule.onNodeWithText(string(R.string.delete)).performClick()
+        waitForText(string(UiR.string.delete))
+        composeTestRule.onNodeWithText(string(UiR.string.delete)).performClick()
 
-        waitForText(string(R.string.delete_note))
-        composeTestRule.onNodeWithText(string(R.string.delete)).performClick()
+        waitForText(string(UiR.string.delete_note))
+        composeTestRule.onNodeWithText(string(UiR.string.delete)).performClick()
 
         assertTrue(navigatedBack)
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
@@ -161,7 +162,7 @@ class NotePreviewScreenTest {
         launchNotePreviewScreen()
         waitForText("Note body")
 
-        composeTestRule.onNodeWithContentDescription(string(R.string.cd_note_photo)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_note_photo)).performClick()
 
         assertEquals("https://example.com/photo.jpg", navigatedToPhotoPreviewUrl)
     }
@@ -182,7 +183,7 @@ class NotePreviewScreenTest {
         launchNotePreviewScreen()
         waitForText("Note body")
 
-        composeTestRule.onNodeWithContentDescription(string(R.string.cd_note_photo)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_note_photo)).performClick()
 
         assertEquals("https://example.com/video.mp4", navigatedToVideoPreviewUrl)
     }

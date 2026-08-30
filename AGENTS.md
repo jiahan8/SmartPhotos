@@ -3,7 +3,7 @@
 Android app (Kotlin) for organizing photos/notes with ML-based tagging.
 Firebase backend + a Node.js Cloud Functions project live in `functions/`.
 
-Three Gradle modules:
+Four Gradle modules, plus an included build for the shared Gradle config:
 
 - `:app` — UI, ViewModels, navigation, and the Android plumbing that is genuinely app-level:
   `MyApp`, the messaging service, `DefaultErrorHandler`/`ResourceProviderImpl`, `FirebaseModule`
@@ -14,17 +14,29 @@ Three Gradle modules:
 - `:core:data` — an Android library holding every implementation that satisfies one of those
   contracts: the `Default*`/`Firebase*` repositories, the Room database, the DataStore wiring and
   `DataModule`. Sources under `core/data/src/main/kotlin/com/jiahan/smartcamera/`.
+- `:core:ui` — an Android library holding the shared Compose vocabulary: `common/` (14
+  composables), `ui/theme/`, and the two `util/` helpers whose only callers are in those packages
+  (`DateTimeUtils`, `FlowUtils`). Sources under `core/ui/src/main/kotlin/com/jiahan/smartcamera/`.
+  It exists so a feature package can become its own module — while shared Compose sat in `:app`,
+  nothing could leave.
+- `build-logic/` — not a module but an included build, holding the four convention plugins
+  (`smartphotos.android.application`, `.android.library`, `.android.compose`, `.jvm.library`) that
+  carry `compileSdk`/`minSdk`, the Java 11 pair, the Kotlin JVM target and the unit-test JVM pin.
+  See [Convention plugins](#convention-plugins).
 
-Kotlin package names are deliberately identical across all three: `com.jiahan.smartcamera.util`,
-`.di`, `.data.repository` and `.data.datastore` each exist in more than one module, which is what
-made both extractions a pure `git mv` with no import churn. A bare path like `util/ErrorHandler.kt`
-below is therefore disambiguated by the module it is attributed to, not by its package —
-`util/ErrorHandler.kt` is `:core:domain`, `util/DefaultErrorHandler.kt` is `:app`, and
-`util/MediaUriExt.kt` is `:core:data`.
+Kotlin package names are deliberately identical across all four: `com.jiahan.smartcamera.util`,
+`.di`, `.common`, `.data.repository` and `.data.datastore` each exist in more than one module,
+which is what made the first two extractions a pure `git mv` with no import churn. A bare path like
+`util/ErrorHandler.kt` below is therefore disambiguated by the module it is attributed to, not by
+its package — `util/ErrorHandler.kt` is `:core:domain`, `util/DefaultErrorHandler.kt` is `:app`,
+`util/MediaUriExt.kt` is `:core:data` and `util/DateTimeUtils.kt` is `:core:ui`.
 
-The dependency arrows run one way: `:app` → `:core:data` → `:core:domain`. Nothing depends on
-`:app`, so a repository implementation can no longer reach a ViewModel, an `R` string or
-`BuildConfig` even by accident.
+The dependency arrows run one way: `:app` → `:core:data` → `:core:domain`, and `:app` →
+`:core:ui` → `:core:domain`. Nothing depends on `:app`, so a repository implementation can no
+longer reach a ViewModel, an `R` string or `BuildConfig` even by accident. `:core:ui` and
+`:core:data` are **siblings** — neither depends on the other, and `:core:ui` reaches no
+repository, Room or DataStore. They are the build's first pair with anything to overlap, which is
+why `org.gradle.parallel` is finally on.
 
 ## Build, test, lint
 
@@ -35,8 +47,9 @@ Run from the repo root (Gradle wrapper):
   - Both tasks, because they are different tasks. `testDebugUnitTest` is an Android *variant* task
     and `:core:domain` is a plain Kotlin JVM module, so its tests run under `test` and a bare
     `testDebugUnitTest` skips them without failing. CI names both for the same reason.
-    `:core:data` needs no such mention — it is an Android library, so the unqualified
-    `testDebugUnitTest` already reaches it, as do `lintDebug` and `connectedDebugAndroidTest`.
+    `:core:data` and `:core:ui` need no such mention — both are Android libraries, so the
+    unqualified `testDebugUnitTest` already reaches them, as do `lintDebug` and
+    `connectedDebugAndroidTest`.
   - Single class: `./gradlew testDebugUnitTest --tests "com.jiahan.smartcamera.home.HomeViewModelTest"`
   - Single method: `./gradlew testDebugUnitTest --tests "com.jiahan.smartcamera.home.HomeViewModelTest.methodName"`
   - Assert on a settled `StateFlow` by reading `.value`; that is what most of the suite does, and
@@ -94,27 +107,68 @@ Each run uploads two artifacts: `unit-test-report` (the full suite) and
 
 Two things to know about the goldens:
 
-- Any screenshot showing a note renders a formatted timestamp, and `Long.toFormattedDateTime()`
-  resolves `ZoneId.systemDefault()`/`Locale.getDefault()` at render time. That made the goldens
-  machine-dependent — they passed on a UTC+8 laptop and failed on the UTC CI runner, eight hours
-  out. `app/build.gradle.kts` now pins the unit-test JVM to UTC/en-US (`tasks.withType<Test>`), so
-  goldens recorded on any machine verify on every other one. If you change that pin, re-record.
-  Note that the pin is a containment measure, not the fix: `toFormattedDateTime()` reads global
-  state, so it can't be tested at a chosen instant or locale. Giving it `zone` and `locale`
-  parameters (defaulted to the current lookups) would make it directly testable and drop the
-  dependency on a JVM-wide setting — worth doing if that formatter ever needs its own tests.
+- Any screenshot showing a note renders a formatted timestamp through
+  `Long.toFormattedDateTime()`, whose `zone`/`locale` parameters *default* to
+  `ZoneId.systemDefault()`/`Locale.getDefault()` — and a composable calls it with those defaults.
+  That made the goldens machine-dependent: they passed on a UTC+8 laptop and failed on the UTC CI
+  runner, eight hours out. The unit-test JVM is pinned to UTC/en-US so goldens recorded on any
+  machine verify on every other one. **That pin now lives in `build-logic`, not in
+  `app/build.gradle.kts`** (`configureTestJvm()`, applied by every convention plugin), because
+  more than one module has unit tests to keep deterministic. If you change it, re-record.
+  The parameters were added when `:core:ui` was extracted, and it is worth being precise about what
+  they did and did not fix. They made the formatter *directly* testable — `DateTimeUtilsTest` now
+  passes an explicit zone and locale, which is how it can assert three zones and three locales in
+  one run, something a single JVM-wide setting cannot express. They did **not** retire the pin: the
+  goldens render through `NoteItem`, which calls the defaults, so the global read is still what a
+  screenshot exercises. Hoisting zone/locale up to the composable's caller is what would retire it.
   More generally: a golden diff that appears only on CI is far more likely to be non-determinism in
   the test than a rendering difference between platforms — check for a clock, locale, or random
   value in the fixture before assuming the environment is at fault.
 - `settingsScreen_default.png` renders the app version string, so it goes stale on every version
   bump in `app/build.gradle.kts` and needs re-recording alongside one.
 
+### Convention plugins
+
+`build-logic/` is an included build (`includeBuild("build-logic")` from `pluginManagement` in
+`settings.gradle.kts`), holding four plugins that every module applies by id instead of restating
+the same settings:
+
+| Plugin | Applied by | Applies | Sets |
+| --- | --- | --- | --- |
+| `smartphotos.android.application` | `:app` | AGP application, Kotlin Android | compileSdk 37, minSdk 28, Java 11, JVM target 11, test-JVM pin |
+| `smartphotos.android.library` | `:core:data`, `:core:ui` | AGP library, Kotlin Android | the same, minus nothing |
+| `smartphotos.android.compose` | `:app`, `:core:ui` | Compose compiler | `buildFeatures.compose = true` |
+| `smartphotos.jvm.library` | `:core:domain` | Kotlin JVM — **nothing Android** | Java 11, JVM target 11, test-JVM pin |
+
+Four rules worth knowing before editing them:
+
+- **Put a setting here only when more than one module wants it, and wants it for the same reason.**
+  `targetSdk` stays in `app/build.gradle.kts` because a library has no `targetSdk`; `namespace`
+  stays in each library because every module needs its own; `buildConfig = true` stays in `:app`
+  because no module below it should generate a `BuildConfig` (see the Build type rule under
+  [Conventions](#conventions)).
+- **`build-logic` targets Java 17, the modules target 11.** That is not drift: the convention
+  plugins run inside the Gradle daemon, which requires 17+, while 11 is what the app compiles
+  against. Don't "fix" one to match the other.
+- **The plugin artifacts are `compileOnly`.** `android-gradlePlugin`, `kotlin-gradlePlugin` and
+  `compose-gradlePlugin` are catalog entries used only by `build-logic/convention`, sharing version
+  refs with the `[plugins]` aliases so the code compiles against the AGP that is actually applied.
+  The modules' `pluginManager.apply("com.android.application")` calls resolve against the build
+  classpath the root `build.gradle.kts` establishes with its `apply false` block — which is why
+  that block must keep listing them.
+- **AGP 9's `CommonExtension` is not generic and exposes only property accessors.** The
+  `defaultConfig { }` / `compileOptions { }` block forms are declared on the concrete
+  `ApplicationExtension` and `LibraryExtension`, so shared code configures through properties
+  (`defaultConfig.minSdk = …`). Guides written against AGP 8 show `CommonExtension<*, *, *, *, *, *>`
+  and the block form; neither compiles here.
+
 ## Architecture
 
 MVVM with a layered structure, one Kotlin package per feature under
 `app/src/main/java/com/jiahan/smartcamera/` (e.g. `home`, `note`, `favorite`, `search`, `profile`,
-`settings`, `auth`, `preview`). Every feature package is in `:app`; the module boundary runs
-underneath them, between the contracts in `:core:domain` and the implementations that satisfy them.
+`settings`, `auth`, `preview`). Every feature package is still in `:app`; the module boundaries run
+underneath them — between the contracts in `:core:domain` and the implementations that satisfy
+them, and between the feature screens and the shared Compose they all draw with in `:core:ui`.
 Cross-cutting layers:
 
 - **UI** — Jetpack Compose screens (`*Screen.kt`) + Navigation Compose graph in
@@ -304,6 +358,10 @@ between otherwise-equivalent approaches, prefer the one that keeps that migratio
   conflated. Keep the reading of this honest in both directions: a pure package inside `:app` was
   never progress on its own, because KMP moves Gradle *modules*, not Kotlin packages; and a module
   that compiles without the Android plugin is real progress but still not a `commonMain` source set.
+  `:core:ui` reads the same way as `:core:data`: it is an Android library full of Jetpack Compose,
+  so extracting it bought modularization, not shareability. (Compose Multiplatform would change
+  that calculus, but nothing here targets it, and `android.content.ClipData`, `android.os.Build`
+  and the `R` class in `common/` would all have to go first.)
 
   **The next actual KMP step is converting `:core:domain` from `kotlin.jvm` to
   `kotlin.multiplatform`** (`commonMain` + `androidTarget()`). Every import in its `main` sources is
@@ -347,6 +405,13 @@ between otherwise-equivalent approaches, prefer the one that keeps that migratio
   cases* in Google's usage, not models. Keep the name and this note together rather than renaming to
   `:core:model` (which would be inaccurate — it holds more than models) or splitting into three
   modules at this size, and don't read `:core:domain` here as a use-case layer.
+
+  `:core:ui` deviates the other way — it is *one* module where NiA has two. NiA splits
+  `core:designsystem` (theme, atoms, icons) from `core:ui` (composites that know domain types).
+  `NoteItem` is squarely the second kind: it takes a `HomeNote`. At 1,294 lines nothing here
+  consumes one half without the other, and a second module earns its keep only when something does
+  — the same test that argued against breaking `:core:database` out of `:core:data`. Revisit if a
+  second app, or a Wear/TV surface, ever appears.
 
 ## Follow official Android guidance
 
@@ -456,6 +521,20 @@ escaping of arguments.
   `play-app-update-ktx` are the current examples. The failure surfaces in
   `compileDebugAndroidTestKotlin` well before `connectedDebugAndroidTest`, and can hide from
   `assembleDebug` entirely.
+- `:core:ui` dependency configurations: the same rule reached from the ordinary direction —
+  **a Compose artifact whose type appears in a public signature is `api`.** `Modifier` is a
+  parameter of 25 public composables there; `SnackbarHostState`, `Typography`, `Color`, `Shape`,
+  `ImageVector` and `LazyListState` each appear in at least one. A consumer cannot call
+  `NoteItem(modifier = …)` without resolving `Modifier`, so `compose-bom`, `ui`, `ui-graphics`,
+  `material3` and `foundation` are all `api`. What makes this easy to get wrong is that it *builds*
+  either way today, because `:app` declares the same artifacts for its own screens — the same
+  accident that hid `:core:data`'s DataStore and Room bindings until androidTest walked the graph.
+  It would surface at the first `:feature:*` module that depends on `:core:ui` without redeclaring
+  Compose. `coil-compose`, `kotlinx-coroutines-android`, `ui-tooling-preview` and the icon packs
+  stay `implementation`: used in function bodies, never handed out.
+  - The check that does not require a second consumer: `./gradlew :core:ui:dependencies
+    --configuration api` lists exactly what the module exports. If something in a public signature
+    is missing from that list, it is declared wrong.
 - Dispatchers and scopes: don't reference `Dispatchers.IO` directly in new code. Inject
   `@param:IoDispatcher private val ioDispatcher: CoroutineDispatcher` — the qualifier lives in
   `di/Qualifiers.kt` in `:core:domain` and its provider in `di/AppModule.kt` in `:app` — so tests
@@ -486,9 +565,26 @@ escaping of arguments.
   provider itself. (`settings/SettingsScreen.kt` reads `BuildConfig.VERSION_NAME`, which is
   unrelated to this rule.)
 - Dependencies: every version lives in `gradle/libs.versions.toml` and is referenced through the
-  generated `libs.*` accessors — `app/build.gradle.kts` holds no hardcoded version strings. Add a
+  generated `libs.*` accessors — no module build file holds a hardcoded version string. Add a
   library as a `[versions]` entry plus a `[libraries]` entry, never as an inline
   `implementation("group:artifact:1.2.3")`.
+- Resources belong to the module whose code resolves them, and **`android.nonTransitiveRClass=true`
+  means each module's `R` holds only its own.** A string a `:core:ui` composable passes to
+  `stringResource` lives in `core/ui/src/main/res/`, translations included; `:app` then reaches it
+  as `com.jiahan.smartcamera.core.ui.R`, imported as **`import com.jiahan.smartcamera.core.ui.R as
+  UiR`** and used as `UiR.string.x`. The alias is needed because those files also use `:app`'s own
+  `R`, and the two collide on the simple name. Nine `:app` screens and six test files do this
+  today, for the sixteen strings that moved with `common/`.
+  - Don't "solve" a cross-module string by declaring it in both modules. Two resources with one
+    name is legal — the application's value wins the merge — but it silently duplicates
+    user-visible text and its `values-ja/` translation, and the two drift.
+  - Don't turn `nonTransitiveRClass` off to avoid the aliasing. It is the reason a library's `R`
+    stays small and its resources stay attributable; the import churn is the price, and it is
+    one-off.
+  - The alternative worth considering for a genuinely reusable component is hoisting the string out
+    as a parameter, so the component takes text rather than resolving product copy itself. Not done
+    for `NoteItem` — it already carries nine lambdas — but it is the right answer if `:core:ui`
+    ever grows a component meant for reuse outside this app.
 - Pagination: repositories hold no position state — the caller owns its place in the list, so two
   callers paginating at once can't corrupt each other. The key depends on the data source: notes
   page by an opaque `NoteCursor` (`getNotes(cursor)` returns a `NotePage` carrying the next one,

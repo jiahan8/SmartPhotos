@@ -10,15 +10,8 @@
     <!-- Home -->
     <string name="home">ホーム</string>
     <string name="create_first_note">最初のメモを作成しましょう</string>
-    <string name="like">いいね</string>
-    <string name="remove_like">いいねを取り消す</string>
-    <string name="delete_note">メモを削除</string>
-    <string name="delete_note_desc">このメモを削除してもよろしいですか？</string>
-    <string name="delete">削除</string>
-    <string name="cancel">キャンセル</string>
 
     <!-- Search -->
-    <string name="search">検索</string>
     <string name="search_notes_photos">メモや写真を検索</string>
     <string name="find_photos">自分の写真を探す</string>
     <string name="what_you_looking_for">お探しのものは何ですか？</string>
@@ -30,7 +23,6 @@
     <!-- Note -->
     <string name="note">メモ</string>
     <string name="new_note">新しいメモ</string>
-    <string name="edit_note">メモを編集</string>
     <string name="whats_new">最近どう？</string>
     <string name="create_note">メモを作成</string>
     <string name="write_this_moment">この瞬間について書く</string>
@@ -89,12 +81,9 @@
     <string name="explore">探索</string>
 
     <!-- Sharing -->
-    <string name="share">共有</string>
     <string name="share_note_failure">このメモを共有できませんでした。もう一度お試しください。</string>
     <string name="share_photo_failure">この写真を共有できませんでした。もう一度お試しください。</string>
     <string name="share_video_failure">この動画を共有できませんでした。もう一度お試しください。</string>
-    <string name="cd_more_options">その他のオプション</string>
-    <string name="copy_text">テキストをコピー</string>
 
     <!-- Authentication -->
     <string name="authentication">認証</string>
@@ -142,18 +131,13 @@
 
     <!-- Content descriptions (accessibility) -->
     <string name="cd_back">前の画面に戻る</string>
-    <string name="cd_profile_picture">プロフィール写真</string>
     <string name="cd_app_logo">スマートフォトのアプリロゴ</string>
-    <string name="cd_note_photo">メモの写真</string>
     <string name="cd_selected_photo">選択した写真</string>
-    <string name="cd_play_video">動画を再生</string>
     <string name="cd_remove_image">画像を削除</string>
-    <string name="cd_clear_field">テキストをクリア</string>
     <string name="cd_close_search">検索を閉じる</string>
     <string name="cd_choose_photos">複数の写真を選択</string>
     <string name="cd_take_photo">写真を撮る</string>
     <string name="cd_take_video">動画を撮影</string>
-    <string name="cd_marked_as_favorite">お気に入りに登録済み</string>
     <string name="cd_edit_note">メモを編集</string>
     <string name="cd_open_settings">設定を開く</string>
     <string name="cd_hide_password">パスワードを非表示</string>

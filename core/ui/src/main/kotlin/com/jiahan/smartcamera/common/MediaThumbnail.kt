@@ -23,7 +23,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.core.ui.R
 import com.jiahan.smartcamera.domain.MediaDetail
 
 /**

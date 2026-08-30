@@ -16,6 +16,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.data.datastore.UserPreferences
 import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.NoteMediaDetail
@@ -124,7 +125,7 @@ class NoteScreenTest {
             .performTextInput("My new note")
         waitForText("My new note")
 
-        composeTestRule.onNodeWithContentDescription(string(R.string.cd_clear_field)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_clear_field)).performClick()
 
         composeTestRule.onNodeWithText(string(R.string.save)).assertIsNotEnabled()
     }
@@ -153,7 +154,7 @@ class NoteScreenTest {
         viewModel.updateUriList(listOf(Uri.parse("content://fake/photo1")))
 
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
-            composeTestRule.onAllNodesWithContentDescription(string(R.string.cd_note_photo))
+            composeTestRule.onAllNodesWithContentDescription(string(UiR.string.cd_note_photo))
                 .fetchSemanticsNodes().isNotEmpty()
         }
         composeTestRule.onNodeWithText(string(R.string.save)).assertIsEnabled()
@@ -168,11 +169,11 @@ class NoteScreenTest {
         waitForText("tester")
         viewModel.updateUriList(listOf(Uri.parse("content://fake/photo1")))
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
-            composeTestRule.onAllNodesWithContentDescription(string(R.string.cd_note_photo))
+            composeTestRule.onAllNodesWithContentDescription(string(UiR.string.cd_note_photo))
                 .fetchSemanticsNodes().isNotEmpty()
         }
 
-        composeTestRule.onNodeWithContentDescription(string(R.string.cd_note_photo)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_note_photo)).performClick()
 
         assertEquals("https://example.com/photo.jpg", navigatedToPhotoPreviewUri)
     }
@@ -186,7 +187,7 @@ class NoteScreenTest {
         waitForText("tester")
         viewModel.updateUriList(listOf(Uri.parse("content://fake/photo1")))
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
-            composeTestRule.onAllNodesWithContentDescription(string(R.string.cd_note_photo))
+            composeTestRule.onAllNodesWithContentDescription(string(UiR.string.cd_note_photo))
                 .fetchSemanticsNodes().isNotEmpty()
         }
 
@@ -194,7 +195,7 @@ class NoteScreenTest {
             .performClick()
 
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
-            composeTestRule.onAllNodesWithContentDescription(string(R.string.cd_note_photo))
+            composeTestRule.onAllNodesWithContentDescription(string(UiR.string.cd_note_photo))
                 .fetchSemanticsNodes().isEmpty()
         }
         composeTestRule.onNodeWithText(string(R.string.save)).assertIsNotEnabled()

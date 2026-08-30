@@ -1,10 +1,12 @@
 import com.google.firebase.appdistribution.gradle.firebaseAppDistribution
-import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 
 plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose)
+    // Convention plugins from `build-logic`. Between them they apply AGP, the Kotlin Android
+    // plugin and the Compose compiler, and set compileSdk/minSdk, the Java 11 pair, the Kotlin
+    // JVM target and the unit-test JVM pin -- everything this file used to state and :core:data
+    // and :core:ui state identically.
+    id("smartphotos.android.application")
+    id("smartphotos.android.compose")
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
@@ -17,11 +19,11 @@ plugins {
 
 android {
     namespace = "com.jiahan.smartcamera"
-    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.jiahan.smartcamera"
-        minSdk = 28
+        // targetSdk, unlike compileSdk/minSdk, is an application-only setting -- a library has no
+        // targetSdk -- so it stays here rather than moving into the convention plugin.
         targetSdk = 36
         versionCode = 6
         versionName = "3.1.0"
@@ -33,7 +35,9 @@ android {
     }
 
     buildFeatures {
-        compose = true
+        // compose is turned on by smartphotos.android.compose. buildConfig is :app's alone: it
+        // generates com.jiahan.smartcamera.BuildConfig, which MyApp, DefaultErrorHandler and
+        // AppModule read. No module below :app enables it -- see the Build type rule in AGENTS.md.
         buildConfig = true
     }
 
@@ -73,17 +77,6 @@ android {
         }
     }
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    kotlin {
-        compilerOptions {
-            jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
-        }
-    }
-
     androidResources {
         generateLocaleConfig = true
     }
@@ -102,30 +95,6 @@ roborazzi {
     outputDir.set(layout.projectDirectory.dir("src/test/screenshots"))
 }
 
-// Pin the unit-test JVM's timezone and locale. `Long.toFormattedDateTime()` resolves
-// ZoneId.systemDefault() and Locale.getDefault() at render time, so a note's timestamp renders
-// differently depending on the machine running the tests. That made the Roborazzi goldens
-// machine-dependent: every screenshot containing a note row passed on a UTC+8 laptop and failed
-// on the UTC CI runner, 8 hours out. UTC/en-US is chosen to match the CI runner, so goldens
-// recorded anywhere verify everywhere. Re-record goldens if you change these.
-tasks.withType<Test>().configureEach {
-    systemProperty("user.timezone", "UTC")
-    systemProperty("user.language", "en")
-    systemProperty("user.country", "US")
-
-    // Report a failure as its assertion message and nothing else. Both settings are needed and
-    // do opposite jobs: the default SHORT format collapses the exception to
-    // "AssertionError at Foo.kt:59", hiding the one line that makes a Roborazzi failure
-    // actionable (which golden changed, and where its comparison image was written), while FULL
-    // on its own appends ~20 lines of Roborazzi-internal frames per failure that say nothing
-    // about this codebase. FULL restores the message; showStackTraces = false drops the frames.
-    testLogging {
-        events("failed")
-        exceptionFormat = TestExceptionFormat.FULL
-        showStackTraces = false
-    }
-}
-
 dependencies {
 
     // Domain models, repository contracts, safeCall and the DI qualifiers. A pure-JVM
@@ -137,6 +106,11 @@ dependencies {
     // compiles against those itself. Several arrive from :core:data as `api` too (Hilt needs
     // them resolvable here) -- declaring them anyway states what :app's own code uses.
     implementation(project(":core:data"))
+
+    // The shared Compose vocabulary -- common/, ui/theme and the two util helpers that follow
+    // them. Every feature screen in this module draws with it, and nine of them also resolve
+    // strings from its R, imported there as `UiR`.
+    implementation(project(":core:ui"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

@@ -1,0 +1,5 @@
+# Two entries, not one: `build-logic` is an included build with a `convention` subproject, and the
+# anchored form the other modules use would only cover the root. The output that actually exists
+# today is convention/build.
+/build
+/convention/build

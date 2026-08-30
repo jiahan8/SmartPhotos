@@ -21,6 +21,7 @@ import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.lifecycle.SavedStateHandle
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
@@ -168,7 +169,7 @@ class EditNoteScreenTest {
         launchEditNoteScreen()
         waitForText("Original text")
 
-        composeTestRule.onNodeWithContentDescription(string(R.string.cd_clear_field)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_clear_field)).performClick()
 
         composeTestRule.onAllNodesWithText("Original text").assertCountEquals(0)
         // Clearing the only text of a note with no media would leave nothing behind, so saving a
@@ -235,7 +236,7 @@ class EditNoteScreenTest {
         // The screen's own inline Cancel button is still in the tree behind the dialog, so scope
         // the match to the dialog's dismiss button (same pattern as SettingsScreenTest).
         composeTestRule.onNode(
-            hasText(string(R.string.cancel)) and hasClickAction() and hasAnyAncestor(isDialog())
+            hasText(string(UiR.string.cancel)) and hasClickAction() and hasAnyAncestor(isDialog())
         ).performClick()
 
         assertFalse(navigatedBack)

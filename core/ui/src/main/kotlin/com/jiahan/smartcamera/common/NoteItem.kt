@@ -57,7 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.core.ui.R
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS

@@ -16,6 +16,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeAuthRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
@@ -84,7 +85,7 @@ class SettingsScreenTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText(string(R.string.log_out_desc)).assertIsDisplayed()
 
-        composeTestRule.onNodeWithText(string(R.string.cancel)).performClick()
+        composeTestRule.onNodeWithText(string(UiR.string.cancel)).performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText(string(R.string.log_out_desc)).assertDoesNotExist()
 
@@ -145,7 +146,7 @@ class SettingsScreenTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText(string(R.string.current_password)).assertIsDisplayed()
 
-        composeTestRule.onNodeWithText(string(R.string.cancel)).performClick()
+        composeTestRule.onNodeWithText(string(UiR.string.cancel)).performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText(string(R.string.current_password)).assertDoesNotExist()
 

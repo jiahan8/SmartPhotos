@@ -14,6 +14,11 @@
 .cxx
 local.properties
 
+# JVM crash and JIT-replay dumps. The Gradle/Kotlin daemons drop these in the repo root, and they
+# are large enough (tens of thousands of lines) to slip into a `git add -A` unnoticed.
+hs_err_pid*.log
+replay_pid*.log
+
 # Firebase CLI cache & logs (keep rules/config tracked, ignore generated artifacts)
 .firebase/
 firebase-debug.log

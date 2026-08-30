@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
@@ -122,13 +123,13 @@ class FavoriteScreenTest {
         launchFavoriteScreen()
         waitForText("Deletable favorite")
 
-        composeTestRule.onNodeWithContentDescription(string(R.string.cd_more_options))
+        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_more_options))
             .performClick()
-        waitForText(string(R.string.delete))
-        composeTestRule.onNodeWithText(string(R.string.delete)).performClick()
+        waitForText(string(UiR.string.delete))
+        composeTestRule.onNodeWithText(string(UiR.string.delete)).performClick()
 
-        waitForText(string(R.string.delete_note))
-        composeTestRule.onNodeWithText(string(R.string.delete)).performClick()
+        waitForText(string(UiR.string.delete_note))
+        composeTestRule.onNodeWithText(string(UiR.string.delete)).performClick()
 
         waitForText(string(R.string.no_results_found))
         composeTestRule.onNodeWithText(string(R.string.no_results_found)).assertIsDisplayed()
@@ -140,10 +141,10 @@ class FavoriteScreenTest {
         launchFavoriteScreen()
         waitForText("Unlike me")
 
-        composeTestRule.onNodeWithContentDescription(string(R.string.cd_more_options))
+        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_more_options))
             .performClick()
-        waitForText(string(R.string.remove_like))
-        composeTestRule.onNodeWithText(string(R.string.remove_like)).performClick()
+        waitForText(string(UiR.string.remove_like))
+        composeTestRule.onNodeWithText(string(UiR.string.remove_like)).performClick()
 
         waitForText(string(R.string.no_results_found))
         composeTestRule.onNodeWithText(string(R.string.no_results_found)).assertIsDisplayed()

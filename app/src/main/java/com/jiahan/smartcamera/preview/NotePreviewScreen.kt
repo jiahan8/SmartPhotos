@@ -71,6 +71,7 @@ import com.jiahan.smartcamera.common.MediaThumbnail
 import com.jiahan.smartcamera.common.NoteItemSkeleton
 import com.jiahan.smartcamera.common.ProfileAvatar
 import com.jiahan.smartcamera.common.showAppSnackbar
+import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
 import com.jiahan.smartcamera.util.toFormattedDateTime
 import kotlinx.coroutines.launch
@@ -230,7 +231,7 @@ fun NotePreviewScreen(
 
                                                 Icon(
                                                     imageVector = Icons.Rounded.MoreHoriz,
-                                                    contentDescription = stringResource(R.string.cd_more_options),
+                                                    contentDescription = stringResource(UiR.string.cd_more_options),
                                                     modifier = Modifier
                                                         .padding(start = 8.dp)
                                                         .clickable {
@@ -337,7 +338,7 @@ fun NotePreviewScreen(
 
                                         Icon(
                                             imageVector = Icons.Rounded.IosShare,
-                                            contentDescription = stringResource(R.string.share),
+                                            contentDescription = stringResource(UiR.string.share),
                                             modifier = Modifier
                                                 .padding(start = 16.dp)
                                                 .clickable {
@@ -355,7 +356,7 @@ fun NotePreviewScreen(
                                         note.text?.let { text ->
                                             BottomSheetActionItem(
                                                 icon = Icons.Rounded.ContentCopy,
-                                                label = stringResource(R.string.copy_text),
+                                                label = stringResource(UiR.string.copy_text),
                                                 onClick = {
                                                     closeSheetThen {
                                                         coroutineScope.launch {
@@ -374,7 +375,7 @@ fun NotePreviewScreen(
                                         }
                                         BottomSheetActionItem(
                                             icon = Icons.Rounded.Delete,
-                                            label = stringResource(R.string.delete),
+                                            label = stringResource(UiR.string.delete),
                                             onClick = {
                                                 closeSheetThen { viewModel.setNoteToDelete(note) }
                                             },

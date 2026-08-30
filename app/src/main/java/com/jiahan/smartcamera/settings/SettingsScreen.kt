@@ -58,6 +58,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jiahan.smartcamera.BuildConfig
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.showAppSnackbar
+import com.jiahan.smartcamera.core.ui.R as UiR
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -131,7 +132,7 @@ fun SettingsScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { viewModel.dismissDialog() }) {
-                        Text(stringResource(R.string.cancel))
+                        Text(stringResource(UiR.string.cancel))
                     }
                 }
             )
@@ -276,7 +277,7 @@ fun SettingsScreen(
                         onClick = { viewModel.dismissDialog() },
                         enabled = !isLoading
                     ) {
-                        Text(stringResource(R.string.cancel))
+                        Text(stringResource(UiR.string.cancel))
                     }
                 }
             )
@@ -299,7 +300,7 @@ fun SettingsScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { viewModel.dismissDialog() }) {
-                        Text(stringResource(R.string.cancel))
+                        Text(stringResource(UiR.string.cancel))
                     }
                 }
             )

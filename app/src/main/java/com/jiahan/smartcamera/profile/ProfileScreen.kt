@@ -65,6 +65,7 @@ import com.jiahan.smartcamera.common.BottomSheetActionItem
 import com.jiahan.smartcamera.common.ProfileAvatar
 import com.jiahan.smartcamera.common.bounceScale
 import com.jiahan.smartcamera.common.showAppSnackbar
+import com.jiahan.smartcamera.core.ui.R as UiR
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -212,7 +213,7 @@ fun ProfileScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { viewModel.dismissDialog() }) {
-                        Text(stringResource(R.string.cancel))
+                        Text(stringResource(UiR.string.cancel))
                     }
                 }
             )
@@ -299,7 +300,7 @@ fun ProfileScreen(
                                     IconButton(onClick = { viewModel.updateDisplayNameText("") }) {
                                         Icon(
                                             imageVector = Icons.Rounded.Clear,
-                                            contentDescription = stringResource(R.string.cd_clear_field),
+                                            contentDescription = stringResource(UiR.string.cd_clear_field),
                                             modifier = Modifier
                                                 .size(16.dp)
                                         )
@@ -332,7 +333,7 @@ fun ProfileScreen(
                                     IconButton(onClick = { viewModel.updateUsernameText("") }) {
                                         Icon(
                                             imageVector = Icons.Rounded.Clear,
-                                            contentDescription = stringResource(R.string.cd_clear_field),
+                                            contentDescription = stringResource(UiR.string.cd_clear_field),
                                             modifier = Modifier
                                                 .size(16.dp)
                                         )
