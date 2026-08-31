@@ -14,7 +14,6 @@ import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.home.HomeScreen
 import com.jiahan.smartcamera.home.HomeViewModel
 import com.jiahan.smartcamera.note.NoteErrorReporter
-import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.search.SearchScreen
 import com.jiahan.smartcamera.search.SearchViewModel
@@ -45,12 +44,10 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
 
     private fun homeViewModel(notes: Result<NotePage>): HomeViewModel {
         val repo = FakeNoteRepository().apply { notesResult = notes }
-        val noteHandler = NoteHandler()
         val errorHandler = FakeErrorHandler()
         val noteErrorReporter = NoteErrorReporter(errorHandler)
         return HomeViewModel(
             repo,
-            noteHandler,
             noteErrorReporter,
             NoteShareDelegate(
                 FakeMediaFileRepository(),

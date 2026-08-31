@@ -132,7 +132,7 @@ Run from the repo root (Gradle wrapper):
     unqualified `testDebugUnitTest` already reaches them, as do `lintDebug` and
     `connectedDebugAndroidTest`. Nine modules run unit tests today: `:app` 210, `:feature:auth` 46,
     `:feature:explore` 34, `:feature:settings` 30, `:feature:profile` 26, `:core:common` 27,
-    `:core:ui` 17, `:core:data` 15, `:core:domain` 8 — 413 in total.
+    `:core:ui` 17, `:core:data` 15, `:core:domain` 8 — 414 in total.
   - Single class: `./gradlew testDebugUnitTest --tests "com.jiahan.smartcamera.home.HomeViewModelTest"`
   - Single method: `./gradlew testDebugUnitTest --tests "com.jiahan.smartcamera.home.HomeViewModelTest.methodName"`
   - Assert on a settled `StateFlow` by reading `.value`; that is what most of the suite does, and
@@ -316,7 +316,7 @@ Five rules worth knowing before editing them:
 
 MVVM with a layered structure, one Kotlin package per feature. Five are still under
 `app/src/main/java/com/jiahan/smartcamera/` (`home`, `note`, `favorite`, `search`, plus `preview`),
-and none of them is held there by anything but `:app`'s `R` now, plus `NoteHandler` for `home`;
+and none of them is held there by anything but `:app`'s `R` now;
 `explore`, `settings`, `auth` and `profile` are their own modules. For the ones still in
 `:app`, the module boundaries run underneath them — between the contracts in `:core:domain` and the
 implementations that satisfy them, and between the feature screens and the shared Compose they all
@@ -419,7 +419,8 @@ through to the `notes` table and the screen re-reads it. Four queries back them:
 | Favorite | `getFavoriteNotesStream(query)` | `syncFavoriteNotes()` |
 
 That retired every list transform these ViewModels used to apply by hand, and with them three of
-`NoteHandler`'s four events. **The `combine` shape is the thing to copy**: the fetch status decides
+`NoteHandler`'s four events — and the fourth followed later. **The `combine` shape is the thing
+to copy**: the fetch status decides
 only what an *empty* result means (nothing fetched yet = loading, fetch failed = error), and any
 rows at all beat both — so a failed refresh keeps the cached list on screen and reports itself
 through `actionError` rather than blanking the feed.
@@ -452,27 +453,22 @@ What the deviation still costs, listed so nobody rediscovers it as a bug:
   the separate, larger project, and they are what would make this offline-first rather than
   cache-backed.
 
-**Next step: `addNote` should mirror its own result**, which is the last thing standing between
-`NoteHandler` and deletion — see the note below. After that the only work left on this deviation is
-offline writes and reconciliation, which is a larger project and deliberately out of scope.
-
-Two properties of the read path that are easy to break and worth stating:
+**The read path is done.** What is left on this deviation is offline writes and reconciliation,
+which is a larger project and deliberately out of scope. Two properties of the read path that are
+easy to break and worth stating:
 
 - `getNotesStream(limit)` carries **no cursor**. `getNotes(cursor)` owns the remote pagination and
   writes each page into the mirror, so a subscriber sees the result rather than driving it — that is
   the `RemoteMediator` shape without the Paging 3 dependency, and it works only because the
   collection is one user's own notes (`user/{uid}/note`) rather than a shared feed. The `limit` is
   the subscriber's half of that bargain, not a second cursor.
-- Every remote read writes what it fetched into the table before returning. `getNotes`, `searchNotes`
-  and `getNote` all do. **A new remote read that skips it is a screen that renders nothing**, because
-  the screens no longer look at return values.
-
-**`noteAddedEvent` is the one handler event Room does not retire, and it is not an oversight.**
-`addNote` delegates to the createNote Cloud Function and discards its result, and the new note's id
-and server-stamped `created` exist only server-side, so nothing can mirror it locally — a refetch of
-the first page is still how it reaches the table. Deleting `NoteHandler` outright therefore needs
-`addNote` to mirror its own result first, which means returning the created note (or reading it
-back) rather than `{documentPath}`. Until then Home keeps collecting that one event.
+- **Every remote read writes what it fetched into the table before returning.** `getNotes`,
+  `searchNotes`, `getNote` and `addNote` all do. A new remote read that skips it is a screen that
+  renders nothing, because the screens no longer look at return values. `addNote` is the one that
+  reads its own result *back* — the createNote Cloud Function returns only `{documentPath}`, and the
+  id and server-stamped `created` exist only server-side, so the client cannot build that row
+  itself. One extra document read, and deliberately not fatal: the note was created, so failing
+  there would report a successful write as an error.
 
 The behaviour to get right when moving a screen over is the empty state, and Home is the worked
 example. Room answers before the first fetch does, so a fresh install renders an empty table while
@@ -487,33 +483,36 @@ was nothing cached to lose.
 
 ### Cross-feature communication
 
-**The deviation this section used to describe is gone.** Screens that must reflect a mutation made
-on another screen observe the Room mirror ([Source of truth](#source-of-truth)) — they do not
-exchange events. `note/NoteHandler.kt` still exists, but it is down to one event and one subscriber:
-`noteAddedEvent`, emitted by `NoteViewModel` after a successful upload and collected by
-`HomeViewModel` to trigger a refetch. `observeNoteMutations` and the deleted/favorited/updated
-events are deleted, along with every list transform the ViewModels applied on receiving them.
+**There is no cross-feature communication mechanism any more, and that is the point.** Screens that
+must reflect a mutation made on another screen observe the Room mirror
+([Source of truth](#source-of-truth)). `NoteHandler` is deleted — all four of its events, its
+`@Provides` in `AppModule`, `observeNoteMutations`, `NoteHandlerTest`, and every list transform the
+ViewModels applied on receiving an event.
 
-**Do not add a second `*Handler`.** The official answer to "screen A must reflect a change made on
-screen B" is a single source of truth in the data layer exposing a reactive stream both screens
-observe, and that is now what this app does. If a list *could* be backed by a live query, back it
-with the query. What made the old pattern defensible was the absence of a mirror to observe, and
-that absence was a choice this project had made rather than a constraint Firestore imposed — the
-mirror was added, four screens moved onto it, and three of the handler's four events became dead
-code without any change to the backend.
+**Do not reintroduce one.** The official answer to "screen A must reflect a change made on screen B"
+is a single source of truth in the data layer exposing a reactive stream both screens observe, and
+that is now what this app does. If a list *could* be backed by a live query, back it with the query.
 
-**Why `noteAddedEvent` survives, and how to kill it.** `addNote` delegates to the createNote Cloud
-Function and discards its result; the new note's id and its server-stamped `created` exist only
-server-side, so nothing can mirror it locally and a refetch of the first page is the only way it
-reaches the table. Make the function return the created note (or read it back) and mirror it, and
-`NoteHandler`, its injection into `HomeViewModel` and `NoteViewModel`, and `NoteHandlerTest` all
-delete together. **Delete it then — do not find it a new job.**
+The removal is worth reading as a sequence, because each step only became visible after the one
+before it:
 
-One rule that outlived the pattern: a default `MutableSharedFlow` has no replay, so a subscriber
-that is not collecting yet silently misses the event. That is tolerable for `noteAddedEvent`, whose
-only subscriber re-fetches on construction anyway. For an event a screen must never miss, use
-`note/IncomingShareHandler.kt` instead — a `StateFlow` holding the pending value plus an explicit
-`consume()`, which survives having no subscriber yet.
+1. Three events (deleted / favorited / updated) died when the four screens moved onto the mirror —
+   those mutations already wrote through to the table.
+2. `noteAddedEvent` looked structural, because a created note has a server-stamped id and `created`
+   that the client cannot invent. It was not: `createNote` already returned `{documentPath}` and the
+   repository was throwing it away. `addNote` reads the note back through `getNote`, which mirrors
+   it. **No Cloud Function change was needed — the payload had been there all along.**
+3. With the last subscriber gone the class deleted outright.
+
+**The lesson is the shape of the mistake**, since this page asserted twice that step 2 required a
+backend change. A missing capability and an unused return value look identical from the call site.
+Check what the remote actually hands back before planning around what it doesn't.
+
+One rule that outlived the pattern, for whatever event type comes next: a default
+`MutableSharedFlow` has no replay, so a subscriber that is not collecting yet silently misses the
+event. For an event a screen must never miss, use `note/IncomingShareHandler.kt` — a `StateFlow`
+holding the pending value plus an explicit `consume()`, which survives having no subscriber yet.
+That one is still in use, and it is the pattern to copy rather than a `SharedFlow`.
 
 **The delegates are dealt with; the five packages are next.** `NoteActionsDelegate` is gone —
 without `noteHandler` it was `repository.call().onFailure { report }.isSuccess`, so it inlined into
@@ -527,7 +526,7 @@ What is left in `:app` is five packages and one edge:
 
 | Package | Lines | Reaches up for |
 | --- | --- | --- |
-| `home` | 470 | `NoteHandler`, `:app`'s `R` |
+| `home` | 470 | `:app`'s `R` |
 | `search` | 368 | `:app`'s `R` |
 | `favorite` | 315 | `:app`'s `R` |
 | `preview` | 1,092 | `:app`'s `R` |
@@ -536,9 +535,9 @@ What is left in `:app` is five packages and one edge:
 `:app`'s `R` is the problem solved four times over already — decide each string one at a time, and
 expect the `explore`/`cd_back` split at every extraction (exclusive strings travel, shared ones go
 *down* to `:core:ui` or `:core:common`, and a string that looks shared is sometimes two strings).
-`NoteHandler` is the only structural edge, it has one subscriber, and it dies when `addNote` mirrors
-its own result — see above. **A `:feature:note` is fine in the end state**: what NiA's rule forbids
-is the other four *depending* on it, and once the delegates are down nothing does.
+There are no structural edges left at all: `NoteHandler` is deleted and the delegates are down in
+`:core:common`. **A `:feature:note` is fine**: what NiA's rule forbids is the other four *depending*
+on it, and nothing does.
 
 Two corrections to what this paragraph used to say, both learned by doing the work. It told you to
 sequence the Room migration before extracting `auth` and `profile` — they are extracted, so that
@@ -797,9 +796,9 @@ strings, no `navArgument` lists, no manual URL escaping of arguments.
   second was deleted rather than moved. `MediaFileRepository` and `util/MediaUriExt.kt` came off
   it with `:feature:profile`, and those two were the interesting ones, because they were not
   resources — they were `:core:data` types, which a feature module must not reach.) What is left on
-  the list for the five remaining packages is `:app`'s `R`, plus `NoteHandler` for `home` alone.
-  The delegates came off it when `NoteShareDelegate` and `NoteErrorReporter` went down to
-  `:core:common` and `NoteActionsDelegate` inlined.
+  the list for the five remaining packages is `:app`'s `R`, and nothing else. The delegates came
+  off it when `NoteShareDelegate` and `NoteErrorReporter` went down to `:core:common` and
+  `NoteActionsDelegate` inlined; `NoteHandler` came off it by being deleted.
 - **The routes share no supertype, deliberately.** They were nested in a `sealed interface Screen`
   until that hierarchy became unrepresentable: a route in a feature module cannot implement an
   interface declared in `:app`. So `startDestination` and `BottomNavItem.route` are typed `Any`,

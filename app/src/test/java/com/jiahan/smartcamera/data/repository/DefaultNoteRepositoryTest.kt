@@ -159,9 +159,22 @@ class DefaultNoteRepositoryTest {
     }
 
     /** Stubs the Cloud Function call the write paths delegate to, so `.await()` completes. */
-    private fun stubCallable() {
+    /**
+     * A real [HttpsCallableResult], because mockk cannot stub its `data`: the getter is final and
+     * Robolectric's classloader defeats the inline instrumentation that would normally handle that.
+     * The class has no public constructor, so this reaches for the single-argument one Firebase
+     * declares. If a Firebase upgrade ever changes that signature this fails loudly here rather
+     * than silently skipping the assertion.
+     */
+    private fun callableResult(data: Any?): HttpsCallableResult =
+        HttpsCallableResult::class.java
+            .getDeclaredConstructor(Any::class.java)
+            .apply { isAccessible = true }
+            .newInstance(data)
+
+    private fun stubCallable(result: HttpsCallableResult = mockk()) {
         val callable: HttpsCallableReference = mockk()
-        every { callable.call(any()) } returns Tasks.forResult(mockk<HttpsCallableResult>())
+        every { callable.call(any()) } returns Tasks.forResult(result)
         every { functions.getHttpsCallable(any()) } returns callable
     }
 
@@ -385,6 +398,41 @@ class DefaultNoteRepositoryTest {
         // searchNotesStream from narrowing to only what the feed has paged.
         assertTrue(result.isSuccess)
         assertEquals(NOTE_ID, captureCachedNotes().single().noteId)
+    }
+
+    @Test
+    fun `addNote reads the created note back into the mirror`() = runTest(dispatcher) {
+        stubCallable(callableResult(mapOf("documentPath" to NOTE_ID)))
+
+        val result = repository.addNote(homeNote(favorite = false).copy(noteId = ""))
+
+        // The client cannot build the created row itself -- the id and `created` are stamped
+        // server-side -- so addNote reads it back. That read is what retired NoteHandler.
+        assertTrue(result.isSuccess)
+        assertEquals(NOTE_ID, captureCachedNotes().single().noteId)
+    }
+
+    @Test
+    fun `addNote succeeds even when the read-back fails`() = runTest(dispatcher) {
+        stubCallable(callableResult(mapOf("documentPath" to NOTE_ID)))
+        every { noteSnapshot.exists() } returns false
+
+        val result = repository.addNote(homeNote(favorite = false).copy(noteId = ""))
+
+        // The note was created. Reporting a write that succeeded as an error because the follow-up
+        // read failed would be worse than the note arriving on the next refresh.
+        assertTrue(result.isSuccess)
+        verify { errorHandler.logError(any(), any()) }
+    }
+
+    @Test
+    fun `addNote logs when the function returns no document path`() = runTest(dispatcher) {
+        stubCallable()
+
+        val result = repository.addNote(homeNote(favorite = false).copy(noteId = ""))
+
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 0) { noteDao.upsertNotes(any()) }
     }
 
     @Test

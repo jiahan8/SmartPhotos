@@ -42,7 +42,6 @@ class NoteViewModelTest {
     private val userPreferencesRepository: UserPreferencesRepository = mockk()
     private val analyticsRepository: AnalyticsRepository = mockk()
     private val mediaFileRepository: MediaFileRepository = mockk()
-    private val noteHandler = NoteHandler()
     private val incomingShareHandler: IncomingShareHandler = mockk()
     private val resourceProvider: ResourceProvider = mockk()
     private val errorHandler: ErrorHandler = mockk()
@@ -69,7 +68,6 @@ class NoteViewModelTest {
             userPreferencesRepository,
             analyticsRepository,
             mediaFileRepository,
-            noteHandler,
             incomingShareHandler,
             resourceProvider,
             errorHandler
@@ -249,19 +247,18 @@ class NoteViewModelTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `uploadPost success emits Success state and notifies NoteHandler`() = runTest {
+    fun `uploadPost success emits Success state`() = runTest {
         viewModel.updatePostText("My post")
         coEvery { noteRepository.uploadMediaToFirebase(any()) } returns
                 Result.success(listOf(MediaDetail(photoUrl = "http://url")))
         coEvery { noteRepository.addNote(any()) } returns Result.success(Unit)
 
-        noteHandler.noteAddedEvent.test {
-            viewModel.uploadPost()
-            awaitItem() // NoteHandler notified
-            // Assert final UI state inside the same coroutine scope to avoid ordering ambiguity
-            assertTrue(viewModel.uiState.value.uploadStatus is UploadStatus.Success)
-            cancelAndIgnoreRemainingEvents()
-        }
+        viewModel.uploadPost()
+
+        // This used to also await a NoteHandler emission. addNote reads the created note back into
+        // the `notes` table now, so the feeds see it as a row -- there is no event to assert.
+        assertTrue(viewModel.uiState.value.uploadStatus is UploadStatus.Success)
+        coVerify { noteRepository.addNote(any()) }
     }
 
     @Test

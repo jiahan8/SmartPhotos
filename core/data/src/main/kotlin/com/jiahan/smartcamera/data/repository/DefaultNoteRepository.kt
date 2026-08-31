@@ -91,6 +91,7 @@ class DefaultNoteRepository @Inject constructor(
 
         // Cloud Function names / argument keys
         private const val FUNCTION_CREATE_NOTE = "createNote"
+        private const val RESULT_DOCUMENT_PATH = "documentPath"
         private const val FUNCTION_UPDATE_NOTE = "updateNote"
         private const val ARG_NOTE_ID = "noteId"
         private const val ARG_TEXT = "text"
@@ -174,9 +175,24 @@ class DefaultNoteRepository @Inject constructor(
                 ARG_IS_VIDEO to media.isVideo
             )
         }
-        functions.getHttpsCallable(FUNCTION_CREATE_NOTE)
+        val response = functions.getHttpsCallable(FUNCTION_CREATE_NOTE)
             .call(hashMapOf(ARG_TEXT to homeNote.text, ARG_MEDIA_LIST to mediaListPayload))
             .await()
+
+        // Read the created note back so it lands in the mirror. The client cannot build that row
+        // itself -- the id and the `created` timestamp are both stamped server-side -- and until
+        // this existed a new note reached the feed only through a NoteHandler event telling Home to
+        // refetch everything. One extra document read retires that whole mechanism.
+        //
+        // Deliberately not fatal: the note *was* created, so failing here would report a write that
+        // succeeded as an error. A lost read-back costs the user a pull-to-refresh, which is what a
+        // failed reload cost them before.
+        val noteId = (response.data as? Map<*, *>)?.get(RESULT_DOCUMENT_PATH) as? String
+        if (noteId == null) {
+            errorHandler.logError(AppError.NoteUnavailable())
+        } else {
+            getNote(noteId).onFailure { e -> errorHandler.logError(e) }
+        }
     }
 
     // Delegates to the updateNote Cloud Function for the same reason addNote

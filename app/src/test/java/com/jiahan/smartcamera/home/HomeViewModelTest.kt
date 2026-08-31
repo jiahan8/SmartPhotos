@@ -8,7 +8,6 @@ import com.jiahan.smartcamera.domain.NoteCursor
 import com.jiahan.smartcamera.domain.NotePage
 import com.jiahan.smartcamera.fake.FakeRemoteConfigRepository
 import com.jiahan.smartcamera.note.NoteErrorReporter
-import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.ErrorHandler
 import io.mockk.clearMocks
@@ -52,7 +51,6 @@ class HomeViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val noteRepository: NoteRepository = mockk()
-    private val noteHandler = NoteHandler()
     private val errorHandler: ErrorHandler = mockk()
     private val noteErrorReporter by lazy { NoteErrorReporter(errorHandler) }
     private val noteShare: NoteShareDelegate = mockk(relaxed = true)
@@ -145,7 +143,6 @@ class HomeViewModelTest {
     private fun TestScope.homeViewModel(): HomeViewModel {
         val viewModel = HomeViewModel(
             noteRepository,
-            noteHandler,
             noteErrorReporter,
             noteShare,
             errorHandler,
@@ -475,28 +472,17 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `noteAddedEvent cancels an in-flight load more and refetches the first page`() = runTest {
-        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+    fun `a note created on another screen appears in the feed`() = runTest {
         val page0 = (1..10).map { makeNote("note$it") }
-        stubPage(null, page0, TestCursor)
-        coEvery { noteRepository.getNotes(TestCursor, any()) } coAnswers {
-            delay(1.seconds)
-            mirror((11..20).map { makeNote("note$it") })
-            Result.success(NotePage((11..20).map { makeNote("note$it") }))
-        }
+        stubPage(null, page0)
         val viewModel = homeViewModel()
-        advanceUntilIdle()
 
-        viewModel.loadMoreNotes()
-        advanceTimeBy(1.milliseconds) // page-2 fetch is suspended
+        // This used to be a NoteHandler event that made Home refetch everything. addNote reads the
+        // created note back into the table now, so it arrives as a row like any other mutation --
+        // newest first, which is why it lands inside the window rather than past its edge.
+        notesMirror.update { notes -> listOf(makeNote("added")) + notes }
 
-        // addNote never mirrors its own result, so the refetch is how the new note arrives.
-        stubPage(null, listOf(makeNote("added")) + page0)
-        noteHandler.notifyNoteAdded()
-        advanceUntilIdle()
-
-        assertTrue(viewModel.notes().any { it.noteId == "added" })
-        assertTrue(viewModel.notes().none { it.noteId == "note11" })
+        assertEquals("added", viewModel.notes().first().noteId)
     }
 
     // -------------------------------------------------------------------------

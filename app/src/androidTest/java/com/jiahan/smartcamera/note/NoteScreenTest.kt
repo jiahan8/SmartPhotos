@@ -51,7 +51,6 @@ class NoteScreenTest {
     val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
     private val noteRepository = FakeNoteRepository()
-    private val noteHandler = NoteHandler()
 
     private var navigatedBack = false
     private var navigatedToPhotoPreviewUri: String? = null
@@ -71,7 +70,6 @@ class NoteScreenTest {
             ),
             analyticsRepository = FakeAnalyticsRepository(),
             mediaFileRepository = FakeMediaFileRepository(),
-            noteHandler = noteHandler,
             incomingShareHandler = IncomingShareHandler(),
             resourceProvider = FakeResourceProvider(composeTestRule.activity),
             errorHandler = FakeErrorHandler(),

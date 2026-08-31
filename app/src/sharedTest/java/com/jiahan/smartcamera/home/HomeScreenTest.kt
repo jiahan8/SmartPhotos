@@ -19,7 +19,6 @@ import com.jiahan.smartcamera.fake.FakeNoteRepository
 import com.jiahan.smartcamera.fake.FakeRemoteConfigRepository
 import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.note.NoteErrorReporter
-import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -44,7 +43,6 @@ class HomeScreenTest {
     val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
     private val noteRepository = FakeNoteRepository()
-    private val noteHandler = NoteHandler()
     private var navigatedToNotePreview: String? = null
 
     private fun note(noteId: String, text: String) = HomeNote(
@@ -59,7 +57,6 @@ class HomeScreenTest {
         val noteErrorReporter = NoteErrorReporter(errorHandler)
         val viewModel = HomeViewModel(
             noteRepository = noteRepository,
-            noteHandler = noteHandler,
             noteErrorReporter = noteErrorReporter,
             noteShare = NoteShareDelegate(
                 FakeMediaFileRepository(),

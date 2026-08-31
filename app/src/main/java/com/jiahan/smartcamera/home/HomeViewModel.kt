@@ -7,7 +7,6 @@ import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.NoteCursor
 import com.jiahan.smartcamera.note.NoteErrorReporter
-import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.AppConstants.DEFAULT_PAGE_SIZE
 import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
@@ -58,7 +57,6 @@ private sealed interface FetchStatus {
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val noteRepository: NoteRepository,
-    private val noteHandler: NoteHandler,
     private val noteErrorReporter: NoteErrorReporter,
     private val noteShare: NoteShareDelegate,
     private val errorHandler: ErrorHandler,
@@ -124,14 +122,9 @@ class HomeViewModel @Inject constructor(
 
     init {
         reload(showRefreshIndicator = false)
-        // The one NoteHandler event the mirror does not make redundant. Deletions, favorites and
-        // edits all write through to Room, so `content` re-emits on its own -- but `addNote`
-        // delegates to the createNote Cloud Function and drops its result, and the new note's id
-        // and server-stamped `created` exist only server-side, so nothing can mirror it locally.
-        // Refetching the first page is still the only way it reaches the table.
-        viewModelScope.launch {
-            noteHandler.noteAddedEvent.collect { reload(showRefreshIndicator = false) }
-        }
+        // No cross-feature subscription at all any more. A note created on NoteScreen is read back
+        // by addNote and written into the table, so it arrives here the same way a delete or an
+        // edit does -- as a row, not an event.
         viewModelScope.launch {
             remoteConfigRepository.observeExploreIconVisible().collect { visible ->
                 _uiState.update { it.copy(isExploreIconVisible = visible) }

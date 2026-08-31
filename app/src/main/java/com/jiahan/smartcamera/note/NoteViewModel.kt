@@ -52,7 +52,6 @@ class NoteViewModel @Inject constructor(
     userPreferencesRepository: UserPreferencesRepository,
     private val analyticsRepository: AnalyticsRepository,
     private val mediaFileRepository: MediaFileRepository,
-    private val noteHandler: NoteHandler,
     incomingShareHandler: IncomingShareHandler,
     private val resourceProvider: ResourceProvider,
     private val errorHandler: ErrorHandler,
@@ -121,7 +120,8 @@ class NoteViewModel @Inject constructor(
                         )
                     )
                         .onSuccess {
-                            noteHandler.notifyNoteAdded()
+                            // No event: addNote reads the created note back into the `notes`
+                            // table, and every feed renders that.
                             _uiState.update { it.copy(uploadStatus = UploadStatus.Success) }
                         }
                         .onFailure { e -> handleUploadFailure(e) }
