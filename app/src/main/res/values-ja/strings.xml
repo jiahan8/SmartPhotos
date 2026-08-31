@@ -16,7 +16,6 @@
     <string name="find_notes">保存したメモを探す</string>
     <string name="look_up">書いた内容を調べる</string>
     <string name="search_your_notes">メモを検索</string>
-    <string name="no_results_found">結果が見つかりません</string>
 
     <!-- Note -->
     <string name="note">メモ</string>
@@ -38,8 +37,6 @@
 
     <!-- Favorite -->
     <string name="favorite">お気に入り</string>
-    <string name="search_favorites">お気に入りを検索</string>
-    <string name="favorite_note_to_see_it_here">メモをお気に入りに追加するとここに表示されます</string>
 
     <!-- Settings -->
     <string name="action_failure">問題が発生しました。もう一度お試しください。</string>

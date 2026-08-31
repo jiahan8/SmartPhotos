@@ -27,4 +27,5 @@
     <string name="share">Share</string>
     <string name="cd_hide_password">Hide password</string>
     <string name="cd_show_password">Show password</string>
+    <string name="no_results_found">No results found</string>
 </resources>

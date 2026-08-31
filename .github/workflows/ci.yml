@@ -80,7 +80,8 @@ jobs:
           # same hand-maintained list as the reports below. It had drifted: :core:ui,
           # :feature:explore and :feature:settings all had suites that reported nothing here, so a
           # failure in one came back as a red X with no report to open. Filled in when
-          # :core:common and :feature:auth were added, and extended again for :feature:profile.
+          # :core:common and :feature:auth were added, and extended again for :feature:profile and
+          # :feature:favorite. **A new module with tests has to be added here by hand.**
           path: |
             app/build/reports/tests/testDebugUnitTest/
             app/build/test-results/testDebugUnitTest/
@@ -96,6 +97,8 @@ jobs:
             feature/auth/build/test-results/testDebugUnitTest/
             feature/explore/build/reports/tests/testDebugUnitTest/
             feature/explore/build/test-results/testDebugUnitTest/
+            feature/favorite/build/reports/tests/testDebugUnitTest/
+            feature/favorite/build/test-results/testDebugUnitTest/
             feature/profile/build/reports/tests/testDebugUnitTest/
             feature/profile/build/test-results/testDebugUnitTest/
             feature/settings/build/reports/tests/testDebugUnitTest/
@@ -145,6 +148,7 @@ jobs:
             core/testing/build/reports/lint-results-debug.html
             feature/auth/build/reports/lint-results-debug.html
             feature/explore/build/reports/lint-results-debug.html
+            feature/favorite/build/reports/lint-results-debug.html
             feature/profile/build/reports/lint-results-debug.html
             feature/settings/build/reports/lint-results-debug.html
           if-no-files-found: ignore

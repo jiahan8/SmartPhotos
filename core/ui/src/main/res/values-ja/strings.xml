@@ -19,4 +19,5 @@
     <string name="share">共有</string>
     <string name="cd_hide_password">パスワードを非表示</string>
     <string name="cd_show_password">パスワードを表示</string>
+    <string name="no_results_found">結果が見つかりません</string>
 </resources>

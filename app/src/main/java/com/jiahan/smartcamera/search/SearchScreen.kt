@@ -28,6 +28,7 @@ import androidx.core.app.ShareCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.common.DeleteNoteConfirmationDialog
 import com.jiahan.smartcamera.common.FullScreenMessage
 import com.jiahan.smartcamera.common.NoteItem
@@ -143,7 +144,7 @@ fun SearchScreen(
 
                         is SearchContent.Success ->
                             if (state.notes.isEmpty()) {
-                                FullScreenMessage(stringResource(R.string.no_results_found))
+                                FullScreenMessage(stringResource(UiR.string.no_results_found))
                             } else {
                                 PullToRefreshBox(
                                     modifier = Modifier.fillMaxSize(),

@@ -9,7 +9,6 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
@@ -98,8 +97,8 @@ class FavoriteScreenTest {
         noteRepository.setFavorites(emptyList())
         launchFavoriteScreen()
 
-        waitForText(string(R.string.no_results_found))
-        composeTestRule.onNodeWithText(string(R.string.no_results_found)).assertIsDisplayed()
+        waitForText(string(UiR.string.no_results_found))
+        composeTestRule.onNodeWithText(string(UiR.string.no_results_found)).assertIsDisplayed()
     }
 
     @Test
@@ -128,8 +127,8 @@ class FavoriteScreenTest {
         waitForText(string(UiR.string.delete_note))
         composeTestRule.onNodeWithText(string(UiR.string.delete)).performClick()
 
-        waitForText(string(R.string.no_results_found))
-        composeTestRule.onNodeWithText(string(R.string.no_results_found)).assertIsDisplayed()
+        waitForText(string(UiR.string.no_results_found))
+        composeTestRule.onNodeWithText(string(UiR.string.no_results_found)).assertIsDisplayed()
     }
 
     @Test
@@ -143,7 +142,7 @@ class FavoriteScreenTest {
         waitForText(string(UiR.string.remove_like))
         composeTestRule.onNodeWithText(string(UiR.string.remove_like)).performClick()
 
-        waitForText(string(R.string.no_results_found))
-        composeTestRule.onNodeWithText(string(R.string.no_results_found)).assertIsDisplayed()
+        waitForText(string(UiR.string.no_results_found))
+        composeTestRule.onNodeWithText(string(UiR.string.no_results_found)).assertIsDisplayed()
     }
 }

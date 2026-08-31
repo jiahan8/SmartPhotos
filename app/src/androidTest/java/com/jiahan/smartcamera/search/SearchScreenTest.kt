@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTextInput
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
@@ -89,7 +90,7 @@ class SearchScreenTest {
     fun initialState_isIdle_showsNoResultsFound() {
         launchSearchScreen()
 
-        composeTestRule.onNodeWithText(string(R.string.no_results_found)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(UiR.string.no_results_found)).assertIsDisplayed()
     }
 
     @Test
@@ -111,8 +112,8 @@ class SearchScreenTest {
 
         typeQuery("nothing")
 
-        waitForText(string(R.string.no_results_found))
-        composeTestRule.onNodeWithText(string(R.string.no_results_found)).assertIsDisplayed()
+        waitForText(string(UiR.string.no_results_found))
+        composeTestRule.onNodeWithText(string(UiR.string.no_results_found)).assertIsDisplayed()
     }
 
     @Test

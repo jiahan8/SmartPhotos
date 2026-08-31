@@ -132,6 +132,10 @@ dependencies {
     // R for the bottom-bar label, as `ProfileR`.
     implementation(project(":feature:profile"))
 
+    // The fifth, and the first of the five packages note/'s delegates used to hold here. Nothing
+    // was left to decouple by the time it moved -- the work was three strings.
+    implementation(project(":feature:favorite"))
+
     // The shared Compose vocabulary -- common/, ui/theme and the two util helpers that follow
     // them. Every feature screen in this module draws with it, and nine of them also resolve
     // strings from its R, imported there as `UiR`.

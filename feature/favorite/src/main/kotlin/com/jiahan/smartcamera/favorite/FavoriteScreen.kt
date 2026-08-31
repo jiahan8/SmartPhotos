@@ -24,7 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.ShareCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.feature.favorite.R
+import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.common.DeleteNoteConfirmationDialog
 import com.jiahan.smartcamera.common.FullScreenMessage
 import com.jiahan.smartcamera.common.NoteItem
@@ -120,7 +121,7 @@ fun FavoriteScreen(
                     is FavoriteContent.Success ->
                         if (state.notes.isEmpty()) {
                             FullScreenMessage(
-                                stringResource(if (searchQuery.isBlank()) R.string.favorite_note_to_see_it_here else R.string.no_results_found)
+                                stringResource(if (searchQuery.isBlank()) R.string.favorite_note_to_see_it_here else UiR.string.no_results_found)
                             )
                         } else {
                             PullToRefreshBox(
