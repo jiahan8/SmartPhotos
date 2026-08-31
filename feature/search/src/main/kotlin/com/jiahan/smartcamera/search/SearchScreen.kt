@@ -27,7 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.core.app.ShareCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.feature.search.R
 import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.common.DeleteNoteConfirmationDialog
 import com.jiahan.smartcamera.common.FullScreenMessage

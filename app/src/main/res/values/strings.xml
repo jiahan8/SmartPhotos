@@ -2,20 +2,12 @@
     <string name="app_name">Smart Photos</string>
 
     <!-- Photo -->
-    <string name="cd_open_explore">Explore</string>
     <string name="saved_at">Saved: %s</string>
 
     <!-- Home -->
     <string name="home">Home</string>
-    <string name="create_first_note">Create your first note</string>
 
     <!-- Search -->
-    <string name="search_notes_photos">Search notes and photos</string>
-    <string name="find_photos">Find your photos</string>
-    <string name="what_you_looking_for">What are you looking for?</string>
-    <string name="find_notes">Find saved notes</string>
-    <string name="look_up">Look up something you wrote</string>
-    <string name="search_your_notes">Search your notes</string>
 
     <!-- Note -->
     <string name="note">Note</string>

@@ -10,7 +10,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.feature.home.R
 import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.fake.FakeErrorHandler
@@ -69,6 +69,7 @@ class HomeScreenTest {
         composeTestRule.setContent {
             SmartCameraTheme {
                 HomeScreen(
+                    title = "SmartPhotos",
                     onNavigateToNotePreview = { navigatedToNotePreview = it },
                     onNavigateToEditNote = {},
                     onNavigateToPhotoPreview = {},

@@ -1,6 +1,7 @@
 package com.jiahan.smartcamera.navigation
 
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -64,6 +65,8 @@ fun NavGraphBuilder.smartPhotosNavGraph(
 ) {
     composable<HomeRoute> {
         HomeScreen(
+            // app_name is :app's manifest label, so the feature module takes it as a parameter.
+            title = stringResource(R.string.app_name),
             onNavigateToNotePreview = { noteId ->
                 navController.navigate(NotePreviewRoute(noteId))
             },

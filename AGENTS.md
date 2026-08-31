@@ -84,6 +84,18 @@ Ten Gradle modules, plus an included build for the shared Gradle config:
   both render: same word, same destination, so the string travelled here and `:app` reads it back
   as `ProfileR.string.profile` — see the `R`-alias notes under [Conventions](#conventions). Sources
   under `feature/profile/src/main/kotlin/com/jiahan/smartcamera/`.
+- `:feature:search` — the sixth: the Search screen, its ViewModel, its route and both test suites.
+  All six of its own strings were exclusive, so unlike favorite and explore there was nothing to
+  send down — the one shared string, `no_results_found`, had already gone to `:core:ui` when
+  favorite moved, which is what that decision bought. `SearchRoute` keeps
+  `SEARCH_DEEP_LINK_URI_PATTERN`, which `SmartPhotosNavGraph` reads downward. Sources under
+  `feature/search/src/main/kotlin/com/jiahan/smartcamera/`.
+- `:feature:home` — the seventh: the Home feed, its ViewModel, its route and its `sharedTest`
+  Compose suite. `create_first_note` and `cd_open_explore` travelled; `app_name` could not, being
+  the application's manifest label, so `HomeScreen` takes a `title` parameter — the same hoist as
+  `versionName` and `logoRes`, and pixel-identical against the goldens. It copies `:feature:auth`'s
+  `sharedTest/` arrangement, which is the one to prefer for a new screen test. Sources under
+  `feature/home/src/main/kotlin/com/jiahan/smartcamera/`.
 - `:core:testing` — an Android library holding the fixtures more than one module needs: the nine
   `fake/` repository doubles, `MainDispatcherRule` and `BaseScreenshotTest`. Consumers take it with
   `testImplementation` (and `androidTestImplementation` in `:app`, whose `sharedTest/` runs in
@@ -140,9 +152,9 @@ Run from the repo root (Gradle wrapper):
     `testDebugUnitTest` skips them without failing. CI names both for the same reason.
     Every other module needs no such mention — they are all Android libraries, so the
     unqualified `testDebugUnitTest` already reaches them, as do `lintDebug` and
-    `connectedDebugAndroidTest`. Ten modules run unit tests today: `:app` 199, `:feature:auth` 46,
+    `connectedDebugAndroidTest`. Twelve modules run unit tests today: `:app` 140, `:feature:auth` 46, `:feature:home` 41,
     `:feature:explore` 34, `:feature:settings` 30, `:feature:profile` 26, `:core:common` 27,
-    `:feature:favorite` 12,
+    `:feature:favorite` 12, `:feature:search` 18,
     `:core:ui` 17, `:core:data` 15, `:core:domain` 8 — 414 in total.
   - Single class: `./gradlew testDebugUnitTest --tests "com.jiahan.smartcamera.home.HomeViewModelTest"`
   - Single method: `./gradlew testDebugUnitTest --tests "com.jiahan.smartcamera.home.HomeViewModelTest.methodName"`
@@ -185,9 +197,9 @@ Run from the repo root (Gradle wrapper):
   graph furthest — so a missing binding or an unresolvable constructor parameter shows up there
   first. Run it after any change to a module's dependencies or to an `@Inject` constructor, and
   especially when you can't run the instrumented suite for lack of a device.
-- Instrumented tests live in six modules now — `app/`, `core/data/`, `feature/auth/`,
-  `feature/favorite/`, `feature/profile/` and `feature/settings/` — require a device/emulator, and
-  run via
+- Instrumented tests live in eight modules now — `app/`, `core/data/`, `feature/auth/`,
+  `feature/favorite/`, `feature/home/`, `feature/profile/`, `feature/search/` and
+  `feature/settings/` — require a device/emulator, and run via
   `./gradlew connectedDebugAndroidTest`.
   `:app` uses a custom `HiltTestRunner` (installs `HiltTestApplication`), the AndroidX Test
   Orchestrator, and `clearPackageData=true` for hermetic, isolated runs — don't remove these from
@@ -280,7 +292,7 @@ the same settings:
 | `smartphotos.android.application` | `:app` | AGP application, Kotlin Android | compileSdk 37, minSdk 28, Java 11, JVM target 11, test-JVM pin |
 | `smartphotos.android.library` | `:core:common`, `:core:data`, `:core:ui`, `:core:testing` | AGP library, Kotlin Android | the same, minus nothing |
 | `smartphotos.android.compose` | `:app`, `:core:ui`, `:core:testing` | Compose compiler | `buildFeatures.compose = true` |
-| `smartphotos.android.feature` | `:feature:auth`, `:feature:explore`, `:feature:favorite`, `:feature:profile`, `:feature:settings` | the library + compose conventions, KSP, Hilt | the `:core:domain`/`:core:ui` edges, the Compose set, icons, Hilt, lifecycle, `:core:testing` |
+| `smartphotos.android.feature` | the seven `:feature:*` modules | the library + compose conventions, KSP, Hilt | the `:core:domain`/`:core:ui` edges, the Compose set, icons, Hilt, lifecycle, `:core:testing` |
 | `smartphotos.jvm.library` | `:core:domain` | Kotlin JVM — **nothing Android** | Java 11, JVM target 11, test-JVM pin |
 
 `smartphotos.android.feature` is the only one that adds *dependencies* rather than just settings,
@@ -326,10 +338,9 @@ Five rules worth knowing before editing them:
 
 ## Architecture
 
-MVVM with a layered structure, one Kotlin package per feature. Five are still under
-`app/src/main/java/com/jiahan/smartcamera/` (`home`, `note`, `favorite`, `search`, plus `preview`),
-and none of them is held there by anything but `:app`'s `R` now;
-`explore`, `settings`, `auth` and `profile` are their own modules. For the ones still in
+MVVM with a layered structure, one Kotlin package per feature. Two are still under
+`app/src/main/java/com/jiahan/smartcamera/` — `note` and `preview` — and neither is held there by
+anything but `:app`'s `R`; the other seven are their own modules. For the two still in
 `:app`, the module boundaries run underneath them — between the contracts in `:core:domain` and the
 implementations that satisfy them, and between the feature screens and the shared Compose they all
 draw with in `:core:ui`.
@@ -539,12 +550,12 @@ What is left in `:app` is four packages, each reaching up for `:app`'s `R` and n
 | Package | Lines | Status |
 | --- | --- | --- |
 | `favorite` | 315 | extracted — the pilot |
-| `search` | 368 | |
-| `home` | 470 | |
+| `search` | 368 | extracted |
+| `home` | 470 | extracted |
 | `preview` | 1,092 | |
 | `note` | 1,458 | |
 
-`:app`'s `R` is the problem solved five times over already — decide each string one at a time, and
+`:app`'s `R` is the problem solved seven times over already — decide each string one at a time, and
 expect the `explore`/`cd_back` split at every extraction (exclusive strings travel, shared ones go
 *down* to `:core:ui` or `:core:common`, and a string that looks shared is sometimes two strings).
 There are no structural edges left at all: `NoteHandler` is deleted and the delegates are down in

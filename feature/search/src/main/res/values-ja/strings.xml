@@ -1,0 +1,8 @@
+<resources>
+    <string name="find_notes">保存したメモを探す</string>
+    <string name="find_photos">自分の写真を探す</string>
+    <string name="look_up">書いた内容を調べる</string>
+    <string name="search_notes_photos">メモや写真を検索</string>
+    <string name="search_your_notes">メモを検索</string>
+    <string name="what_you_looking_for">お探しのものは何ですか？</string>
+</resources>

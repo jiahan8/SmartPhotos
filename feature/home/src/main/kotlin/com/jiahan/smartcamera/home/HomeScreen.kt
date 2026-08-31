@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.ShareCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.feature.home.R
 import com.jiahan.smartcamera.common.DeleteNoteConfirmationDialog
 import com.jiahan.smartcamera.common.FullScreenMessage
 import com.jiahan.smartcamera.common.NoteItem
@@ -52,6 +52,12 @@ import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    /**
+     * The app's own name, rendered as the feed's title. Passed in rather than resolved here:
+     * `app_name` is the application's manifest label, so it belongs to :app and a library module
+     * cannot own it -- the same hoist as SettingsScreen's `versionName` and AuthScreen's `logoRes`.
+     */
+    title: String,
     onNavigateToNotePreview: (noteId: String) -> Unit,
     onNavigateToEditNote: (noteId: String) -> Unit,
     onNavigateToPhotoPreview: (url: String) -> Unit,
@@ -120,7 +126,7 @@ fun HomeScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = stringResource(R.string.app_name),
+                        text = title,
                         style = MaterialTheme.typography.titleMedium,
                     )
                 },

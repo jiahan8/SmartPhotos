@@ -63,6 +63,8 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
     fun homeScreen_empty() {
         captureSettled {
             HomeScreen(
+                // The literal app_name renders, so the goldens are unchanged by the hoist.
+                title = "Smart Photos",
                 onNavigateToNotePreview = {},
                 onNavigateToEditNote = {},
                 onNavigateToPhotoPreview = {},
@@ -84,6 +86,8 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
         )
         captureSettled {
             HomeScreen(
+                // The literal app_name renders, so the goldens are unchanged by the hoist.
+                title = "Smart Photos",
                 onNavigateToNotePreview = {},
                 onNavigateToEditNote = {},
                 onNavigateToPhotoPreview = {},
@@ -101,6 +105,8 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
     fun homeScreen_error() {
         captureSettled {
             HomeScreen(
+                // The literal app_name renders, so the goldens are unchanged by the hoist.
+                title = "Smart Photos",
                 onNavigateToNotePreview = {},
                 onNavigateToEditNote = {},
                 onNavigateToPhotoPreview = {},

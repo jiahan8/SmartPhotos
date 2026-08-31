@@ -99,8 +99,12 @@ jobs:
             feature/explore/build/test-results/testDebugUnitTest/
             feature/favorite/build/reports/tests/testDebugUnitTest/
             feature/favorite/build/test-results/testDebugUnitTest/
+            feature/home/build/reports/tests/testDebugUnitTest/
+            feature/home/build/test-results/testDebugUnitTest/
             feature/profile/build/reports/tests/testDebugUnitTest/
             feature/profile/build/test-results/testDebugUnitTest/
+            feature/search/build/reports/tests/testDebugUnitTest/
+            feature/search/build/test-results/testDebugUnitTest/
             feature/settings/build/reports/tests/testDebugUnitTest/
             feature/settings/build/test-results/testDebugUnitTest/
           if-no-files-found: ignore
@@ -149,7 +153,9 @@ jobs:
             feature/auth/build/reports/lint-results-debug.html
             feature/explore/build/reports/lint-results-debug.html
             feature/favorite/build/reports/lint-results-debug.html
+            feature/home/build/reports/lint-results-debug.html
             feature/profile/build/reports/lint-results-debug.html
+            feature/search/build/reports/lint-results-debug.html
             feature/settings/build/reports/lint-results-debug.html
           if-no-files-found: ignore
 

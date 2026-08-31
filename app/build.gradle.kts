@@ -136,6 +136,14 @@ dependencies {
     // was left to decouple by the time it moved -- the work was three strings.
     implementation(project(":feature:favorite"))
 
+    // The sixth. SmartPhotosNavGraph reads SEARCH_DEEP_LINK_URI_PATTERN off its route -- a downward
+    // read, and why the pattern lives on the destination rather than in navigation/.
+    implementation(project(":feature:search"))
+
+    // The seventh. HomeScreen takes `title`, because app_name is the application's manifest label
+    // and a library cannot own it -- the same hoist as settings' versionName and auth's logoRes.
+    implementation(project(":feature:home"))
+
     // The shared Compose vocabulary -- common/, ui/theme and the two util helpers that follow
     // them. Every feature screen in this module draws with it, and nine of them also resolve
     // strings from its R, imported there as `UiR`.
