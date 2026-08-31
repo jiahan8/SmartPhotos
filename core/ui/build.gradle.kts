@@ -18,26 +18,40 @@
  * nothing consumes one half without the other, so the split would buy nothing here. Revisit if a
  * second app or a Wear/TV surface appears.
  *
- * NoteItemScreenshotTest did NOT come with NoteItem, and that is a toolchain limit rather than a
- * choice. It extends BaseScreenshotTest, which ScreenScreenshotTest in :app also extends, so the
- * harness has to be shared; AGP's testFixtures is the mechanism for that, but the Kotlin Android
- * plugin creates no Kotlin compilation for the testFixtures variant -- only
- * compileDebugTestFixturesJavaWithJavac, which is NO-SOURCE for a .kt file. Verified against
- * Kotlin 2.4.10 / AGP 9.3.1. The alternative was a second copy of the same Robolectric @Config,
- * which drifts silently: change the device qualifier in one and the other module's goldens keep
- * the old profile. So the screenshot tests and all nine goldens stay in :app for now, alongside
- * the three :core:data repository tests phase 7 left there for the same kind of reason. This is
- * the debt :core:testing is meant to pay at phase 12 -- and it is now the second module blocked on
- * it, which is the forcing function that module was waiting for.
+ * NoteItemScreenshotTest and its four goldens live here now, in src/test/screenshots. They could
+ * not travel with NoteItem at first: the test extends BaseScreenshotTest, which ScreenScreenshotTest
+ * in :app also extends, and AGP's testFixtures -- the mechanism for lending a harness across a
+ * module boundary -- does not work here, because the Kotlin Android plugin creates no Kotlin
+ * compilation for that variant (only compileDebugTestFixturesJavaWithJavac, NO-SOURCE against a .kt
+ * file; verified on Kotlin 2.4.10 / AGP 9.3.1). Copying the Robolectric @Config instead would drift
+ * silently -- change the device qualifier in one module and the other's goldens keep verifying the
+ * old profile. :core:testing resolved it by being a plain library module rather than testFixtures,
+ * and being blocked on it twice is what justified building it.
  */
 plugins {
     id("smartphotos.android.library")
     id("smartphotos.android.compose")
+    // NoteItem's goldens live here now, so the Roborazzi tasks have to as well. :app keeps its own
+    // copy of this plugin for ScreenScreenshotTest -- two modules capture screenshots, and each
+    // configures its own outputDir. A third would earn a convention plugin; two do not.
+    alias(libs.plugins.roborazzi)
 }
 
 android {
     namespace = "com.jiahan.smartcamera.core.ui"
 
+    testOptions {
+        // Robolectric renders NoteItem on the JVM and needs this module's own resources with it.
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
+}
+
+roborazzi {
+    // VCS-tracked rather than the transient build/ dir, so the PNGs are the committed baseline
+    // verifyRoborazziDebug compares against. Same reason as :app's.
+    outputDir.set(layout.projectDirectory.dir("src/test/screenshots"))
 }
 
 dependencies {
@@ -83,6 +97,12 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
 
     debugImplementation(libs.androidx.ui.tooling)
+    // createComposeRule() launches a ComponentActivity, which exists only in the manifest this
+    // artifact merges into the debug variant. Robolectric reads that merged manifest, so without it
+    // every screenshot test fails with "Unable to resolve activity for Intent ... ComponentActivity".
+    // debugImplementation, not testImplementation: the merge is per-variant, so it cannot arrive
+    // through :core:testing's test-only classpath.
+    debugImplementation(libs.androidx.ui.test.manifest)
 
     // DateTimeUtilsTest and FlowUtilsTest only -- both plain JVM tests with no Robolectric and no
     // Compose. The screenshot tests that render this module's composables stayed in :app; see the

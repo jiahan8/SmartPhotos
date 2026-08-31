@@ -86,9 +86,17 @@ Run from the repo root (Gradle wrapper):
     (`@get:Rule val mainDispatcherRule = MainDispatcherRule()`), since `viewModelScope` dispatches
     to Main. It defaults to `UnconfinedTestDispatcher` so coroutines run eagerly; pass
     `StandardTestDispatcher` when a test needs virtual-time control, such as a debounce.
-- Screenshot tests use Roborazzi and live under `app/src/test/.../screenshot/`. Note that
-  `testDebugUnitTest` *runs* them but does **not** diff them against the goldens in
-  `app/src/test/screenshots/` — only `./gradlew verifyRoborazziDebug` compares. Run it before
+- Screenshot tests use Roborazzi and live in **two** modules: `ScreenScreenshotTest` in
+  `app/src/test/.../screenshot/`, and `NoteItemScreenshotTest` in `core/ui/src/test/.../screenshot/`
+  beside the composable it captures. Each module keeps its own goldens under its own
+  `src/test/screenshots/` and applies the Roborazzi plugin with its own `outputDir`; the shared
+  harness, `BaseScreenshotTest`, is in `:core:testing`. A module running these needs
+  `debugImplementation(libs.androidx.ui.test.manifest)` — `createComposeRule()` launches a
+  `ComponentActivity` that exists only in the manifest that artifact merges into the debug variant,
+  and the merge is per-variant, so it cannot arrive through `:core:testing`. Without it every
+  capture fails with *Unable to resolve activity for Intent … ComponentActivity*. Note that
+  `testDebugUnitTest` *runs* the tests but does **not** diff them against the goldens — only
+  `./gradlew verifyRoborazziDebug` compares. Run it before
   pushing UI changes; on its own it re-runs the whole suite, so to compare screenshots alone use
   `./gradlew verifyRoborazziDebug --tests "com.jiahan.smartcamera.screenshot.*"` (this is what CI
   does). Re-record with `./gradlew recordRoborazziDebug` when a diff reflects an intended change,
