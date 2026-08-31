@@ -25,4 +25,6 @@
     <string name="remove_like">Remove like</string>
     <string name="search">Search</string>
     <string name="share">Share</string>
+    <string name="cd_hide_password">Hide password</string>
+    <string name="cd_show_password">Show password</string>
 </resources>

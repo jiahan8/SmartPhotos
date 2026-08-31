@@ -6,13 +6,11 @@ import androidx.compose.runtime.remember
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.NotePage
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
-import com.jiahan.smartcamera.fake.FakeAuthRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
 import com.jiahan.smartcamera.fake.FakeMediaFileRepository
 import com.jiahan.smartcamera.fake.FakeNoteRepository
 import com.jiahan.smartcamera.fake.FakeRemoteConfigRepository
 import com.jiahan.smartcamera.fake.FakeResourceProvider
-import com.jiahan.smartcamera.fake.FakeUserPreferencesRepository
 import com.jiahan.smartcamera.home.HomeScreen
 import com.jiahan.smartcamera.home.HomeViewModel
 import com.jiahan.smartcamera.note.NoteActionsDelegate
@@ -21,8 +19,6 @@ import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.search.SearchScreen
 import com.jiahan.smartcamera.search.SearchViewModel
-import com.jiahan.smartcamera.settings.SettingsScreen
-import com.jiahan.smartcamera.settings.SettingsViewModel
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import org.junit.Test
 import org.robolectric.RuntimeEnvironment
@@ -118,25 +114,6 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
                 viewModel = homeViewModel(Result.failure(RuntimeException("Something went wrong"))),
                 scrollToTop = null,
                 onScrollToTopConsumed = {},
-                snackbarHostState = remember { SnackbarHostState() },
-            )
-        }
-    }
-
-    @Test
-    fun settingsScreen_default() {
-        val viewModel = SettingsViewModel(
-            authRepository = FakeAuthRepository(),
-            analyticsRepository = FakeAnalyticsRepository(),
-            userPreferencesRepository = FakeUserPreferencesRepository(),
-            resourceProvider = FakeResourceProvider(RuntimeEnvironment.getApplication()),
-            errorHandler = FakeErrorHandler(),
-        )
-        captureSettled {
-            SettingsScreen(
-                onBack = {},
-                onNavigateToAuth = {},
-                viewModel = viewModel,
                 snackbarHostState = remember { SnackbarHostState() },
             )
         }

@@ -112,10 +112,21 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: screenshot-and-lint-reports
+          # One entry per module that produces the report, because the globs are literal paths.
+          # Three modules capture screenshots now -- :app, :core:ui and :feature:settings -- and a
+          # golden failure in any of them is only diagnosable if its *_compare.png files come back.
+          # :core:ui's was missing from this list for a release after NoteItemScreenshotTest moved
+          # there, which would have made a failure there report with no images at all.
           path: |
             app/build/outputs/roborazzi/
+            core/ui/build/outputs/roborazzi/
+            feature/settings/build/outputs/roborazzi/
             app/build/reports/lint-results-debug.html
             core/data/build/reports/lint-results-debug.html
+            core/ui/build/reports/lint-results-debug.html
+            core/testing/build/reports/lint-results-debug.html
+            feature/explore/build/reports/lint-results-debug.html
+            feature/settings/build/reports/lint-results-debug.html
           if-no-files-found: ignore
 
   functions:

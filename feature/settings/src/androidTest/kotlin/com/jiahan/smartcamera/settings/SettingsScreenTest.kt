@@ -15,7 +15,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
-import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.feature.settings.R
 import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeAuthRepository
@@ -56,6 +56,7 @@ class SettingsScreenTest {
                 SettingsScreen(
                     onBack = {},
                     onNavigateToAuth = { navigatedToAuth = true },
+                    versionName = "1.0.0",
                     viewModel = viewModel,
                     snackbarHostState = remember { SnackbarHostState() },
                 )

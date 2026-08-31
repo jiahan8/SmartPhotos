@@ -3,7 +3,7 @@
 Android app (Kotlin) for organizing photos/notes with ML-based tagging.
 Firebase backend + a Node.js Cloud Functions project live in `functions/`.
 
-Six Gradle modules, plus an included build for the shared Gradle config:
+Seven Gradle modules, plus an included build for the shared Gradle config:
 
 - `:app` — UI, ViewModels, navigation, and the Android plumbing that is genuinely app-level:
   `MyApp`, the messaging service, `DefaultErrorHandler`/`ResourceProviderImpl`, `FirebaseModule`
@@ -20,13 +20,21 @@ Six Gradle modules, plus an included build for the shared Gradle config:
   It exists so a feature package can become its own module — while shared Compose sat in `:app`,
   nothing could leave.
 - `:feature:explore` — an Android library holding the Explore screen, its ViewModel and its route.
-  The first feature module, and deliberately the smallest slice: `explore` is the only feature
-  package that imports nothing from `note/`, and its route carries no arguments, so no ViewModel
-  reads it back. It depends on `:core:ui` and `:core:domain` and **nothing else** — not even
-  `:core:data`, since the repositories it injects are interfaces and Hilt binds them up in `:app`.
-  Sources under `feature/explore/src/main/kotlin/com/jiahan/smartcamera/`. Every other feature is
-  still a package in `:app`; see [Cross-feature communication](#cross-feature-communication) for
-  what blocks the four that share `note/`'s helpers.
+  The first feature module, and deliberately the smallest slice: its route carries no arguments, so
+  no ViewModel reads it back. It depends on `:core:ui` and `:core:domain` and **nothing else** — not
+  even `:core:data`, since the repositories it injects are interfaces and Hilt binds them up in
+  `:app`. Sources under `feature/explore/src/main/kotlin/com/jiahan/smartcamera/`.
+- `:feature:settings` — the second feature module: the Settings screen, its ViewModel, its route and
+  `validateNewPassword`. Same dependency shape as `:feature:explore`, and chosen for a property that
+  is worth recording, because it is the one that decides which package moves next. Three feature
+  packages import nothing from `note/` — `auth`, `profile`, `settings` — and of those, settings is
+  the only one with no upward reference outside `navigation/`. `auth` is the start destination, so
+  `MainViewModel`, `SmartPhotosApp` and `NavTransitions` all name it; `profile` is a bottom-bar
+  destination named by `TopLevelDestination`, and `ProfileViewModel` calls `toMediaUri()`, which
+  lives in `:core:data` and would have pulled that edge into a feature module. Sources under
+  `feature/settings/src/main/kotlin/com/jiahan/smartcamera/`. The remaining four features —
+  `home`, `search`, `favorite`, `preview` — all share `note/`'s delegates; see
+  [Cross-feature communication](#cross-feature-communication) for what that blocks.
 - `:core:testing` — an Android library holding the fixtures more than one module needs: the nine
   `fake/` repository doubles, `MainDispatcherRule` and `BaseScreenshotTest`. Consumers take it with
   `testImplementation` (and `androidTestImplementation` in `:app`, whose `sharedTest/` runs in
@@ -37,26 +45,31 @@ Six Gradle modules, plus an included build for the shared Gradle config:
   `api` throughout, which inverts the usual advice for a good reason: a fixtures module's entire API
   surface is *other* modules' types — `FakeNoteRepository` **is** a `NoteRepository`, and a test
   assigning one to a ViewModel parameter has to resolve that interface.
-- `build-logic/` — not a module but an included build, holding the four convention plugins
-  (`smartphotos.android.application`, `.android.library`, `.android.compose`, `.jvm.library`) that
-  carry `compileSdk`/`minSdk`, the Java 11 pair, the Kotlin JVM target and the unit-test JVM pin.
+- `build-logic/` — not a module but an included build, holding the five convention plugins
+  (`smartphotos.android.application`, `.android.library`, `.android.compose`, `.android.feature`,
+  `.jvm.library`) that carry `compileSdk`/`minSdk`, the Java 11 pair, the Kotlin JVM target, the
+  unit-test JVM pin and the whole shared dependency set of a feature module.
   See [Convention plugins](#convention-plugins).
 
-Kotlin package names are deliberately identical across all six: `com.jiahan.smartcamera.util`,
+Kotlin package names are deliberately identical across all seven: `com.jiahan.smartcamera.util`,
 `.di`, `.common`, `.data.repository` and `.data.datastore` each exist in more than one module,
 which is what made the first two extractions a pure `git mv` with no import churn. A bare path like
 `util/ErrorHandler.kt` below is therefore disambiguated by the module it is attributed to, not by
 its package — `util/ErrorHandler.kt` is `:core:domain`, `util/DefaultErrorHandler.kt` is `:app`,
-`util/MediaUriExt.kt` is `:core:data` and `util/DateTimeUtils.kt` is `:core:ui`. `:feature:explore`
-follows the same rule: its Kotlin package stayed `com.jiahan.smartcamera.explore` when it moved, so
-`SmartPhotosNavGraph`'s two imports of it did not change at all — but its *namespace* is
-`com.jiahan.smartcamera.feature.explore`, so its `R` is reached as
-`import com.jiahan.smartcamera.feature.explore.R`.
+`util/MediaUriExt.kt` is `:core:data` and `util/DateTimeUtils.kt` is `:core:ui`. The two
+feature modules follow the same rule: their Kotlin packages stayed `com.jiahan.smartcamera.explore`
+and `com.jiahan.smartcamera.settings` when they moved, so `SmartPhotosNavGraph`'s imports of them did
+not change at all — but their *namespaces* are `com.jiahan.smartcamera.feature.explore` and
+`.feature.settings`, so each `R` is reached as `import com.jiahan.smartcamera.feature.<name>.R`, and
+a file inside the module needs that import too (its own `R` is not in its own Kotlin package).
 
 The dependency arrows run one way: `:app` → `:core:data` → `:core:domain`, `:app` →
-`:core:ui` → `:core:domain`, and `:app` → `:feature:explore` → both `:core` libraries.
-`:core:testing` hangs off the test classpaths of `:app`, `:core:ui` and `:feature:explore` and
-depends on `:core:data` and `:core:domain`. Nothing depends on `:app`, so a repository implementation can no
+`:core:ui` → `:core:domain`, and `:app` → each `:feature:*` → both `:core` libraries.
+`:core:testing` hangs off the test classpaths of `:app`, `:core:ui` and both feature modules, and
+depends on `:core:data` and `:core:domain`. No feature module depends on another, and none reaches
+`:core:data` — `./gradlew :feature:settings:dependencies --configuration debugCompileClasspath`
+lists exactly `:core:domain` and `:core:ui`, which is the check to run after touching a feature's
+dependencies. Nothing depends on `:app`, so a repository implementation can no
 longer reach a ViewModel, an `R` string or `BuildConfig` even by accident. `:core:ui` and
 `:core:data` are **siblings** — neither depends on the other, and `:core:ui` reaches no
 repository, Room or DataStore. They are the build's first pair with anything to overlap, which is
@@ -86,9 +99,10 @@ Run from the repo root (Gradle wrapper):
     (`@get:Rule val mainDispatcherRule = MainDispatcherRule()`), since `viewModelScope` dispatches
     to Main. It defaults to `UnconfinedTestDispatcher` so coroutines run eagerly; pass
     `StandardTestDispatcher` when a test needs virtual-time control, such as a debounce.
-- Screenshot tests use Roborazzi and live in **two** modules: `ScreenScreenshotTest` in
-  `app/src/test/.../screenshot/`, and `NoteItemScreenshotTest` in `core/ui/src/test/.../screenshot/`
-  beside the composable it captures. Each module keeps its own goldens under its own
+- Screenshot tests use Roborazzi and live in **three** modules: `ScreenScreenshotTest` in
+  `app/src/test/.../screenshot/`, `NoteItemScreenshotTest` in `core/ui/src/test/.../screenshot/`,
+  and `SettingsScreenScreenshotTest` in `feature/settings/src/test/.../screenshot/` — each beside
+  the composable it captures. Each module keeps its own goldens under its own
   `src/test/screenshots/` and applies the Roborazzi plugin with its own `outputDir`; the shared
   harness, `BaseScreenshotTest`, is in `:core:testing`. A module running these needs
   `debugImplementation(libs.androidx.ui.test.manifest)` — `createComposeRule()` launches a
@@ -144,6 +158,11 @@ Each run uploads two artifacts: `unit-test-report` (the full suite) and
 `screenshot-and-lint-reports`. When a run fails on a screenshot, download the latter — the
 `*_compare.png` files show reference / diff / actual side by side.
 
+Its `path:` list is literal per-module paths, not a glob, so **a new module that captures
+screenshots or produces a lint report has to be added to it by hand.** `:core:ui` was missing from
+that list for a release after `NoteItemScreenshotTest` moved there, which would have made a golden
+failure in it report with no images at all.
+
 Two things to know about the goldens:
 
 - Any screenshot showing a note renders a formatted timestamp through
@@ -163,29 +182,54 @@ Two things to know about the goldens:
   More generally: a golden diff that appears only on CI is far more likely to be non-determinism in
   the test than a rendering difference between platforms — check for a clock, locale, or random
   value in the fixture before assuming the environment is at fault.
-- `settingsScreen_default.png` renders the app version string, so it goes stale on every version
-  bump in `app/build.gradle.kts` and needs re-recording alongside one.
+- `settingsScreen_default.png` used to go stale on every version bump in `app/build.gradle.kts`,
+  because it rendered `BuildConfig.VERSION_NAME`. It no longer does: `SettingsScreen` takes
+  `versionName` as a parameter (it had to — `:feature:settings` is a library and has no application
+  `BuildConfig`), and the test pins `"1.0.0"`. That is the general lesson rather than a settings
+  quirk — **a golden that renders a build-varying value is a hoisting problem, not a re-recording
+  chore.** The same reasoning retired the timestamp non-determinism above, except there the pin is
+  still needed because `NoteItem` calls the formatter's defaults.
 
 ### Convention plugins
 
 `build-logic/` is an included build (`includeBuild("build-logic")` from `pluginManagement` in
-`settings.gradle.kts`), holding four plugins that every module applies by id instead of restating
+`settings.gradle.kts`), holding five plugins that every module applies by id instead of restating
 the same settings:
 
 | Plugin | Applied by | Applies | Sets |
 | --- | --- | --- | --- |
 | `smartphotos.android.application` | `:app` | AGP application, Kotlin Android | compileSdk 37, minSdk 28, Java 11, JVM target 11, test-JVM pin |
-| `smartphotos.android.library` | `:core:data`, `:core:ui` | AGP library, Kotlin Android | the same, minus nothing |
-| `smartphotos.android.compose` | `:app`, `:core:ui` | Compose compiler | `buildFeatures.compose = true` |
+| `smartphotos.android.library` | `:core:data`, `:core:ui`, `:core:testing` | AGP library, Kotlin Android | the same, minus nothing |
+| `smartphotos.android.compose` | `:app`, `:core:ui`, `:core:testing` | Compose compiler | `buildFeatures.compose = true` |
+| `smartphotos.android.feature` | `:feature:explore`, `:feature:settings` | the library + compose conventions, KSP, Hilt | the `:core:domain`/`:core:ui` edges, the Compose set, icons, Hilt, lifecycle, `:core:testing` |
 | `smartphotos.jvm.library` | `:core:domain` | Kotlin JVM — **nothing Android** | Java 11, JVM target 11, test-JVM pin |
 
-Four rules worth knowing before editing them:
+`smartphotos.android.feature` is the only one that adds *dependencies* rather than just settings,
+and it is worth knowing why it did not exist while `:feature:explore` was alone: the first rule
+below. A feature module's build file should now contain only what that feature alone needs —
+explore keeps `coil-compose`, `activity-compose` and the serialization plugin; settings keeps
+`androidx-core-ktx`, Roborazzi and its instrumented-test set.
+
+Reaching the version catalog from inside a convention plugin is not the same as from a build
+script: the generated `libs.androidx.material3` accessors are a script feature, so `build-logic`
+looks the catalog up by name (`Project.libs` in `buildlogic/VersionCatalog.kt`) and names entries as
+strings. **An alias typo there fails at configuration time in the consuming module, not at compile
+time in `build-logic`.**
+
+Five rules worth knowing before editing them:
 
 - **Put a setting here only when more than one module wants it, and wants it for the same reason.**
   `targetSdk` stays in `app/build.gradle.kts` because a library has no `targetSdk`; `namespace`
   stays in each library because every module needs its own; `buildConfig = true` stays in `:app`
   because no module below it should generate a `BuildConfig` (see the Build type rule under
   [Conventions](#conventions)).
+- **One module is a sample size of one — wait for the second.** `smartphotos.android.feature` was
+  deliberately not written while explore was the only feature, because there was no way to tell
+  which of its twenty-odd lines were *the shape of a feature* and which were *the shape of Explore*.
+  Extracting `:feature:settings` answered it, and answered it partly against expectation: the icon
+  packs were predicted to be Explore-specific, and settings failed to compile on
+  `Icons.Rounded.Check` within a minute of the first build. Guessing which lines generalize does not
+  work; a second consumer is what tells you.
 - **`build-logic` targets Java 17, the modules target 11.** That is not drift: the convention
   plugins run inside the Gradle daemon, which requires 17+, while 11 is what the app compiles
   against. Don't "fix" one to match the other.
@@ -203,11 +247,12 @@ Four rules worth knowing before editing them:
 
 ## Architecture
 
-MVVM with a layered structure, one Kotlin package per feature under
-`app/src/main/java/com/jiahan/smartcamera/` (e.g. `home`, `note`, `favorite`, `search`, `profile`,
-`settings`, `auth`, `preview`). Every feature package is still in `:app`; the module boundaries run
-underneath them — between the contracts in `:core:domain` and the implementations that satisfy
-them, and between the feature screens and the shared Compose they all draw with in `:core:ui`.
+MVVM with a layered structure, one Kotlin package per feature. Six are still under
+`app/src/main/java/com/jiahan/smartcamera/` (`home`, `note`, `favorite`, `search`, `profile`,
+`auth`, plus `preview`); `explore` and `settings` are their own modules. For the ones still in
+`:app`, the module boundaries run underneath them — between the contracts in `:core:domain` and the
+implementations that satisfy them, and between the feature screens and the shared Compose they all
+draw with in `:core:ui`.
 Cross-cutting layers:
 
 - **UI** — Jetpack Compose screens (`*Screen.kt`) + Navigation Compose graph in
@@ -326,6 +371,25 @@ direction), Home and Search should observe that query and the handler should be 
 extended. Until then, don't add a `*Handler` for a list that *could* be backed by a live query —
 back it with the query instead.
 
+**This is also what caps the modularization.** `NoteHandler`, `NoteActionsDelegate` and
+`NoteShareDelegate` are imported by `home`, `search`, `favorite` and `preview` — the four feature
+packages left in `:app`, and between them the bulk of the remaining feature code. `auth` and
+`profile` can still be extracted the way `settings` was, but that harvests the easy half and leaves
+the four untouched. Keep going past them and there are only two shapes available, both bad:
+
+- a `:feature:note` that the other four depend on — a feature-to-feature edge, which is the one
+  thing NiA's feature-module rule forbids; or
+- a `:core:note` holding the delegates and the handler, which is a data-layer stream wearing a
+  different name.
+
+The second is the tell. What those four actually share is not *helpers* — it is the absence of a
+live query over the notes feed, which is what `NoteHandler` exists to paper over
+([Source of truth](#source-of-truth)). Mirroring the feed into Room retires the handler, and with
+it the coupling: the delegates shrink to per-feature code and four feature modules become
+extractable independently. **So the notes-feed-into-Room work is not just an offline-first
+improvement — it is the prerequisite for finishing the modularization.** Sequence it before
+extracting `auth` and `profile` if the goal is modules rather than module *count*.
+
 Two rules while it exists:
 
 - Emit the mutation once and let the collector apply it. Don't also patch the list locally at the
@@ -399,7 +463,10 @@ between otherwise-equivalent approaches, prefer the one that keeps that migratio
   never progress on its own, because KMP moves Gradle *modules*, not Kotlin packages; and a module
   that compiles without the Android plugin is real progress but still not a `commonMain` source set.
   `:core:ui` reads the same way as `:core:data`: it is an Android library full of Jetpack Compose,
-  so extracting it bought modularization, not shareability. (Compose Multiplatform would change
+  so extracting it bought modularization, not shareability. So do `:feature:explore` and
+  `:feature:settings` — feature modules are Compose end to end and are the *least* shareable code in
+  the build. Extracting more of them is worth doing for the boundaries it enforces, but it moves the
+  KMP needle by exactly zero, and the two should not be reported as one number. (Compose Multiplatform would change
   that calculus, but nothing here targets it, and `android.content.ClipData`, `android.os.Build`
   and the `R` class in `common/` would all have to go first.)
 
@@ -451,6 +518,10 @@ between otherwise-equivalent approaches, prefer the one that keeps that migratio
   cases* in Google's usage, not models. Keep the name and this note together rather than renaming to
   `:core:model` (which would be inaccurate — it holds more than models) or splitting into three
   modules at this size, and don't read `:core:domain` here as a use-case layer.
+
+  The `:feature:*` names, by contrast, match NiA exactly, and so does their shape: depend on
+  `:core:*` only, never on another feature, never on `:app`. That last constraint is the one that
+  decides how far this can go — see [Cross-feature communication](#cross-feature-communication).
 
   `:core:ui` deviates the other way — it is *one* module where NiA has two. NiA splits
   `core:designsystem` (theme, atoms, icons) from `core:ui` (composites that know domain types).
@@ -544,9 +615,10 @@ strings, no `navArgument` lists, no manual URL escaping of arguments.
   what lets a feature's ViewModel read its own arguments back with `toRoute<…>()` without importing
   upward — `EditNoteViewModel` and the three in `preview/` were the last four to do so. They were
   the last upward imports *into `navigation/`*, not the last upward imports full stop: every feature
-  package still reaches `:app` for its `R`, and most also for `util/ValidationUtils.kt` or
-  `util/ErrorMessageMappers.kt`. Those are what a feature module hits next.
-  (`util/ResourceProvider.kt` was on that list until `:core:testing` moved it to `:core:domain`.)
+  package still in `:app` reaches `:app` for its `R`, and `auth` and `profile` also for
+  `util/ValidationUtils.kt` and `util/ErrorMessageMappers.kt`. Those are what the next feature module
+  hits. (`util/ResourceProvider.kt` was on that list until `:core:testing` moved it to
+  `:core:domain`, and `ValidationResult` until `:feature:settings` moved it there.)
 - **The routes share no supertype, deliberately.** They were nested in a `sealed interface Screen`
   until that hierarchy became unrepresentable: a route in a feature module cannot implement an
   interface declared in `:app`. So `startDestination` and `BottomNavItem.route` are typed `Any`,
@@ -627,8 +699,13 @@ strings, no `navArgument` lists, no manual URL escaping of arguments.
   flag is a runtime value and ships both. That is why `MyApp.kt` and `util/DefaultErrorHandler.kt`
   keep reading it directly — converting `DefaultErrorHandler` would ship its `Log.e` calls and make
   the Crashlytics-suppressing branch reachable in release. `di/AppModule.kt` reads it too, in the
-  provider itself. (`settings/SettingsScreen.kt` reads `BuildConfig.VERSION_NAME`, which is
-  unrelated to this rule.)
+  provider itself. (`SettingsScreen` used to read `BuildConfig.VERSION_NAME`; when it moved
+  to `:feature:settings` that became a `versionName` parameter passed from `SmartPhotosNavGraph`.
+  Note what was *not* done: a `@VersionName` qualifier beside `@DebugBuild`. The R8 argument that
+  justifies `@DebugBuild`'s counterpart does not transfer, because a version string is display data
+  rather than a branch condition — there is no dead branch to fold away, so hoisting it as a
+  parameter is both simpler and, per Compose state hoisting, more correct. Reach for a qualifier
+  when the value picks a code path; reach for a parameter when it is rendered.)
 - Dependencies: every version lives in `gradle/libs.versions.toml` and is referenced through the
   generated `libs.*` accessors — no module build file holds a hardcoded version string. Add a
   library as a `[versions]` entry plus a `[libraries]` entry, never as an inline
@@ -648,6 +725,21 @@ strings, no `navArgument` lists, no manual URL escaping of arguments.
     screen title and Home's `contentDescription` for the button that opens it. The title travelled
     and Home got its own `cd_open_explore`. Expect this split at every feature extraction, and note
     that a consumer *count* cannot tell the last case from the second: only the call sites can.
+  - **The same rule applies to drawables, and to functions.** `:feature:settings` took `dark_mode`
+    and `translate` because nothing else drew them; `visibility`/`visibility_off` had consumers in
+    settings and auth and went *down* to `:core:ui` with `PasswordField`. `validateNewPassword` went
+    with the module for exactly the same reason a string does — settings was its only caller —
+    while `validateUsername`/`validateDisplayName` stayed in `:app` for auth and profile, and the
+    `ValidationResult` all three return went down to `:core:domain`. A shared *return type* has to
+    land where every caller can see it, which is the same shape as `cd_back`.
+  - **A vector drawable that moves out of `:app` may stop resolving `?attr/colorControlNormal`.**
+    AppCompat reaches `:app` only transitively (via Firebase/Play), so a library module that
+    receives such a drawable fails resource linking with `resource attr/colorControlNormal not
+    found` — in `processDebugUnitTestResources`, well after the Kotlin compiles fine. When the
+    drawable is only ever used through Compose's `Icon(painter = …)`, the fix is to delete the
+    `android:tint` line rather than to add AppCompat: `Icon` applies its own `ColorFilter` over the
+    painter, so the attribute was already being overridden. Verified pixel-identical against
+    `settingsScreen_default.png`.
   - Don't "solve" a cross-module string by declaring it in both modules. Two resources with one
     name is legal — the application's value wins the merge — but it silently duplicates
     user-visible text and its `values-ja/` translation, and the two drift.

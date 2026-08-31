@@ -2,7 +2,7 @@ package com.jiahan.smartcamera.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.feature.settings.R
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
@@ -11,7 +11,6 @@ import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ResourceProvider
 import com.jiahan.smartcamera.util.ValidationResult
-import com.jiahan.smartcamera.util.validateNewPassword
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay

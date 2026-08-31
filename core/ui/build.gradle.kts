@@ -104,9 +104,9 @@ dependencies {
     // through :core:testing's test-only classpath.
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    // DateTimeUtilsTest and FlowUtilsTest only -- both plain JVM tests with no Robolectric and no
-    // Compose. The screenshot tests that render this module's composables stayed in :app; see the
-    // comment above the module header for why.
+    // DateTimeUtilsTest and FlowUtilsTest, plus NoteItemScreenshotTest -- the Roborazzi harness
+    // and Robolectric reach this source set through :core:testing's `api` block rather than being
+    // declared here.
     testImplementation(project(":core:testing"))
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

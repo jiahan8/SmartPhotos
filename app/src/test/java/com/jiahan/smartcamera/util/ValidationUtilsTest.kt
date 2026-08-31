@@ -124,30 +124,4 @@ class ValidationUtilsTest {
         // Display names have no character-set restriction, only length
         assertTrue(validateDisplayName("Ñoño 日本語") is ValidationResult.Success)
     }
-
-    // -------------------------------------------------------------------------
-    // validateNewPassword
-    // -------------------------------------------------------------------------
-
-    @Test
-    fun `validateNewPassword empty without requireNonBlank returns Success`() {
-        assertTrue(validateNewPassword("") is ValidationResult.Success)
-    }
-
-    @Test
-    fun `validateNewPassword empty with requireNonBlank returns Error`() {
-        assertTrue(validateNewPassword("", requireNonBlank = true) is ValidationResult.Error)
-    }
-
-    @Test
-    fun `validateNewPassword blank with requireNonBlank returns Error`() {
-        assertTrue(validateNewPassword("   ", requireNonBlank = true) is ValidationResult.Error)
-    }
-
-    @Test
-    fun `validateNewPassword non-blank value returns Success`() {
-        assertTrue(
-            validateNewPassword("hunter2", requireNonBlank = true) is ValidationResult.Success
-        )
-    }
 }

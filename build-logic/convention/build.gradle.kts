@@ -48,6 +48,10 @@ gradlePlugin {
             id = "smartphotos.android.compose"
             implementationClass = "AndroidComposeConventionPlugin"
         }
+        register("androidFeature") {
+            id = "smartphotos.android.feature"
+            implementationClass = "AndroidFeatureConventionPlugin"
+        }
         register("jvmLibrary") {
             id = "smartphotos.jvm.library"
             implementationClass = "JvmLibraryConventionPlugin"

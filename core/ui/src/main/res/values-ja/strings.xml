@@ -17,4 +17,6 @@
     <string name="remove_like">いいねを取り消す</string>
     <string name="search">検索</string>
     <string name="share">共有</string>
+    <string name="cd_hide_password">パスワードを非表示</string>
+    <string name="cd_show_password">パスワードを表示</string>
 </resources>

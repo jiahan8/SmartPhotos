@@ -6,7 +6,7 @@ import com.jiahan.smartcamera.data.datastore.UserPreferences
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
-import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.feature.settings.R
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ResourceProvider
 import io.mockk.coEvery

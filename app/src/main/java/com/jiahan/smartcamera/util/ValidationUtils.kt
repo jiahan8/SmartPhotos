@@ -4,10 +4,12 @@ import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.util.AppConstants.MAX_DISPLAY_NAME_LENGTH
 import com.jiahan.smartcamera.util.AppConstants.MAX_USERNAME_LENGTH
 
-sealed class ValidationResult {
-    object Success : ValidationResult()
-    data class Error(val messageResId: Int) : ValidationResult()
-}
+/*
+ * The two validators `auth/` and `profile/` share. They resolve :app string resources, so they stay
+ * here until both of those packages become modules; `validateNewPassword` left with
+ * `:feature:settings`, which was its only caller. [ValidationResult] itself went down to
+ * :core:domain, where every caller can reach it.
+ */
 
 // Mirrors the RESERVED_USERNAMES set in functions/index.js so the UI can
 // reject these immediately instead of waiting on a round trip to
@@ -38,7 +40,3 @@ fun validateDisplayName(displayName: String, requireNonBlank: Boolean = false): 
         displayName.length > MAX_DISPLAY_NAME_LENGTH -> ValidationResult.Error(R.string.name_too_long)
         else -> ValidationResult.Success
     }
-
-fun validateNewPassword(password: String, requireNonBlank: Boolean = false): ValidationResult =
-    if (requireNonBlank && password.isBlank()) ValidationResult.Error(R.string.password_empty)
-    else ValidationResult.Success

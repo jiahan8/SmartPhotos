@@ -1,6 +1,5 @@
 package com.jiahan.smartcamera.auth
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,12 +34,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -48,6 +45,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.common.PasswordField
 import com.jiahan.smartcamera.common.bounceScale
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 
@@ -135,43 +133,17 @@ fun AuthScreen(
                 )
             }
 
-            OutlinedTextField(
+            PasswordField(
                 value = password,
                 onValueChange = { viewModel.updatePasswordText(it) },
-                label = { Text(stringResource(R.string.password)) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.large,
-                singleLine = true,
-                visualTransformation = if (passwordVisible)
-                    VisualTransformation.None
-                else
-                    PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done
-                ),
+                label = stringResource(R.string.password),
+                visible = passwordVisible,
+                onVisibilityChange = { viewModel.updatePasswordVisibility(it) },
+                imeAction = ImeAction.Done,
                 keyboardActions = KeyboardActions(
                     onDone = { viewModel.submit() }
                 ),
                 leadingIcon = { Icon(Icons.Rounded.Lock, contentDescription = null) },
-                trailingIcon = {
-                    Icon(
-                        modifier = Modifier.clickable(
-                            interactionSource = null,
-                            indication = null
-                        ) {
-                            viewModel.updatePasswordVisibility(!passwordVisible)
-                        },
-                        painter = if (passwordVisible)
-                            painterResource(R.drawable.visibility)
-                        else
-                            painterResource(R.drawable.visibility_off),
-                        contentDescription = if (passwordVisible)
-                            stringResource(R.string.cd_hide_password)
-                        else
-                            stringResource(R.string.cd_show_password)
-                    )
-                }
             )
 
             when (authStatus) {

@@ -42,21 +42,6 @@
     <string name="favorite_note_to_see_it_here">メモをお気に入りに追加するとここに表示されます</string>
 
     <!-- Settings -->
-    <string name="settings">設定</string>
-    <string name="dark_theme">ダークテーマ</string>
-    <string name="language">言語</string>
-    <string name="app_version">バージョン %s</string>
-    <string name="log_out">ログアウト</string>
-    <string name="log_out_desc">ログアウトしてもよろしいですか？</string>
-    <string name="delete_account">アカウントを削除</string>
-    <string name="delete_account_desc">このアカウントを削除してもよろしいですか？</string>
-    <string name="change_password">パスワードを変更</string>
-    <string name="current_password">現在のパスワード</string>
-    <string name="new_password">新しいパスワード</string>
-    <string name="confirm_new_password">新しいパスワード（確認）</string>
-    <string name="passwords_do_not_match">パスワードが一致しません</string>
-    <string name="password_empty">パスワードを入力してください</string>
-    <string name="change_password_success">パスワードを変更しました</string>
     <string name="action_failure">問題が発生しました。もう一度お試しください。</string>
     <string name="delete_picture">写真を削除</string>
     <string name="delete_picture_desc">この写真を削除してもよろしいですか？</string>
@@ -135,6 +120,4 @@
     <string name="cd_take_video">動画を撮影</string>
     <string name="cd_edit_note">メモを編集</string>
     <string name="cd_open_settings">設定を開く</string>
-    <string name="cd_hide_password">パスワードを非表示</string>
-    <string name="cd_show_password">パスワードを表示</string>
 </resources>

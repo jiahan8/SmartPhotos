@@ -5,6 +5,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.navDeepLink
+import com.jiahan.smartcamera.BuildConfig
 import com.jiahan.smartcamera.auth.AuthRoute
 import com.jiahan.smartcamera.auth.AuthScreen
 import com.jiahan.smartcamera.explore.ExploreRoute
@@ -226,6 +227,11 @@ fun NavGraphBuilder.smartPhotosNavGraph(
                     popUpTo(0) { inclusive = true }
                 }
             },
+            // :feature:settings is a library, so it has no application BuildConfig to read. Passed
+            // from here rather than injected: a version string is display data, not a branch
+            // condition, so there is no R8 constant-folding to preserve by keeping the static read
+            // inside the screen -- and hoisting it lets the screenshot test pin a fixed value.
+            versionName = BuildConfig.VERSION_NAME,
             snackbarHostState = snackbarHostState,
         )
     }

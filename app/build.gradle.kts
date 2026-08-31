@@ -111,6 +111,11 @@ dependencies {
     // the graph; the Kotlin package is unchanged, so SmartPhotosNavGraph's imports did not move.
     implementation(project(":feature:explore"))
 
+    // The second. Same shape as explore -- :app hosts the route and supplies the lambdas -- plus
+    // one value the module cannot read for itself: SettingsScreen takes `versionName`, because a
+    // library has no application BuildConfig.
+    implementation(project(":feature:settings"))
+
     // The shared Compose vocabulary -- common/, ui/theme and the two util helpers that follow
     // them. Every feature screen in this module draws with it, and nine of them also resolve
     // strings from its R, imported there as `UiR`.
