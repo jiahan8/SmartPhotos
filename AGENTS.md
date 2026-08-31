@@ -42,9 +42,9 @@ Fifteen Gradle modules, plus an included build for the shared Gradle config:
   tried and doesn't work, since the Kotlin Android plugin generates no Kotlin compilation for the
   testFixtures variant. Its dependencies are `api` throughout: a fixtures module's API surface is
   *other* modules' types (`FakeNoteRepository` **is** a `NoteRepository`).
-- `build-logic/` — not a module but an included build, holding the five convention plugins
+- `build-logic/` — not a module but an included build, holding the six convention plugins
   (`smartphotos.android.application`, `.android.library`, `.android.compose`, `.android.feature`,
-  `.jvm.library`); see [Convention plugins](#convention-plugins).
+  `.android.screenshot`, `.jvm.library`); see [Convention plugins](#convention-plugins).
 
 Kotlin package names are deliberately identical across modules (`com.jiahan.smartcamera.util`,
 `.di`, `.common`, `.data.repository`, `.data.datastore`, …), so a type moving between modules is
@@ -86,11 +86,12 @@ Run from the repo root (Gradle wrapper):
   `:core:ui`, `:feature:home`, `:feature:search`, `:feature:settings` — and in none of them by
   accident, since a golden is only meaningful next to the composable it pins. Each keeps its own
   goldens under its own `src/test/screenshots/`; the shared harness (`BaseScreenshotTest`) is in
-  `:core:testing`. A module running these needs the roborazzi plugin, its own `roborazzi { outputDir }`
-  block, `testImplementation(libs.roborazzi.junit.rule)`,
-  `unitTests.isIncludeAndroidResources = true`, and
-  `debugImplementation(libs.androidx.ui.test.manifest)` — otherwise `createComposeRule()` fails to
-  resolve an activity. `testDebugUnitTest` *runs* these tests but does
+  `:core:testing`. A module capturing them applies `smartphotos.android.screenshot` and nothing
+  else — that plugin brings the Roborazzi tasks, the VCS-tracked `outputDir` and
+  `unitTests.isIncludeAndroidResources`. It still needs
+  `debugImplementation(libs.androidx.ui.test.manifest)` on top, which the feature convention
+  already supplies to a `:feature:*` module, and `:core:ui` declares for itself — without it
+  `createComposeRule()` fails to resolve an activity. `testDebugUnitTest` *runs* these tests but does
   **not** diff them against goldens — only `./gradlew verifyRoborazziDebug` does (what CI runs before
   pushing UI changes). Re-record with `./gradlew recordRoborazziDebug` when a diff reflects an
   intended change, and inspect the new PNGs before committing.
@@ -168,7 +169,7 @@ Two things to know about the goldens:
 ### Convention plugins
 
 `build-logic/` is an included build (`includeBuild("build-logic")` from `pluginManagement` in
-`settings.gradle.kts`), holding five plugins that every module applies by id instead of restating
+`settings.gradle.kts`), holding six plugins that every module applies by id instead of restating
 the same settings:
 
 | Plugin | Applied by | Applies | Sets |
@@ -176,8 +177,14 @@ the same settings:
 | `smartphotos.android.application` | `:app` | AGP application, Kotlin Android | compileSdk 37, minSdk 28, Java 11, JVM target 11, test-JVM pin |
 | `smartphotos.android.library` | `:core:common`, `:core:data`, `:core:ui`, `:core:testing` | AGP library, Kotlin Android | the same |
 | `smartphotos.android.compose` | `:app`, `:core:ui`, `:core:testing` | Compose compiler | `buildFeatures.compose = true` |
-| `smartphotos.android.feature` | all nine `:feature:*` modules | the library + compose conventions, KSP, Hilt | the `:core:domain`/`:core:ui` edges, the Compose set, icons, Hilt, lifecycle, `:core:testing` |
+| `smartphotos.android.feature` | all nine `:feature:*` modules | the library + compose conventions, KSP, Hilt | the `:core:domain`/`:core:ui` edges, the Compose set, icons, Hilt, lifecycle, `ui-test-manifest`, `:core:testing` |
+| `smartphotos.android.screenshot` | `:core:ui`, `:feature:home`, `:feature:search`, `:feature:settings` | Roborazzi | `outputDir` → `src/test/screenshots`, `unitTests.isIncludeAndroidResources` |
 | `smartphotos.jvm.library` | `:core:domain` | Kotlin JVM — **nothing Android** | Java 11, JVM target 11, test-JVM pin |
+
+`.android.screenshot` is also the one that needs a plugin *artifact* in `build-logic`'s own
+dependencies (`roborazzi-gradlePlugin`, `compileOnly`), because it configures Roborazzi's own
+extension rather than just applying it by id — the same distinction the Compose note there draws
+from the other side.
 
 A feature module's build file should contain only what that feature alone needs beyond the
 convention — e.g. explore keeps `coil-compose`/`activity-compose`; settings keeps

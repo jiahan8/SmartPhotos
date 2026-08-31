@@ -63,10 +63,6 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.junit)
 
-    // createAndroidComposeRule() launches a ComponentActivity that exists only in the manifest this
-    // artifact merges into the debug variant -- see the same note in :core:ui.
-    debugImplementation(libs.androidx.ui.test.manifest)
-
     androidTestImplementation(project(":core:testing"))
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.test.runner)

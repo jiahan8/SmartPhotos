@@ -31,27 +31,21 @@
 plugins {
     id("smartphotos.android.library")
     id("smartphotos.android.compose")
-    // NoteItem's goldens live here now, so the Roborazzi tasks have to as well. :app keeps its own
-    // copy of this plugin for ScreenScreenshotTest -- two modules capture screenshots, and each
-    // configures its own outputDir. A third would earn a convention plugin; two do not.
-    alias(libs.plugins.roborazzi)
+    /*
+     * NoteItem's goldens live here, so the Roborazzi tasks have to as well. This file used to say
+     * "a third would earn a convention plugin; two do not" above its own copy of the plugin,
+     * outputDir block and isIncludeAndroidResources -- the third and fourth arrived together when
+     * :app's ScreenScreenshotTest split between :feature:home and :feature:search, and all three
+     * settings moved into `smartphotos.android.screenshot`.
+     *
+     * This is the only screenshot module that is not a feature, which is why it still declares
+     * ui-test-manifest below itself: the other three get it from the feature convention.
+     */
+    id("smartphotos.android.screenshot")
 }
 
 android {
     namespace = "com.jiahan.smartcamera.core.ui"
-
-    testOptions {
-        // Robolectric renders NoteItem on the JVM and needs this module's own resources with it.
-        unitTests {
-            isIncludeAndroidResources = true
-        }
-    }
-}
-
-roborazzi {
-    // VCS-tracked rather than the transient build/ dir, so the PNGs are the committed baseline
-    // verifyRoborazziDebug compares against. Same reason as :app's.
-    outputDir.set(layout.projectDirectory.dir("src/test/screenshots"))
 }
 
 dependencies {
@@ -101,7 +95,10 @@ dependencies {
     // artifact merges into the debug variant. Robolectric reads that merged manifest, so without it
     // every screenshot test fails with "Unable to resolve activity for Intent ... ComponentActivity".
     // debugImplementation, not testImplementation: the merge is per-variant, so it cannot arrive
-    // through :core:testing's test-only classpath.
+    // through :core:testing's test-only classpath. Declared here rather than in the screenshot
+    // convention because every Compose test needs it, screenshot or not -- the eight feature
+    // modules that need it get it from `smartphotos.android.feature`, and this module is the one
+    // that applies neither that plugin nor any other route to it.
     debugImplementation(libs.androidx.ui.test.manifest)
 
     // DateTimeUtilsTest and FlowUtilsTest, plus NoteItemScreenshotTest -- the Roborazzi harness

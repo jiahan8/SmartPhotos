@@ -25,26 +25,11 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     // searchScreen_idle's golden lives here now -- the other half of :app's ScreenScreenshotTest,
     // whose three Home captures went to :feature:home. See the note in that module's build file.
-    alias(libs.plugins.roborazzi)
+    id("smartphotos.android.screenshot")
 }
 
 android {
     namespace = "com.jiahan.smartcamera.feature.search"
-
-    testOptions {
-        // Robolectric renders SearchScreen on the JVM and needs this module's own strings with it,
-        // and :core:ui's, which merge in through the dependency. New here: this module's only unit
-        // test used to be SearchViewModelTest, which renders nothing.
-        unitTests {
-            isIncludeAndroidResources = true
-        }
-    }
-}
-
-roborazzi {
-    // VCS-tracked rather than build/, so the PNG is the committed baseline verifyRoborazziDebug
-    // compares against. Same as :core:ui's and :feature:settings'.
-    outputDir.set(layout.projectDirectory.dir("src/test/screenshots"))
 }
 
 dependencies {
@@ -63,14 +48,6 @@ dependencies {
 
     // SearchViewModelTest asserts on `actionError`, a SharedFlow with no `.value` to read.
     testImplementation(libs.turbine)
-
-    // The Roborazzi harness itself (BaseScreenshotTest, Robolectric, ui-test-junit4) arrives
-    // through :core:testing's `api` block, which the feature convention already adds.
-    testImplementation(libs.roborazzi.junit.rule)
-
-    // createAndroidComposeRule() launches a ComponentActivity that exists only in the manifest this
-    // artifact merges into the debug variant -- see the same note in :core:ui.
-    debugImplementation(libs.androidx.ui.test.manifest)
 
     androidTestImplementation(project(":core:testing"))
     androidTestImplementation(libs.androidx.junit)

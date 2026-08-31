@@ -70,6 +70,19 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
             add("implementation", libs.findLibrary("kotlinx-coroutines-android").get())
 
             add("debugImplementation", libs.findLibrary("androidx-ui-tooling").get())
+            /*
+             * `createComposeRule()` launches a ComponentActivity, which exists only in the manifest
+             * this artifact merges into the debug variant -- without it every Compose test fails
+             * with "Unable to resolve activity for Intent ... ComponentActivity". Eight of the nine
+             * feature modules declared this line, each with its own copy of that explanation;
+             * :feature:explore is the only one with no Compose test to need it, and a debug-only
+             * manifest contribution is a cheap thing for it to carry.
+             *
+             * debugImplementation, not testImplementation, and that is the part worth keeping: the
+             * manifest merge is per-variant, so this cannot arrive through :core:testing's
+             * test-only classpath no matter which configuration declares it there.
+             */
+            add("debugImplementation", libs.findLibrary("androidx-ui-test-manifest").get())
 
             add("testImplementation", project(":core:testing"))
             add("testImplementation", libs.findLibrary("junit").get())

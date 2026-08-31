@@ -65,11 +65,6 @@ dependencies {
     // ProfileViewModelTest asserts on `events`, a SharedFlow with no `.value` to read.
     testImplementation(libs.turbine)
 
-    // createAndroidComposeRule() launches a ComponentActivity that exists only in the manifest this
-    // artifact merges into the debug variant. The merge is per-variant, so it cannot arrive through
-    // :core:testing -- see the same note in :core:ui.
-    debugImplementation(libs.androidx.ui.test.manifest)
-
     // ProfileScreenTest builds its ViewModel from :core:testing's fakes and injects nothing, so the
     // default AndroidJUnitRunner is enough and this module declares no testInstrumentationRunner --
     // the same reasoning as :feature:auth and :feature:settings.

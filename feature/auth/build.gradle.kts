@@ -100,11 +100,6 @@ dependencies {
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.ui.test.junit4)
 
-    // createComposeRule() launches a ComponentActivity that exists only in the manifest this
-    // artifact merges into the debug variant. The merge is per-variant, so it cannot arrive
-    // through :core:testing -- see the same note in :core:ui.
-    debugImplementation(libs.androidx.ui.test.manifest)
-
     /*
      * The on-device half of the same file. It builds its ViewModel from :core:testing's fakes and
      * injects nothing, so the default AndroidJUnitRunner is enough and this module declares no

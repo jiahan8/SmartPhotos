@@ -33,29 +33,14 @@ plugins {
     // with no destination of its own would not need it, and applying a compiler plugin no source
     // needs is hard to notice later.
     alias(libs.plugins.kotlin.serialization)
-    // settingsScreen_default's golden lives here now, beside the screen it captures -- the same
-    // move NoteItemScreenshotTest made into :core:ui. Three modules now capture screenshots; each
-    // still configures its own outputDir, which is the part a convention plugin could take over
-    // next.
-    alias(libs.plugins.roborazzi)
+    // settingsScreen_default's golden lives here, beside the screen it captures -- the same move
+    // NoteItemScreenshotTest made into :core:ui. This file is where the "a convention plugin could
+    // take this over next" note was written; the fourth screenshot module is what collected on it.
+    id("smartphotos.android.screenshot")
 }
 
 android {
     namespace = "com.jiahan.smartcamera.feature.settings"
-
-    testOptions {
-        // Robolectric renders SettingsScreen on the JVM and needs this module's own strings and
-        // drawables with it.
-        unitTests {
-            isIncludeAndroidResources = true
-        }
-    }
-}
-
-roborazzi {
-    // VCS-tracked rather than build/, so the PNG is the committed baseline verifyRoborazziDebug
-    // compares against. Same as :app's and :core:ui's.
-    outputDir.set(layout.projectDirectory.dir("src/test/screenshots"))
 }
 
 dependencies {
@@ -70,14 +55,6 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.serialization.core)
 
-    // createComposeRule() launches a ComponentActivity that exists only in the manifest this
-    // artifact merges into the debug variant. The merge is per-variant, so it cannot arrive through
-    // :core:testing -- see the same note in :core:ui.
-    debugImplementation(libs.androidx.ui.test.manifest)
-
-    // The Roborazzi harness itself (BaseScreenshotTest, Robolectric, ui-test-junit4) arrives
-    // through :core:testing's `api` block, which the feature convention already adds.
-    testImplementation(libs.roborazzi.junit.rule)
     testImplementation(libs.turbine)
 
     /*
