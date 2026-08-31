@@ -8,13 +8,14 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
-import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.core.common.R as CommonR
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeAuthRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
 import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.fake.FakeUserPreferencesRepository
 import com.jiahan.smartcamera.fake.FakeUserRepository
+import com.jiahan.smartcamera.feature.auth.R
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
@@ -32,7 +33,10 @@ import org.junit.runner.RunWith
  *
  * Lives in `sharedTest`, so it runs on the JVM (Robolectric) for fast CI and on-device via the
  * instrumentation runner. The [AndroidJUnit4] runner resolves to Robolectric on the JVM and to the
- * real Android runner on-device.
+ * real Android runner on-device. That source set came with the test when auth became a module:
+ * :app is not the only place it can live, and leaving it behind would have put a test above the
+ * code it exercises. [SettingsScreenTest][com.jiahan.smartcamera.settings.SettingsScreenTest] is
+ * androidTest-only by comparison, which is the weaker of the two arrangements.
  */
 @RunWith(AndroidJUnit4::class)
 class AuthScreenTest {
@@ -57,6 +61,10 @@ class AuthScreenTest {
             SmartCameraTheme {
                 AuthScreen(
                     onNavigateToHome = { navigatedToHome = true },
+                    // Any drawable will do: the logo is hoisted out of the screen, so what the
+                    // production caller passes (:app's mipmap/ic_launcher) is not this module's to
+                    // reach -- and nothing here asserts on it.
+                    logoRes = android.R.drawable.sym_def_app_icon,
                     viewModel = viewModel,
                 )
             }
@@ -70,12 +78,12 @@ class AuthScreenTest {
     fun loginMode_showsEmailPasswordAndLoginButton_andHidesSignUpOnlyFields() {
         launchAuthScreen()
 
-        composeTestRule.onNodeWithText(string(R.string.email)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(CommonR.string.email)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.password)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.login)).assertExists()
 
-        composeTestRule.onNodeWithText(string(R.string.name)).assertDoesNotExist()
-        composeTestRule.onNodeWithText(string(R.string.username)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(string(CommonR.string.name)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(string(CommonR.string.username)).assertDoesNotExist()
     }
 
     @Test
@@ -86,8 +94,8 @@ class AuthScreenTest {
             .performClick()
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithText(string(R.string.name)).assertExists()
-        composeTestRule.onNodeWithText(string(R.string.username)).assertExists()
+        composeTestRule.onNodeWithText(string(CommonR.string.name)).assertExists()
+        composeTestRule.onNodeWithText(string(CommonR.string.username)).assertExists()
         composeTestRule.onNodeWithText(string(R.string.sign_up)).assertExists()
     }
 
@@ -108,12 +116,12 @@ class AuthScreenTest {
         password: String = "password123",
     ) {
         if (name.isNotEmpty()) {
-            composeTestRule.onNodeWithText(string(R.string.name)).performTextInput(name)
+            composeTestRule.onNodeWithText(string(CommonR.string.name)).performTextInput(name)
         }
         if (username.isNotEmpty()) {
-            composeTestRule.onNodeWithText(string(R.string.username)).performTextInput(username)
+            composeTestRule.onNodeWithText(string(CommonR.string.username)).performTextInput(username)
         }
-        composeTestRule.onNodeWithText(string(R.string.email)).performTextInput(email)
+        composeTestRule.onNodeWithText(string(CommonR.string.email)).performTextInput(email)
         composeTestRule.onNodeWithText(string(R.string.password)).performTextInput(password)
     }
 
@@ -160,7 +168,7 @@ class AuthScreenTest {
         tapSignUp()
 
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
-            composeTestRule.onAllNodesWithText(string(R.string.username_not_available))
+            composeTestRule.onAllNodesWithText(string(CommonR.string.username_not_available))
                 .fetchSemanticsNodes().isNotEmpty()
         }
         assertEquals(0, authRepository.signUpCallCount)
@@ -197,7 +205,7 @@ class AuthScreenTest {
     fun typingEmail_updatesViewModelState() {
         val viewModel = launchAuthScreen()
 
-        composeTestRule.onNodeWithText(string(R.string.email)).performTextInput("user@test.com")
+        composeTestRule.onNodeWithText(string(CommonR.string.email)).performTextInput("user@test.com")
         composeTestRule.waitForIdle()
 
         assertEquals("user@test.com", viewModel.uiState.value.email)
@@ -208,7 +216,7 @@ class AuthScreenTest {
         // Defaults: signIn success, email verified, getUser success -> should navigate home.
         launchAuthScreen()
 
-        composeTestRule.onNodeWithText(string(R.string.email)).performTextInput("user@test.com")
+        composeTestRule.onNodeWithText(string(CommonR.string.email)).performTextInput("user@test.com")
         composeTestRule.onNodeWithText(string(R.string.password)).performTextInput("password123")
         composeTestRule.onNodeWithText(string(R.string.login)).performScrollTo().performClick()
 
@@ -224,7 +232,7 @@ class AuthScreenTest {
         authRepository.signInResult = Result.failure(RuntimeException(errorMessage))
         launchAuthScreen()
 
-        composeTestRule.onNodeWithText(string(R.string.email)).performTextInput("user@test.com")
+        composeTestRule.onNodeWithText(string(CommonR.string.email)).performTextInput("user@test.com")
         composeTestRule.onNodeWithText(string(R.string.password)).performTextInput("wrong-password")
         composeTestRule.onNodeWithText(string(R.string.login)).performScrollTo().performClick()
 
@@ -242,7 +250,7 @@ class AuthScreenTest {
         authRepository.checkEmailVerifiedResult = Result.success(false)
         launchAuthScreen()
 
-        composeTestRule.onNodeWithText(string(R.string.email)).performTextInput("user@test.com")
+        composeTestRule.onNodeWithText(string(CommonR.string.email)).performTextInput("user@test.com")
         composeTestRule.onNodeWithText(string(R.string.password)).performTextInput("password123")
         composeTestRule.onNodeWithText(string(R.string.login)).performScrollTo().performClick()
 

@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.firebase.functions.FirebaseFunctionsException
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.core.common.R as CommonR
 import com.jiahan.smartcamera.domain.AppError
 import io.mockk.every
 import io.mockk.mockk
@@ -34,36 +35,6 @@ class ErrorMessageMappersTest {
         every { exception.code } returns code
         every { exception.details } returns details
         return exception
-    }
-
-    // -------------------------------------------------------------------------
-    // usernameErrorMessageResId
-    // -------------------------------------------------------------------------
-
-    @Test
-    fun `usernameErrorMessageResId ALREADY_EXISTS returns username_not_available`() {
-        val exception = functionsException(FirebaseFunctionsException.Code.ALREADY_EXISTS)
-
-        assertEquals(R.string.username_not_available, usernameErrorMessageResId(exception))
-    }
-
-    @Test
-    fun `usernameErrorMessageResId INVALID_ARGUMENT returns username_reserved`() {
-        val exception = functionsException(FirebaseFunctionsException.Code.INVALID_ARGUMENT)
-
-        assertEquals(R.string.username_reserved, usernameErrorMessageResId(exception))
-    }
-
-    @Test
-    fun `usernameErrorMessageResId unmapped code returns null`() {
-        val exception = functionsException(FirebaseFunctionsException.Code.UNAVAILABLE)
-
-        assertNull(usernameErrorMessageResId(exception))
-    }
-
-    @Test
-    fun `usernameErrorMessageResId non-FirebaseFunctionsException returns null`() {
-        assertNull(usernameErrorMessageResId(RuntimeException("boom")))
     }
 
     // -------------------------------------------------------------------------
@@ -157,6 +128,30 @@ class ErrorMessageMappersTest {
         assertEquals(
             R.string.no_media_available,
             appErrorMessageResId(AppError.NoMediaAvailable())
+        )
+    }
+
+    /*
+     * These two replace the four usernameErrorMessageResId cases this file used to carry.
+     * DefaultUserRepository now folds the ALREADY_EXISTS/INVALID_ARGUMENT codes into these
+     * identities, so what used to be a Firebase-shape assertion up here became a data-layer one --
+     * see DefaultUserRepositoryTest. The strings resolve against :core:common's R, since
+     * validateUsername and AuthScreen read them too.
+     */
+
+    @Test
+    fun `appErrorMessageResId UsernameTaken returns username_not_available`() {
+        assertEquals(
+            CommonR.string.username_not_available,
+            appErrorMessageResId(AppError.UsernameTaken())
+        )
+    }
+
+    @Test
+    fun `appErrorMessageResId UsernameReserved returns username_reserved`() {
+        assertEquals(
+            CommonR.string.username_reserved,
+            appErrorMessageResId(AppError.UsernameReserved())
         )
     }
 }

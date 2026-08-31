@@ -2,6 +2,7 @@ package com.jiahan.smartcamera.util
 
 import com.google.firebase.functions.FirebaseFunctionsException
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.core.common.R as CommonR
 import com.jiahan.smartcamera.domain.AppError
 
 /*
@@ -14,7 +15,16 @@ import com.jiahan.smartcamera.domain.AppError
  * appErrorMessageResId is the one exception to "tried by the caller": DefaultErrorHandler applies
  * it inside getErrorMessage, because an AppError is the app's own cross-cutting failure
  * vocabulary rather than one feature's Firebase quirk, and every caller wants the same string for
- * it. The two feature mappers below stay opt-in at their call sites.
+ * it. The one feature mapper below stays opt-in at its call site.
+ *
+ * There were two. `usernameErrorMessageResId` read an ALREADY_EXISTS/INVALID_ARGUMENT code off a
+ * FirebaseFunctionsException, and AuthViewModel and ProfileViewModel each tried it before falling
+ * back. It is gone: DefaultUserRepository now raises AppError.UsernameTaken/UsernameReserved and
+ * the `when` below renders them, so those two call sites shrank to a plain getErrorMessage. The
+ * reason to prefer that shape is not tidiness -- reading a Firebase error code is data-layer
+ * knowledge, and leaving it up here would have put firebase-functions on :feature:auth's classpath
+ * for the sake of two lines. `noteErrorMessageResId` is the same shape and will go the same way
+ * when `note/` moves.
  */
 
 /**
@@ -32,22 +42,12 @@ fun appErrorMessageResId(error: AppError): Int = when (error) {
     is AppError.NotAuthenticated -> R.string.user_not_authenticated
     is AppError.NoteUnavailable -> R.string.note_unavailable
     is AppError.NoMediaAvailable -> R.string.no_media_available
+    // :core:common's R, not :app's -- `username_not_available` is also read by AuthViewModel and
+    // ProfileViewModel for their own pre-checks, and `username_reserved` by validateUsername in
+    // :core:common itself, so both sit in the module every reader can see.
+    is AppError.UsernameTaken -> CommonR.string.username_not_available
+    is AppError.UsernameReserved -> CommonR.string.username_reserved
 }
-
-/**
- * Maps a username-conflict [FirebaseFunctionsException] thrown by the
- * createUserProfile/updateUsername Cloud Functions to the matching localized
- * string resource, so callers don't leak the raw hardcoded English
- * `HttpsError` text via [ErrorHandler.getErrorMessage]. Returns null for any
- * other exception type/code, so callers should fall back to
- * [ErrorHandler.getErrorMessage] in that case.
- */
-fun usernameErrorMessageResId(throwable: Throwable): Int? =
-    when ((throwable as? FirebaseFunctionsException)?.code) {
-        FirebaseFunctionsException.Code.ALREADY_EXISTS -> R.string.username_not_available
-        FirebaseFunctionsException.Code.INVALID_ARGUMENT -> R.string.username_reserved
-        else -> null
-    }
 
 /**
  * Maps the `reason` detail of an `invalid-argument` [FirebaseFunctionsException.Code]

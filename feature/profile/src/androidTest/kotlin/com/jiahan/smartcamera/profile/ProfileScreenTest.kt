@@ -11,7 +11,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
-import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.core.common.R as CommonR
 import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeAuthRepository
@@ -21,6 +21,7 @@ import com.jiahan.smartcamera.fake.FakeNoteRepository
 import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.fake.FakeUserPreferencesRepository
 import com.jiahan.smartcamera.fake.FakeUserRepository
+import com.jiahan.smartcamera.feature.profile.R
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
@@ -112,8 +113,8 @@ class ProfileScreenTest {
 
         composeTestRule.onNodeWithText("johndoe").performTextReplacement("bad username")
 
-        waitForText(string(R.string.username_invalid_characters))
-        composeTestRule.onNodeWithText(string(R.string.username_invalid_characters))
+        waitForText(string(CommonR.string.username_invalid_characters))
+        composeTestRule.onNodeWithText(string(CommonR.string.username_invalid_characters))
             .assertIsDisplayed()
     }
 
@@ -125,8 +126,8 @@ class ProfileScreenTest {
 
         composeTestRule.onNodeWithText("John Doe").performTextReplacement("")
 
-        waitForText(string(R.string.name_empty))
-        composeTestRule.onNodeWithText(string(R.string.name_empty)).assertIsDisplayed()
+        waitForText(string(CommonR.string.name_empty))
+        composeTestRule.onNodeWithText(string(CommonR.string.name_empty)).assertIsDisplayed()
     }
 
     @Test

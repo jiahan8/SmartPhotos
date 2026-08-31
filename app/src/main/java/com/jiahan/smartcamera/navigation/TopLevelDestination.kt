@@ -14,6 +14,7 @@ import com.jiahan.smartcamera.profile.ProfileRoute
 import com.jiahan.smartcamera.search.SearchRoute
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.core.ui.R as UiR
+import com.jiahan.smartcamera.feature.profile.R as ProfileR
 
 /**
  * The bottom bar's five destinations and the UI metadata each needs, kept off the route types so
@@ -51,5 +52,5 @@ enum class TopLevelDestination(
     SEARCH(SearchRoute, UiR.string.search, Icons.Outlined.Search, scrollsToTop = true),
     NOTE(NoteRoute, R.string.note, Icons.Outlined.Create, scrollsToTop = false),
     FAVORITE(FavoriteRoute, R.string.favorite, Icons.Outlined.FavoriteBorder, scrollsToTop = true),
-    PROFILE(ProfileRoute, R.string.profile, Icons.Outlined.Person, scrollsToTop = false),
+    PROFILE(ProfileRoute, ProfileR.string.profile, Icons.Outlined.Person, scrollsToTop = false),
 }

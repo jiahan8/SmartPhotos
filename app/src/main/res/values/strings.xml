@@ -43,16 +43,8 @@
 
     <!-- Settings -->
     <string name="action_failure">Something went wrong. Please try again.</string>
-    <string name="delete_picture">Delete picture</string>
-    <string name="delete_picture_desc">Are you sure you want to delete this picture?</string>
 
     <!-- Profile -->
-    <string name="profile">Profile</string>
-    <string name="edit_picture">Edit picture</string>
-    <string name="choose_from_library">Choose from library</string>
-    <string name="take_photo">Take photo</string>
-    <string name="remove_current_picture">Remove current picture</string>
-    <string name="save_changes">Save Changes</string>
 
     <!-- Note preview -->
     <string name="note_preview">Note Preview</string>
@@ -67,41 +59,17 @@
     <string name="share_photo_failure">Couldn\'t share this photo. Please try again.</string>
     <string name="share_video_failure">Couldn\'t share this video. Please try again.</string>
 
-    <!-- Authentication -->
+    <!-- Authentication. All four are unreferenced, and were before :feature:auth was extracted;
+         the strings that screen actually uses went with it. Kept rather than deleted because
+         removing user-visible copy is a product call, not a refactor. -->
     <string name="authentication">Authentication</string>
-    <string name="email">Email</string>
-    <string name="name">Name</string>
-    <string name="username">Username</string>
-    <string name="password">Password</string>
-    <string name="login">Login</string>
-    <string name="sign_up">Sign Up</string>
-    <string name="need_account">Don\'t have an account? Sign Up</string>
-    <string name="already_have_account">Already have an account? Sign In</string>
-    <string name="forgot_password">Forgot Password?</string>
-    <string name="email_password_empty">Email and password cannot be empty</string>
-    <string name="all_fields_required">All fields are required</string>
-    <string name="password_reset_email_sent">Password reset email sent</string>
     <string name="password_reset_failure">Couldn\'t reset your password. Please try again.</string>
-    <string name="enter_email">Please enter your email first</string>
-    <string name="username_not_available">Please choose another username</string>
-    <string name="email_not_registered">Email not registered</string>
-    <string name="username_too_long">Username cannot exceed 30 characters</string>
-    <string name="name_too_long">Name cannot exceed 50 characters</string>
-    <string name="username_invalid_characters">Username can only contain letters, numbers, periods, and underscores</string>
-    <string name="verification_email_sent">Verification email sent. Please check your inbox (and spam/junk folder) and verify your email before logging in.</string>
-    <string name="email_not_verified">Please verify your email before logging in. Check your inbox (and spam/junk folder) for the verification link.</string>
-    <string name="verification_email_resent">Verification email has been resent. Please check your inbox (and spam/junk folder).</string>
-    <string name="email_verification_note">You will need to verify your email address before accessing your account. Be sure to check your spam/junk folder.</string>
-    <string name="resend_verification_email">Resend verification email</string>
     <string name="login_failure">Couldn\'t login. Please check your email and password.</string>
     <string name="sign_up_failure">Couldn\'t create your account. Please try again.</string>
+
+    <!-- General errors -->
     <string name="error_occurred">An error occurred</string>
     <string name="user_not_authenticated">You need to be signed in to do that</string>
-    <string name="name_empty">Name cannot be empty</string>
-    <string name="username_empty">Username cannot be empty</string>
-    <string name="username_reserved">This username is reserved</string>
-    <string name="info_updated_success">Info updated successfully</string>
-    <string name="info_updated_failure">Couldn\'t update your profile. Please try again.</string>
 
     <!-- Notifications -->
     <string name="default_notification_channel_id" translatable="false">general</string>
@@ -113,12 +81,10 @@
     <string name="update_ready_action">Restart</string>
 
     <!-- Content descriptions (accessibility) -->
-    <string name="cd_app_logo">Smart Photos app logo</string>
     <string name="cd_selected_photo">Selected photo</string>
     <string name="cd_remove_image">Remove image</string>
     <string name="cd_choose_photos">Choose photos</string>
     <string name="cd_take_photo">Take a photo</string>
     <string name="cd_take_video">Record a video</string>
     <string name="cd_edit_note">Edit note</string>
-    <string name="cd_open_settings">Open settings</string>
 </resources>

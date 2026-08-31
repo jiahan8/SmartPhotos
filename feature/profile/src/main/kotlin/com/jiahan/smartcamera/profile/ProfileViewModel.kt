@@ -3,13 +3,14 @@ package com.jiahan.smartcamera.profile
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.core.common.R as CommonR
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
+import com.jiahan.smartcamera.domain.AppError
 import com.jiahan.smartcamera.domain.ProfilePictureUpdate
 import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.ErrorHandler
@@ -17,7 +18,6 @@ import com.jiahan.smartcamera.util.ErrorTag
 import com.jiahan.smartcamera.util.ResourceProvider
 import com.jiahan.smartcamera.util.ValidationResult
 import com.jiahan.smartcamera.util.toMediaUri
-import com.jiahan.smartcamera.util.usernameErrorMessageResId
 import com.jiahan.smartcamera.util.validateDisplayName
 import com.jiahan.smartcamera.util.validateUsername
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -183,7 +183,7 @@ class ProfileViewModel @Inject constructor(
                 if (!available) {
                     _uiState.update {
                         it.copy(
-                            usernameErrorMessage = resourceProvider.getString(R.string.username_not_available),
+                            usernameErrorMessage = resourceProvider.getString(CommonR.string.username_not_available),
                             isErrorFree = false,
                             isLoading = false
                         )
@@ -207,8 +207,15 @@ class ProfileViewModel @Inject constructor(
                 _events.tryEmit(ProfileEvent.UpdateSuccess)
             }.onFailure { e ->
                 errorHandler.logError(e)
-                val usernameErrorMessage =
-                    usernameErrorMessageResId(e)?.let(resourceProvider::getString)
+                // A username conflict belongs inline under the username field, anything else in
+                // the general error slot. The failure's identity is what separates them now; this
+                // used to ask whether usernameErrorMessageResId returned non-null for it.
+                val usernameErrorMessage = when (e) {
+                    is AppError.UsernameTaken, is AppError.UsernameReserved ->
+                        errorHandler.getErrorMessage(e)
+
+                    else -> null
+                }
                 _uiState.update {
                     it.copy(
                         usernameErrorMessage = usernameErrorMessage,

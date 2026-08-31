@@ -27,8 +27,11 @@ dependencyResolutionManagement {
 rootProject.name = "Smart Camera"
 include(":app")
 include(":core:domain")
+include(":core:common")
 include(":core:data")
 include(":core:ui")
 include(":core:testing")
+include(":feature:auth")
 include(":feature:explore")
+include(":feature:profile")
 include(":feature:settings")

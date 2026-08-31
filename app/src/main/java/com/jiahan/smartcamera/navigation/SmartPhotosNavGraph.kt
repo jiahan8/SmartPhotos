@@ -6,6 +6,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.navDeepLink
 import com.jiahan.smartcamera.BuildConfig
+import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.auth.AuthRoute
 import com.jiahan.smartcamera.auth.AuthScreen
 import com.jiahan.smartcamera.explore.ExploreRoute
@@ -203,7 +204,11 @@ fun NavGraphBuilder.smartPhotosNavGraph(
                 navController.navigate(HomeRoute) {
                     popUpTo(0) { inclusive = true }
                 }
-            }
+            },
+            // :feature:auth is a library and has no mipmap of its own. The launcher icon is this
+            // module's resource, so it is passed down rather than duplicated -- the same hoist as
+            // SettingsScreen's `versionName` below.
+            logoRes = R.mipmap.ic_launcher
         )
     }
 

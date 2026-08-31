@@ -25,4 +25,18 @@ sealed class AppError(message: String) : Exception(message) {
 
     /** A media item to upload carried neither a photo nor a video location. */
     class NoMediaAvailable : AppError("No media URI available for upload")
+
+    /**
+     * The requested username is already held by another account.
+     *
+     * Raised by [com.jiahan.smartcamera.data.repository.UserRepository] when the
+     * createUserProfile/updateUsername Cloud Function rejects the reservation. The function
+     * signals it as an `ALREADY_EXISTS` HttpsError whose text is hardcoded English, so folding it
+     * to an identity here is what keeps that text off the screen -- and keeps the Firebase type out
+     * of the ViewModel layer, which used to inspect it through `usernameErrorMessageResId`.
+     */
+    class UsernameTaken : AppError("Username already taken")
+
+    /** The requested username is one the server refuses to reserve. */
+    class UsernameReserved : AppError("Username reserved")
 }

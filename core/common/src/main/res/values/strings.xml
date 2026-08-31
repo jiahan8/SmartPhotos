@@ -1,0 +1,15 @@
+<resources>
+    <!-- Field labels: AuthScreen and ProfileScreen both render these three -->
+    <string name="email">Email</string>
+    <string name="name">Name</string>
+    <string name="username">Username</string>
+
+    <!-- Validation results, and the two username conflicts appErrorMessageResId renders -->
+    <string name="name_empty">Name cannot be empty</string>
+    <string name="name_too_long">Name cannot exceed 50 characters</string>
+    <string name="username_empty">Username cannot be empty</string>
+    <string name="username_too_long">Username cannot exceed 30 characters</string>
+    <string name="username_invalid_characters">Username can only contain letters, numbers, periods, and underscores</string>
+    <string name="username_reserved">This username is reserved</string>
+    <string name="username_not_available">Please choose another username</string>
+</resources>

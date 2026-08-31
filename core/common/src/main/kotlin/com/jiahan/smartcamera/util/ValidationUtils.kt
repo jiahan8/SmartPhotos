@@ -1,14 +1,22 @@
 package com.jiahan.smartcamera.util
 
-import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.core.common.R
 import com.jiahan.smartcamera.util.AppConstants.MAX_DISPLAY_NAME_LENGTH
 import com.jiahan.smartcamera.util.AppConstants.MAX_USERNAME_LENGTH
 
 /*
- * The two validators `auth/` and `profile/` share. They resolve :app string resources, so they stay
- * here until both of those packages become modules; `validateNewPassword` left with
- * `:feature:settings`, which was its only caller. [ValidationResult] itself went down to
- * :core:domain, where every caller can reach it.
+ * The two validators `auth/` and `profile/` share.
+ *
+ * They used to sit in :app, waiting for both of those packages to become modules -- the comment
+ * here said so. Extracting `:feature:auth` made that wait unnecessary rather than over: a shared
+ * function goes *down* to where both callers can see it, exactly as `cd_back` and `PasswordField`
+ * did, and it does not have to wait for the second caller to move. `validateNewPassword` left with
+ * `:feature:settings` instead, because that module was its only caller; [ValidationResult] went to
+ * :core:domain, where all three can reach it.
+ *
+ * The `R` below is this module's own. With android.nonTransitiveRClass=true it holds only the ten
+ * strings :core:common declares, and it needs importing even here, because the Kotlin package of
+ * this file is com.jiahan.smartcamera.util while the namespace is com.jiahan.smartcamera.core.common.
  */
 
 // Mirrors the RESERVED_USERNAMES set in functions/index.js so the UI can

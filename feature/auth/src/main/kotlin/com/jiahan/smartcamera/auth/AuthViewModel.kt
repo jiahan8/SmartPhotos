@@ -2,15 +2,15 @@ package com.jiahan.smartcamera.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.core.common.R as CommonR
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
+import com.jiahan.smartcamera.feature.auth.R
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ResourceProvider
 import com.jiahan.smartcamera.util.ValidationResult
-import com.jiahan.smartcamera.util.usernameErrorMessageResId
 import com.jiahan.smartcamera.util.validateDisplayName
 import com.jiahan.smartcamera.util.validateUsername
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -230,7 +230,7 @@ class AuthViewModel @Inject constructor(
                     if (!available) {
                         _uiState.update {
                             it.copy(
-                                status = AuthStatus.Error(resourceProvider.getString(R.string.username_not_available)),
+                                status = AuthStatus.Error(resourceProvider.getString(CommonR.string.username_not_available)),
                                 showResendButton = false
                             )
                         }
@@ -252,11 +252,14 @@ class AuthViewModel @Inject constructor(
                         }
                     }.onFailure { e ->
                         errorHandler.logError(e)
-                        val message = usernameErrorMessageResId(e)?.let(resourceProvider::getString)
-                            ?: errorHandler.getErrorMessage(e)
+                        // A username conflict arrives as AppError.UsernameTaken/UsernameReserved,
+                        // which getErrorMessage already resolves -- this used to try
+                        // usernameErrorMessageResId first and fall back.
                         _uiState.update {
                             it.copy(
-                                status = AuthStatus.Error(message = message),
+                                status = AuthStatus.Error(
+                                    message = errorHandler.getErrorMessage(e)
+                                ),
                                 showResendButton = false
                             )
                         }

@@ -60,12 +60,13 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.BottomSheetActionItem
 import com.jiahan.smartcamera.common.ProfileAvatar
 import com.jiahan.smartcamera.common.bounceScale
 import com.jiahan.smartcamera.common.showAppSnackbar
+import com.jiahan.smartcamera.core.common.R as CommonR
 import com.jiahan.smartcamera.core.ui.R as UiR
+import com.jiahan.smartcamera.feature.profile.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -275,7 +276,7 @@ fun ProfileScreen(
                         OutlinedTextField(
                             value = email,
                             onValueChange = {},
-                            label = { Text(stringResource(R.string.email)) },
+                            label = { Text(stringResource(CommonR.string.email)) },
                             enabled = false,
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.large,
@@ -290,7 +291,7 @@ fun ProfileScreen(
                         OutlinedTextField(
                             value = displayName,
                             onValueChange = { viewModel.updateDisplayNameText(it) },
-                            label = { Text(stringResource(R.string.name)) },
+                            label = { Text(stringResource(CommonR.string.name)) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.large,
                             singleLine = true,
@@ -321,7 +322,7 @@ fun ProfileScreen(
                         OutlinedTextField(
                             value = username,
                             onValueChange = { viewModel.updateUsernameText(it) },
-                            label = { Text(stringResource(R.string.username)) },
+                            label = { Text(stringResource(CommonR.string.username)) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.large,
                             singleLine = true,

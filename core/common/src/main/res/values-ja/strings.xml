@@ -1,0 +1,15 @@
+<resources>
+    <!-- Field labels: AuthScreen and ProfileScreen both render these three -->
+    <string name="email">メールアドレス</string>
+    <string name="name">名前</string>
+    <string name="username">ユーザー名</string>
+
+    <!-- Validation results, and the two username conflicts appErrorMessageResId renders -->
+    <string name="name_empty">名前を入力してください</string>
+    <string name="name_too_long">名前は50文字以内で入力してください</string>
+    <string name="username_empty">ユーザー名を入力してください</string>
+    <string name="username_too_long">ユーザー名は30文字以内で入力してください</string>
+    <string name="username_invalid_characters">ユーザー名には英数字、ピリオド、アンダースコアのみ使用できます</string>
+    <string name="username_reserved">このユーザー名は予約されています</string>
+    <string name="username_not_available">別のユーザー名を選択してください</string>
+</resources>

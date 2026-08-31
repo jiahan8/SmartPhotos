@@ -76,13 +76,30 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-report
+          # One entry per module with unit tests, because the globs are literal paths -- the
+          # same hand-maintained list as the reports below. It had drifted: :core:ui,
+          # :feature:explore and :feature:settings all had suites that reported nothing here, so a
+          # failure in one came back as a red X with no report to open. Filled in when
+          # :core:common and :feature:auth were added, and extended again for :feature:profile.
           path: |
             app/build/reports/tests/testDebugUnitTest/
             app/build/test-results/testDebugUnitTest/
+            core/common/build/reports/tests/testDebugUnitTest/
+            core/common/build/test-results/testDebugUnitTest/
             core/data/build/reports/tests/testDebugUnitTest/
             core/data/build/test-results/testDebugUnitTest/
             core/domain/build/reports/tests/test/
             core/domain/build/test-results/test/
+            core/ui/build/reports/tests/testDebugUnitTest/
+            core/ui/build/test-results/testDebugUnitTest/
+            feature/auth/build/reports/tests/testDebugUnitTest/
+            feature/auth/build/test-results/testDebugUnitTest/
+            feature/explore/build/reports/tests/testDebugUnitTest/
+            feature/explore/build/test-results/testDebugUnitTest/
+            feature/profile/build/reports/tests/testDebugUnitTest/
+            feature/profile/build/test-results/testDebugUnitTest/
+            feature/settings/build/reports/tests/testDebugUnitTest/
+            feature/settings/build/test-results/testDebugUnitTest/
           if-no-files-found: ignore
 
       # Split from the unit tests so a red X says which kind of thing broke: logic or pixels.
@@ -122,10 +139,13 @@ jobs:
             core/ui/build/outputs/roborazzi/
             feature/settings/build/outputs/roborazzi/
             app/build/reports/lint-results-debug.html
+            core/common/build/reports/lint-results-debug.html
             core/data/build/reports/lint-results-debug.html
             core/ui/build/reports/lint-results-debug.html
             core/testing/build/reports/lint-results-debug.html
+            feature/auth/build/reports/lint-results-debug.html
             feature/explore/build/reports/lint-results-debug.html
+            feature/profile/build/reports/lint-results-debug.html
             feature/settings/build/reports/lint-results-debug.html
           if-no-files-found: ignore
 

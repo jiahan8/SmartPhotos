@@ -75,6 +75,12 @@ dependencies {
     // signatures, so :app compiles against them through this dependency as well as its own.
     api(project(":core:domain"))
 
+    // Same reason, one module along: `MediaFileRepository` is the interface
+    // DefaultMediaFileRepository implements and a constructor parameter of DefaultNoteRepository,
+    // and `toPlatformUri()` is called in three files here. Both came down to :core:common when
+    // :feature:profile was extracted, because a feature module must not depend on this one.
+    api(project(":core:common"))
+
     implementation(libs.androidx.core.ktx)
     // ActivityResultLauncher / IntentSenderRequest, for the in-app update flow.
     implementation(libs.androidx.activity)

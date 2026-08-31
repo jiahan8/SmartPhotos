@@ -3,7 +3,7 @@
 Android app (Kotlin) for organizing photos/notes with ML-based tagging.
 Firebase backend + a Node.js Cloud Functions project live in `functions/`.
 
-Seven Gradle modules, plus an included build for the shared Gradle config:
+Ten Gradle modules, plus an included build for the shared Gradle config:
 
 - `:app` — UI, ViewModels, navigation, and the Android plumbing that is genuinely app-level:
   `MyApp`, the messaging service, `DefaultErrorHandler`/`ResourceProviderImpl`, `FirebaseModule`
@@ -11,6 +11,18 @@ Seven Gradle modules, plus an included build for the shared Gradle config:
 - `:core:domain` — a pure Kotlin JVM module (no Android Gradle plugin, no Hilt plugin) holding the
   domain models, the repository *interfaces*, `safeCall`, the `ErrorHandler` interface and the DI
   qualifiers. Sources under `core/domain/src/main/kotlin/com/jiahan/smartcamera/`.
+- `:core:common` — an Android library holding the shared vocabulary that is Android-bound but not
+  Compose: `validateUsername`/`validateDisplayName` and the ten username/name/email strings, plus
+  the `MediaFileRepository` contract and `util/MediaUriExt.kt`. It exists because `:feature:auth`
+  needed those validators and neither neighbour could take them — `:core:domain` has no Android
+  plugin, so it cannot hold string resources; `:core:ui` is the Compose vocabulary, and a validator
+  is not a composable. `:feature:profile` then added the other two, and they give the module its
+  clearest rule: **an Android-typed contract belongs here, its implementation stays in
+  `:core:data`.** `MediaFileRepository`'s signatures carry `Uri`/`Bitmap`, so `:core:domain` cannot
+  hold it, and it sat beside `DefaultMediaFileRepository` until a feature needed to inject it.
+  Deliberately **not** Compose: the compose convention is not applied, so anything Compose-shaped
+  that lands here fails to compile rather than quietly making it a second `:core:ui`. Sources under
+  `core/common/src/main/kotlin/com/jiahan/smartcamera/`.
 - `:core:data` — an Android library holding every implementation that satisfies one of those
   contracts: the `Default*`/`Firebase*` repositories, the Room database, the DataStore wiring and
   `DataModule`. Sources under `core/data/src/main/kotlin/com/jiahan/smartcamera/`.
@@ -25,16 +37,34 @@ Seven Gradle modules, plus an included build for the shared Gradle config:
   even `:core:data`, since the repositories it injects are interfaces and Hilt binds them up in
   `:app`. Sources under `feature/explore/src/main/kotlin/com/jiahan/smartcamera/`.
 - `:feature:settings` — the second feature module: the Settings screen, its ViewModel, its route and
-  `validateNewPassword`. Same dependency shape as `:feature:explore`, and chosen for a property that
-  is worth recording, because it is the one that decides which package moves next. Three feature
-  packages import nothing from `note/` — `auth`, `profile`, `settings` — and of those, settings is
-  the only one with no upward reference outside `navigation/`. `auth` is the start destination, so
-  `MainViewModel`, `SmartPhotosApp` and `NavTransitions` all name it; `profile` is a bottom-bar
-  destination named by `TopLevelDestination`, and `ProfileViewModel` calls `toMediaUri()`, which
-  lives in `:core:data` and would have pulled that edge into a feature module. Sources under
-  `feature/settings/src/main/kotlin/com/jiahan/smartcamera/`. The remaining four features —
-  `home`, `search`, `favorite`, `preview` — all share `note/`'s delegates; see
-  [Cross-feature communication](#cross-feature-communication) for what that blocks.
+  `validateNewPassword`. Same dependency shape as `:feature:explore`, and chosen at the time for a
+  property that turned out to be the wrong criterion — see `:feature:auth` below. Three feature
+  packages import nothing from `note/` — `auth`, `profile`, `settings` — and of those, settings was
+  the only one with no reference *to* it outside `navigation/`, which read like the safest first
+  cut. Sources under `feature/settings/src/main/kotlin/com/jiahan/smartcamera/`. The remaining four
+  features — `home`, `search`, `favorite`, `preview` — all share `note/`'s delegates; see
+  [Cross-feature communication](#cross-feature-communication) for what that blocks — they are now
+  the only four left.
+- `:feature:auth` — the third feature module: the Auth screen, its ViewModel, its route and its
+  `sharedTest` Compose suite. It corrects something the settings entry above implies. Settings was
+  picked for having no upward reference outside `navigation/`, and auth *does* have some —
+  `MainViewModel`, `SmartPhotosApp` and `NavTransitions` all name `AuthRoute` — but every one of
+  those is in `:app`, pointing *down*, which is the direction the dependency already runs. What
+  decides whether a feature can move is what it reaches **up** for, and auth's list was three
+  items: the shared validators (went down to `:core:common`), `usernameErrorMessageResId` (deleted,
+  not moved — see [Error handling](#error-handling)) and `R.mipmap.ic_launcher`, which became a
+  `logoRes` parameter for the same reason `versionName` did. Sources under
+  `feature/auth/src/main/kotlin/com/jiahan/smartcamera/`.
+- `:feature:profile` — the fourth: the Profile screen, its ViewModel and its route. It is the one
+  the settings entry above named as blocked, and the block turned out to be two files rather than
+  an architectural problem — `ProfileViewModel` injects `MediaFileRepository` and calls
+  `toMediaUri()`, both of which came *down* to `:core:common` as a pure `git mv`, leaving
+  `DefaultMediaFileRepository` in `:core:data`. **Read a `:core:data` injection as a two-file move
+  until proven otherwise, not as a reason a feature cannot be extracted.** Its one interesting
+  resource is `profile` itself, which the screen title and `TopLevelDestination`'s bottom-bar label
+  both render: same word, same destination, so the string travelled here and `:app` reads it back
+  as `ProfileR.string.profile` — see the `R`-alias notes under [Conventions](#conventions). Sources
+  under `feature/profile/src/main/kotlin/com/jiahan/smartcamera/`.
 - `:core:testing` — an Android library holding the fixtures more than one module needs: the nine
   `fake/` repository doubles, `MainDispatcherRule` and `BaseScreenshotTest`. Consumers take it with
   `testImplementation` (and `androidTestImplementation` in `:app`, whose `sharedTest/` runs in
@@ -44,33 +74,38 @@ Seven Gradle modules, plus an included build for the shared Gradle config:
   `NO-SOURCE` against a `.kt` file; verified on Kotlin 2.4.10 / AGP 9.3.1). Its dependencies are
   `api` throughout, which inverts the usual advice for a good reason: a fixtures module's entire API
   surface is *other* modules' types — `FakeNoteRepository` **is** a `NoteRepository`, and a test
-  assigning one to a ViewModel parameter has to resolve that interface.
+  assigning one to a ViewModel parameter has to resolve that interface. `:feature:auth` takes it
+  in both test source sets for the same reason `:app` does — its `sharedTest/` runs in both.
 - `build-logic/` — not a module but an included build, holding the five convention plugins
   (`smartphotos.android.application`, `.android.library`, `.android.compose`, `.android.feature`,
   `.jvm.library`) that carry `compileSdk`/`minSdk`, the Java 11 pair, the Kotlin JVM target, the
   unit-test JVM pin and the whole shared dependency set of a feature module.
   See [Convention plugins](#convention-plugins).
 
-Kotlin package names are deliberately identical across all seven: `com.jiahan.smartcamera.util`,
+Kotlin package names are deliberately identical across all ten: `com.jiahan.smartcamera.util`,
 `.di`, `.common`, `.data.repository` and `.data.datastore` each exist in more than one module,
 which is what made the first two extractions a pure `git mv` with no import churn. A bare path like
 `util/ErrorHandler.kt` below is therefore disambiguated by the module it is attributed to, not by
 its package — `util/ErrorHandler.kt` is `:core:domain`, `util/DefaultErrorHandler.kt` is `:app`,
-`util/MediaUriExt.kt` is `:core:data` and `util/DateTimeUtils.kt` is `:core:ui`. The two
-feature modules follow the same rule: their Kotlin packages stayed `com.jiahan.smartcamera.explore`
-and `com.jiahan.smartcamera.settings` when they moved, so `SmartPhotosNavGraph`'s imports of them did
-not change at all — but their *namespaces* are `com.jiahan.smartcamera.feature.explore` and
-`.feature.settings`, so each `R` is reached as `import com.jiahan.smartcamera.feature.<name>.R`, and
-a file inside the module needs that import too (its own `R` is not in its own Kotlin package).
+`util/DateTimeUtils.kt` is `:core:ui`, and `util/ValidationUtils.kt` and `util/MediaUriExt.kt` are
+`:core:common`. The four feature modules follow the same rule: their Kotlin packages stayed
+`com.jiahan.smartcamera.explore`, `.settings`, `.auth` and `.profile` when they moved, so
+`SmartPhotosNavGraph`'s imports of them did not change at all — but their *namespaces* are
+`com.jiahan.smartcamera.feature.explore`, `.feature.settings`, `.feature.auth` and
+`.feature.profile`, so each `R` is reached as `import com.jiahan.smartcamera.feature.<name>.R`, and a file inside the module needs that
+import too (its own `R` is not in its own Kotlin package). `:core:common` is the same shape:
+`ValidationUtils.kt` is in `com.jiahan.smartcamera.util` and imports
+`com.jiahan.smartcamera.core.common.R`.
 
 The dependency arrows run one way: `:app` → `:core:data` → `:core:domain`, `:app` →
-`:core:ui` → `:core:domain`, and `:app` → each `:feature:*` → both `:core` libraries.
-`:core:testing` hangs off the test classpaths of `:app`, `:core:ui` and both feature modules, and
-depends on `:core:data` and `:core:domain`. No feature module depends on another, and none reaches
-`:core:data` — `./gradlew :feature:settings:dependencies --configuration debugCompileClasspath`
-lists exactly `:core:domain` and `:core:ui`, which is the check to run after touching a feature's
-dependencies. Nothing depends on `:app`, so a repository implementation can no
-longer reach a ViewModel, an `R` string or `BuildConfig` even by accident. `:core:ui` and
+`:core:ui` → `:core:domain`, `:app` → `:core:data` → `:core:common` → `:core:domain`, and `:app` →
+each `:feature:*` → the `:core` libraries it needs. `:core:testing` hangs off the test classpaths of
+`:app`, `:core:ui` and the four feature modules, and depends on `:core:common`, `:core:data` and
+`:core:domain`. No feature module depends on another, and none reaches `:core:data` — `./gradlew
+:feature:profile:dependencies --configuration debugCompileClasspath` lists exactly `:core:domain`,
+`:core:ui` and `:core:common`, which is the check to run after touching a feature's
+dependencies. Nothing depends on `:app`, so a repository implementation can no longer reach a
+ViewModel, an `R` string or `BuildConfig` even by accident. `:core:ui` and
 `:core:data` are **siblings** — neither depends on the other, and `:core:ui` reaches no
 repository, Room or DataStore. They are the build's first pair with anything to overlap, which is
 why `org.gradle.parallel` is finally on.
@@ -84,9 +119,11 @@ Run from the repo root (Gradle wrapper):
   - Both tasks, because they are different tasks. `testDebugUnitTest` is an Android *variant* task
     and `:core:domain` is a plain Kotlin JVM module, so its tests run under `test` and a bare
     `testDebugUnitTest` skips them without failing. CI names both for the same reason.
-    `:core:data` and `:core:ui` need no such mention — both are Android libraries, so the
+    Every other module needs no such mention — they are all Android libraries, so the
     unqualified `testDebugUnitTest` already reaches them, as do `lintDebug` and
-    `connectedDebugAndroidTest`.
+    `connectedDebugAndroidTest`. Nine modules run unit tests today: `:app` 199, `:feature:auth` 46,
+    `:feature:explore` 34, `:feature:settings` 30, `:feature:profile` 26, `:core:common` 21,
+    `:core:ui` 17, `:core:data` 15, `:core:domain` 8 — 396 in total.
   - Single class: `./gradlew testDebugUnitTest --tests "com.jiahan.smartcamera.home.HomeViewModelTest"`
   - Single method: `./gradlew testDebugUnitTest --tests "com.jiahan.smartcamera.home.HomeViewModelTest.methodName"`
   - Assert on a settled `StateFlow` by reading `.value`; that is what most of the suite does, and
@@ -95,7 +132,7 @@ Run from the repo root (Gradle wrapper):
     intermediate states, ordering — or for a `SharedFlow` event, which has no `.value` to read at
     all. Never hand-roll a collector into a list; that is what Turbine replaces.
   - ViewModel tests replace `Dispatchers.Main` with the `MainDispatcherRule` in
-    `app/src/test/java/com/jiahan/smartcamera/MainDispatcherRule.kt`
+    `core/testing/src/main/kotlin/com/jiahan/smartcamera/MainDispatcherRule.kt`
     (`@get:Rule val mainDispatcherRule = MainDispatcherRule()`), since `viewModelScope` dispatches
     to Main. It defaults to `UnconfinedTestDispatcher` so coroutines run eagerly; pass
     `StandardTestDispatcher` when a test needs virtual-time control, such as a debounce.
@@ -128,10 +165,27 @@ Run from the repo root (Gradle wrapper):
   graph furthest — so a missing binding or an unresolvable constructor parameter shows up there
   first. Run it after any change to a module's dependencies or to an `@Inject` constructor, and
   especially when you can't run the instrumented suite for lack of a device.
-- Instrumented tests (`app/src/androidTest` and `core/data/src/androidTest`) require a
-  device/emulator and run via `./gradlew connectedDebugAndroidTest`. They use a custom `HiltTestRunner` (installs
-  `HiltTestApplication`), the AndroidX Test Orchestrator, and `clearPackageData=true` for hermetic,
-  isolated runs — don't remove these from `app/build.gradle.kts` without understanding why.
+- Instrumented tests live in five modules now — `app/`, `core/data/`, `feature/auth/`,
+  `feature/profile/` and `feature/settings/` — require a device/emulator, and run via
+  `./gradlew connectedDebugAndroidTest`.
+  `:app` uses a custom `HiltTestRunner` (installs `HiltTestApplication`), the AndroidX Test
+  Orchestrator, and `clearPackageData=true` for hermetic, isolated runs — don't remove these from
+  `app/build.gradle.kts` without understanding why. The three library modules declare no
+  `testInstrumentationRunner` of their own: their suites build a ViewModel from `:core:testing`'s
+  fakes and inject nothing, so the default `AndroidJUnitRunner` is enough.
+  - **`sharedTest/` is the arrangement to copy, and it is not `:app`-only.** A Compose behaviour
+    suite placed there is compiled into *both* the unit-test and androidTest source sets, so it
+    runs on the JVM under Robolectric for fast CI and on-device under the instrumentation runner,
+    written once. `:app` has `HomeScreenTest` and `:feature:auth` has `AuthScreenTest`, each wired
+    with two `sourceSets` lines plus `unitTests.isIncludeAndroidResources = true`.
+    `SettingsScreenTest` is androidTest-only by comparison, which is the weaker of the two — prefer
+    `sharedTest/` for a new screen test. **But check an existing test's own note before promoting
+    it**: `ProfileScreenTest` says it is device-only because the bottom-anchored save button and
+    the inline validation text depend on real viewport and scroll behaviour, and moving it to
+    `sharedTest` during the `:feature:profile` extraction confirmed that exactly — three of its
+    five tests passed under Robolectric and two failed, one on the error text never being displayed
+    and one on a 5s timeout waiting for the save. "androidTest-only" is sometimes a finding rather
+    than an omission.
   - The same suite also runs on Firebase Test Lab's device farm via `./scripts/run-test-lab.sh`
     (requires the `gcloud` CLI, auth, and the Blaze plan — see the script's header comment).
 - Distribute a debug build to testers via Firebase App Distribution: `firebase login` once, then
@@ -161,7 +215,11 @@ Each run uploads two artifacts: `unit-test-report` (the full suite) and
 Its `path:` list is literal per-module paths, not a glob, so **a new module that captures
 screenshots or produces a lint report has to be added to it by hand.** `:core:ui` was missing from
 that list for a release after `NoteItemScreenshotTest` moved there, which would have made a golden
-failure in it report with no images at all.
+failure in it report with no images at all. The **`unit-test-report`** list is the same kind of
+hand-maintained list and had drifted further: `:core:ui`, `:feature:explore` and `:feature:settings`
+all had suites reporting nothing, so a failure in one came back as a red X with no report to open.
+Filled in when `:core:common` and `:feature:auth` were added — check both lists, not just the
+screenshot one.
 
 Two things to know about the goldens:
 
@@ -199,9 +257,9 @@ the same settings:
 | Plugin | Applied by | Applies | Sets |
 | --- | --- | --- | --- |
 | `smartphotos.android.application` | `:app` | AGP application, Kotlin Android | compileSdk 37, minSdk 28, Java 11, JVM target 11, test-JVM pin |
-| `smartphotos.android.library` | `:core:data`, `:core:ui`, `:core:testing` | AGP library, Kotlin Android | the same, minus nothing |
+| `smartphotos.android.library` | `:core:common`, `:core:data`, `:core:ui`, `:core:testing` | AGP library, Kotlin Android | the same, minus nothing |
 | `smartphotos.android.compose` | `:app`, `:core:ui`, `:core:testing` | Compose compiler | `buildFeatures.compose = true` |
-| `smartphotos.android.feature` | `:feature:explore`, `:feature:settings` | the library + compose conventions, KSP, Hilt | the `:core:domain`/`:core:ui` edges, the Compose set, icons, Hilt, lifecycle, `:core:testing` |
+| `smartphotos.android.feature` | `:feature:auth`, `:feature:explore`, `:feature:profile`, `:feature:settings` | the library + compose conventions, KSP, Hilt | the `:core:domain`/`:core:ui` edges, the Compose set, icons, Hilt, lifecycle, `:core:testing` |
 | `smartphotos.jvm.library` | `:core:domain` | Kotlin JVM — **nothing Android** | Java 11, JVM target 11, test-JVM pin |
 
 `smartphotos.android.feature` is the only one that adds *dependencies* rather than just settings,
@@ -247,9 +305,10 @@ Five rules worth knowing before editing them:
 
 ## Architecture
 
-MVVM with a layered structure, one Kotlin package per feature. Six are still under
-`app/src/main/java/com/jiahan/smartcamera/` (`home`, `note`, `favorite`, `search`, `profile`,
-`auth`, plus `preview`); `explore` and `settings` are their own modules. For the ones still in
+MVVM with a layered structure, one Kotlin package per feature. Five are still under
+`app/src/main/java/com/jiahan/smartcamera/` (`home`, `note`, `favorite`, `search`, plus `preview`),
+and every one of them is held there by `note/`'s delegates rather than by anything of its own;
+`explore`, `settings`, `auth` and `profile` are their own modules. For the ones still in
 `:app`, the module boundaries run underneath them — between the contracts in `:core:domain` and the
 implementations that satisfy them, and between the feature screens and the shared Compose they all
 draw with in `:core:ui`.
@@ -266,10 +325,14 @@ Cross-cutting layers:
   repository (e.g. `NoteRepository` / `DefaultNoteRepository`), all bound in
   `data/di/DataModule.kt`. Coordinates Firebase Firestore/Storage (remote) and Room/DataStore
   (local). The two halves now live in different modules: the interfaces are in `:core:domain`, the
-  `Default*` implementations and `DataModule` in `:core:data`. Two interfaces stay with the
-  implementations — `AppUpdateRepository` takes `ActivityResultLauncher`/`IntentSenderRequest` and
-  `MediaFileRepository` takes `Bitmap`/`Uri`, so neither compiles in a module without Android; both
-  therefore live in `:core:data` beside their `Default*`, not in `:core:domain` with the rest.
+  `Default*` implementations and `DataModule` in `:core:data`. Two interfaces cannot live in
+  `:core:domain` at all — `AppUpdateRepository` takes `ActivityResultLauncher`/`IntentSenderRequest`
+  and `MediaFileRepository` takes `Bitmap`/`Uri`, so neither compiles in a module without Android.
+  They are handled differently, and the difference is the rule: `MediaFileRepository` moved to
+  `:core:common` when `:feature:profile` needed to inject it, because **a feature module must not
+  depend on `:core:data`**; `AppUpdateRepository` stays in `:core:data` beside its `Default*`
+  because only `:app`'s `MainViewModel` injects it. Move the next one when, and not before, a
+  feature needs it.
 - **Domain** (`domain/`, in `:core:domain`) — plain data classes shared across features (e.g.
   `HomeNote`, `MediaDetail`, `User`). Their purity is no longer a convention to uphold by review:
   the module has no Android plugin, so a stray `import android.*` fails the build.
@@ -308,7 +371,8 @@ Each layer above has one job and talks to its neighbors through an interface, no
 - Domain models are plain data with no Android/Firebase/Room dependencies, so they can be shared
   and unit-tested without those frameworks on the classpath. A local media location crosses this
   boundary as `domain/MediaUri.kt`, never as `android.net.Uri` — convert with `toMediaUri()` /
-  `toPlatformUri()` from `util/MediaUriExt.kt`, at the ViewModel boundary on the way down or inside
+  `toPlatformUri()` from `util/MediaUriExt.kt` in `:core:common`, at the ViewModel boundary on the
+  way down or inside
   a `Default*` implementation on the way out. It mirrors how `MediaDetail` already carries remote
   locations as plain `String` URLs.
 
@@ -373,9 +437,10 @@ back it with the query instead.
 
 **This is also what caps the modularization.** `NoteHandler`, `NoteActionsDelegate` and
 `NoteShareDelegate` are imported by `home`, `search`, `favorite` and `preview` — the four feature
-packages left in `:app`, and between them the bulk of the remaining feature code. `auth` and
-`profile` can still be extracted the way `settings` was, but that harvests the easy half and leaves
-the four untouched. Keep going past them and there are only two shapes available, both bad:
+packages left in `:app`, and they are now the *only* four left — `auth` and `profile` have both
+been extracted the way `settings` was, and with them the easy half is done. What remains is 3,643
+lines behind a single shared dependency, so from here the handler is not one obstacle among several;
+it is the obstacle. Keep going past them and there are only two shapes available, both bad:
 
 - a `:feature:note` that the other four depend on — a feature-to-feature edge, which is the one
   thing NiA's feature-module rule forbids; or
@@ -417,9 +482,22 @@ directly. Its two methods belong to different layers, and that split is the rule
   `*UiState` error field. Every current call site is a ViewModel or a `@ViewModelScoped` helper
   (`note/NoteErrorReporter.kt`) — keep it that way.
 
-The feature-specific mappers in `util/ErrorMessageMappers.kt` (`usernameErrorMessageResId`,
-`noteErrorMessageResId`) sit at that same ViewModel layer, tried ahead of `getErrorMessage` and
-falling back to it when they return null.
+The feature-specific mapper in `util/ErrorMessageMappers.kt` (`noteErrorMessageResId`) sits at
+that same ViewModel layer, tried ahead of `getErrorMessage` and falling back to it when it returns
+null.
+
+There were two. `usernameErrorMessageResId` read an `ALREADY_EXISTS`/`INVALID_ARGUMENT` code off a
+`FirebaseFunctionsException` and was tried by `AuthViewModel` and `ProfileViewModel`;
+`DefaultUserRepository` now raises `AppError.UsernameTaken`/`UsernameReserved` instead and
+`getErrorMessage` renders them, so both call sites shrank to a plain `getErrorMessage`. **The
+reason to prefer that shape is not tidiness — reading a Firebase error code is data-layer
+knowledge, and leaving it up here would have put `firebase-functions` on `:feature:auth`'s
+classpath for the sake of two lines.** `noteErrorMessageResId` is the same shape and should go the
+same way when `note/` moves; it is left as the worked example of the pattern being replaced. Where
+the two genuinely differ is what they read: the username one switched on the error *code*, which
+folds cleanly, while the note one reads a structured `details` payload because all of createNote's
+validation errors share one code — so its fold needs a `reason` per `AppError` case, not a code
+per case.
 
 The three pieces live in three files, by layer rather than by topic: `util/ErrorHandler.kt` holds
 the interface and `ErrorTag` and imports nothing; `util/DefaultErrorHandler.kt` holds the
@@ -432,12 +510,18 @@ exactly the division the KMP note below predicted.
 Resolving a string resource is presentation, so a repository building one —
 `IllegalStateException(context.getString(...))` — puts ViewModel-layer work in the data layer and
 forces an Android `Context` into a class that otherwise needs none. `AppError` is a sealed type carrying an
-identity (`NotAuthenticated`, `NoteUnavailable`, `NoMediaAvailable`); `appErrorMessageResId` maps
-each to its string. That mapper is the one applied *inside* `getErrorMessage` rather than at the
+identity (`NotAuthenticated`, `NoteUnavailable`, `NoMediaAvailable`, `UsernameTaken`,
+`UsernameReserved`); `appErrorMessageResId` maps each to its string. That mapper is the one applied *inside* `getErrorMessage` rather than at the
 call site, because an `AppError` is the app's own cross-cutting vocabulary and every caller wants
 the same string for it — so a ViewModel already routing failures through `ErrorHandler` renders it
 with no extra code. Add a case to the sealed type and to the mapper together; don't reach for
 `Context` in a repository to build the message instead.
+
+The last two cases show the second thing this buys, beyond keeping `Context` out of the data layer:
+`UsernameTaken`/`UsernameReserved` replaced a ViewModel-layer mapper that inspected a
+`FirebaseFunctionsException`, and that is what let `:feature:auth` be extracted without
+`firebase-functions` on its classpath. **A Firebase type read above the repository boundary is a
+module boundary waiting to be violated** — fold it into an `AppError` before it is, not after.
 
 This split is also what makes the [KMP readiness](#kotlin-multiplatform-readiness) rule satisfiable
 rather than self-contradictory. The `ErrorHandler` *interface* is Android-free in its signatures
@@ -463,10 +547,17 @@ between otherwise-equivalent approaches, prefer the one that keeps that migratio
   never progress on its own, because KMP moves Gradle *modules*, not Kotlin packages; and a module
   that compiles without the Android plugin is real progress but still not a `commonMain` source set.
   `:core:ui` reads the same way as `:core:data`: it is an Android library full of Jetpack Compose,
-  so extracting it bought modularization, not shareability. So do `:feature:explore` and
-  `:feature:settings` — feature modules are Compose end to end and are the *least* shareable code in
-  the build. Extracting more of them is worth doing for the boundaries it enforces, but it moves the
-  KMP needle by exactly zero, and the two should not be reported as one number. (Compose Multiplatform would change
+  so extracting it bought modularization, not shareability. So do `:feature:explore`,
+  `:feature:settings`, `:feature:auth` and `:feature:profile` — feature modules are Compose end to
+  end and are the
+  *least* shareable code in the build. Extracting more of them is worth doing for the boundaries it
+  enforces, but it moves the KMP needle by exactly zero, and the two should not be reported as one
+  number. `:core:common` is the sharpest example yet, and it cuts the other way from what its name
+  suggests: it holds two pure functions whose only Android dependency is that they return string
+  resource ids. Nothing about `validateUsername` needs Android — but a resource id does, so the
+  module needs the Android plugin and the functions stay unshareable. **If `:core:domain` goes
+  multiplatform, that is the seam to revisit**: validators returning an identity (the `AppError`
+  shape) rather than a resource id would move to `commonMain` and leave only the mapping behind. (Compose Multiplatform would change
   that calculus, but nothing here targets it, and `android.content.ClipData`, `android.os.Build`
   and the `R` class in `common/` would all have to go first.)
 
@@ -505,7 +596,9 @@ between otherwise-equivalent approaches, prefer the one that keeps that migratio
   a KMP asset, just a testable seam. One interface is deliberately exempt:
   `MediaFileRepository` exists precisely to wrap `ContentResolver`/`FileProvider` work behind a
   seam, so it keeps its `Uri`/`Bitmap` parameters and is not a KMP candidate. Don't wrap those
-  parameters to satisfy the rule, and don't cite it as precedent for a new contract.
+  parameters to satisfy the rule, and don't cite it as precedent for a new contract. It lives in
+  `:core:common` rather than `:core:domain` for exactly that reason, which makes the module split
+  the visible record of which contracts are shareable and which are not.
 - The module *names* deviate from Google's, deliberately. The
   [modularization patterns](https://developer.android.com/topic/modularization/patterns) guide keeps
   a repository, its data sources and its models together in a single data module; Now in Android
@@ -615,10 +708,14 @@ strings, no `navArgument` lists, no manual URL escaping of arguments.
   what lets a feature's ViewModel read its own arguments back with `toRoute<…>()` without importing
   upward — `EditNoteViewModel` and the three in `preview/` were the last four to do so. They were
   the last upward imports *into `navigation/`*, not the last upward imports full stop: every feature
-  package still in `:app` reaches `:app` for its `R`, and `auth` and `profile` also for
-  `util/ValidationUtils.kt` and `util/ErrorMessageMappers.kt`. Those are what the next feature module
-  hits. (`util/ResourceProvider.kt` was on that list until `:core:testing` moved it to
-  `:core:domain`, and `ValidationResult` until `:feature:settings` moved it there.)
+  package still in `:app` reaches `:app` for its `R`. Those are what the next feature module hits.
+  (`util/ResourceProvider.kt` was on that list until `:core:testing` moved it to `:core:domain`,
+  `ValidationResult` until `:feature:settings` moved it there, and `util/ValidationUtils.kt` plus
+  `usernameErrorMessageResId` until `:feature:auth` — the first went down to `:core:common`, the
+  second was deleted rather than moved. `MediaFileRepository` and `util/MediaUriExt.kt` came off
+  it with `:feature:profile`, and those two were the interesting ones, because they were not
+  resources — they were `:core:data` types, which a feature module must not reach.) What is left on
+  the list for the four remaining packages is `:app`'s `R`, and `note/`'s delegates.
 - **The routes share no supertype, deliberately.** They were nested in a `sealed interface Screen`
   until that hierarchy became unrepresentable: a route in a feature module cannot implement an
   interface declared in `:app`. So `startDestination` and `BottomNavItem.route` are typed `Any`,
@@ -718,6 +815,18 @@ strings, no `navArgument` lists, no manual URL escaping of arguments.
   `R`, and the two collide on the simple name. Ten `:app` files and six test files do this today,
   for the seventeen strings in `:core:ui` — sixteen that moved with `common/`, plus `cd_back`,
   which went there when `:feature:explore` was extracted rather than travelling with it.
+  `:core:common` is reached the same way, as **`import com.jiahan.smartcamera.core.common.R as
+  CommonR`** — five files across `:app`, `:feature:auth` and `:feature:profile` do that for its ten
+  strings. A file needing both aliases is normal and not a smell: `AuthScreen` uses its own `R` for
+  `password` and `login`, and `CommonR` for `email`, `name` and `username`, which `ProfileScreen`
+  reads too.
+  - **`:app` may read a *feature* module's `R`, and that is not a leak.** `:app` depends on every
+    `:feature:*`, so `import com.jiahan.smartcamera.feature.profile.R as ProfileR` is a downward
+    read like `UiR` — `navigation/TopLevelDestination.kt` does it for the Profile tab's label,
+    beside the `UiR.string.search` it already used for Search. Reach for it when one string is the
+    same copy for the same thing in both places; reach for a second string, as Home did with
+    `cd_open_explore`, when the two usages only *look* alike. Now in Android's `TopLevelDestination`
+    resolves its titles the same way.
   - **A string moves to the module that owns it, and "owns" means the only consumer.** Extracting
     `:feature:explore` needed six `:app` strings decided one at a time: four were exclusive and
     went with the code, `cd_back` had seven consumers across five packages and went *down* to
@@ -729,9 +838,13 @@ strings, no `navArgument` lists, no manual URL escaping of arguments.
     and `translate` because nothing else drew them; `visibility`/`visibility_off` had consumers in
     settings and auth and went *down* to `:core:ui` with `PasswordField`. `validateNewPassword` went
     with the module for exactly the same reason a string does — settings was its only caller —
-    while `validateUsername`/`validateDisplayName` stayed in `:app` for auth and profile, and the
+    while `validateUsername`/`validateDisplayName` went *down* to `:core:common` when
+    `:feature:auth` was extracted, because auth and profile both call them, and the
     `ValidationResult` all three return went down to `:core:domain`. A shared *return type* has to
-    land where every caller can see it, which is the same shape as `cd_back`.
+    land where every caller can see it, which is the same shape as `cd_back`. Note the sequencing
+    lesson in that pair: the validators sat in `:app` carrying a comment saying they would move
+    "when both of those packages become modules", and that wait was unnecessary. A shared function
+    goes down as soon as the *first* caller leaves; it does not have to wait for the second.
   - **A vector drawable that moves out of `:app` may stop resolving `?attr/colorControlNormal`.**
     AppCompat reaches `:app` only transitively (via Firebase/Play), so a library module that
     receives such a drawable fails resource linking with `resource attr/colorControlNormal not

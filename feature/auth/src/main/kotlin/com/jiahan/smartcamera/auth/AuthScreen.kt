@@ -1,5 +1,6 @@
 package com.jiahan.smartcamera.auth
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,15 +45,20 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.common.PasswordField
 import com.jiahan.smartcamera.common.bounceScale
+import com.jiahan.smartcamera.core.common.R as CommonR
+import com.jiahan.smartcamera.feature.auth.R
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthScreen(
     onNavigateToHome: () -> Unit,
+    // The launcher icon, passed down rather than read here: mipmap/ic_launcher belongs to the
+    // application module, and this is a library. Same hoist as SettingsScreen's `versionName`,
+    // and the same reason -- a library cannot reach :app's resources any more than its BuildConfig.
+    @DrawableRes logoRes: Int,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val scrollState = rememberScrollState()
@@ -88,7 +94,7 @@ fun AuthScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             AsyncImage(
-                model = R.mipmap.ic_launcher,
+                model = logoRes,
                 contentDescription = stringResource(R.string.cd_app_logo),
                 contentScale = ContentScale.Crop,
             )
@@ -96,7 +102,7 @@ fun AuthScreen(
             OutlinedTextField(
                 value = email,
                 onValueChange = { viewModel.updateEmailText(it) },
-                label = { Text(stringResource(R.string.email)) },
+                label = { Text(stringResource(CommonR.string.email)) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
                 singleLine = true,
@@ -111,7 +117,7 @@ fun AuthScreen(
                 OutlinedTextField(
                     value = displayName,
                     onValueChange = { viewModel.updateDisplayNameText(it) },
-                    label = { Text(stringResource(R.string.name)) },
+                    label = { Text(stringResource(CommonR.string.name)) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
                     singleLine = true,
@@ -122,7 +128,7 @@ fun AuthScreen(
                 OutlinedTextField(
                     value = username,
                     onValueChange = { viewModel.updateUsernameText(it) },
-                    label = { Text(stringResource(R.string.username)) },
+                    label = { Text(stringResource(CommonR.string.username)) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
                     singleLine = true,
@@ -234,7 +240,7 @@ private fun AuthScreenLoginPreview() {
             OutlinedTextField(
                 value = "user@example.com",
                 onValueChange = {},
-                label = { Text(stringResource(R.string.email)) },
+                label = { Text(stringResource(CommonR.string.email)) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
                 singleLine = true,

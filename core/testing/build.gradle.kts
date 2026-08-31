@@ -34,7 +34,10 @@ dependencies {
      */
     api(project(":core:domain"))
     // FakeMediaFileRepository implements MediaFileRepository, which is Android-bound (Uri, Bitmap)
-    // and so lives in :core:data rather than :core:domain.
+    // and so lives in :core:common rather than :core:domain. Declared rather than left to arrive
+    // through :core:data's `api` edge, because it is this module's own API surface: the fake *is*
+    // that interface.
+    api(project(":core:common"))
     api(project(":core:data"))
 
     api(libs.junit)

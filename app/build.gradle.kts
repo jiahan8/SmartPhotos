@@ -101,6 +101,12 @@ dependencies {
     // module with no Android plugin, so it is the compiler's copy of the purity rule.
     implementation(project(":core:domain"))
 
+    // The Android-bound half of the shared vocabulary: validateUsername/validateDisplayName,
+    // which profile still calls here and :feature:auth calls there, and the ten username/name/email
+    // strings the two screens and appErrorMessageResId all resolve. ProfileScreen, ProfileViewModel
+    // and ErrorMessageMappers reach its R as `CommonR`.
+    implementation(project(":core:common"))
+
     // Every Default* repository, the Room database and the DataStore wiring. Room and DataStore
     // left :app with them; the Firebase and Play Core artifacts below stay because :app still
     // compiles against those itself. Several arrive from :core:data as `api` too (Hilt needs
@@ -115,6 +121,16 @@ dependencies {
     // one value the module cannot read for itself: SettingsScreen takes `versionName`, because a
     // library has no application BuildConfig.
     implementation(project(":feature:settings"))
+
+    // The third. The start destination, so MainViewModel, SmartPhotosApp and NavTransitions all
+    // name AuthRoute -- all of them here in :app, pointing down. AuthScreen takes `logoRes`,
+    // because mipmap/ic_launcher is this module's resource and a library cannot reach it.
+    implementation(project(":feature:auth"))
+
+    // The fourth. It was the one blocked on :core:data, and the block dissolved when
+    // MediaFileRepository and MediaUriExt came down to :core:common. TopLevelDestination reads its
+    // R for the bottom-bar label, as `ProfileR`.
+    implementation(project(":feature:profile"))
 
     // The shared Compose vocabulary -- common/, ui/theme and the two util helpers that follow
     // them. Every feature screen in this module draws with it, and nine of them also resolve
