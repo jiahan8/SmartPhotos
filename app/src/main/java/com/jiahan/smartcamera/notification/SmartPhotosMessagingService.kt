@@ -25,6 +25,7 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.jiahan.smartcamera.MainActivity
 import com.jiahan.smartcamera.R
+import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.di.IoDispatcher
 import com.jiahan.smartcamera.util.ErrorHandler
@@ -135,7 +136,7 @@ class SmartPhotosMessagingService : FirebaseMessagingService() {
 
         val notification =
             NotificationCompat.Builder(this, getString(R.string.default_notification_channel_id))
-                .setSmallIcon(R.drawable.photo_camera)
+                .setSmallIcon(UiR.drawable.photo_camera)
                 .setLargeIcon(largeIcon)
                 .setContentTitle(title)
                 .setContentText(body)

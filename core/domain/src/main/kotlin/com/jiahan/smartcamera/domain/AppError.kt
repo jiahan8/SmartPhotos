@@ -39,4 +39,25 @@ sealed class AppError(message: String) : Exception(message) {
 
     /** The requested username is one the server refuses to reserve. */
     class UsernameReserved : AppError("Username reserved")
+
+    /*
+     * The createNote/updateNote validation failures.
+     *
+     * These fold a Cloud Function rejection the way [UsernameTaken] does, with one difference
+     * worth knowing: all of createNote's validation errors share a single `invalid-argument` code,
+     * so the repository tells them apart by the structured `details.reason` payload rather than by
+     * the code. That is why there is a case per *reason* here rather than per code -- and it is
+     * what let `noteErrorMessageResId` be deleted rather than moved when `note/` became a module,
+     * since reading a FirebaseFunctionsException above the repository boundary would have put
+     * firebase-functions on a feature module's classpath.
+     */
+
+    /** The note's text is longer than the server accepts. */
+    class NoteTextTooLong : AppError("Note text too long")
+
+    /** The note carries more media items than the server accepts. */
+    class NoteMediaLimitExceeded : AppError("Too many media items")
+
+    /** The note has neither text nor media. */
+    class NoteEmpty : AppError("Note must have text or media")
 }

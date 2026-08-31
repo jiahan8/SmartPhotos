@@ -13,4 +13,7 @@
     <string name="username_reserved">This username is reserved</string>
     <string name="username_not_available">Please choose another username</string>
     <string name="share_note_failure">Couldn\'t share this note. Please try again.</string>
+    <string name="note_validation">Note cannot exceed 500 characters</string>
+    <string name="note_media_limit">You can attach up to 20 photos or videos per note</string>
+    <string name="note_empty">Add some text or media before saving</string>
 </resources>

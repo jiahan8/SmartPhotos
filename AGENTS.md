@@ -96,6 +96,22 @@ Ten Gradle modules, plus an included build for the shared Gradle config:
   `versionName` and `logoRes`, and pixel-identical against the goldens. It copies `:feature:auth`'s
   `sharedTest/` arrangement, which is the one to prefer for a new screen test. Sources under
   `feature/home/src/main/kotlin/com/jiahan/smartcamera/`.
+- `:feature:preview` — the eighth, and the largest: the note, photo and video preview screens,
+  their ViewModels, their routes and the note preview's instrumented suite. ExoPlayer and Coil
+  arrive here rather than in the feature convention, because no other feature plays video or loads
+  a full-screen image. `PreviewRoutes.kt` keeps `MediaSourceType` and its `@Keep`. Two of its
+  strings did **not** travel: `NotePreviewScreen` rendered `note` as its title and `favorite` as an
+  action's `onClickLabel`, and both names are also bottom-bar tab labels — but the tabs point at
+  the note composer and at Favorite, which are different destinations from "the screen showing this
+  note" and "favorite this note". Same copy, different referents, so `:app` kept the tab labels and
+  this module declares `note_preview_title` and `cd_favorite_note`. Sources under
+  `feature/preview/src/main/kotlin/com/jiahan/smartcamera/`.
+- `:feature:note` — the ninth and last: the composer, the editor, their ViewModels, their routes,
+  `IncomingShareHandler` and both instrumented suites. The only one of the five that had work in it
+  beyond a build file — see [Error handling](#error-handling) for `noteErrorMessageResId`, which was
+  deleted rather than moved. `IncomingShareHandler` came with it and is read downward by `:app`'s
+  `AppModule` and `MainViewModel`, the same shape as `:feature:search`'s deep-link constant. Sources
+  under `feature/note/src/main/kotlin/com/jiahan/smartcamera/`.
 - `:core:testing` — an Android library holding the fixtures more than one module needs: the nine
   `fake/` repository doubles, `MainDispatcherRule` and `BaseScreenshotTest`. Consumers take it with
   `testImplementation` (and `androidTestImplementation` in `:app`, whose `sharedTest/` runs in
@@ -152,10 +168,11 @@ Run from the repo root (Gradle wrapper):
     `testDebugUnitTest` skips them without failing. CI names both for the same reason.
     Every other module needs no such mention — they are all Android libraries, so the
     unqualified `testDebugUnitTest` already reaches them, as do `lintDebug` and
-    `connectedDebugAndroidTest`. Twelve modules run unit tests today: `:app` 140, `:feature:auth` 46, `:feature:home` 41,
+    `connectedDebugAndroidTest`. Fourteen modules run unit tests today: `:app` 73, `:feature:auth` 46, `:feature:home` 41,
+    `:feature:note` 39,
     `:feature:explore` 34, `:feature:settings` 30, `:feature:profile` 26, `:core:common` 27,
-    `:feature:favorite` 12, `:feature:search` 18,
-    `:core:ui` 17, `:core:data` 15, `:core:domain` 8 — 414 in total.
+    `:feature:preview` 24, `:feature:search` 18, `:feature:favorite` 12,
+    `:core:ui` 17, `:core:data` 15, `:core:domain` 8 — 410 in total.
   - Single class: `./gradlew testDebugUnitTest --tests "com.jiahan.smartcamera.home.HomeViewModelTest"`
   - Single method: `./gradlew testDebugUnitTest --tests "com.jiahan.smartcamera.home.HomeViewModelTest.methodName"`
   - Assert on a settled `StateFlow` by reading `.value`; that is what most of the suite does, and
@@ -197,9 +214,8 @@ Run from the repo root (Gradle wrapper):
   graph furthest — so a missing binding or an unresolvable constructor parameter shows up there
   first. Run it after any change to a module's dependencies or to an `@Inject` constructor, and
   especially when you can't run the instrumented suite for lack of a device.
-- Instrumented tests live in eight modules now — `app/`, `core/data/`, `feature/auth/`,
-  `feature/favorite/`, `feature/home/`, `feature/profile/`, `feature/search/` and
-  `feature/settings/` — require a device/emulator, and run via
+- Instrumented tests live in ten modules now — `app/`, `core/data/` and every `:feature:*`
+  except `:feature:explore` — require a device/emulator, and run via
   `./gradlew connectedDebugAndroidTest`.
   `:app` uses a custom `HiltTestRunner` (installs `HiltTestApplication`), the AndroidX Test
   Orchestrator, and `clearPackageData=true` for hermetic, isolated runs — don't remove these from
@@ -292,7 +308,7 @@ the same settings:
 | `smartphotos.android.application` | `:app` | AGP application, Kotlin Android | compileSdk 37, minSdk 28, Java 11, JVM target 11, test-JVM pin |
 | `smartphotos.android.library` | `:core:common`, `:core:data`, `:core:ui`, `:core:testing` | AGP library, Kotlin Android | the same, minus nothing |
 | `smartphotos.android.compose` | `:app`, `:core:ui`, `:core:testing` | Compose compiler | `buildFeatures.compose = true` |
-| `smartphotos.android.feature` | the seven `:feature:*` modules | the library + compose conventions, KSP, Hilt | the `:core:domain`/`:core:ui` edges, the Compose set, icons, Hilt, lifecycle, `:core:testing` |
+| `smartphotos.android.feature` | all nine `:feature:*` modules | the library + compose conventions, KSP, Hilt | the `:core:domain`/`:core:ui` edges, the Compose set, icons, Hilt, lifecycle, `:core:testing` |
 | `smartphotos.jvm.library` | `:core:domain` | Kotlin JVM — **nothing Android** | Java 11, JVM target 11, test-JVM pin |
 
 `smartphotos.android.feature` is the only one that adds *dependencies* rather than just settings,
@@ -338,12 +354,11 @@ Five rules worth knowing before editing them:
 
 ## Architecture
 
-MVVM with a layered structure, one Kotlin package per feature. Two are still under
-`app/src/main/java/com/jiahan/smartcamera/` — `note` and `preview` — and neither is held there by
-anything but `:app`'s `R`; the other seven are their own modules. For the two still in
-`:app`, the module boundaries run underneath them — between the contracts in `:core:domain` and the
-implementations that satisfy them, and between the feature screens and the shared Compose they all
-draw with in `:core:ui`.
+MVVM with a layered structure, one Gradle module per feature. **All nine are extracted**, and
+`:app` is down to 1,358 lines across 15 files: `MainActivity`, `MyApp`, `MainViewModel`,
+`SmartPhotosApp`, the three files in `navigation/`, the messaging service, the two DI modules and
+the four `util/` implementations. Nothing that renders a feature screen lives there any more — it
+hosts the NavHost, supplies each screen's navigation lambdas, and installs the Hilt bindings.
 Cross-cutting layers:
 
 - **UI** — Jetpack Compose screens (`*Screen.kt`) + Navigation Compose graph in
@@ -537,38 +552,46 @@ event. For an event a screen must never miss, use `note/IncomingShareHandler.kt`
 holding the pending value plus an explicit `consume()`, which survives having no subscriber yet.
 That one is still in use, and it is the pattern to copy rather than a `SharedFlow`.
 
-**The delegates are dealt with; the packages are coming out one at a time.** `NoteActionsDelegate` is gone —
-without `noteHandler` it was `repository.call().onFailure { report }.isSuccess`, so it inlined into
-its four callers rather than being relocated. `NoteShareDelegate` and `NoteErrorReporter` went down
-to `:core:common`, which is why that module now carries Hilt. The rule those two decisions came from
-is worth keeping: **move what cannot be cheaply duplicated, inline what can.** Both could have moved
-— once `:core:common` was taking one of them the marginal cost of the other was zero — and inlining
-the trivial one was chosen to keep that module to one new tenant-family rather than two.
+**The modularization is done.** Nine feature modules, five `:core:*` modules, `build-logic`, and
+`:app` at 1,358 lines. What this paragraph used to describe as the cap — `NoteHandler` and two
+shared delegates — is gone: the handler deleted, `NoteActionsDelegate` inlined into its four
+callers, `NoteShareDelegate` and `NoteErrorReporter` down in `:core:common`. Kept as a record
+because the sequence is the reusable part, and because the plan was wrong twice about which step
+was hard.
 
-What is left in `:app` is four packages, each reaching up for `:app`'s `R` and nothing else:
+| Step | What it actually cost |
+| --- | --- |
+| Mirror the notes feed into Room | The real work. Four ViewModels rewritten onto `combine(<query>, <status>)` |
+| Delete `NoteHandler` | One document read. The Cloud Function payload was already there |
+| Clear the delegates | One inline, one two-file move, plus Hilt on `:core:common` |
+| `favorite`, `search`, `home` | A build file and a handful of strings each |
+| `preview`, `note` | The same, plus `noteErrorMessageResId` folded into `AppError` |
 
-| Package | Lines | Status |
-| --- | --- | --- |
-| `favorite` | 315 | extracted — the pilot |
-| `search` | 368 | extracted |
-| `home` | 470 | extracted |
-| `preview` | 1,092 | |
-| `note` | 1,458 | |
+Three rules came out of it that generalize past this codebase:
 
-`:app`'s `R` is the problem solved seven times over already — decide each string one at a time, and
-expect the `explore`/`cd_back` split at every extraction (exclusive strings travel, shared ones go
-*down* to `:core:ui` or `:core:common`, and a string that looks shared is sometimes two strings).
-There are no structural edges left at all: `NoteHandler` is deleted and the delegates are down in
-`:core:common`. **A `:feature:note` is fine**: what NiA's rule forbids is the other four *depending*
-on it, and nothing does.
+- **Move what cannot be cheaply duplicated, inline what can.** `NoteActionsDelegate` was two lines
+  of repository call; `NoteShareDelegate` was thirty of parallel download. Both *could* have moved
+  once `:core:common` was taking one of them, and inlining the trivial one kept that module to one
+  new tenant-family rather than two.
+- **A Firebase type read above the repository boundary is a module boundary waiting to be
+  violated.** Two ViewModel-layer mappers read `FirebaseFunctionsException`; both were deleted
+  rather than moved, folded into `AppError` by the repositories that raise them. Neither feature
+  module has `firebase-functions` on its classpath.
+- **A string with two consumers is sometimes two strings.** `explore` split into a screen title and
+  a `contentDescription`; `note` and `favorite` split into tab labels and a preview title and an
+  action label. The consumer count cannot tell that case from genuinely shared vocabulary like
+  `cd_back` or `no_results_found` — only the call sites can.
 
-Two corrections to what this paragraph used to say, both learned by doing the work. It told you to
-sequence the Room migration before extracting `auth` and `profile` — they are extracted, so that
-advice is spent. And it said the delegates would "shrink to per-feature code" once the handler went:
-half right, and the wrong half was the expensive one to assume. `NoteActionsDelegate` did.
-`NoteShareDelegate` did not — thirty lines of parallel media download that four packages genuinely
-share. **Predicting that a shared helper will stop being shared is the same error as predicting
-which convention-plugin lines generalize**, and it wants the same fix: count the consumers.
+And two corrections to what this paragraph used to say, both learned by doing the work. It told you
+to sequence the Room migration before extracting `auth` and `profile` — they went first and it cost
+nothing, because what blocks a feature is what it reaches *up* for. And it said the delegates would
+"shrink to per-feature code" once the handler went: half right, and the wrong half was the expensive
+one to assume. **Predicting that a shared helper will stop being shared is the same error as
+predicting which convention-plugin lines generalize** — count the consumers.
+
+What is left is not modularization. `:core:data`'s DAOs and entities could go `internal` and never
+have; the notes mirror still has no offline writes and no reconciliation; and the next real KMP step
+is converting `:core:domain` to `kotlin.multiplatform`, which none of this moved closer.
 
 ### Error handling
 
@@ -584,31 +607,38 @@ directly. Its two methods belong to different layers, and that split is the rule
   not call it: they log and then either propagate the exception or fold it into a `Result`/null
   return (`DefaultNoteRepository` does the latter), and the ViewModel converts that into an
   `*UiState` error field. Every current call site is a ViewModel or a `@ViewModelScoped` helper
-  (`note/NoteErrorReporter.kt`) — keep it that way.
+  (`NoteErrorReporter`, in `:core:common`) — keep it that way.
 
-The feature-specific mapper in `util/ErrorMessageMappers.kt` (`noteErrorMessageResId`) sits at
-that same ViewModel layer, tried ahead of `getErrorMessage` and falling back to it when it returns
-null.
+**There were three feature mappers in `util/ErrorMessageMappers.kt` and now there are none.** Both
+of the Firebase-reading ones are deleted rather than moved. `usernameErrorMessageResId` switched on
+an `ALREADY_EXISTS`/`INVALID_ARGUMENT` code and was tried by `AuthViewModel` and `ProfileViewModel`;
+`noteErrorMessageResId` read a structured `details.reason` payload and was tried by `NoteViewModel`
+and `EditNoteViewModel`. `DefaultUserRepository` and `DefaultNoteRepository` now raise `AppError`
+cases instead and `getErrorMessage` renders them, so five call sites shrank to a plain
+`getErrorMessage`. **The reason to prefer that shape is not tidiness — reading a Firebase error
+code is data-layer knowledge, and leaving it up here would have put `firebase-functions` on
+`:feature:auth`'s and `:feature:note`'s classpaths for the sake of a few lines.**
 
-There were two. `usernameErrorMessageResId` read an `ALREADY_EXISTS`/`INVALID_ARGUMENT` code off a
-`FirebaseFunctionsException` and was tried by `AuthViewModel` and `ProfileViewModel`;
-`DefaultUserRepository` now raises `AppError.UsernameTaken`/`UsernameReserved` instead and
-`getErrorMessage` renders them, so both call sites shrank to a plain `getErrorMessage`. **The
-reason to prefer that shape is not tidiness — reading a Firebase error code is data-layer
-knowledge, and leaving it up here would have put `firebase-functions` on `:feature:auth`'s
-classpath for the sake of two lines.** `noteErrorMessageResId` is the same shape and should go the
-same way when `note/` moves; it is left as the worked example of the pattern being replaced. Where
-the two genuinely differ is what they read: the username one switched on the error *code*, which
-folds cleanly, while the note one reads a structured `details` payload because all of createNote's
-validation errors share one code — so its fold needs a `reason` per `AppError` case, not a code
-per case.
+The two differed in what they read, and the difference is the thing to copy rather than the code:
+the username one switched on the error *code*, which folds one-to-one, while all of createNote's
+validation errors share a single `invalid-argument` code and are told apart by the payload — so its
+fold needed **a case per `reason`, not per code** (`NoteTextTooLong`, `NoteMediaLimitExceeded`,
+`NoteEmpty`). Both folds live in `DefaultNoteRepository.foldNoteValidationError` / the equivalent in
+`DefaultUserRepository`, below the boundary, where the Firebase type belongs.
+
+There was a testing dividend nobody was looking for: `ErrorMessageMappersTest` needed Robolectric
+purely because `FirebaseFunctionsException.Code`'s companion builds an `android.util.SparseArray` in
+a static initializer, which throws under the JVM Android stub. With both mappers gone it is a plain
+JVM test.
 
 The three pieces live in three files, by layer rather than by topic: `util/ErrorHandler.kt` holds
 the interface and `ErrorTag` and imports nothing; `util/DefaultErrorHandler.kt` holds the
 Android/Firebase-bound implementation; `util/ErrorMessageMappers.kt` holds the `R`-resolving
 mappers. Keep a new mapper in the third file rather than reuniting them. That split is now also a
 module boundary — the first file is in `:core:domain` and the other two are in `:app`, which is
-exactly the division the KMP note below predicted.
+exactly the division the KMP note below predicted. `ErrorMessageMappers.kt` now holds
+`appErrorMessageResId` alone, and five of its eight cases resolve `:core:common`'s `R` rather than
+`:app`'s, because each of those strings has a second reader down there.
 
 **A repository that needs to raise its own failure throws a `domain/AppError`, never a message.**
 Resolving a string resource is presentation, so a repository building one —

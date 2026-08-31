@@ -7,6 +7,8 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.FirebaseFunctionsException
+import com.google.firebase.functions.HttpsCallableResult
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.storage
 import com.jiahan.smartcamera.database.dao.NoteDao
@@ -90,6 +92,10 @@ class DefaultNoteRepository @Inject constructor(
         private const val FIELD_SCORE = "score"
 
         // Cloud Function names / argument keys
+        private const val ARG_REASON = "reason"
+        private const val REASON_TEXT_TOO_LONG = "TEXT_TOO_LONG"
+        private const val REASON_TOO_MANY_MEDIA = "TOO_MANY_MEDIA_ITEMS"
+        private const val REASON_EMPTY_NOTE = "EMPTY_NOTE"
         private const val FUNCTION_CREATE_NOTE = "createNote"
         private const val RESULT_DOCUMENT_PATH = "documentPath"
         private const val FUNCTION_UPDATE_NOTE = "updateNote"
@@ -179,21 +185,8 @@ class DefaultNoteRepository @Inject constructor(
             .call(hashMapOf(ARG_TEXT to homeNote.text, ARG_MEDIA_LIST to mediaListPayload))
             .await()
 
-        // Read the created note back so it lands in the mirror. The client cannot build that row
-        // itself -- the id and the `created` timestamp are both stamped server-side -- and until
-        // this existed a new note reached the feed only through a NoteHandler event telling Home to
-        // refetch everything. One extra document read retires that whole mechanism.
-        //
-        // Deliberately not fatal: the note *was* created, so failing here would report a write that
-        // succeeded as an error. A lost read-back costs the user a pull-to-refresh, which is what a
-        // failed reload cost them before.
-        val noteId = (response.data as? Map<*, *>)?.get(RESULT_DOCUMENT_PATH) as? String
-        if (noteId == null) {
-            errorHandler.logError(AppError.NoteUnavailable())
-        } else {
-            getNote(noteId).onFailure { e -> errorHandler.logError(e) }
-        }
-    }
+        mirrorCreatedNote(response)
+    }.foldNoteValidationError()
 
     // Delegates to the updateNote Cloud Function for the same reason addNote
     // delegates to createNote: server-side validation and ownership checks a
@@ -207,7 +200,7 @@ class DefaultNoteRepository @Inject constructor(
         // Unconditional: this write used to be gated on `homeNote.favorite`, back when the table
         // held favorites only. It mirrors the whole feed now, so an edit to any note has to land.
         noteDao.upsertNotes(listOf(homeNote.toDatabaseNote()))
-    }
+    }.foldNoteValidationError()
 
     // Reads the whole collection and filters client-side, which is what it has always done. What
     // changed is where the result goes: it is mirrored on the way out, so searchNotesStream covers
@@ -322,6 +315,51 @@ class DefaultNoteRepository @Inject constructor(
      * permanent hole in the feed. Failing the enclosing [safeCall] leaves the cursor where it was,
      * so the page is retried instead.
      */
+    /**
+     * Folds a createNote/updateNote validation rejection into an [AppError].
+     *
+     * Both functions signal every validation failure as one `invalid-argument` code and tell them
+     * apart in a structured `details.reason` payload, so this reads the payload rather than the
+     * code -- the one way it differs from how [AppError.UsernameTaken] is folded. Doing it here
+     * rather than in a ViewModel-layer mapper is what keeps `FirebaseFunctionsException` below the
+     * repository boundary, and off a feature module's classpath.
+     *
+     * An unrecognised reason is left alone: it means a malformed request no legitimate client can
+     * produce, and it should surface as the generic failure rather than as a specific message that
+     * happens to be wrong.
+     */
+    /**
+     * Reads a just-created note back so it lands in the mirror.
+     *
+     * The client cannot build that row itself -- the id and the `created` timestamp are both
+     * stamped server-side -- and until this existed a new note reached the feed only through a
+     * `NoteHandler` event telling Home to refetch everything. One extra document read retires that
+     * whole mechanism.
+     *
+     * Deliberately not fatal: the note *was* created, so failing here would report a write that
+     * succeeded as an error. A lost read-back costs the user a pull-to-refresh, which is exactly
+     * what a failed reload cost them before.
+     */
+    private suspend fun mirrorCreatedNote(response: HttpsCallableResult) {
+        val noteId = (response.data as? Map<*, *>)?.get(RESULT_DOCUMENT_PATH) as? String
+        if (noteId == null) {
+            errorHandler.logError(AppError.NoteUnavailable())
+            return
+        }
+        getNote(noteId).onFailure { e -> errorHandler.logError(e) }
+    }
+
+    private fun <T> Result<T>.foldNoteValidationError(): Result<T> {
+        val reason = ((exceptionOrNull() as? FirebaseFunctionsException)?.details as? Map<*, *>)
+            ?.get(ARG_REASON) as? String
+        return when (reason) {
+            REASON_TEXT_TOO_LONG -> Result.failure(AppError.NoteTextTooLong())
+            REASON_TOO_MANY_MEDIA -> Result.failure(AppError.NoteMediaLimitExceeded())
+            REASON_EMPTY_NOTE -> Result.failure(AppError.NoteEmpty())
+            else -> this
+        }
+    }
+
     private suspend fun cacheNotes(notes: List<HomeNote>) {
         if (notes.isEmpty()) return
         noteDao.upsertNotes(notes.map { it.toDatabaseNote() })

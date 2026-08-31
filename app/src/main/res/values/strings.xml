@@ -11,21 +11,8 @@
 
     <!-- Note -->
     <string name="note">Note</string>
-    <string name="new_note">New note</string>
-    <string name="whats_new">What\'s new?</string>
-    <string name="create_note">Create a note</string>
-    <string name="write_this_moment">Write about this moment</string>
-    <string name="whats_on_mind">What\'s on your mind?</string>
-    <string name="write_a_thought">Write a thought…</string>
-    <string name="save">Save</string>
-    <string name="note_validation">Note cannot exceed 500 characters</string>
-    <string name="note_media_limit">You can attach up to 20 photos or videos per note</string>
-    <string name="note_empty">Add some text or media before saving</string>
     <string name="no_media_available">No media URI available for upload</string>
     <string name="note_unavailable">This note is no longer available</string>
-    <string name="discard_changes">Discard changes?</string>
-    <string name="discard_changes_desc">Your edits to this note will not be saved.</string>
-    <string name="discard">Discard</string>
 
     <!-- Favorite -->
     <string name="favorite">Favorite</string>
@@ -44,8 +31,6 @@
     <!-- Explore -->
 
     <!-- Sharing -->
-    <string name="share_photo_failure">Couldn\'t share this photo. Please try again.</string>
-    <string name="share_video_failure">Couldn\'t share this video. Please try again.</string>
 
     <!-- Authentication. All four are unreferenced, and were before :feature:auth was extracted;
          the strings that screen actually uses went with it. Kept rather than deleted because
@@ -69,10 +54,4 @@
     <string name="update_ready_action">Restart</string>
 
     <!-- Content descriptions (accessibility) -->
-    <string name="cd_selected_photo">Selected photo</string>
-    <string name="cd_remove_image">Remove image</string>
-    <string name="cd_choose_photos">Choose photos</string>
-    <string name="cd_take_photo">Take a photo</string>
-    <string name="cd_take_video">Record a video</string>
-    <string name="cd_edit_note">Edit note</string>
 </resources>

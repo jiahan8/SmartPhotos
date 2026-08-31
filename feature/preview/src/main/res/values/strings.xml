@@ -1,0 +1,8 @@
+<resources>
+    <string name="cd_edit_note">Edit note</string>
+    <string name="cd_selected_photo">Selected photo</string>
+    <string name="share_photo_failure">Couldn\'t share this photo. Please try again.</string>
+    <string name="share_video_failure">Couldn\'t share this video. Please try again.</string>
+    <string name="note_preview_title">Note</string>
+    <string name="cd_favorite_note">Favorite</string>
+</resources>

@@ -101,6 +101,10 @@ jobs:
             feature/favorite/build/test-results/testDebugUnitTest/
             feature/home/build/reports/tests/testDebugUnitTest/
             feature/home/build/test-results/testDebugUnitTest/
+            feature/note/build/reports/tests/testDebugUnitTest/
+            feature/note/build/test-results/testDebugUnitTest/
+            feature/preview/build/reports/tests/testDebugUnitTest/
+            feature/preview/build/test-results/testDebugUnitTest/
             feature/profile/build/reports/tests/testDebugUnitTest/
             feature/profile/build/test-results/testDebugUnitTest/
             feature/search/build/reports/tests/testDebugUnitTest/
@@ -154,6 +158,8 @@ jobs:
             feature/explore/build/reports/lint-results-debug.html
             feature/favorite/build/reports/lint-results-debug.html
             feature/home/build/reports/lint-results-debug.html
+            feature/note/build/reports/lint-results-debug.html
+            feature/preview/build/reports/lint-results-debug.html
             feature/profile/build/reports/lint-results-debug.html
             feature/search/build/reports/lint-results-debug.html
             feature/settings/build/reports/lint-results-debug.html

@@ -128,7 +128,7 @@ class DefaultUserRepository @Inject constructor(
      * `INVALID_ARGUMENT` maps to [AppError.UsernameReserved] unconditionally, which is exactly what
      * the mapper it replaces did. Both functions validate nothing but the username, so the code
      * cannot presently mean anything else; if one of them grows a second argument to validate, this
-     * needs the structured `details` payload that `noteErrorMessageResId` reads.
+     * needs the structured `details` payload that `foldNoteValidationError` reads.
      */
     private suspend fun callReservingUsername(name: String, data: HashMap<String, String>) {
         try {

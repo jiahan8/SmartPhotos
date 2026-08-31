@@ -144,6 +144,14 @@ dependencies {
     // and a library cannot own it -- the same hoist as settings' versionName and auth's logoRes.
     implementation(project(":feature:home"))
 
+    // The eighth, and the largest. SmartPhotosNavGraph constructs MediaSourceType.REMOTE off its
+    // routes -- a downward read, like the search deep link above.
+    implementation(project(":feature:preview"))
+
+    // The ninth and last. AppModule provides IncomingShareHandler from here and MainViewModel
+    // consumes it -- a downward read, since :app is what receives the share intent.
+    implementation(project(":feature:note"))
+
     // The shared Compose vocabulary -- common/, ui/theme and the two util helpers that follow
     // them. Every feature screen in this module draws with it, and nine of them also resolve
     // strings from its R, imported there as `UiR`.

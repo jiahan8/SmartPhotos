@@ -11,21 +11,8 @@
 
     <!-- Note -->
     <string name="note">メモ</string>
-    <string name="new_note">新しいメモ</string>
-    <string name="whats_new">最近どう？</string>
-    <string name="create_note">メモを作成</string>
-    <string name="write_this_moment">この瞬間について書く</string>
-    <string name="whats_on_mind">今、何を考えていますか？</string>
-    <string name="write_a_thought">思いついたことを書いてみよう…</string>
-    <string name="save">保存</string>
-    <string name="note_validation">メモは500文字以内で入力してください</string>
-    <string name="note_media_limit">メモには最大20枚の写真または動画を添付できます</string>
-    <string name="note_empty">保存する前にテキストかメディアを追加してください</string>
     <string name="no_media_available">アップロードするメディアがありません</string>
     <string name="note_unavailable">このメモは利用できなくなりました</string>
-    <string name="discard_changes">変更を破棄しますか？</string>
-    <string name="discard_changes_desc">このメモへの変更は保存されません。</string>
-    <string name="discard">破棄</string>
 
     <!-- Favorite -->
     <string name="favorite">お気に入り</string>
@@ -44,8 +31,6 @@
     <!-- Explore -->
 
     <!-- Sharing -->
-    <string name="share_photo_failure">この写真を共有できませんでした。もう一度お試しください。</string>
-    <string name="share_video_failure">この動画を共有できませんでした。もう一度お試しください。</string>
 
     <!-- Authentication. Unreferenced; see the note in values/strings.xml. -->
     <string name="authentication">認証</string>
@@ -66,10 +51,4 @@
     <string name="update_ready_action">再起動</string>
 
     <!-- Content descriptions (accessibility) -->
-    <string name="cd_selected_photo">選択した写真</string>
-    <string name="cd_remove_image">画像を削除</string>
-    <string name="cd_choose_photos">複数の写真を選択</string>
-    <string name="cd_take_photo">写真を撮る</string>
-    <string name="cd_take_video">動画を撮影</string>
-    <string name="cd_edit_note">メモを編集</string>
 </resources>
