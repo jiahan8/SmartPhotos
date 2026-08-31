@@ -18,6 +18,7 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
+import io.mockk.slot
 import io.mockk.unmockkAll
 import io.mockk.verify
 import kotlinx.coroutines.awaitCancellation
@@ -52,7 +53,6 @@ class EditNoteViewModelTest {
 
     private val noteRepository: NoteRepository = mockk()
     private val analyticsRepository: AnalyticsRepository = mockk()
-    private val noteHandler = NoteHandler()
     private val resourceProvider: ResourceProvider = mockk()
     private val errorHandler: ErrorHandler = mockk()
 
@@ -70,7 +70,6 @@ class EditNoteViewModelTest {
         savedStateHandle = SavedStateHandle(mapOf("noteId" to noteId)),
         noteRepository = noteRepository,
         analyticsRepository = analyticsRepository,
-        noteHandler = noteHandler,
         resourceProvider = resourceProvider,
         errorHandler = errorHandler
     )
@@ -265,22 +264,23 @@ class EditNoteViewModelTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `saveNote updates the note and notifies noteUpdatedEvent`() = runTest {
+    fun `saveNote sends the edited note through the repository`() = runTest {
         val vm = createViewModel()
         vm.updateNoteText("  Updated text  ")
-        coEvery { noteRepository.updateNote(any()) } returns Result.success(Unit)
+        val saved = slot<HomeNote>()
+        coEvery { noteRepository.updateNote(capture(saved)) } returns Result.success(Unit)
 
-        noteHandler.noteUpdatedEvent.test {
-            vm.saveNote()
-            val emitted = awaitItem()
-            assertEquals(noteId, emitted.noteId)
-            assertEquals("Updated text", emitted.text) // trimmed
-            // Untouched by an edit -- only the text is editable.
-            assertEquals(testNote.mediaList, emitted.mediaList)
-            assertTrue(emitted.favorite) // preserved from the loaded note, not reset
-            assertEquals(testNote.username, emitted.username)
-            cancelAndIgnoreRemainingEvents()
-        }
+        vm.saveNote()
+
+        // This used to assert a noteUpdatedEvent. updateNote writes the edit through to the
+        // `notes` table, so the note handed to the repository *is* what other screens will read --
+        // which makes these the same assertions, one layer down.
+        assertEquals(noteId, saved.captured.noteId)
+        assertEquals("Updated text", saved.captured.text) // trimmed
+        // Untouched by an edit -- only the text is editable.
+        assertEquals(testNote.mediaList, saved.captured.mediaList)
+        assertTrue(saved.captured.favorite) // preserved from the loaded note, not reset
+        assertEquals(testNote.username, saved.captured.username)
         assertTrue(vm.uiState.value.saveStatus is SaveStatus.Success)
         coVerify(exactly = 1) { noteRepository.updateNote(any()) }
     }

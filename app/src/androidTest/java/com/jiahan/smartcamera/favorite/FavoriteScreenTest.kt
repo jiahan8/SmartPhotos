@@ -19,7 +19,6 @@ import com.jiahan.smartcamera.fake.FakeMediaFileRepository
 import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteErrorReporter
-import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import org.junit.Assert.assertEquals
@@ -51,7 +50,7 @@ class FavoriteScreenTest {
     private fun launchFavoriteScreen() {
         val errorHandler = FakeErrorHandler()
         val noteErrorReporter = NoteErrorReporter(errorHandler)
-        val noteActions = NoteActionsDelegate(noteRepository, NoteHandler(), noteErrorReporter)
+        val noteActions = NoteActionsDelegate(noteRepository, noteErrorReporter)
         val viewModel = FavoriteViewModel(
             noteRepository = noteRepository,
             analyticsRepository = FakeAnalyticsRepository(),

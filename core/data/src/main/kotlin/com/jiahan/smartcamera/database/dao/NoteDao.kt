@@ -21,6 +21,20 @@ interface NoteDao {
     @Query("SELECT * FROM notes ORDER BY created_date DESC")
     fun getNotes(): Flow<List<DatabaseNote>>
 
+    /**
+     * The newest [limit] mirrored notes -- the feed's window, not the whole table.
+     *
+     * Home paginates remotely and widens this as it goes, so what it renders matches what it has
+     * actually paged rather than everything the table happens to hold. Without the limit any other
+     * write into `notes` (a search topping up the mirror, say) would silently appear in the feed.
+     */
+    @Query("SELECT * FROM notes ORDER BY created_date DESC LIMIT :limit")
+    fun getNotes(limit: Int): Flow<List<DatabaseNote>>
+
+    /** One mirrored note, or null once it is deleted. */
+    @Query("SELECT * FROM notes WHERE note_id = :noteId")
+    fun getNote(noteId: String): Flow<DatabaseNote?>
+
     @Query("SELECT * FROM notes WHERE favorite = 1 ORDER BY created_date DESC")
     fun getFavoriteNotes(): Flow<List<DatabaseNote>>
 

@@ -69,13 +69,14 @@ fun HomeScreen(
     val listState = rememberLazyListState()
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val content by viewModel.content.collectAsStateWithLifecycle()
 
     ScrollDirectionEffect(listState, onScrollDirectionChanged)
 
     ScrollToTopEffect(
         scrollToTop = scrollToTop,
         listState = listState,
-        hasItems = uiState.notes?.isNotEmpty() == true,
+        hasItems = (content as? HomeContent.Success)?.notes?.isNotEmpty() == true,
         onConsumed = onScrollToTopConsumed
     )
 
@@ -95,7 +96,9 @@ fun HomeScreen(
         }
     }
 
-    val shouldLoadMore by rememberShouldLoadMore(listState) { uiState.notes?.size ?: 0 }
+    val shouldLoadMore by rememberShouldLoadMore(listState) {
+        (content as? HomeContent.Success)?.notes?.size ?: 0
+    }
     LaunchedEffect(shouldLoadMore) {
         if (shouldLoadMore && !uiState.isLoadingMore) {
             viewModel.loadMoreNotes()
@@ -138,7 +141,7 @@ fun HomeScreen(
                     .fillMaxWidth()
             ) {
                 AnimatedContent(
-                    targetState = uiState.content,
+                    targetState = content,
                     modifier = Modifier.fillMaxSize(),
                     // Key on the branch, not the payload. Every favorite toggle, deletion and
                     // appended page produces a fresh Success instance; those must recompose the

@@ -53,9 +53,29 @@ interface NoteRepository {
      * Cross-feature communication sections of AGENTS.md.
      *
      * It carries no cursor. [getNotes] owns the remote pagination and writes each page into the
-     * mirror; a subscriber here sees the result rather than driving it.
+     * mirror; a subscriber here sees the result rather than driving it. [limit] is how a paginating
+     * subscriber keeps the two in step: it widens the window as it pages, so the feed shows what it
+     * has fetched rather than everything any other caller has since written into the table.
      */
-    fun getNotesStream(): Flow<List<HomeNote>>
+    fun getNotesStream(limit: Int): Flow<List<HomeNote>>
+
+    /**
+     * One mirrored note, emitting null once it is gone from the table.
+     *
+     * [getNote] fetches it and writes it through; a subscriber here then sees every later edit and
+     * favorite toggle without re-fetching, which is what a detail screen sitting on the back stack
+     * needs.
+     */
+    fun getNoteStream(noteId: String): Flow<HomeNote?>
+
+    /**
+     * The mirror filtered by [query], re-emitting on every write to the table.
+     *
+     * [searchNotes] is still what reaches Firestore, and it writes its results through, so this
+     * covers notes the feed has never paged. Filtering happens in Kotlin rather than SQL because a
+     * note's media is a JSON column -- the same reason [getFavoriteNotesStream] does.
+     */
+    fun searchNotesStream(query: String): Flow<List<HomeNote>>
     fun getFavoriteNotesStream(query: String): Flow<List<HomeNote>>
     suspend fun syncFavoriteNotes(): Result<Unit>
 }

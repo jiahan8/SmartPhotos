@@ -28,6 +28,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
@@ -284,15 +285,16 @@ class DefaultNoteRepositoryTest {
     }
 
     @Test
-    fun `getNotes still succeeds when the mirror write fails`() = runTest(dispatcher) {
+    fun `getNotes fails when the mirror write fails`() = runTest(dispatcher) {
         coEvery { noteDao.upsertNotes(any()) } throws RuntimeException("room is gone")
 
         val result = repository.getNotes()
 
-        // Best effort by design while nothing reads the table for the feed: a failed cache write
-        // must not blank a screen whose fetch succeeded. Revisit when the feed observes Room.
-        assertTrue(result.isSuccess)
-        assertEquals(NOTE_ID, result.getOrThrow().notes.single().noteId)
+        // This used to succeed, back when nothing read the table for the feed and blanking a
+        // screen over a failed cache write was the worse trade. Home renders the mirror now, so a
+        // page that did not land is a page the user cannot see -- and reporting success would let
+        // the caller advance its cursor past it, making the hole permanent.
+        assertTrue(result.isFailure)
     }
 
     @Test
@@ -322,17 +324,75 @@ class DefaultNoteRepositoryTest {
 
     @Test
     fun `getNotesStream maps the mirrored rows to domain notes`() = runTest(dispatcher) {
-        every { noteDao.getNotes() } returns flowOf(
+        every { noteDao.getNotes(any<Int>()) } returns flowOf(
             listOf(homeNote(favorite = false).toDatabaseNote())
         )
 
-        val notes = repository.getNotesStream().first()
+        val notes = repository.getNotesStream(limit = 10).first()
 
         assertEquals(NOTE_ID, notes.single().noteId)
         assertEquals("alice", notes.single().username)
         // The query itself -- that it returns non-favorites, newest first, and re-emits on a write
         // -- is NoteDaoTest's job, against a real database. This pins only the mapping.
         assertFalse(notes.single().favorite)
+    }
+
+    @Test
+    fun `getNotesStream passes the window straight through to the DAO`() = runTest(dispatcher) {
+        every { noteDao.getNotes(any<Int>()) } returns flowOf(emptyList())
+
+        repository.getNotesStream(limit = 30).first()
+
+        // The feed's window is the query's LIMIT: the repository holds no pagination state of its
+        // own, so a caller asking for 30 must not silently get the whole table.
+        verify { noteDao.getNotes(30) }
+    }
+
+    @Test
+    fun `getNoteStream maps the row and emits null once it is gone`() = runTest(dispatcher) {
+        every { noteDao.getNote(NOTE_ID) } returns
+                flowOf(homeNote(favorite = true).toDatabaseNote())
+        assertEquals(NOTE_ID, repository.getNoteStream(NOTE_ID).first()?.noteId)
+
+        every { noteDao.getNote(NOTE_ID) } returns flowOf(null)
+        assertNull(repository.getNoteStream(NOTE_ID).first())
+    }
+
+    @Test
+    fun `searchNotesStream filters the mirror by text`() = runTest(dispatcher) {
+        every { noteDao.getNotes() } returns flowOf(
+            listOf(
+                homeNote(favorite = false).copy(noteId = "a", text = "grocery list")
+                    .toDatabaseNote(),
+                homeNote(favorite = false).copy(noteId = "b", text = "meeting notes")
+                    .toDatabaseNote()
+            )
+        )
+
+        val results = repository.searchNotesStream("grocery").first()
+
+        assertEquals("a", results.single().noteId)
+    }
+
+    @Test
+    fun `searchNotes mirrors its results into Room`() = runTest(dispatcher) {
+        // searchNotes reads the collection unpaged, so it takes the un-limited query.
+        every { feedQuery.get() } returns Tasks.forResult(feedSnapshot)
+
+        val result = repository.searchNotes(query = "")
+
+        // Search reads the whole collection remotely; writing the results through is what keeps
+        // searchNotesStream from narrowing to only what the feed has paged.
+        assertTrue(result.isSuccess)
+        assertEquals(NOTE_ID, captureCachedNotes().single().noteId)
+    }
+
+    @Test
+    fun `getNote mirrors the fetched note into Room`() = runTest(dispatcher) {
+        val result = repository.getNote(NOTE_ID)
+
+        assertTrue(result.isSuccess)
+        assertEquals(NOTE_ID, captureCachedNotes().single().noteId)
     }
 
     private fun homeNote(favorite: Boolean) = HomeNote(

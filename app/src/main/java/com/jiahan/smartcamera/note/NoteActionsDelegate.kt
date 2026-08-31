@@ -12,20 +12,19 @@ import javax.inject.Inject
 @ViewModelScoped
 class NoteActionsDelegate @Inject constructor(
     private val noteRepository: NoteRepository,
-    private val noteHandler: NoteHandler,
     private val noteErrorReporter: NoteErrorReporter
 ) {
     val actionError = noteErrorReporter.actionError
 
+    // Both writes go through to the `notes` table, so every screen observing the mirror sees them.
+    // That is what retired the NoteHandler emissions this used to make on success.
     suspend fun deleteNote(noteId: String): Boolean =
         noteRepository.deleteNote(noteId)
-            .onSuccess { noteHandler.notifyNoteDeleted(noteId) }
             .onFailure { e -> noteErrorReporter.reportError(e) }
             .isSuccess
 
     suspend fun favoriteNote(homeNote: HomeNote): Boolean =
         noteRepository.favoriteNote(homeNote)
-            .onSuccess { noteHandler.notifyNoteFavorited(homeNote.copy(favorite = homeNote.favorite.not())) }
             .onFailure { e -> noteErrorReporter.reportError(e) }
             .isSuccess
 }

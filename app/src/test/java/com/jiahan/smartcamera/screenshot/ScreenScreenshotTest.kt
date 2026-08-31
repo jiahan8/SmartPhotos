@@ -49,7 +49,7 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
         val noteHandler = NoteHandler()
         val errorHandler = FakeErrorHandler()
         val noteErrorReporter = NoteErrorReporter(errorHandler)
-        val noteActions = NoteActionsDelegate(repo, noteHandler, noteErrorReporter)
+        val noteActions = NoteActionsDelegate(repo, noteErrorReporter)
         return HomeViewModel(
             repo,
             noteHandler,
@@ -122,14 +122,12 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
     @Test
     fun searchScreen_idle() {
         val noteRepository = FakeNoteRepository()
-        val noteHandler = NoteHandler()
         val errorHandler = FakeErrorHandler()
         val noteErrorReporter = NoteErrorReporter(errorHandler)
-        val noteActions = NoteActionsDelegate(noteRepository, noteHandler, noteErrorReporter)
+        val noteActions = NoteActionsDelegate(noteRepository, noteErrorReporter)
         val viewModel = SearchViewModel(
             noteRepository = noteRepository,
             analyticsRepository = FakeAnalyticsRepository(),
-            noteHandler = noteHandler,
             noteActions = noteActions,
             noteShare = NoteShareDelegate(
                 FakeMediaFileRepository(),

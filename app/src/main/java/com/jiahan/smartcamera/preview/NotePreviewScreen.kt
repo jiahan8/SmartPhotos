@@ -92,6 +92,7 @@ fun NotePreviewScreen(
     val coroutineScope = rememberCoroutineScope()
     val clipboard = LocalClipboard.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val content by viewModel.content.collectAsStateWithLifecycle()
     var showActionsSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
 
@@ -158,7 +159,7 @@ fun NotePreviewScreen(
                     .fillMaxWidth()
             ) {
                 AnimatedContent(
-                    targetState = uiState.content,
+                    targetState = content,
                     modifier = Modifier.fillMaxSize(),
                     contentKey = { it::class },
                     transitionSpec = {

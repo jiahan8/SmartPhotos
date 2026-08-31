@@ -7,7 +7,6 @@ import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteErrorReporter
-import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.AppConstants
 import com.jiahan.smartcamera.util.ErrorHandler
@@ -41,14 +40,9 @@ class FavoriteViewModelTest {
 
     private val noteRepository: NoteRepository = mockk()
     private val analyticsRepository: AnalyticsRepository = mockk()
-    private val noteHandler = NoteHandler()
     private val errorHandler: ErrorHandler = mockk()
     private val noteActions by lazy {
-        NoteActionsDelegate(
-            noteRepository,
-            noteHandler,
-            NoteErrorReporter(errorHandler)
-        )
+        NoteActionsDelegate(noteRepository, NoteErrorReporter(errorHandler))
     }
     private val noteShare: NoteShareDelegate = mockk(relaxed = true)
 
@@ -165,15 +159,15 @@ class FavoriteViewModelTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `deleteNote success notifies NoteHandler`() = runTest(mainDispatcherRule.testDispatcher) {
+    fun `deleteNote deletes through the repository`() = runTest(mainDispatcherRule.testDispatcher) {
         coEvery { noteRepository.deleteNote("doc1") } returns Result.success(Unit)
 
-        noteHandler.noteDeletedEvent.test {
-            viewModel.deleteNote("doc1")
-            advanceUntilIdle()
-            assertEquals("doc1", awaitItem())
-            cancelAndIgnoreRemainingEvents()
-        }
+        viewModel.deleteNote("doc1")
+        advanceUntilIdle()
+
+        // This used to assert a NoteHandler emission. The delete is a write to the shared table
+        // now, so what other screens see is the row leaving it, not an event.
+        coVerify { noteRepository.deleteNote("doc1") }
     }
 
     @Test
@@ -194,19 +188,17 @@ class FavoriteViewModelTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `favoriteNote success notifies NoteHandler with toggled value`() =
+    fun `favoriteNote toggles through the repository`() =
         runTest(mainDispatcherRule.testDispatcher) {
             val note = makeNote("doc1", favorite = true)
             coEvery { noteRepository.favoriteNote(note) } returns Result.success(Unit)
 
-            noteHandler.noteFavoritedEvent.test {
-                viewModel.favoriteNote(note)
-                advanceUntilIdle()
-                val emitted = awaitItem()
-                assertEquals("doc1", emitted.noteId)
-                assertFalse(emitted.favorite) // true → false
-                cancelAndIgnoreRemainingEvents()
-            }
+            viewModel.favoriteNote(note)
+            advanceUntilIdle()
+
+            // The repository owns the toggle and upserts the flipped row; the delegate no longer
+            // announces it, because every screen reads that row.
+            coVerify { noteRepository.favoriteNote(note) }
         }
 
     @Test

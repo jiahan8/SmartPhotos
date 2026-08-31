@@ -121,9 +121,9 @@ Run from the repo root (Gradle wrapper):
     `testDebugUnitTest` skips them without failing. CI names both for the same reason.
     Every other module needs no such mention — they are all Android libraries, so the
     unqualified `testDebugUnitTest` already reaches them, as do `lintDebug` and
-    `connectedDebugAndroidTest`. Nine modules run unit tests today: `:app` 199, `:feature:auth` 46,
+    `connectedDebugAndroidTest`. Nine modules run unit tests today: `:app` 210, `:feature:auth` 46,
     `:feature:explore` 34, `:feature:settings` 30, `:feature:profile` 26, `:core:common` 21,
-    `:core:ui` 17, `:core:data` 15, `:core:domain` 8 — 396 in total.
+    `:core:ui` 17, `:core:data` 15, `:core:domain` 8 — 407 in total.
   - Single class: `./gradlew testDebugUnitTest --tests "com.jiahan.smartcamera.home.HomeViewModelTest"`
   - Single method: `./gradlew testDebugUnitTest --tests "com.jiahan.smartcamera.home.HomeViewModelTest.methodName"`
   - Assert on a settled `StateFlow` by reading `.value`; that is what most of the suite does, and
@@ -385,8 +385,9 @@ calling `FirebaseFirestore` directly, or a repository returning a Room `@Entity`
 [Cross-feature communication](#cross-feature-communication) deviation below. The offline-first
 guidance makes the local database the source of truth: the UI observes Room, writes land locally
 first, and a sync layer reconciles with the backend. This app does the opposite — Firestore is the
-source of truth, Home and Search render point-in-time `QuerySnapshot`s, and Room is written only
-after the Firestore write returns.
+source of truth and Room is written only after the Firestore write returns. Home *reads* the Room
+mirror now, which is the read half of that guidance and not the write half: there are still no
+offline writes and no reconciliation. Search still renders point-in-time `QuerySnapshot`s.
 
 **The `notes` table is mid-migration, and knowing which half you are in matters.** It used to hold
 favorited notes only — every `noteDao` write was gated on the flag and unfavoriting deleted the row
@@ -395,103 +396,142 @@ favorited notes only — every `noteDao` write was gated on the flag and unfavor
 `favoriteNote` upserts in both directions instead of deleting. The table holds every note the feed
 has paged through.
 
-**The live query exists; nothing observes it yet.** `NoteDao.getNotes()` and
-`NoteRepository.getNotesStream()` are in place over the whole table, but Home and Search still
-render point-in-time `QuerySnapshot`s and `NoteHandler` is still how a mutation on one screen
-reaches another. So the deviation above stands in full — a stream with no subscriber changes no
-behaviour. What is done is the data and the query; what is left is the three ViewModels. Two
-consequences while it is half-done:
+**All four screens observe the mirror now.** Home, Search, NotePreview and Favorite each expose a
+`content: StateFlow` built by `combine(<a Room query>, <a fetch status>)` and shared
+`WhileSubscribed`. The remote call still happens — `getNotes(cursor)` pages the feed, `searchNotes`
+reads the collection, `getNote` loads one — but none of them hands its result to the UI: each writes
+through to the `notes` table and the screen re-reads it. Four queries back them:
 
-- `cacheNotes` logs a failed mirror write rather than failing the fetch, because a broken cache must
-  not blank a screen whose fetch succeeded. **That is only right until the feed observes Room** — at
-  that point a lost write is a note the user cannot see, and it has to surface.
-- `syncFavoriteNotes` is still favorites-only and still correct: the DAO clears the favorited rows
-  and reinserts what the server says is favorited, leaving mirrored non-favorites alone. It becomes
-  a full sync when the feed moves over.
+| Screen | Query | Fetch that fills it |
+| --- | --- | --- |
+| Home | `getNotesStream(limit)` | `getNotes(cursor)` |
+| Search | `searchNotesStream(query)` | `searchNotes(query)` |
+| NotePreview | `getNoteStream(noteId)` | `getNote(noteId)` |
+| Favorite | `getFavoriteNotesStream(query)` | `syncFavoriteNotes()` |
 
-What the deviation costs, listed so nobody rediscovers it as a bug:
+That retired every list transform these ViewModels used to apply by hand, and with them three of
+`NoteHandler`'s four events. **The `combine` shape is the thing to copy**: the fetch status decides
+only what an *empty* result means (nothing fetched yet = loading, fetch failed = error), and any
+rows at all beat both — so a failed refresh keeps the cached list on screen and reports itself
+through `actionError` rather than blanking the feed.
+
+Four consequences worth knowing:
+
+- **`getNotesStream` takes a `limit`, and Home widens it one page at a time.** Without it the feed
+  would render the whole table, which is not the same list: `searchNotes` and `getNote` write into
+  `notes` too, so a note the user only ever searched for would turn up in Home. The window keeps
+  what is rendered equal to what was paged — reset it wherever the cursor resets.
+- `cacheNotes` **fails the fetch** on a mirror write error, where it used to log and continue. The
+  old behaviour was right while nothing read the table; with the screens rendering it, a swallowed
+  write is a note the user cannot see *and* a cursor advanced past it, which makes the hole
+  permanent. Failing leaves the cursor where it was, so the page is retried.
+- **Search did not get narrower.** `searchNotes` still reads the whole collection from Firestore; it
+  just writes the results through on the way out, so `searchNotesStream` covers notes the feed has
+  never paged. Pointing Search at the table *without* that write would have quietly reduced it to
+  searching whatever Home happened to have scrolled.
+- `syncFavoriteNotes` is still favorites-only, and is now the odd one out: the DAO clears the
+  favorited rows and reinserts what the server says is favorited, leaving mirrored non-favorites
+  alone. Nothing reconciles the rest of the table.
+
+What the deviation still costs, listed so nobody rediscovers it as a bug:
 
 - No offline writes. A mutation with no network fails at the Firestore call and never reaches Room.
-- No reconciliation. If the Firestore write succeeds and the Room write then fails, the two diverge
-  silently until something rewrites that row.
-- No live query for Home or Search, which is the entire reason `NoteHandler` exists.
+- No reconciliation. Nothing removes a mirrored row that no longer exists server-side, and a reload
+  adds to the table rather than replacing it. Home's `limit` bounds what that can surface, but a
+  note deleted on another device lingers locally until something rewrites the row.
+- **That is the whole remaining gap.** The read path is done; offline writes and reconciliation are
+  the separate, larger project, and they are what would make this offline-first rather than
+  cache-backed.
 
-**Next step:** move Home, Search and NotePreview onto `getNotesStream()`, then delete
-`NoteHandler` rather than extending it. Only the third cost above is removed by that — offline
-writes and reconciliation are a separate, larger project, and keeping them out is what makes this
-one tractable. Two things worth knowing before starting: `getNotesStream()` carries **no cursor**,
-because `getNotes(cursor)` owns the remote pagination and writes each page into the mirror, so a
-subscriber sees the result rather than driving it — that is the `RemoteMediator` shape without the
-Paging 3 dependency, and it works only because the collection is one user's own notes
-(`user/{uid}/note`) rather than a shared feed. And `searchNotes` currently reads the *entire*
-collection on every query and filters client-side, so pointing Search at the mirror is strictly
-cheaper than what it does today, not a trade. Until then keep new repositories on the same
-Firestore-first shape rather than introducing a third pattern.
+**Next step: `addNote` should mirror its own result**, which is the last thing standing between
+`NoteHandler` and deletion — see the note below. After that the only work left on this deviation is
+offline writes and reconciliation, which is a larger project and deliberately out of scope.
 
-The one behaviour to get right in that step is the empty state. Room becomes the read path before
-anything has filled it, so a fresh install or a cleared cache renders an empty table while the
-first fetch is still in flight. `HomeContent.Empty` must not win that race — treat "no rows yet and
-no fetch has completed" as loading, and cover it with a test rather than a careful reading.
+Two properties of the read path that are easy to break and worth stating:
+
+- `getNotesStream(limit)` carries **no cursor**. `getNotes(cursor)` owns the remote pagination and
+  writes each page into the mirror, so a subscriber sees the result rather than driving it — that is
+  the `RemoteMediator` shape without the Paging 3 dependency, and it works only because the
+  collection is one user's own notes (`user/{uid}/note`) rather than a shared feed. The `limit` is
+  the subscriber's half of that bargain, not a second cursor.
+- Every remote read writes what it fetched into the table before returning. `getNotes`, `searchNotes`
+  and `getNote` all do. **A new remote read that skips it is a screen that renders nothing**, because
+  the screens no longer look at return values.
+
+**`noteAddedEvent` is the one handler event Room does not retire, and it is not an oversight.**
+`addNote` delegates to the createNote Cloud Function and discards its result, and the new note's id
+and server-stamped `created` exist only server-side, so nothing can mirror it locally — a refetch of
+the first page is still how it reaches the table. Deleting `NoteHandler` outright therefore needs
+`addNote` to mirror its own result first, which means returning the created note (or reading it
+back) rather than `{documentPath}`. Until then Home keeps collecting that one event.
+
+The behaviour to get right when moving a screen over is the empty state, and Home is the worked
+example. Room answers before the first fetch does, so a fresh install renders an empty table while
+the notes are still in flight; `HomeViewModel`'s `FetchStatus.Pending` branch is what stops that
+from showing "create your first note" to a user who has notes. Two tests pin it —
+`init stays Loading while the first fetch is in flight over an empty mirror` and
+`init renders the mirror before any fetch completes`. The mirror image is a *failed* fetch: an
+error screen is right on an empty cache and wrong on a populated one, so with rows on screen the
+failure goes to `actionError` as a snackbar and the cached feed stays up. That replaced Home's old
+"refresh failure blanks the list for a full-screen error", which was a safeguard only while there
+was nothing cached to lose.
 
 ### Cross-feature communication
 
-Screens that must reflect a mutation made on another screen use a per-domain `*Handler` singleton
-injected via Hilt (`note/NoteHandler.kt`), exposing read-only `SharedFlow`s (`noteAddedEvent`,
-`noteDeletedEvent`, `noteFavoritedEvent`, `noteUpdatedEvent`) over private `MutableSharedFlow`s.
-ViewModels emit into the handler on mutation and subscribe in `init {}` — Home, Search and
-NotePreview do. Follow this rather than adding direct cross-ViewModel references.
+**The deviation this section used to describe is gone.** Screens that must reflect a mutation made
+on another screen observe the Room mirror ([Source of truth](#source-of-truth)) — they do not
+exchange events. `note/NoteHandler.kt` still exists, but it is down to one event and one subscriber:
+`noteAddedEvent`, emitted by `NoteViewModel` after a successful upload and collected by
+`HomeViewModel` to trigger a refetch. `observeNoteMutations` and the deleted/favorited/updated
+events are deleted, along with every list transform the ViewModels applied on receiving them.
 
-Subscribe through `NoteHandler.observeNoteMutations(scope) { transform -> ... }`, which collects the
-deleted/favorited/updated events and hands back a list transform to apply; Home and Search each use
-it as a single line. Don't hand-roll those three collectors. `noteAddedEvent` is the one collected
-directly, because it triggers a full `reload()` rather than a transform of the list in hand.
+**Do not add a second `*Handler`.** The official answer to "screen A must reflect a change made on
+screen B" is a single source of truth in the data layer exposing a reactive stream both screens
+observe, and that is now what this app does. If a list *could* be backed by a live query, back it
+with the query. What made the old pattern defensible was the absence of a mirror to observe, and
+that absence was a choice this project had made rather than a constraint Firestore imposed — the
+mirror was added, four screens moved onto it, and three of the handler's four events became dead
+code without any change to the backend.
 
-**This is a deliberate deviation from the architecture guide.** The official answer to "screen A
-must reflect a change made on screen B" is a single source of truth in the data layer exposing a
-reactive stream both screens observe — not peer-to-peer events between ViewModels. It stands here
-only because Home's feed and Search's results have no local mirror to observe — and that absence is
-itself a choice this project made ([Source of truth](#source-of-truth) above), not a constraint
-Firestore imposes. Treat "there is no live query" as a decision that can be reversed, not as a fact
-about the backend.
+**Why `noteAddedEvent` survives, and how to kill it.** `addNote` delegates to the createNote Cloud
+Function and discards its result; the new note's id and its server-stamped `created` exist only
+server-side, so nothing can mirror it locally and a refetch of the first page is the only way it
+reaches the table. Make the function return the created note (or read it back) and mirror it, and
+`NoteHandler`, its injection into `HomeViewModel` and `NoteViewModel`, and `NoteHandlerTest` all
+delete together. **Delete it then — do not find it a new job.**
 
-Favorite is the counter-example, and the pattern to copy whenever you can: it never injects
-`NoteHandler`, because `getFavoriteNotesStream` is a Room-backed `Flow` that re-emits on its own.
+One rule that outlived the pattern: a default `MutableSharedFlow` has no replay, so a subscriber
+that is not collecting yet silently misses the event. That is tolerable for `noteAddedEvent`, whose
+only subscriber re-fetches on construction anyway. For an event a screen must never miss, use
+`note/IncomingShareHandler.kt` instead — a `StateFlow` holding the pending value plus an explicit
+`consume()`, which survives having no subscriber yet.
 
-**Trigger to retire the handler:** if the notes feed is ever mirrored into Room (the offline-first
-direction), Home and Search should observe that query and the handler should be deleted, not
-extended. Until then, don't add a `*Handler` for a list that *could* be backed by a live query —
-back it with the query instead.
+**What now caps the modularization is the two delegates, not the handler.** `NoteActionsDelegate`
+and `NoteShareDelegate` are each imported by all four feature packages still in `:app` — `home`,
+`search`, `favorite`, `preview` — while `NoteHandler` is down to one importer (`home`) plus
+`NoteViewModel`. That is a real change of shape: the obstacle used to be a cross-feature *event bus*
+with no data-layer alternative, and it is now two ordinary shared helpers. The bad options are
+unchanged and still bad — a `:feature:note` the other four depend on is the feature-to-feature edge
+NiA's rule forbids, and a `:core:note` invented to hold whatever is left over is how a `:core:`
+namespace becomes a place things get put rather than a place things belong.
 
-**This is also what caps the modularization.** `NoteHandler`, `NoteActionsDelegate` and
-`NoteShareDelegate` are imported by `home`, `search`, `favorite` and `preview` — the four feature
-packages left in `:app`, and they are now the *only* four left — `auth` and `profile` have both
-been extracted the way `settings` was, and with them the easy half is done. What remains is 3,643
-lines behind a single shared dependency, so from here the handler is not one obstacle among several;
-it is the obstacle. Keep going past them and there are only two shapes available, both bad:
+The route through, in order:
 
-- a `:feature:note` that the other four depend on — a feature-to-feature edge, which is the one
-  thing NiA's feature-module rule forbids; or
-- a `:core:note` holding the delegates and the handler, which is a data-layer stream wearing a
-  different name.
+1. **`NoteActionsDelegate` dissolves.** Without `noteHandler` it is two methods of
+   `repository.call().onFailure { report }.isSuccess` — six lines per ViewModel. Inline it.
+2. **`NoteShareDelegate` goes down to `:core:common`**, taking `NoteErrorReporter`, `ShareContent`
+   and `share_note_failure` with it. Thirty-odd lines of parallel media download that all four
+   genuinely share, Android-typed (`Uri`) and not Compose — which is exactly that module's charter.
+3. **`addNote` mirrors its own result**, and `NoteHandler` deletes.
 
-The second is the tell. What those four actually share is not *helpers* — it is the absence of a
-live query over the notes feed, which is what `NoteHandler` exists to paper over
-([Source of truth](#source-of-truth)). Mirroring the feed into Room retires the handler, and with
-it the coupling: the delegates shrink to per-feature code and four feature modules become
-extractable independently. **So the notes-feed-into-Room work is not just an offline-first
-improvement — it is the prerequisite for finishing the modularization.** Sequence it before
-extracting `auth` and `profile` if the goal is modules rather than module *count*.
+Then the four packages are extractable independently, and none of them needs a module that does not
+already exist.
 
-Two rules while it exists:
-
-- Emit the mutation once and let the collector apply it. Don't also patch the list locally at the
-  call site — `HomeViewModel.deleteNote` currently does both, which is harmless only because
-  filtering happens to be idempotent.
-- A default `MutableSharedFlow` has no replay, so a subscriber that isn't collecting yet (its
-  ViewModel not yet constructed, or still before its `init {}`) silently misses the event. That is
-  tolerable for list patches, where every subscriber re-fetches on construction anyway. For an
-  event a screen must never miss, use `note/IncomingShareHandler.kt` instead: a `StateFlow` holding
-  the pending value plus an explicit `consume()`, which survives having no subscriber yet.
+Two corrections to what this paragraph used to say, both learned by doing the work. It told you to
+sequence the Room migration before extracting `auth` and `profile` — they are extracted, so that
+advice is spent. And it said the delegates would "shrink to per-feature code" once the handler went:
+half right. `NoteActionsDelegate` did. `NoteShareDelegate` did not, and pretending it would was the
+error — it is shared code, and shared code goes *down*, not sideways.
 
 ### Error handling
 

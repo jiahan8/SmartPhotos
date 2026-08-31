@@ -8,7 +8,7 @@ import com.jiahan.smartcamera.MainDispatcherRule
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteActionsDelegate
-import com.jiahan.smartcamera.note.NoteHandler
+import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.ErrorHandler
 import io.mockk.coEvery
@@ -18,11 +18,16 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import io.mockk.unmockkAll
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import io.mockk.verify
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -41,6 +46,7 @@ import org.robolectric.annotation.Config
  * Check provider in `onCreate()`, which throws under Robolectric because no default `FirebaseApp`
  * is initialized there.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(AndroidJUnit4::class)
 @Config(application = Application::class)
 class NotePreviewViewModelTest {
@@ -49,12 +55,15 @@ class NotePreviewViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val noteRepository: NoteRepository = mockk()
-    private val noteHandler = NoteHandler()
-    private val noteActions: NoteActionsDelegate = mockk()
     private val errorHandler: ErrorHandler = mockk()
+    private val noteErrorReporter by lazy { NoteErrorReporter(errorHandler) }
+    private val noteActions by lazy { NoteActionsDelegate(noteRepository, noteErrorReporter) }
     private val noteShare: NoteShareDelegate = mockk(relaxed = true)
 
     private val noteId = "note1"
+
+    /** Stands in for this note's row. The screen renders it, not the fetch that fills it. */
+    private val noteMirror = MutableStateFlow<HomeNote?>(null)
 
     private val testNote = HomeNote(
         text = "Test note",
@@ -63,21 +72,34 @@ class NotePreviewViewModelTest {
         favorite = false
     )
 
-    private fun createViewModel() = NotePreviewViewModel(
-        savedStateHandle = SavedStateHandle(mapOf("id" to noteId)),
-        noteRepository = noteRepository,
-        noteHandler = noteHandler,
-        noteActions = noteActions,
-        errorHandler = errorHandler,
-        noteShare = noteShare
-    )
+    /**
+     * Builds the ViewModel and subscribes to [NotePreviewViewModel.content], which is shared
+     * `WhileSubscribed` and so sits at its initial value with nobody collecting it.
+     */
+    private fun TestScope.createViewModel(): NotePreviewViewModel {
+        val viewModel = NotePreviewViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("id" to noteId)),
+            noteRepository = noteRepository,
+            noteActions = noteActions,
+            errorHandler = errorHandler,
+            noteShare = noteShare
+        )
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.content.collect { }
+        }
+        return viewModel
+    }
 
     @Before
     fun setUp() {
         every { errorHandler.logError(any()) } just runs
         every { errorHandler.getErrorMessage(any()) } returns "Error"
-        every { noteActions.actionError } returns MutableSharedFlow<String>().asSharedFlow()
-        coEvery { noteRepository.getNote(noteId) } returns Result.success(testNote)
+        every { noteRepository.getNoteStream(noteId) } returns noteMirror
+        // getNote writes the note through on its way out, the way the real repository does.
+        coEvery { noteRepository.getNote(noteId) } coAnswers {
+            noteMirror.value = testNote
+            Result.success(testNote)
+        }
     }
 
     @After
@@ -89,34 +111,30 @@ class NotePreviewViewModelTest {
 
     @Test
     fun `init loads note and sets Success state`() = runTest {
-        val vm = createViewModel()
-        val state = vm.uiState.value.content
+        val viewModel = createViewModel()
+        val state = viewModel.content.value
         assertTrue(state is NotePreviewContent.Success)
         assertEquals(testNote, (state as NotePreviewContent.Success).note)
     }
 
     @Test
-    fun `noteUpdatedEvent for this note refreshes Success state`() = runTest {
-        val vm = createViewModel()
-        val editedNote = testNote.copy(text = "Edited text")
+    fun `init observes the row for its own note id`() = runTest {
+        createViewModel()
 
-        noteHandler.notifyNoteUpdated(editedNote)
-
-        val state = vm.uiState.value.content
-        assertTrue(state is NotePreviewContent.Success)
-        assertEquals(editedNote, (state as NotePreviewContent.Success).note)
+        // The old ViewModel collected every note's update event and filtered by id by hand. The
+        // query is keyed, so an unrelated note's write cannot reach this screen at all.
+        verify { noteRepository.getNoteStream(noteId) }
     }
 
     @Test
-    fun `noteUpdatedEvent for a different note is ignored`() = runTest {
-        val vm = createViewModel()
-        val otherNote = HomeNote(noteId = "other-note", text = "Not this one", username = "someone")
+    fun `an edit made on another screen reaches this one`() = runTest {
+        val viewModel = createViewModel()
 
-        noteHandler.notifyNoteUpdated(otherNote)
+        noteMirror.value = testNote.copy(text = "Edited text")
 
-        val state = vm.uiState.value.content
+        val state = viewModel.content.value
         assertTrue(state is NotePreviewContent.Success)
-        assertEquals(testNote, (state as NotePreviewContent.Success).note)
+        assertEquals("Edited text", (state as NotePreviewContent.Success).note.text)
     }
 
     @Test
@@ -125,11 +143,21 @@ class NotePreviewViewModelTest {
         coEvery { noteRepository.getNote(noteId) } returns Result.failure(exception)
         every { errorHandler.getErrorMessage(exception) } returns "not found"
 
-        val vm = createViewModel()
+        val viewModel = createViewModel()
 
-        val state = vm.uiState.value.content
+        val state = viewModel.content.value
         assertTrue(state is NotePreviewContent.Error)
         assertEquals("not found", (state as NotePreviewContent.Error).message)
+    }
+
+    @Test
+    fun `a cached row renders even when the fetch fails`() = runTest {
+        noteMirror.value = testNote
+        coEvery { noteRepository.getNote(noteId) } returns Result.failure(RuntimeException())
+
+        val viewModel = createViewModel()
+
+        assertEquals(NotePreviewContent.Success(testNote), viewModel.content.value)
     }
 
     // -------------------------------------------------------------------------
@@ -137,25 +165,39 @@ class NotePreviewViewModelTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `deleteNote success notifies NoteHandler`() = runTest {
-        val vm = createViewModel()
+    fun `deleteNote deletes through the repository`() = runTest {
+        val viewModel = createViewModel()
         coEvery { noteRepository.deleteNote(noteId) } returns Result.success(Unit)
 
-        noteHandler.noteDeletedEvent.test {
-            vm.deleteNote(noteId)
-            assertEquals(noteId, awaitItem())
-            cancelAndIgnoreRemainingEvents()
+        viewModel.deleteNote(noteId)
+
+        // Was a NoteHandler emission; the row leaving the table is what other screens now see.
+        coVerify { noteRepository.deleteNote(noteId) }
+    }
+
+    @Test
+    fun `a deleted note shows Loading rather than an error`() = runTest {
+        val viewModel = createViewModel()
+        coEvery { noteRepository.deleteNote(noteId) } coAnswers {
+            noteMirror.value = null
+            Result.success(Unit)
         }
+
+        viewModel.deleteNote(noteId)
+
+        // The screen navigates back as it deletes, so a missing row must not flash a failure on
+        // the way off the stack.
+        assertEquals(NotePreviewContent.Loading, viewModel.content.value)
     }
 
     @Test
     fun `deleteNote failure emits action error`() = runTest {
-        val vm = createViewModel()
+        val viewModel = createViewModel()
         coEvery { noteRepository.deleteNote(any()) } returns Result.failure(RuntimeException())
         every { errorHandler.getErrorMessage(any()) } returns "delete failed"
 
-        vm.actionError.test {
-            vm.deleteNote(noteId)
+        viewModel.actionError.test {
+            viewModel.deleteNote(noteId)
             assertEquals("delete failed", awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
@@ -166,41 +208,33 @@ class NotePreviewViewModelTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `favoriteNote success toggles favorite in Success state`() = runTest {
-        val vm = createViewModel()
-        coEvery { noteRepository.favoriteNote(testNote) } returns Result.success(Unit)
+    fun `favoriteNote toggle reaches the screen through the mirror`() = runTest {
+        val viewModel = createViewModel()
+        coEvery { noteRepository.favoriteNote(testNote) } coAnswers {
+            noteMirror.value = testNote.copy(favorite = true)
+            Result.success(Unit)
+        }
 
-        vm.favoriteNote(testNote)
+        viewModel.favoriteNote(testNote)
 
-        val state = vm.uiState.value.content as NotePreviewContent.Success
+        // The ViewModel patches nothing itself: the repository upserts the flipped row and the
+        // screen re-reads it.
+        val state = viewModel.content.value as NotePreviewContent.Success
         assertTrue(state.note.favorite) // false → true
     }
 
     @Test
-    fun `favoriteNote success notifies NoteHandler`() = runTest {
-        val vm = createViewModel()
-        coEvery { noteRepository.favoriteNote(testNote) } returns Result.success(Unit)
-
-        noteHandler.noteFavoritedEvent.test {
-            vm.favoriteNote(testNote)
-            val emitted = awaitItem()
-            assertEquals(noteId, emitted.noteId)
-            assertTrue(emitted.favorite) // toggled from false to true
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `favoriteNote failure emits action error`() = runTest {
-        val vm = createViewModel()
+    fun `favoriteNote failure leaves the note as it was`() = runTest {
+        val viewModel = createViewModel()
         coEvery { noteRepository.favoriteNote(any()) } returns Result.failure(RuntimeException())
         every { errorHandler.getErrorMessage(any()) } returns "fav failed"
 
-        vm.actionError.test {
-            vm.favoriteNote(testNote)
+        viewModel.actionError.test {
+            viewModel.favoriteNote(testNote)
             assertEquals("fav failed", awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
+        assertFalse((viewModel.content.value as NotePreviewContent.Success).note.favorite)
     }
 
     // -------------------------------------------------------------------------
@@ -209,17 +243,17 @@ class NotePreviewViewModelTest {
 
     @Test
     fun `setNoteToDelete stores the note`() = runTest {
-        val vm = createViewModel()
-        vm.setNoteToDelete(testNote)
-        assertEquals(testNote, vm.uiState.value.noteToDelete)
+        val viewModel = createViewModel()
+        viewModel.setNoteToDelete(testNote)
+        assertEquals(testNote, viewModel.uiState.value.noteToDelete)
     }
 
     @Test
     fun `setNoteToDelete null clears the note`() = runTest {
-        val vm = createViewModel()
-        vm.setNoteToDelete(testNote)
-        vm.setNoteToDelete(null)
-        assertNull(vm.uiState.value.noteToDelete)
+        val viewModel = createViewModel()
+        viewModel.setNoteToDelete(testNote)
+        viewModel.setNoteToDelete(null)
+        assertNull(viewModel.uiState.value.noteToDelete)
     }
 
     // -------------------------------------------------------------------------
@@ -228,24 +262,22 @@ class NotePreviewViewModelTest {
 
     @Test
     fun `shareNote delegates to NoteShareDelegate`() = runTest {
-        val vm = createViewModel()
+        val viewModel = createViewModel()
         coEvery { noteShare.shareNote(testNote) } just runs
 
-        vm.shareNote(testNote)
+        viewModel.shareNote(testNote)
 
         coVerify { noteShare.shareNote(testNote) }
     }
 
     @Test
-    fun `actionError surfaces errors reported through the shared NoteActionsDelegate`() = runTest {
-        // NoteShareDelegate reports share failures via the same @ViewModelScoped
-        // NoteActionsDelegate instance injected here, not via this ViewModel's own _actionError.
-        val sharedActionError = MutableSharedFlow<String>(extraBufferCapacity = 1)
-        every { noteActions.actionError } returns sharedActionError.asSharedFlow()
-        val vm = createViewModel()
+    fun `actionError surfaces errors reported through the shared NoteErrorReporter`() = runTest {
+        // NoteShareDelegate reports share failures through the same @ViewModelScoped
+        // NoteErrorReporter the actions delegate uses, which is the flow exposed here.
+        val viewModel = createViewModel()
 
-        vm.actionError.test {
-            sharedActionError.tryEmit("share failed")
+        viewModel.actionError.test {
+            noteErrorReporter.reportError("share failed")
             assertEquals("share failed", awaitItem())
             cancelAndIgnoreRemainingEvents()
         }

@@ -18,7 +18,6 @@ import com.jiahan.smartcamera.fake.FakeMediaFileRepository
 import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteErrorReporter
-import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import org.junit.Rule
@@ -46,14 +45,12 @@ class SearchScreenTest {
     )
 
     private fun launchSearchScreen() {
-        val noteHandler = NoteHandler()
         val errorHandler = FakeErrorHandler()
         val noteErrorReporter = NoteErrorReporter(errorHandler)
-        val noteActions = NoteActionsDelegate(noteRepository, noteHandler, noteErrorReporter)
+        val noteActions = NoteActionsDelegate(noteRepository, noteErrorReporter)
         val viewModel = SearchViewModel(
             noteRepository = noteRepository,
             analyticsRepository = FakeAnalyticsRepository(),
-            noteHandler = noteHandler,
             noteActions = noteActions,
             noteShare = NoteShareDelegate(
                 FakeMediaFileRepository(),

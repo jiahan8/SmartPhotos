@@ -58,7 +58,7 @@ class HomeScreenTest {
     private fun launchHomeScreen() {
         val errorHandler = FakeErrorHandler()
         val noteErrorReporter = NoteErrorReporter(errorHandler)
-        val noteActions = NoteActionsDelegate(noteRepository, noteHandler, noteErrorReporter)
+        val noteActions = NoteActionsDelegate(noteRepository, noteErrorReporter)
         val viewModel = HomeViewModel(
             noteRepository = noteRepository,
             noteHandler = noteHandler,

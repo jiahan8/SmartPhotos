@@ -20,7 +20,6 @@ import com.jiahan.smartcamera.fake.FakeNoteRepository
 import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteErrorReporter
-import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import org.junit.Assert.assertEquals
@@ -47,7 +46,6 @@ class NotePreviewScreenTest {
     val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
     private val noteRepository = FakeNoteRepository()
-    private val noteHandler = NoteHandler()
 
     private var navigatedBack = false
     private var navigatedToEditNoteId: String? = null
@@ -68,11 +66,10 @@ class NotePreviewScreenTest {
     private fun launchNotePreviewScreen(noteId: String = "note1") {
         val errorHandler = FakeErrorHandler()
         val noteErrorReporter = NoteErrorReporter(errorHandler)
-        val noteActions = NoteActionsDelegate(noteRepository, noteHandler, noteErrorReporter)
+        val noteActions = NoteActionsDelegate(noteRepository, noteErrorReporter)
         val viewModel = NotePreviewViewModel(
             savedStateHandle = SavedStateHandle(mapOf("id" to noteId)),
             noteRepository = noteRepository,
-            noteHandler = noteHandler,
             noteActions = noteActions,
             errorHandler = errorHandler,
             noteShare = NoteShareDelegate(

@@ -58,7 +58,6 @@ class EditNoteScreenTest {
     val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
     private val noteRepository = FakeNoteRepository()
-    private val noteHandler = NoteHandler()
 
     private var navigatedBack = false
     private var navigatedToPhotoPreviewUrl: String? = null
@@ -76,7 +75,6 @@ class EditNoteScreenTest {
             savedStateHandle = SavedStateHandle(mapOf("noteId" to noteId)),
             noteRepository = noteRepository,
             analyticsRepository = FakeAnalyticsRepository(),
-            noteHandler = noteHandler,
             resourceProvider = FakeResourceProvider(composeTestRule.activity),
             errorHandler = errorHandler,
         )

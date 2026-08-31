@@ -69,7 +69,6 @@ class EditNoteViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val noteRepository: NoteRepository,
     private val analyticsRepository: AnalyticsRepository,
-    private val noteHandler: NoteHandler,
     private val resourceProvider: ResourceProvider,
     private val errorHandler: ErrorHandler,
 ) : ViewModel() {
@@ -154,9 +153,8 @@ class EditNoteViewModel @Inject constructor(
             _uiState.update { it.copy(saveStatus = SaveStatus.Saving) }
             noteRepository.updateNote(updatedNote)
                 .onSuccess {
-                    // Home/Favorite/NotePreview hold already-loaded copies of this note; the
-                    // event is how they pick up the new text without reloading their page.
-                    noteHandler.notifyNoteUpdated(updatedNote)
+                    // No event: updateNote writes the new text through to the `notes` table, and
+                    // Home, Search, Favorite and NotePreview all render that.
                     _uiState.update { it.copy(saveStatus = SaveStatus.Success) }
                 }
                 .onFailure { e ->

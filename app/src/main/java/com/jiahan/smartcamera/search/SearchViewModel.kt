@@ -6,19 +6,24 @@ import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.note.NoteActionsDelegate
-import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.AppConstants.DEBOUNCE_MS
 import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorTag
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -34,21 +39,27 @@ sealed interface SearchContent {
 }
 
 data class SearchUiState(
-    val content: SearchContent = SearchContent.Idle,
     val searchQuery: String = "",
     val isRefreshing: Boolean = false,
     val noteToDelete: HomeNote? = null
-) {
-    val notes: List<HomeNote>?
-        get() = (content as? SearchContent.Success)?.notes
+)
+
+/**
+ * How far the remote search has got, for the current query. As on Home, it only decides what an
+ * empty result set means -- with matches to show, the query's state stops mattering.
+ */
+private sealed interface SearchStatus {
+    data object Idle : SearchStatus
+    data object Searching : SearchStatus
+    data object Settled : SearchStatus
+    data class Failed(val message: String) : SearchStatus
 }
 
-@OptIn(FlowPreview::class)
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val noteRepository: NoteRepository,
     private val analyticsRepository: AnalyticsRepository,
-    noteHandler: NoteHandler,
     private val noteActions: NoteActionsDelegate,
     private val noteShare: NoteShareDelegate,
     private val errorHandler: ErrorHandler
@@ -64,19 +75,47 @@ class SearchViewModel @Inject constructor(
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STATEFLOW_WHILE_SUBSCRIBED_MS), "")
 
+    private val debouncedQuery = searchQuery.debounce(DEBOUNCE_MS.milliseconds)
+
+    private val searchStatus = MutableStateFlow<SearchStatus>(SearchStatus.Idle)
+
+    /**
+     * Results read from the mirror rather than from the fetch that fills it.
+     *
+     * `searchNotes` is still what reaches Firestore -- it reads the whole collection and writes its
+     * results through -- so this is not a narrower search than before, just a live one: a note
+     * deleted, favorited or edited on another screen updates here with no `NoteHandler` event to
+     * collect, and none of the three list transforms this ViewModel used to apply by hand.
+     */
+    private val results: Flow<List<HomeNote>> = debouncedQuery.flatMapLatest { query ->
+        if (query.isBlank()) flowOf(emptyList()) else noteRepository.searchNotesStream(query)
+    }
+
+    val content: StateFlow<SearchContent> =
+        combine(results, searchStatus) { notes, status ->
+            when {
+                status is SearchStatus.Idle -> SearchContent.Idle
+                notes.isNotEmpty() -> SearchContent.Success(notes)
+                status is SearchStatus.Failed -> SearchContent.Error(status.message)
+                status is SearchStatus.Settled -> SearchContent.Success(emptyList())
+                else -> SearchContent.Loading
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(STATEFLOW_WHILE_SUBSCRIBED_MS),
+            initialValue = SearchContent.Idle
+        )
+
     init {
         viewModelScope.launch {
-            searchQuery
-                .debounce(DEBOUNCE_MS.milliseconds)
-                .collect { query ->
-                    if (query.isBlank()) {
-                        _uiState.update { it.copy(content = SearchContent.Idle) }
-                    } else {
-                        searchNotes(query)
-                    }
+            debouncedQuery.collect { query ->
+                if (query.isBlank()) {
+                    searchStatus.value = SearchStatus.Idle
+                } else {
+                    searchNotes(query)
                 }
+            }
         }
-        noteHandler.observeNoteMutations(viewModelScope) { transform -> updateSuccessNotes(transform) }
     }
 
     fun updateSearchQuery(query: String) {
@@ -92,33 +131,25 @@ class SearchViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             _uiState.update { it.copy(isRefreshing = true) }
-            searchNotes(_uiState.value.searchQuery)
+            val query = _uiState.value.searchQuery
+            if (query.isNotBlank()) searchNotes(query)
             _uiState.update { it.copy(isRefreshing = false) }
         }
     }
 
     private suspend fun searchNotes(query: String) {
-        _uiState.update { it.copy(content = SearchContent.Loading) }
+        searchStatus.value = SearchStatus.Searching
         noteRepository.searchNotes(query = query)
-            .onSuccess { results ->
-                _uiState.update { it.copy(content = SearchContent.Success(results)) }
-            }
+            .onSuccess { searchStatus.value = SearchStatus.Settled }
             .onFailure { e ->
                 errorHandler.logError(e)
-                _uiState.update {
-                    it.copy(
-                        content = SearchContent.Error(errorHandler.getErrorMessage(e))
-                    )
-                }
+                searchStatus.value = SearchStatus.Failed(errorHandler.getErrorMessage(e))
             }
     }
 
     fun deleteNote(noteId: String) {
-        viewModelScope.launch {
-            if (noteActions.deleteNote(noteId)) {
-                updateSuccessNotes { it.filter { note -> note.noteId != noteId } }
-            }
-        }
+        // No list transform to go with it: the row leaves the table and `results` re-emits.
+        viewModelScope.launch { noteActions.deleteNote(noteId) }
     }
 
     fun favoriteNote(homeNote: HomeNote) {
@@ -131,10 +162,5 @@ class SearchViewModel @Inject constructor(
 
     fun shareNote(note: HomeNote) {
         viewModelScope.launch { noteShare.shareNote(note) }
-    }
-
-    private fun updateSuccessNotes(transform: (List<HomeNote>) -> List<HomeNote>) {
-        val notes = _uiState.value.notes ?: return
-        _uiState.update { it.copy(content = SearchContent.Success(transform(notes))) }
     }
 }

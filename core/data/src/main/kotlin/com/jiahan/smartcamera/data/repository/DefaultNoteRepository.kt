@@ -193,6 +193,9 @@ class DefaultNoteRepository @Inject constructor(
         noteDao.upsertNotes(listOf(homeNote.toDatabaseNote()))
     }
 
+    // Reads the whole collection and filters client-side, which is what it has always done. What
+    // changed is where the result goes: it is mirrored on the way out, so searchNotesStream covers
+    // notes the feed never paged rather than narrowing search to what Home has scrolled.
     override suspend fun searchNotes(query: String): Result<List<HomeNote>> = safeCall {
         noteCollectionReference?.let { ref ->
             val snapshot = ref
@@ -201,12 +204,14 @@ class DefaultNoteRepository @Inject constructor(
                 .await()
             val userIds = snapshot.documents.mapNotNull { it.getString(FIELD_USER_ID) }.distinct()
             val userDocumentsMap = getUserDocumentsInBatch(userIds)
-            snapshot.documents
+            val results = snapshot.documents
                 .filter { document -> matchesSearchQuery(document, query) }
                 .mapNotNull { document ->
                     val userId = document.getString(FIELD_USER_ID) ?: return@mapNotNull null
                     userDocumentsMap[userId]?.let { getHomeNote(document, it) }
                 }
+            cacheNotes(results)
+            results
         } ?: emptyList()
     }
 
@@ -238,7 +243,7 @@ class DefaultNoteRepository @Inject constructor(
                 ?: throw AppError.NoteUnavailable()
             val userDocument = getUserDocumentSnapshot(userId)
             if (!userDocument.exists()) throw AppError.NoteUnavailable()
-            getHomeNote(noteDocument, userDocument)
+            getHomeNote(noteDocument, userDocument).also { cacheNotes(listOf(it)) }
         } ?: throw AppError.NotAuthenticated()
     }
 
@@ -294,16 +299,16 @@ class DefaultNoteRepository @Inject constructor(
     /**
      * Mirrors a fetched page into Room.
      *
-     * Best effort, and deliberately so *for now*: nothing reads this table for the feed yet, so a
-     * failed cache write must not turn a successful fetch into a failed one and blank the screen.
-     * It is logged rather than swallowed silently, which is what [ErrorHandler.logError] is for at
-     * this layer. **Revisit when the feed starts observing Room** -- at that point a lost write is
-     * a note the user cannot see, and it should surface rather than be logged.
+     * No longer best effort. It was, while nothing read this table for the feed and a failed cache
+     * write blanking a screen whose fetch succeeded would have been the worse trade. Home renders
+     * the mirror now, so a page that fails to land is a page the user cannot see -- and swallowing
+     * that would also let the caller advance its cursor past it, turning a lost write into a
+     * permanent hole in the feed. Failing the enclosing [safeCall] leaves the cursor where it was,
+     * so the page is retried instead.
      */
     private suspend fun cacheNotes(notes: List<HomeNote>) {
         if (notes.isEmpty()) return
-        safeCall { noteDao.upsertNotes(notes.map { it.toDatabaseNote() }) }
-            .onFailure { e -> errorHandler.logError(e) }
+        noteDao.upsertNotes(notes.map { it.toDatabaseNote() })
     }
 
     // Still favorites-only, and still correct: the DAO's syncFavoriteNotes clears the favorited
@@ -401,8 +406,17 @@ class DefaultNoteRepository @Inject constructor(
         return emptyList()
     }
 
-    override fun getNotesStream(): Flow<List<HomeNote>> =
-        noteDao.getNotes().map { notes -> notes.map { it.toHomeNote() } }
+    override fun getNotesStream(limit: Int): Flow<List<HomeNote>> =
+        noteDao.getNotes(limit).map { notes -> notes.map { it.toHomeNote() } }
+
+    override fun getNoteStream(noteId: String): Flow<HomeNote?> =
+        noteDao.getNote(noteId).map { note -> note?.toHomeNote() }
+
+    override fun searchNotesStream(query: String): Flow<List<HomeNote>> =
+        noteDao.getNotes().map { notes ->
+            notes.map { it.toHomeNote() }
+                .filter { note -> matchesQuery(note.text, note.mediaList, query) }
+        }
 
     override fun getFavoriteNotesStream(query: String): Flow<List<HomeNote>> =
         noteDao.getFavoriteNotes().map { notes ->

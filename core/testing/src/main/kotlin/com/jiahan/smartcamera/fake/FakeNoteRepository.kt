@@ -40,6 +40,8 @@ class FakeNoteRepository : NoteRepository {
     private val notesFlow = MutableStateFlow<List<HomeNote>>(emptyList())
     private val favoritesFlow = MutableStateFlow<List<HomeNote>>(emptyList())
 
+    var notesCallCount = 0
+    var lastNotesCursor: NoteCursor? = null
     var deleteCallCount = 0
     var favoriteCallCount = 0
     var updateCallCount = 0
@@ -63,8 +65,32 @@ class FakeNoteRepository : NoteRepository {
         notesResult = Result.success(NotePage(notes, nextCursor))
     }
 
-    override suspend fun getNotes(cursor: NoteCursor?, pageSize: Int): Result<NotePage> =
-        notesResult
+    override suspend fun getNotes(cursor: NoteCursor?, pageSize: Int): Result<NotePage> {
+        lastNotesCursor = cursor
+        notesCallCount++
+        // Mirrors `cacheNotes`: the real repository writes every page it fetches into Room on its
+        // way through, which is what makes getNotesStream the feed's read path rather than the
+        // returned page. Upsert by id and keep insertion order, standing in for the table's
+        // `ORDER BY created_date DESC` -- a page already arrives newest-first, and a reload adds
+        // to the mirror rather than replacing it, exactly as the un-reconciled table does.
+        notesResult.getOrNull()?.let { mirror(it.notes) }
+        return notesResult
+    }
+
+    /** Upserts by note id, keeping insertion order -- the table's `ORDER BY created_date DESC`. */
+    private fun mirror(notes: List<HomeNote>) {
+        notesFlow.update { existing ->
+            val refreshed = existing.map { old ->
+                notes.firstOrNull { it.noteId == old.noteId } ?: old
+            }
+            refreshed + notes.filter { new -> existing.none { it.noteId == new.noteId } }
+        }
+    }
+
+    private fun matchesQuery(note: HomeNote, query: String): Boolean =
+        query.isBlank() ||
+                note.text?.contains(query, ignoreCase = true) == true ||
+                note.username.contains(query, ignoreCase = true)
 
     override suspend fun addNote(homeNote: HomeNote): Result<Unit> {
         addNoteCallCount++
@@ -84,7 +110,12 @@ class FakeNoteRepository : NoteRepository {
         return updateResult
     }
 
-    override suspend fun searchNotes(query: String): Result<List<HomeNote>> = searchResult
+    override suspend fun searchNotes(query: String): Result<List<HomeNote>> {
+        // Mirrors the real repository writing its results through, so searchNotesStream can cover
+        // notes the feed never paged.
+        searchResult.getOrNull()?.let { mirror(it) }
+        return searchResult
+    }
 
     override suspend fun deleteNote(noteId: String): Result<Unit> {
         deleteCallCount++
@@ -129,8 +160,11 @@ class FakeNoteRepository : NoteRepository {
         return favoriteResult
     }
 
-    override suspend fun getNote(noteId: String): Result<HomeNote> =
-        getNoteResult ?: Result.failure(NoSuchElementException("No note for $noteId"))
+    override suspend fun getNote(noteId: String): Result<HomeNote> {
+        val result = getNoteResult ?: Result.failure(NoSuchElementException("No note for $noteId"))
+        result.getOrNull()?.let { mirror(listOf(it)) }
+        return result
+    }
 
     override suspend fun quickUploadMediaToFirebase(
         uriList: List<MediaUri>,
@@ -145,7 +179,14 @@ class FakeNoteRepository : NoteRepository {
         uriList: List<MediaUri>
     ): Result<List<NoteMediaDetail>> = buildLocalMediaDetailsResult
 
-    override fun getNotesStream(): Flow<List<HomeNote>> = notesFlow
+    override fun getNotesStream(limit: Int): Flow<List<HomeNote>> =
+        notesFlow.map { notes -> notes.take(limit) }
+
+    override fun getNoteStream(noteId: String): Flow<HomeNote?> =
+        notesFlow.map { notes -> notes.firstOrNull { it.noteId == noteId } }
+
+    override fun searchNotesStream(query: String): Flow<List<HomeNote>> =
+        notesFlow.map { notes -> notes.filter { matchesQuery(it, query) } }
 
     override fun getFavoriteNotesStream(query: String): Flow<List<HomeNote>> =
         favoritesFlow.map { notes ->

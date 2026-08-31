@@ -57,6 +57,7 @@ fun SearchScreen(
     val listState = rememberLazyListState()
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val content by viewModel.content.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
 
     val (placeholder, placeholderAlpha) = rememberCyclingPlaceholder(
@@ -90,7 +91,7 @@ fun SearchScreen(
     ScrollToTopEffect(
         scrollToTop = scrollToTop,
         listState = listState,
-        hasItems = uiState.notes?.isNotEmpty() == true,
+        hasItems = (content as? SearchContent.Success)?.notes?.isNotEmpty() == true,
         onConsumed = onScrollToTopConsumed
     )
 
@@ -123,7 +124,7 @@ fun SearchScreen(
                     .fillMaxWidth()
             ) {
                 AnimatedContent(
-                    targetState = uiState.content,
+                    targetState = content,
                     modifier = Modifier.fillMaxSize(),
                     contentKey = { it::class },
                     transitionSpec = {
