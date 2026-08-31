@@ -8,22 +8,32 @@ import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.QuerySnapshot
 import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.HttpsCallableReference
+import com.google.firebase.functions.HttpsCallableResult
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.database.dao.NoteDao
+import com.jiahan.smartcamera.database.data.DatabaseNote
+import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.NoteMediaDetail
 import com.jiahan.smartcamera.util.DefaultErrorHandler
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ResourceProviderImpl
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -80,6 +90,9 @@ class DefaultNoteRepositoryTest {
     private val authorDocumentRef: DocumentReference = mockk()
     private val noteSnapshot: DocumentSnapshot = mockk()
     private val authorSnapshot: DocumentSnapshot = mockk()
+    private val feedQuery: Query = mockk()
+    private val limitedQuery: Query = mockk()
+    private val feedSnapshot: QuerySnapshot = mockk()
 
     private val dispatcher = UnconfinedTestDispatcher()
 
@@ -133,6 +146,25 @@ class DefaultNoteRepositoryTest {
         every { authorSnapshot.exists() } returns true
         every { authorSnapshot.getString(FIELD_USERNAME) } returns "alice"
         every { authorSnapshot.getString(FIELD_PROFILE_PICTURE) } returns null
+
+        // getNotes: user/{uid}/note orderBy(created).limit(pageSize), returning the one note above.
+        every { noteCollection.orderBy(FIELD_CREATED, Query.Direction.DESCENDING) } returns feedQuery
+        every { feedQuery.limit(any()) } returns limitedQuery
+        every { limitedQuery.get() } returns Tasks.forResult(feedSnapshot)
+        every { feedSnapshot.documents } returns listOf(noteSnapshot)
+    }
+
+    /** Stubs the Cloud Function call the write paths delegate to, so `.await()` completes. */
+    private fun stubCallable() {
+        val callable: HttpsCallableReference = mockk()
+        every { callable.call(any()) } returns Tasks.forResult(mockk<HttpsCallableResult>())
+        every { functions.getHttpsCallable(any()) } returns callable
+    }
+
+    private fun captureCachedNotes(): List<DatabaseNote> {
+        val cached = slot<List<DatabaseNote>>()
+        coVerify { noteDao.upsertNotes(capture(cached)) }
+        return cached.captured
     }
 
     // -------------------------------------------------------------------------
@@ -226,4 +258,72 @@ class DefaultNoteRepositoryTest {
                 userFacingMessage(result)
             )
         }
+
+    // -------------------------------------------------------------------------
+    // The local mirror
+    //
+    // Room used to hold favorited notes only -- every write was gated on the flag and
+    // unfavoriting deleted the row. It mirrors the whole feed now, which is the prerequisite for
+    // Home and Search observing a live query instead of exchanging NoteHandler events. These pin
+    // the three writes that changed.
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `getNotes mirrors the fetched page into Room`() = runTest(dispatcher) {
+        val result = repository.getNotes()
+
+        assertTrue(result.isSuccess)
+        val cached = captureCachedNotes()
+        assertEquals(1, cached.size)
+        assertEquals(NOTE_ID, cached.single().noteId)
+        // The note is not favorited: before this change nothing would have been written at all.
+        assertFalse(cached.single().favorite)
+    }
+
+    @Test
+    fun `getNotes still succeeds when the mirror write fails`() = runTest(dispatcher) {
+        coEvery { noteDao.upsertNotes(any()) } throws RuntimeException("room is gone")
+
+        val result = repository.getNotes()
+
+        // Best effort by design while nothing reads the table for the feed: a failed cache write
+        // must not blank a screen whose fetch succeeded. Revisit when the feed observes Room.
+        assertTrue(result.isSuccess)
+        assertEquals(NOTE_ID, result.getOrThrow().notes.single().noteId)
+    }
+
+    @Test
+    fun `favoriteNote keeps the row when a note is unfavorited`() = runTest(dispatcher) {
+        every { noteDocumentRef.update(FIELD_FAVORITE, any()) } returns Tasks.forResult(null)
+
+        val result = repository.favoriteNote(homeNote(favorite = true))
+
+        assertTrue(result.isSuccess)
+        // Not noteDao.deleteNote: the note still exists, it is just no longer favorited.
+        coVerify(exactly = 0) { noteDao.deleteNote(any()) }
+        val cached = captureCachedNotes()
+        assertEquals(NOTE_ID, cached.single().noteId)
+        assertFalse(cached.single().favorite)
+    }
+
+    @Test
+    fun `updateNote caches a note that is not favorited`() = runTest(dispatcher) {
+        stubCallable()
+
+        val result = repository.updateNote(homeNote(favorite = false).copy(text = "edited"))
+
+        assertTrue(result.isSuccess)
+        val cached = captureCachedNotes()
+        assertEquals("edited", cached.single().text)
+    }
+
+    private fun homeNote(favorite: Boolean) = HomeNote(
+        noteId = NOTE_ID,
+        text = "hello",
+        createdDate = null,
+        favorite = favorite,
+        mediaList = null,
+        username = "alice",
+        profilePictureUrl = null,
+    )
 }

@@ -83,8 +83,10 @@ class FakeNoteRepository : NoteRepository {
     override suspend fun favoriteNote(homeNote: HomeNote): Result<Unit> {
         favoriteCallCount++
         lastFavoritedNote = homeNote
-        // Mirrors the real repository toggling the favorite flag and getFavoriteNotesStream
-        // reactively reflecting it (added when newly favorited, dropped when un-favorited).
+        // Mirrors getFavoriteNotesStream reactively reflecting the toggle (added when newly
+        // favorited, dropped when un-favorited). Note this models the *stream*, not the table:
+        // the real repository stopped deleting the row on unfavorite when Room became the feed's
+        // mirror, but that query is `WHERE favorite = 1`, so what a subscriber sees is unchanged.
         if (favoriteResult.isSuccess) {
             val toggled = homeNote.copy(favorite = !homeNote.favorite)
             favoritesFlow.update { notes ->

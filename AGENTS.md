@@ -388,23 +388,41 @@ first, and a sync layer reconciles with the backend. This app does the opposite 
 source of truth, Home and Search render point-in-time `QuerySnapshot`s, and Room is written only
 after the Firestore write returns.
 
-Room is also not a cache of the feed, so don't call it a write-through one. Every `noteDao` write
-in `DefaultNoteRepository` is gated on favorite status, so the table only ever holds favorited
-notes, and Favorite is the only screen that reads from it. It is a local mirror for one feature,
-not a read path for the notes list.
+**The `notes` table is mid-migration, and knowing which half you are in matters.** It used to hold
+favorited notes only — every `noteDao` write was gated on the flag and unfavoriting deleted the row
+— so it was a local mirror for one feature, not a read path for the notes list. That gating is gone:
+`getNotes` now writes each fetched page through, `updateNote` caches unconditionally, and
+`favoriteNote` upserts in both directions instead of deleting. The table holds every note the feed
+has paged through.
 
-What that costs, listed so nobody rediscovers it as a bug:
+**Nothing reads it for the feed yet.** Home and Search still render point-in-time `QuerySnapshot`s,
+`getFavoriteNotesStream`'s `WHERE favorite = 1` is still the only query anything observes, and
+`NoteHandler` is still how a mutation on one screen reaches another. So the deviation above stands
+in full; what changed is that the data is there to observe. Two consequences while it is half-done:
+
+- `cacheNotes` logs a failed mirror write rather than failing the fetch, because a broken cache must
+  not blank a screen whose fetch succeeded. **That is only right until the feed observes Room** — at
+  that point a lost write is a note the user cannot see, and it has to surface.
+- `syncFavoriteNotes` is still favorites-only and still correct: the DAO clears the favorited rows
+  and reinserts what the server says is favorited, leaving mirrored non-favorites alone. It becomes
+  a full sync when the feed moves over.
+
+What the deviation costs, listed so nobody rediscovers it as a bug:
 
 - No offline writes. A mutation with no network fails at the Firestore call and never reaches Room.
 - No reconciliation. If the Firestore write succeeds and the Room write then fails, the two diverge
   silently until something rewrites that row.
 - No live query for Home or Search, which is the entire reason `NoteHandler` exists.
 
-**Trigger to revisit:** mirroring the notes feed into Room — a `Flow`-returning stream the feed
-observes, with Firestore writes syncing into it — removes all three costs at once and retires both
-this deviation and the handler. That is the direction to move when the feed's offline behavior next
-causes a problem. Until then keep new repositories on the same Firestore-first shape rather than
-introducing a third pattern.
+**Next step, in order:** add `NoteDao.getNotes(): Flow<List<DatabaseNote>>` and a
+`NoteRepository.getNotesStream()` over it; move Home, Search and NotePreview onto it; delete
+`NoteHandler` rather than extending it. Only the third cost above is removed by that — offline
+writes and reconciliation are a separate, larger project, and keeping them out is what makes this
+one tractable. Two things worth knowing before starting: `DatabaseNote` already carries every
+`HomeNote` field, so **no schema change and no Room migration**; and `searchNotes` currently reads
+the *entire* collection on every query and filters client-side, so pointing Search at a `LIKE` on
+the mirror is strictly cheaper than what it does today, not a trade. Until then keep new
+repositories on the same Firestore-first shape rather than introducing a third pattern.
 
 ### Cross-feature communication
 

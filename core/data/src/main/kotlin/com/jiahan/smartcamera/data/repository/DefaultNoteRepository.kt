@@ -154,6 +154,7 @@ class DefaultNoteRepository @Inject constructor(
             val lastDocument = snapshot.documents
                 .takeIf { it.size >= pageSize }
                 ?.lastOrNull()
+            cacheNotes(notes)
             NotePage(
                 notes = notes,
                 nextCursor = lastDocument?.let { FirestoreNoteCursor(currentUserId, it) }
@@ -182,14 +183,14 @@ class DefaultNoteRepository @Inject constructor(
     // delegates to createNote: server-side validation and ownership checks a
     // direct client-side Firestore update couldn't do. Only [homeNote]'s text
     // is sent -- a note's media is fixed at creation time -- but the whole note
-    // is taken so the favorites cache can be refreshed with it below.
+    // is taken so the local mirror can be refreshed with it below.
     override suspend fun updateNote(homeNote: HomeNote): Result<Unit> = safeCall {
         functions.getHttpsCallable(FUNCTION_UPDATE_NOTE)
             .call(hashMapOf(ARG_NOTE_ID to homeNote.noteId, ARG_TEXT to homeNote.text))
             .await()
-        if (homeNote.favorite) {
-            noteDao.upsertNotes(listOf(homeNote.toDatabaseNote()))
-        }
+        // Unconditional: this write used to be gated on `homeNote.favorite`, back when the table
+        // held favorites only. It mirrors the whole feed now, so an edit to any note has to land.
+        noteDao.upsertNotes(listOf(homeNote.toDatabaseNote()))
     }
 
     override suspend fun searchNotes(query: String): Result<List<HomeNote>> = safeCall {
@@ -218,11 +219,15 @@ class DefaultNoteRepository @Inject constructor(
         val newFavoriteStatus = homeNote.favorite.not()
         noteCollectionReference?.document(homeNote.noteId)
             ?.update(FIELD_FAVORITE, newFavoriteStatus)?.await()
-        if (newFavoriteStatus) {
-            noteDao.upsertNotes(listOf(homeNote.copy(favorite = true).toDatabaseNote()))
-        } else {
-            noteDao.deleteNote(homeNote.noteId)
-        }
+        // One upsert for both directions. Unfavoriting used to delete the row, which was right
+        // when the table was a favorites-only cache and wrong now that it mirrors the feed -- the
+        // note still exists, it is just no longer favorited. Upsert rather than the DAO's
+        // `updateFavorite` because the row may not be there yet: a note can be favorited straight
+        // from a screen that never paged it in, and an UPDATE against a missing row is a silent
+        // no-op that would lose it from Favorite.
+        noteDao.upsertNotes(
+            listOf(homeNote.copy(favorite = newFavoriteStatus).toDatabaseNote())
+        )
     }
 
     override suspend fun getNote(noteId: String): Result<HomeNote> = safeCall {
@@ -286,6 +291,24 @@ class DefaultNoteRepository @Inject constructor(
         }
     }
 
+    /**
+     * Mirrors a fetched page into Room.
+     *
+     * Best effort, and deliberately so *for now*: nothing reads this table for the feed yet, so a
+     * failed cache write must not turn a successful fetch into a failed one and blank the screen.
+     * It is logged rather than swallowed silently, which is what [ErrorHandler.logError] is for at
+     * this layer. **Revisit when the feed starts observing Room** -- at that point a lost write is
+     * a note the user cannot see, and it should surface rather than be logged.
+     */
+    private suspend fun cacheNotes(notes: List<HomeNote>) {
+        if (notes.isEmpty()) return
+        safeCall { noteDao.upsertNotes(notes.map { it.toDatabaseNote() }) }
+            .onFailure { e -> errorHandler.logError(e) }
+    }
+
+    // Still favorites-only, and still correct: the DAO's syncFavoriteNotes clears the favorited
+    // rows and reinserts what the server says is favorited, leaving the mirrored non-favorites
+    // alone. It becomes a full sync when the feed moves onto Room.
     override suspend fun syncFavoriteNotes(): Result<Unit> = safeCall {
         val favorites = fetchAllFavoritesFromFirestore()
         noteDao.syncFavoriteNotes(favorites.map { it.toDatabaseNote() })
