@@ -12,4 +12,5 @@
     <string name="username_invalid_characters">Username can only contain letters, numbers, periods, and underscores</string>
     <string name="username_reserved">This username is reserved</string>
     <string name="username_not_available">Please choose another username</string>
+    <string name="share_note_failure">Couldn\'t share this note. Please try again.</string>
 </resources>

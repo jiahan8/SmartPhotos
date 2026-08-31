@@ -12,4 +12,5 @@
     <string name="username_invalid_characters">ユーザー名には英数字、ピリオド、アンダースコアのみ使用できます</string>
     <string name="username_reserved">このユーザー名は予約されています</string>
     <string name="username_not_available">別のユーザー名を選択してください</string>
+    <string name="share_note_failure">このメモを共有できませんでした。もう一度お試しください。</string>
 </resources>

@@ -7,11 +7,14 @@ import kotlinx.coroutines.flow.asSharedFlow
 import javax.inject.Inject
 
 /**
- * Scoped per ViewModel: both [NoteActionsDelegate] and [NoteShareDelegate] report through this
- * single [actionError] stream, so a ViewModel that injects either (or both, directly or
- * transitively) sees every reported error on one flow instead of two separate ones. Without
- * [ViewModelScoped], a ViewModel doing so would get two separate instances with two separate
- * flows, silently dropping errors reported through whichever instance it isn't observing.
+ * The one error flow a note screen shows, whoever reported onto it.
+ *
+ * Scoped per ViewModel, and that scope is now load-bearing rather than defensive: a ViewModel
+ * exposes this as its own `actionError`, while [NoteShareDelegate] -- which it injects separately
+ * -- reports share failures onto it. Without [ViewModelScoped] the two would get different
+ * instances with different flows, and every share failure would be silently dropped by the screen
+ * observing the other one. It used to be [NoteActionsDelegate] making the same argument; that class
+ * inlined into its four callers when the Room mirror made it two lines long.
  */
 @ViewModelScoped
 class NoteErrorReporter @Inject constructor(

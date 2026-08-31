@@ -55,7 +55,6 @@
     <!-- Explore -->
 
     <!-- Sharing -->
-    <string name="share_note_failure">このメモを共有できませんでした。もう一度お試しください。</string>
     <string name="share_photo_failure">この写真を共有できませんでした。もう一度お試しください。</string>
     <string name="share_video_failure">この動画を共有できませんでした。もう一度お試しください。</string>
 

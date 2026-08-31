@@ -13,7 +13,6 @@ import com.jiahan.smartcamera.fake.FakeRemoteConfigRepository
 import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.home.HomeScreen
 import com.jiahan.smartcamera.home.HomeViewModel
-import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
@@ -49,11 +48,10 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
         val noteHandler = NoteHandler()
         val errorHandler = FakeErrorHandler()
         val noteErrorReporter = NoteErrorReporter(errorHandler)
-        val noteActions = NoteActionsDelegate(repo, noteErrorReporter)
         return HomeViewModel(
             repo,
             noteHandler,
-            noteActions,
+            noteErrorReporter,
             NoteShareDelegate(
                 FakeMediaFileRepository(),
                 noteErrorReporter,
@@ -124,11 +122,10 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
         val noteRepository = FakeNoteRepository()
         val errorHandler = FakeErrorHandler()
         val noteErrorReporter = NoteErrorReporter(errorHandler)
-        val noteActions = NoteActionsDelegate(noteRepository, noteErrorReporter)
         val viewModel = SearchViewModel(
             noteRepository = noteRepository,
             analyticsRepository = FakeAnalyticsRepository(),
-            noteActions = noteActions,
+            noteErrorReporter = noteErrorReporter,
             noteShare = NoteShareDelegate(
                 FakeMediaFileRepository(),
                 noteErrorReporter,

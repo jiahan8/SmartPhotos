@@ -6,7 +6,7 @@ import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.NoteCursor
-import com.jiahan.smartcamera.note.NoteActionsDelegate
+import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.AppConstants.DEFAULT_PAGE_SIZE
@@ -59,7 +59,7 @@ private sealed interface FetchStatus {
 class HomeViewModel @Inject constructor(
     private val noteRepository: NoteRepository,
     private val noteHandler: NoteHandler,
-    private val noteActions: NoteActionsDelegate,
+    private val noteErrorReporter: NoteErrorReporter,
     private val noteShare: NoteShareDelegate,
     private val errorHandler: ErrorHandler,
     private val remoteConfigRepository: RemoteConfigRepository
@@ -69,7 +69,7 @@ class HomeViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     private val _fetchError = MutableSharedFlow<String>(extraBufferCapacity = 1)
-    val actionError = merge(noteActions.actionError, _fetchError)
+    val actionError = merge(noteErrorReporter.actionError, _fetchError)
     val shareEvent = noteShare.shareEvent
 
     private val fetchStatus = MutableStateFlow<FetchStatus>(FetchStatus.Pending)
@@ -215,13 +215,20 @@ class HomeViewModel @Inject constructor(
     }
 
     fun deleteNote(noteId: String) {
-        // No local patch to go with the emit: deleteNote drops the row and `content` re-emits
-        // without it, which is what retires the double-bookkeeping this used to do.
-        viewModelScope.launch { noteActions.deleteNote(noteId) }
+        // The row leaves the `notes` table, so every screen observing it drops the note with no
+        // list transform here. Was NoteActionsDelegate, which inlined to this when the Room mirror
+        // left it holding one repository call and one error report.
+        viewModelScope.launch {
+            noteRepository.deleteNote(noteId)
+                .onFailure { e -> noteErrorReporter.reportError(e) }
+        }
     }
 
     fun favoriteNote(homeNote: HomeNote) {
-        viewModelScope.launch { noteActions.favoriteNote(homeNote) }
+        viewModelScope.launch {
+            noteRepository.favoriteNote(homeNote)
+                .onFailure { e -> noteErrorReporter.reportError(e) }
+        }
     }
 
     fun setNoteToDelete(note: HomeNote?) {

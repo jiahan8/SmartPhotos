@@ -5,7 +5,6 @@ import com.jiahan.smartcamera.MainDispatcherRule
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
-import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.AppConstants
@@ -41,9 +40,7 @@ class FavoriteViewModelTest {
     private val noteRepository: NoteRepository = mockk()
     private val analyticsRepository: AnalyticsRepository = mockk()
     private val errorHandler: ErrorHandler = mockk()
-    private val noteActions by lazy {
-        NoteActionsDelegate(noteRepository, NoteErrorReporter(errorHandler))
-    }
+    private val noteErrorReporter by lazy { NoteErrorReporter(errorHandler) }
     private val noteShare: NoteShareDelegate = mockk(relaxed = true)
 
     private lateinit var viewModel: FavoriteViewModel
@@ -59,7 +56,7 @@ class FavoriteViewModelTest {
             FavoriteViewModel(
                 noteRepository,
                 analyticsRepository,
-                noteActions,
+                noteErrorReporter,
                 noteShare,
                 errorHandler
             )
@@ -89,7 +86,7 @@ class FavoriteViewModelTest {
         val vm = FavoriteViewModel(
             noteRepository,
             analyticsRepository,
-            noteActions,
+            noteErrorReporter,
             noteShare,
             errorHandler
         )

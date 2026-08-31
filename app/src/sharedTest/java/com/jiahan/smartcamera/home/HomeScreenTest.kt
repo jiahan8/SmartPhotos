@@ -18,7 +18,6 @@ import com.jiahan.smartcamera.fake.FakeMediaFileRepository
 import com.jiahan.smartcamera.fake.FakeNoteRepository
 import com.jiahan.smartcamera.fake.FakeRemoteConfigRepository
 import com.jiahan.smartcamera.fake.FakeResourceProvider
-import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
@@ -58,11 +57,10 @@ class HomeScreenTest {
     private fun launchHomeScreen() {
         val errorHandler = FakeErrorHandler()
         val noteErrorReporter = NoteErrorReporter(errorHandler)
-        val noteActions = NoteActionsDelegate(noteRepository, noteErrorReporter)
         val viewModel = HomeViewModel(
             noteRepository = noteRepository,
             noteHandler = noteHandler,
-            noteActions = noteActions,
+            noteErrorReporter = noteErrorReporter,
             noteShare = NoteShareDelegate(
                 FakeMediaFileRepository(),
                 noteErrorReporter,

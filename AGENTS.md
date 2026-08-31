@@ -20,9 +20,18 @@ Ten Gradle modules, plus an included build for the shared Gradle config:
   clearest rule: **an Android-typed contract belongs here, its implementation stays in
   `:core:data`.** `MediaFileRepository`'s signatures carry `Uri`/`Bitmap`, so `:core:domain` cannot
   hold it, and it sat beside `DefaultMediaFileRepository` until a feature needed to inject it.
-  Deliberately **not** Compose: the compose convention is not applied, so anything Compose-shaped
-  that lands here fails to compile rather than quietly making it a second `:core:ui`. Sources under
-  `core/common/src/main/kotlin/com/jiahan/smartcamera/`.
+  It also holds `note/NoteShareDelegate.kt` and `note/NoteErrorReporter.kt`, which came down when
+  `NoteActionsDelegate` was inlined — the two `@ViewModelScoped` classes all four remaining feature
+  packages share. **They are why this module has Hilt and KSP**, and that is the one thing to know
+  before adding to it: Dagger generates a class's factory in the module that owns it, so a
+  `@Inject constructor` here needs the processor here, not only in `:app` where the component is
+  assembled. Deliberately **not** Compose: the compose convention is not applied, so anything
+  Compose-shaped that lands here fails to compile rather than quietly making it a second
+  `:core:ui`. DI is not what the charter excludes; Compose is. Sources under
+  `core/common/src/main/kotlin/com/jiahan/smartcamera/`. **This is the module closest to becoming a
+  `:core:misc`** — it has taken four unrelated tenants now, held together by a rule rather than a
+  theme (Android-typed, not Compose, contract-here-implementation-in-`:core:data`). If a fifth
+  lands, split it before it needs a name like `misc`.
 - `:core:data` — an Android library holding every implementation that satisfies one of those
   contracts: the `Default*`/`Firebase*` repositories, the Room database, the DataStore wiring and
   `DataModule`. Sources under `core/data/src/main/kotlin/com/jiahan/smartcamera/`.
@@ -41,10 +50,10 @@ Ten Gradle modules, plus an included build for the shared Gradle config:
   property that turned out to be the wrong criterion — see `:feature:auth` below. Three feature
   packages import nothing from `note/` — `auth`, `profile`, `settings` — and of those, settings was
   the only one with no reference *to* it outside `navigation/`, which read like the safest first
-  cut. Sources under `feature/settings/src/main/kotlin/com/jiahan/smartcamera/`. The remaining four
-  features — `home`, `search`, `favorite`, `preview` — all share `note/`'s delegates; see
-  [Cross-feature communication](#cross-feature-communication) for what that blocks — they are now
-  the only four left.
+  cut. Sources under `feature/settings/src/main/kotlin/com/jiahan/smartcamera/`. The five packages
+  left in `:app` — `home`, `search`, `favorite`, `preview`, `note` — no longer share
+  anything but `NoteHandler`, and only `home` imports that; see
+  [Cross-feature communication](#cross-feature-communication).
 - `:feature:auth` — the third feature module: the Auth screen, its ViewModel, its route and its
   `sharedTest` Compose suite. It corrects something the settings entry above implies. Settings was
   picked for having no upward reference outside `navigation/`, and auth *does* have some —
@@ -122,8 +131,8 @@ Run from the repo root (Gradle wrapper):
     Every other module needs no such mention — they are all Android libraries, so the
     unqualified `testDebugUnitTest` already reaches them, as do `lintDebug` and
     `connectedDebugAndroidTest`. Nine modules run unit tests today: `:app` 210, `:feature:auth` 46,
-    `:feature:explore` 34, `:feature:settings` 30, `:feature:profile` 26, `:core:common` 21,
-    `:core:ui` 17, `:core:data` 15, `:core:domain` 8 — 407 in total.
+    `:feature:explore` 34, `:feature:settings` 30, `:feature:profile` 26, `:core:common` 27,
+    `:core:ui` 17, `:core:data` 15, `:core:domain` 8 — 413 in total.
   - Single class: `./gradlew testDebugUnitTest --tests "com.jiahan.smartcamera.home.HomeViewModelTest"`
   - Single method: `./gradlew testDebugUnitTest --tests "com.jiahan.smartcamera.home.HomeViewModelTest.methodName"`
   - Assert on a settled `StateFlow` by reading `.value`; that is what most of the suite does, and
@@ -307,7 +316,7 @@ Five rules worth knowing before editing them:
 
 MVVM with a layered structure, one Kotlin package per feature. Five are still under
 `app/src/main/java/com/jiahan/smartcamera/` (`home`, `note`, `favorite`, `search`, plus `preview`),
-and every one of them is held there by `note/`'s delegates rather than by anything of its own;
+and none of them is held there by anything but `:app`'s `R` now, plus `NoteHandler` for `home`;
 `explore`, `settings`, `auth` and `profile` are their own modules. For the ones still in
 `:app`, the module boundaries run underneath them — between the contracts in `:core:domain` and the
 implementations that satisfy them, and between the feature screens and the shared Compose they all
@@ -506,32 +515,38 @@ only subscriber re-fetches on construction anyway. For an event a screen must ne
 `note/IncomingShareHandler.kt` instead — a `StateFlow` holding the pending value plus an explicit
 `consume()`, which survives having no subscriber yet.
 
-**What now caps the modularization is the two delegates, not the handler.** `NoteActionsDelegate`
-and `NoteShareDelegate` are each imported by all four feature packages still in `:app` — `home`,
-`search`, `favorite`, `preview` — while `NoteHandler` is down to one importer (`home`) plus
-`NoteViewModel`. That is a real change of shape: the obstacle used to be a cross-feature *event bus*
-with no data-layer alternative, and it is now two ordinary shared helpers. The bad options are
-unchanged and still bad — a `:feature:note` the other four depend on is the feature-to-feature edge
-NiA's rule forbids, and a `:core:note` invented to hold whatever is left over is how a `:core:`
-namespace becomes a place things get put rather than a place things belong.
+**The delegates are dealt with; the five packages are next.** `NoteActionsDelegate` is gone —
+without `noteHandler` it was `repository.call().onFailure { report }.isSuccess`, so it inlined into
+its four callers rather than being relocated. `NoteShareDelegate` and `NoteErrorReporter` went down
+to `:core:common`, which is why that module now carries Hilt. The rule those two decisions came from
+is worth keeping: **move what cannot be cheaply duplicated, inline what can.** Both could have moved
+— once `:core:common` was taking one of them the marginal cost of the other was zero — and inlining
+the trivial one was chosen to keep that module to one new tenant-family rather than two.
 
-The route through, in order:
+What is left in `:app` is five packages and one edge:
 
-1. **`NoteActionsDelegate` dissolves.** Without `noteHandler` it is two methods of
-   `repository.call().onFailure { report }.isSuccess` — six lines per ViewModel. Inline it.
-2. **`NoteShareDelegate` goes down to `:core:common`**, taking `NoteErrorReporter`, `ShareContent`
-   and `share_note_failure` with it. Thirty-odd lines of parallel media download that all four
-   genuinely share, Android-typed (`Uri`) and not Compose — which is exactly that module's charter.
-3. **`addNote` mirrors its own result**, and `NoteHandler` deletes.
+| Package | Lines | Reaches up for |
+| --- | --- | --- |
+| `home` | 470 | `NoteHandler`, `:app`'s `R` |
+| `search` | 368 | `:app`'s `R` |
+| `favorite` | 315 | `:app`'s `R` |
+| `preview` | 1,092 | `:app`'s `R` |
+| `note` | 1,458 | `:app`'s `R` |
 
-Then the four packages are extractable independently, and none of them needs a module that does not
-already exist.
+`:app`'s `R` is the problem solved four times over already — decide each string one at a time, and
+expect the `explore`/`cd_back` split at every extraction (exclusive strings travel, shared ones go
+*down* to `:core:ui` or `:core:common`, and a string that looks shared is sometimes two strings).
+`NoteHandler` is the only structural edge, it has one subscriber, and it dies when `addNote` mirrors
+its own result — see above. **A `:feature:note` is fine in the end state**: what NiA's rule forbids
+is the other four *depending* on it, and once the delegates are down nothing does.
 
 Two corrections to what this paragraph used to say, both learned by doing the work. It told you to
 sequence the Room migration before extracting `auth` and `profile` — they are extracted, so that
 advice is spent. And it said the delegates would "shrink to per-feature code" once the handler went:
-half right. `NoteActionsDelegate` did. `NoteShareDelegate` did not, and pretending it would was the
-error — it is shared code, and shared code goes *down*, not sideways.
+half right, and the wrong half was the expensive one to assume. `NoteActionsDelegate` did.
+`NoteShareDelegate` did not — thirty lines of parallel media download that four packages genuinely
+share. **Predicting that a shared helper will stop being shared is the same error as predicting
+which convention-plugin lines generalize**, and it wants the same fix: count the consumers.
 
 ### Error handling
 
@@ -742,7 +757,7 @@ calling out the discrepancy.
 Snackbars and other fire-and-forget signals travel from ViewModel to screen on a
 `MutableSharedFlow(extraBufferCapacity = 1)` exposed as a read-only `SharedFlow`, collected in the
 screen's `LaunchedEffect` and shown through `SnackbarHostState`. `actionError` (Home, Search,
-Favorite and the preview screens, all via `note/NoteErrorReporter.kt`) and `ProfileViewModel.events`
+Favorite and the preview screens, all via `:core:common`'s `NoteErrorReporter`) and `ProfileViewModel.events`
 are the existing instances — follow their shape rather than inventing a third.
 
 **This deviates from the official guidance**, which says a ViewModel event should update `UiState`
@@ -782,7 +797,9 @@ strings, no `navArgument` lists, no manual URL escaping of arguments.
   second was deleted rather than moved. `MediaFileRepository` and `util/MediaUriExt.kt` came off
   it with `:feature:profile`, and those two were the interesting ones, because they were not
   resources — they were `:core:data` types, which a feature module must not reach.) What is left on
-  the list for the four remaining packages is `:app`'s `R`, and `note/`'s delegates.
+  the list for the five remaining packages is `:app`'s `R`, plus `NoteHandler` for `home` alone.
+  The delegates came off it when `NoteShareDelegate` and `NoteErrorReporter` went down to
+  `:core:common` and `NoteActionsDelegate` inlined.
 - **The routes share no supertype, deliberately.** They were nested in a `sealed interface Screen`
   until that hierarchy became unrepresentable: a route in a feature module cannot implement an
   interface declared in `:app`. So `startDestination` and `BottomNavItem.route` are typed `Any`,
@@ -801,8 +818,8 @@ strings, no `navArgument` lists, no manual URL escaping of arguments.
 ## Conventions
 
 - DI: Hilt, all *modules* `@InstallIn(SingletonComponent::class)`. Constructor-injected classes may
-  still be narrower — `note/NoteErrorReporter.kt` is `@ViewModelScoped` so the delegates sharing it
-  report onto one flow — so "all modules are singleton" is not "everything is a singleton". App-wide bindings live in
+  still be narrower — `:core:common`'s `NoteErrorReporter` is `@ViewModelScoped` so a ViewModel and
+  the `NoteShareDelegate` it injects report onto one flow — so "all modules are singleton" is not "everything is a singleton". App-wide bindings live in
   `di/AppModule.kt` / `di/FirebaseModule.kt` (both in `:app`); other cross-cutting layers have
   their own module — `util/di/UtilModule.kt` in `:app`, `data/di/DataModule.kt` and
   `database/di/DatabaseModule.kt` in `:core:data`. `FirebaseModule` deliberately stayed in `:app`

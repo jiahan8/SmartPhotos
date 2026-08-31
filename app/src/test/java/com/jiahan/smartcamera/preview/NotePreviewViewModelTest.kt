@@ -7,7 +7,6 @@ import app.cash.turbine.test
 import com.jiahan.smartcamera.MainDispatcherRule
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
-import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.ErrorHandler
@@ -57,7 +56,6 @@ class NotePreviewViewModelTest {
     private val noteRepository: NoteRepository = mockk()
     private val errorHandler: ErrorHandler = mockk()
     private val noteErrorReporter by lazy { NoteErrorReporter(errorHandler) }
-    private val noteActions by lazy { NoteActionsDelegate(noteRepository, noteErrorReporter) }
     private val noteShare: NoteShareDelegate = mockk(relaxed = true)
 
     private val noteId = "note1"
@@ -80,7 +78,7 @@ class NotePreviewViewModelTest {
         val viewModel = NotePreviewViewModel(
             savedStateHandle = SavedStateHandle(mapOf("id" to noteId)),
             noteRepository = noteRepository,
-            noteActions = noteActions,
+            noteErrorReporter = noteErrorReporter,
             errorHandler = errorHandler,
             noteShare = noteShare
         )
@@ -273,7 +271,8 @@ class NotePreviewViewModelTest {
     @Test
     fun `actionError surfaces errors reported through the shared NoteErrorReporter`() = runTest {
         // NoteShareDelegate reports share failures through the same @ViewModelScoped
-        // NoteErrorReporter the actions delegate uses, which is the flow exposed here.
+        // NoteErrorReporter this ViewModel exposes as its own actionError -- the scope is what
+        // makes those the same instance, and so the same flow.
         val viewModel = createViewModel()
 
         viewModel.actionError.test {

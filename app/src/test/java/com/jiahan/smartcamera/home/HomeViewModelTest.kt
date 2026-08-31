@@ -7,7 +7,6 @@ import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.NoteCursor
 import com.jiahan.smartcamera.domain.NotePage
 import com.jiahan.smartcamera.fake.FakeRemoteConfigRepository
-import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteHandler
 import com.jiahan.smartcamera.note.NoteShareDelegate
@@ -55,9 +54,7 @@ class HomeViewModelTest {
     private val noteRepository: NoteRepository = mockk()
     private val noteHandler = NoteHandler()
     private val errorHandler: ErrorHandler = mockk()
-    private val noteActions by lazy {
-        NoteActionsDelegate(noteRepository, NoteErrorReporter(errorHandler))
-    }
+    private val noteErrorReporter by lazy { NoteErrorReporter(errorHandler) }
     private val noteShare: NoteShareDelegate = mockk(relaxed = true)
     private val remoteConfigRepository = FakeRemoteConfigRepository()
 
@@ -149,7 +146,7 @@ class HomeViewModelTest {
         val viewModel = HomeViewModel(
             noteRepository,
             noteHandler,
-            noteActions,
+            noteErrorReporter,
             noteShare,
             errorHandler,
             remoteConfigRepository

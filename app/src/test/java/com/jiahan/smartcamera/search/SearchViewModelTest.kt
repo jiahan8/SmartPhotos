@@ -5,7 +5,6 @@ import com.jiahan.smartcamera.MainDispatcherRule
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.HomeNote
-import com.jiahan.smartcamera.note.NoteActionsDelegate
 import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.AppConstants.DEBOUNCE_MS
@@ -46,7 +45,6 @@ class SearchViewModelTest {
     private val analyticsRepository: AnalyticsRepository = mockk()
     private val errorHandler: ErrorHandler = mockk()
     private val noteErrorReporter by lazy { NoteErrorReporter(errorHandler) }
-    private val noteActions by lazy { NoteActionsDelegate(noteRepository, noteErrorReporter) }
     private val noteShare: NoteShareDelegate = mockk(relaxed = true)
 
     /**
@@ -117,7 +115,7 @@ class SearchViewModelTest {
         val viewModel = SearchViewModel(
             noteRepository,
             analyticsRepository,
-            noteActions,
+            noteErrorReporter,
             noteShare,
             errorHandler
         )
