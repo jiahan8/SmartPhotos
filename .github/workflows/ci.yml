@@ -61,16 +61,14 @@ jobs:
 
       # :core:domain is named explicitly because it is a plain Kotlin JVM module: its unit tests
       # run under `test`, not the Android `testDebugUnitTest` variant task, so a bare
-      # testDebugUnitTest would skip them silently rather than fail. :core:data and :core:ui need
-      # no such mention -- both are Android libraries, so the unqualified testDebugUnitTest
-      # reaches them, as does lintDebug below. (verifyRoborazziDebug is app-only for a different
-      # reason: the roborazzi plugin is applied to :app alone, so the task exists nowhere else.
-      # That stayed true through the :core:ui extraction -- the screenshot tests did not move.)
+      # testDebugUnitTest would skip them silently rather than fail. Every other module is an
+      # Android library, so the unqualified testDebugUnitTest reaches it, as does lintDebug below
+      # and verifyRoborazziDebug in the four modules that apply the roborazzi plugin.
       - name: Unit tests
         run: ./gradlew testDebugUnitTest :core:domain:test
 
       # Uploaded here, before the screenshot step below re-runs the test task with a filter and
-      # rewrites app/build/test-results/ down to just the screenshot classes.
+      # rewrites the screenshot modules' test-results/ down to just the screenshot classes.
       - name: Upload unit test report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
@@ -115,7 +113,7 @@ jobs:
 
       # Split from the unit tests so a red X says which kind of thing broke: logic or pixels.
       # testDebugUnitTest *runs* the Roborazzi tests but never diffs them against the goldens
-      # in app/src/test/screenshots/ -- only verifyRoborazziDebug compares. Scoping it to the
+      # in each module's src/test/screenshots/ -- only verifyRoborazziDebug compares. Scoping it to the
       # screenshot package re-runs just those tests instead of the whole suite, which costs a
       # few seconds rather than doubling the test time. The filter is on the package, not a
       # class-name pattern, so a future screenshot test can't quietly escape verification.
@@ -141,13 +139,16 @@ jobs:
         with:
           name: screenshot-and-lint-reports
           # One entry per module that produces the report, because the globs are literal paths.
-          # Three modules capture screenshots now -- :app, :core:ui and :feature:settings -- and a
-          # golden failure in any of them is only diagnosable if its *_compare.png files come back.
-          # :core:ui's was missing from this list for a release after NoteItemScreenshotTest moved
-          # there, which would have made a failure there report with no images at all.
+          # Four modules capture screenshots now -- :core:ui, :feature:home, :feature:search and
+          # :feature:settings -- and a golden failure in any of them is only diagnosable if its
+          # *_compare.png files come back. :core:ui's was missing from this list for a release
+          # after NoteItemScreenshotTest moved there, which would have made a failure there report
+          # with no images at all. :app is off the list entirely now: ScreenScreenshotTest split
+          # between home and search, so the roborazzi plugin left :app with the goldens.
           path: |
-            app/build/outputs/roborazzi/
             core/ui/build/outputs/roborazzi/
+            feature/home/build/outputs/roborazzi/
+            feature/search/build/outputs/roborazzi/
             feature/settings/build/outputs/roborazzi/
             app/build/reports/lint-results-debug.html
             core/common/build/reports/lint-results-debug.html

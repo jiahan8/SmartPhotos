@@ -13,16 +13,14 @@ import com.google.firebase.firestore.QuerySnapshot
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.HttpsCallableReference
 import com.google.firebase.functions.HttpsCallableResult
-import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.database.dao.NoteDao
 import com.jiahan.smartcamera.database.data.DatabaseNote
 import com.jiahan.smartcamera.database.data.toDatabaseNote
+import com.jiahan.smartcamera.domain.AppError
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.NoteMediaDetail
-import com.jiahan.smartcamera.util.DefaultErrorHandler
 import com.jiahan.smartcamera.util.ErrorHandler
-import com.jiahan.smartcamera.util.ResourceProviderImpl
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -49,12 +47,13 @@ import org.robolectric.annotation.Config
  * Covers the failure branches of [DefaultNoteRepository] that raise an error of their own rather
  * than surfacing one from Firestore.
  *
- * These assert the string a user would actually see — the failure resolved through a real
- * [DefaultErrorHandler], exactly as a ViewModel resolves it — rather than the exception type or
- * its message. That is the contract that must not change; how the repository encodes the failure
- * internally is free to.
+ * These assert the [AppError] identity, which is the whole of this layer's contract for a failure
+ * it raises itself: the repository names the failure and :app's `appErrorMessageResId` turns it
+ * into a string, pinned there by `ErrorMessageMappersTest`. They used to resolve the message
+ * through a real `DefaultErrorHandler` and assert the English text instead, which is what kept the
+ * file in :app -- see the note on [DefaultUserRepositoryTest].
  *
- * Runs under Robolectric for [Tasks] and for real string resources.
+ * Runs under Robolectric for [Tasks] and for the [android.content.Context] the repository takes.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(AndroidJUnit4::class)
@@ -115,13 +114,6 @@ class DefaultNoteRepositoryTest {
         applicationScope = CoroutineScope(SupervisorJob() + dispatcher),
         ioDispatcher = dispatcher,
     )
-
-    /** Resolves a failure to the string a user would see, the way every ViewModel does. */
-    private val messageResolver: ErrorHandler =
-        DefaultErrorHandler(ResourceProviderImpl(context))
-
-    private fun userFacingMessage(result: Result<*>): String =
-        messageResolver.getErrorMessage(result.exceptionOrNull()!!)
 
     @Before
     fun setUp() {
@@ -189,58 +181,42 @@ class DefaultNoteRepositoryTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `getNote signed out fails with the not-signed-in message`() = runTest(dispatcher) {
+    fun `getNote signed out fails as NotAuthenticated`() = runTest(dispatcher) {
         every { authRepository.currentUserId } returns null
 
         val result = repository.getNote(NOTE_ID)
 
-        assertTrue(result.isFailure)
-        assertEquals(
-            context.getString(R.string.user_not_authenticated),
-            userFacingMessage(result)
-        )
+        assertTrue(result.exceptionOrNull() is AppError.NotAuthenticated)
     }
 
     @Test
-    fun `getNote missing note document fails with the note-unavailable message`() =
+    fun `getNote missing note document fails as NoteUnavailable`() =
         runTest(dispatcher) {
             every { noteSnapshot.exists() } returns false
 
             val result = repository.getNote(NOTE_ID)
 
-            assertTrue(result.isFailure)
-            assertEquals(
-                context.getString(R.string.note_unavailable),
-                userFacingMessage(result)
-            )
+            assertTrue(result.exceptionOrNull() is AppError.NoteUnavailable)
         }
 
     @Test
-    fun `getNote note without an author id fails with the note-unavailable message`() =
+    fun `getNote note without an author id fails as NoteUnavailable`() =
         runTest(dispatcher) {
             every { noteSnapshot.getString(FIELD_USER_ID) } returns null
 
             val result = repository.getNote(NOTE_ID)
 
-            assertTrue(result.isFailure)
-            assertEquals(
-                context.getString(R.string.note_unavailable),
-                userFacingMessage(result)
-            )
+            assertTrue(result.exceptionOrNull() is AppError.NoteUnavailable)
         }
 
     @Test
-    fun `getNote missing author document fails with the note-unavailable message`() =
+    fun `getNote missing author document fails as NoteUnavailable`() =
         runTest(dispatcher) {
             every { authorSnapshot.exists() } returns false
 
             val result = repository.getNote(NOTE_ID)
 
-            assertTrue(result.isFailure)
-            assertEquals(
-                context.getString(R.string.note_unavailable),
-                userFacingMessage(result)
-            )
+            assertTrue(result.exceptionOrNull() is AppError.NoteUnavailable)
         }
 
     /** Guards the success path against the failure branches above being widened by accident. */
@@ -261,7 +237,7 @@ class DefaultNoteRepositoryTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `uploadMediaToFirebase signed out fails with the not-signed-in message`() =
+    fun `uploadMediaToFirebase signed out fails as NotAuthenticated`() =
         runTest(dispatcher) {
             every { authRepository.currentUserId } returns null
 
@@ -269,11 +245,7 @@ class DefaultNoteRepositoryTest {
                 listOf(NoteMediaDetail(photoUri = MediaUri("file:///tmp/photo.jpg")))
             )
 
-            assertTrue(result.isFailure)
-            assertEquals(
-                context.getString(R.string.user_not_authenticated),
-                userFacingMessage(result)
-            )
+            assertTrue(result.exceptionOrNull() is AppError.NotAuthenticated)
         }
 
     // -------------------------------------------------------------------------

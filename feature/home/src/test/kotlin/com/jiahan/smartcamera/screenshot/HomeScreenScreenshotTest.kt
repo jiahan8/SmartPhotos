@@ -5,7 +5,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.NotePage
-import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
 import com.jiahan.smartcamera.fake.FakeMediaFileRepository
 import com.jiahan.smartcamera.fake.FakeNoteRepository
@@ -15,20 +14,24 @@ import com.jiahan.smartcamera.home.HomeScreen
 import com.jiahan.smartcamera.home.HomeViewModel
 import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteShareDelegate
-import com.jiahan.smartcamera.search.SearchScreen
-import com.jiahan.smartcamera.search.SearchViewModel
 import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
 import org.junit.Test
 import org.robolectric.RuntimeEnvironment
 import kotlin.time.Instant
 
 /**
- * Full-screen Roborazzi screenshot tests. Each screen is driven by its real ViewModel wired to
- * in-memory fakes, then captured after the state settles. Only states that settle synchronously
- * (no `debounce`/`delay`) are captured so the images are deterministic; notes carry no remote
- * image URLs, so Coil never performs I/O.
+ * Full-screen Roborazzi screenshot tests for [HomeScreen], driven by the real [HomeViewModel] wired
+ * to in-memory fakes and captured once the state settles.
+ *
+ * Only states that settle synchronously (no `debounce`/`delay`) are captured, so the images are
+ * deterministic; the notes carry no remote image URLs, so Coil never performs I/O.
+ *
+ * Came over from :app's `ScreenScreenshotTest`, which captured this screen and Search together
+ * because both screens lived there. Splitting it put each half in the module that owns its screen
+ * -- the same move `NoteItemScreenshotTest` made into :core:ui and `SettingsScreenScreenshotTest`
+ * into :feature:settings -- and left :app with no screenshot tests at all.
  */
-class ScreenScreenshotTest : BaseScreenshotTest() {
+class HomeScreenScreenshotTest : BaseScreenshotTest() {
 
     private fun captureSettled(content: @Composable () -> Unit) {
         capture { SmartCameraTheme { content() } }
@@ -113,36 +116,6 @@ class ScreenScreenshotTest : BaseScreenshotTest() {
                 onNavigateToVideoPreview = {},
                 onNavigateToExplore = {},
                 viewModel = homeViewModel(Result.failure(RuntimeException("Something went wrong"))),
-                scrollToTop = null,
-                onScrollToTopConsumed = {},
-                snackbarHostState = remember { SnackbarHostState() },
-            )
-        }
-    }
-
-    @Test
-    fun searchScreen_idle() {
-        val noteRepository = FakeNoteRepository()
-        val errorHandler = FakeErrorHandler()
-        val noteErrorReporter = NoteErrorReporter(errorHandler)
-        val viewModel = SearchViewModel(
-            noteRepository = noteRepository,
-            analyticsRepository = FakeAnalyticsRepository(),
-            noteErrorReporter = noteErrorReporter,
-            noteShare = NoteShareDelegate(
-                FakeMediaFileRepository(),
-                noteErrorReporter,
-                FakeResourceProvider(RuntimeEnvironment.getApplication())
-            ),
-            errorHandler = errorHandler,
-        )
-        captureSettled {
-            SearchScreen(
-                onNavigateToNotePreview = {},
-                onNavigateToEditNote = {},
-                onNavigateToPhotoPreview = {},
-                onNavigateToVideoPreview = {},
-                viewModel = viewModel,
                 scrollToTop = null,
                 onScrollToTopConsumed = {},
                 snackbarHostState = remember { SnackbarHostState() },

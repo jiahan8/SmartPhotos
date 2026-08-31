@@ -16,8 +16,12 @@ import org.robolectric.annotation.GraphicsMode
  * Shared setup for Roborazzi screenshot tests, rendered on the JVM via Robolectric (no emulator).
  * A fixed device profile (Pixel 5 qualifiers) keeps captures deterministic across machines.
  *
- * Record references: ./gradlew :app:recordRoborazziDebug
- * Verify:            ./gradlew :app:verifyRoborazziDebug
+ * Four modules subclass this -- :core:ui, :feature:home, :feature:search and :feature:settings --
+ * each keeping its own goldens under its own `src/test/screenshots/`. The tasks are per-module, so
+ * run them unqualified to cover all four, or name one while iterating:
+ *
+ * Record references: ./gradlew recordRoborazziDebug
+ * Verify:            ./gradlew verifyRoborazziDebug
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)

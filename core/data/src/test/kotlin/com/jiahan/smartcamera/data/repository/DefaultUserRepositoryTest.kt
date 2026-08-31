@@ -1,7 +1,6 @@
 package com.jiahan.smartcamera.data.repository
 
 import android.app.Application
-import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.auth.FirebaseAuth
@@ -11,17 +10,11 @@ import com.google.firebase.functions.FirebaseFunctionsException
 import com.google.firebase.functions.HttpsCallableReference
 import com.google.firebase.functions.HttpsCallableResult
 import com.google.firebase.messaging.FirebaseMessaging
-import com.jiahan.smartcamera.R
-import com.jiahan.smartcamera.core.common.R as CommonR
 import com.jiahan.smartcamera.domain.AppError
 import com.jiahan.smartcamera.domain.MediaUri
-import com.jiahan.smartcamera.util.DefaultErrorHandler
-import com.jiahan.smartcamera.util.ErrorHandler
-import com.jiahan.smartcamera.util.ResourceProviderImpl
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -30,16 +23,16 @@ import org.robolectric.annotation.Config
 /**
  * Covers the [DefaultUserRepository] branches that raise an error of their own.
  *
- * Asserts the string a user would see, resolved through a real [DefaultErrorHandler], so the test
- * pins the user-facing contract rather than the repository's internal encoding of the failure.
- * The two username cases assert the [AppError] as well, because that identity is the part
- * ProfileViewModel branches on to decide whether the message belongs under the username field.
+ * Asserts the [AppError] identity, which is this layer's whole contract for a failure it raises
+ * itself: the repository names the failure and the string lookup happens in :app's
+ * `appErrorMessageResId`, pinned there by `ErrorMessageMappersTest`. These used to resolve the
+ * message through a real `DefaultErrorHandler` and assert the English text, which is what kept the
+ * file in :app -- a data-layer test reaching up into a ViewModel-layer mapper for its assertion.
+ * **Splitting it at the identity is what let the test follow its subject down here.**
  */
 @RunWith(AndroidJUnit4::class)
 @Config(application = Application::class)
 class DefaultUserRepositoryTest {
-
-    private val context = ApplicationProvider.getApplicationContext<Application>()
 
     private val auth: FirebaseAuth = mockk()
     private val firestore: FirebaseFirestore = mockk(relaxed = true)
@@ -55,12 +48,6 @@ class DefaultUserRepositoryTest {
         remoteConfigRepository = remoteConfigRepository,
     )
 
-    private val messageResolver: ErrorHandler =
-        DefaultErrorHandler(ResourceProviderImpl(context))
-
-    private fun userFacingMessage(result: Result<*>): String =
-        messageResolver.getErrorMessage(result.exceptionOrNull()!!)
-
     private fun functionsFailWith(code: FirebaseFunctionsException.Code) {
         val exception: FirebaseFunctionsException = mockk(relaxed = true)
         every { exception.code } returns code
@@ -70,16 +57,12 @@ class DefaultUserRepositoryTest {
     }
 
     @Test
-    fun `uploadProfilePicture signed out fails with the not-signed-in message`() = runTest {
+    fun `uploadProfilePicture signed out fails as NotAuthenticated`() = runTest {
         every { auth.uid } returns null
 
         val result = repository.uploadProfilePicture(MediaUri("file:///tmp/avatar.jpg"))
 
-        assertTrue(result.isFailure)
-        assertEquals(
-            context.getString(R.string.user_not_authenticated),
-            userFacingMessage(result)
-        )
+        assertTrue(result.exceptionOrNull() is AppError.NotAuthenticated)
     }
 
     /*
@@ -97,10 +80,6 @@ class DefaultUserRepositoryTest {
         val result = repository.createUserProfile(metadata = "secret", username = "taken")
 
         assertTrue(result.exceptionOrNull() is AppError.UsernameTaken)
-        assertEquals(
-            context.getString(CommonR.string.username_not_available),
-            userFacingMessage(result)
-        )
     }
 
     @Test
@@ -110,10 +89,6 @@ class DefaultUserRepositoryTest {
         val result = repository.createUserProfile(metadata = "secret", username = "admin")
 
         assertTrue(result.exceptionOrNull() is AppError.UsernameReserved)
-        assertEquals(
-            context.getString(CommonR.string.username_reserved),
-            userFacingMessage(result)
-        )
     }
 
     @Test

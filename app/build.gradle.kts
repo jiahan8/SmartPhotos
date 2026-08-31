@@ -7,14 +7,16 @@ plugins {
     // and :core:ui state identically.
     id("smartphotos.android.application")
     id("smartphotos.android.compose")
-    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.google.services)
     alias(libs.plugins.crashlytics)
     alias(libs.plugins.firebase.perf)
     alias(libs.plugins.firebase.appdistribution)
-    alias(libs.plugins.roborazzi)
+    // No roborazzi here any more. ScreenScreenshotTest captured HomeScreen and SearchScreen, and
+    // both screens left for :feature:home and :feature:search -- so the goldens followed and the
+    // plugin has nothing left to record. :app renders no composable of its own worth capturing:
+    // what is left up here is the NavHost, the bottom bar and the Scaffold around them.
 }
 
 android {
@@ -45,7 +47,9 @@ android {
         // Each test runs in its own instrumentation process, so a crash or leaked state in one
         // test cannot affect another. Combined with clearPackageData above for hermetic runs.
         execution = "ANDROIDX_TEST_ORCHESTRATOR"
-        // Robolectric-backed Compose screenshot tests need access to Android resources on the JVM.
+        // DefaultErrorHandlerTest resolves real strings under Robolectric. This used to be here
+        // for the Compose screenshot tests as well; they have gone to the feature modules, but the
+        // remaining reason is enough on its own.
         unitTests {
             isIncludeAndroidResources = true
         }
@@ -81,18 +85,10 @@ android {
         generateLocaleConfig = true
     }
 
-    sourceSets {
-        // Tests placed in sharedTest run on both the JVM (Robolectric) and on-device, so Compose
-        // behavior tests and the fakes are written once and executed in both environments.
-        getByName("test").java.srcDir("src/sharedTest/java")
-        getByName("androidTest").java.srcDir("src/sharedTest/java")
-    }
-}
-
-roborazzi {
-    // Store reference screenshots in a VCS-tracked directory (default is the transient build/ dir),
-    // so they are committed and used as the baseline by verifyRoborazziDebug.
-    outputDir.set(layout.projectDirectory.dir("src/test/screenshots"))
+    // No `sharedTest` source set here any more either. It held HomeScreenTest, which went to
+    // :feature:home and took the arrangement with it -- see the source-sets note there, and
+    // :feature:auth's. The two srcDir lines outlived the directory's last file by one commit,
+    // which is the failure mode worth naming: a source set that points at nothing is invisible.
 }
 
 dependencies {
@@ -163,58 +159,66 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.core)
-    // The fakes, MainDispatcherRule and BaseScreenshotTest, shared with :core:ui and
-    // :feature:explore. androidTest too: sharedTest/ runs in both source sets.
+    /*
+     * What :app's own tests still need, which is much less than it was. Three suites left with
+     * their subjects -- the two repository tests and FirebaseRemoteConfigRepositoryTest to
+     * :core:data, ScreenScreenshotTest split between :feature:home and :feature:search -- and what
+     * remains is MainViewModelTest, AppModuleTest, DefaultErrorHandlerTest and
+     * ErrorMessageMappersTest. None of them renders a composable, so the Compose test artifacts and
+     * all three Roborazzi artifacts went with the suites that did.
+     *
+     * :core:testing stays, for one type: MainViewModelTest's `MainDispatcherRule`. It uses none of
+     * the nine fakes, which is the trap in reading this edge from the imports -- the rule is in
+     * package `com.jiahan.smartcamera`, the same package as the test, so it is used without an
+     * import line to find it.
+     *
+     * Robolectric stays too: DefaultErrorHandlerTest resolves real strings, and androidx-junit is
+     * what supplies the AndroidJUnit4 runner both it and MainViewModelTest name.
+     */
     testImplementation(project(":core:testing"))
-    androidTestImplementation(project(":core:testing"))
-
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
-    // Roborazzi + Robolectric: JVM Compose screenshot tests (no emulator required).
     testImplementation(libs.robolectric)
-    testImplementation(libs.roborazzi)
-    testImplementation(libs.roborazzi.compose)
-    testImplementation(libs.roborazzi.junit.rule)
-    testImplementation(platform(libs.androidx.compose.bom))
-    testImplementation(libs.androidx.ui.test.junit4)
-    testImplementation(libs.androidx.ui.test.manifest)
+    testImplementation(libs.androidx.junit)
+
+    /*
+     * androidTest is HiltGraphSmokeTest and ExampleInstrumentedTest -- member injection over the
+     * generated component, and no Compose. The orchestrator and HiltTestRunner are what
+     * defaultConfig above names; hilt-android-testing and the ksp compiler are what generate the
+     * test component for them.
+     */
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.test.runner)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
     androidTestImplementation(libs.hilt.android.testing)
     kspAndroidTest(libs.hilt.android.compiler)
     androidTestUtil(libs.androidx.test.orchestrator)
     debugImplementation(libs.androidx.ui.tooling)
-    debugImplementation(libs.androidx.ui.test.manifest)
 
     implementation(libs.androidx.navigation.compose)
-    implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.datetime)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
 
-    // Coil for image loading
-    implementation(libs.coil.compose)
-    implementation(libs.coil.gif)
+    /*
+     * Coil, and only the part :app uses. MyApp is the `SingletonImageLoader.Factory` and the
+     * messaging service resolves a notification icon through it; neither draws a composable, so
+     * this is coil-core rather than the coil-compose every module that renders an image declares.
+     * The okhttp fetcher has no source reference and is required anyway: the singleton this module
+     * builds is the one every feature's AsyncImage resolves through, and without a network
+     * component on the classpath every remote load fails at runtime.
+     */
+    implementation(libs.coil.core)
     implementation(libs.coil.network.okhttp)
-
-    // ML Kit Text Recognition
-    implementation(libs.mlkit.text.recognition)
-    implementation(libs.mlkit.text.recognition.japanese)
-    implementation(libs.mlkit.text.recognition.chinese)
-    implementation(libs.mlkit.image.labeling)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 
-    // Hilt
-    implementation(libs.androidx.hilt.navigation.compose)
+    // Hilt. hilt-navigation-compose is deliberately absent: `hiltViewModel()` comes from
+    // hilt-lifecycle-viewmodel-compose, which is what every feature screen actually imports.
     implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)
@@ -242,19 +246,32 @@ dependencies {
     // itself uses is in :core:data, with DefaultAppUpdateRepository.
     implementation(libs.play.app.update)
 
-    // GenAI
-    implementation(libs.genai.image.description)
-    implementation(libs.kotlinx.coroutines.guava)
-
-    // ExoPlayer
-    implementation(libs.media3.exoplayer)
-    implementation(libs.media3.exoplayer.dash)
-    implementation(libs.media3.ui)
-    implementation(libs.media3.ui.compose)
-
     // Splash Screen
     implementation(libs.core.splashscreen)
 
-    // Explore screen icon (Icons.Outlined.Explore isn't in material-icons-core)
-    implementation(libs.androidx.material.icons.extended)
+    /*
+     * What used to be here, and why none of it is:
+     *
+     * - ExoPlayer (media3-exoplayer/-ui). Playback is :feature:preview's, and that module declares
+     *   the two artifacts it names. media3-exoplayer-dash and media3-ui-compose were declared only
+     *   here and imported nowhere: every video is a `MediaItem.fromUri` of a progressive Firebase
+     *   Storage URL, so the DASH source is never reflectively loaded, and PlayerView is the
+     *   views-based one.
+     * - ML Kit text recognition x3 and image labeling, and genai-image-description with its
+     *   kotlinx-coroutines-guava bridge. No module imports `com.google.mlkit` at all -- the ML in
+     *   this app is the Cloud Vision call in functions/index.js.
+     * - material-icons-extended. It was here for `Icons.Outlined.Explore`, and the Explore
+     *   destination left the bottom bar; the five TopLevelDestination icons are all in
+     *   material-icons-core. The feature convention still adds the extended pack, for the screens
+     *   that reach past that set.
+     * - kotlinx-serialization-json and the serialization plugin. Every `@Serializable` route is
+     *   declared in the feature module that owns it, which applies the plugin itself, and nothing
+     *   here touches `Json`. Compare :core:data, which keeps the plugin with no `@Serializable` of
+     *   its own for a reason that does not apply here -- see the note in its build file.
+     *
+     * All of it arrived with code that has since moved into a module of its own. **A dependency
+     * does not fail a build by being unused, so it outlives the code that wanted it unless
+     * something goes looking** -- which is the argument for pruning at the end of a split rather
+     * than trusting each extraction to have taken its own libraries with it.
+     */
 }

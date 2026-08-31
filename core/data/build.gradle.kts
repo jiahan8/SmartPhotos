@@ -135,6 +135,20 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
 
+    /*
+     * The three repository suites that came down from :app run under Robolectric, and both reasons
+     * are this module's own: DefaultNoteRepository takes a Context, and every Firebase call here is
+     * stubbed with `Tasks.forResult`/`forException`, which needs a real Android runtime rather than
+     * the JVM stub jar. DatabaseConvertersTest, the suite that was already here, needs neither and
+     * stays a plain JVM test.
+     *
+     * Declared directly rather than taken from :core:testing, which is where the rest of the build
+     * gets Robolectric: that module has an `api` edge on this one, so the dependency would be a
+     * cycle. A fixtures module can be a consumer of this module or a supplier to it, not both.
+     */
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.junit)
+
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestUtil(libs.androidx.test.orchestrator)

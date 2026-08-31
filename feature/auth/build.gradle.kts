@@ -72,6 +72,21 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.kotlinx.serialization.core)
 
+    /*
+     * `@Preview` on AuthScreen's previews. This is `implementation`, not the `debugImplementation`
+     * it looks like it could be, and the difference is a broken release build: the feature
+     * convention adds `debugImplementation(ui-tooling)`, which drags ui-tooling-preview onto the
+     * debug classpath only -- so the annotation resolves in debug and `compileReleaseKotlin` fails
+     * with "Unresolved reference 'Preview'". Nothing caught it, because assembleDebug, the unit
+     * tests, Roborazzi and lintDebug all compile the debug variant and CI builds no other.
+     *
+     * :core:ui declares it the same way for NoteItem's previews. Two modules, but not a convention
+     * yet: :core:ui applies the library convention rather than the feature one, so :feature:auth is
+     * still the only *feature* that draws a preview -- a sample size of one, by the rule in
+     * build-logic. Move it into the feature plugin when a second feature adds a `@Preview`.
+     */
+    implementation(libs.androidx.ui.tooling.preview)
+
     // AuthViewModelTest asserts on `navigationEvent`, a Channel-backed Flow with no `.value` to
     // read -- the case AGENTS.md names Turbine for. Not in the feature convention: explore's and
     // settings' suites do not need it.
