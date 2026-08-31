@@ -10,6 +10,17 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface NoteDao {
+    /**
+     * Every mirrored note, newest first -- the whole table, not a page of it.
+     *
+     * Pagination stays on the remote side: `DefaultNoteRepository.getNotes(cursor)` walks Firestore
+     * and writes each page in, and this re-emits as it does. That is the RemoteMediator shape
+     * without the Paging 3 dependency, and it works here because the collection is one user's own
+     * notes (`user/{uid}/note`) rather than a shared feed.
+     */
+    @Query("SELECT * FROM notes ORDER BY created_date DESC")
+    fun getNotes(): Flow<List<DatabaseNote>>
+
     @Query("SELECT * FROM notes WHERE favorite = 1 ORDER BY created_date DESC")
     fun getFavoriteNotes(): Flow<List<DatabaseNote>>
 

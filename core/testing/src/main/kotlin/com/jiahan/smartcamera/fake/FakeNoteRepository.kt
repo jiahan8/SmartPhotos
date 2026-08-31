@@ -16,8 +16,14 @@ import kotlinx.coroutines.flow.update
  * In-memory [NoteRepository] test double.
  *
  * Paged/search/sync results are individually configurable so a test can drive any UI state without
- * Firebase or the network. The favorites stream is backed by a [MutableStateFlow] so emissions
- * propagate reactively, and mutating operations record their invocations for behavior assertions.
+ * Firebase or the network. Both streams are backed by a [MutableStateFlow] so emissions propagate
+ * reactively, and mutating operations record their invocations for behavior assertions.
+ *
+ * The two streams model the two Room queries and are kept separately rather than derived from one
+ * another, because that is what the real repository has: `getNotes()` over the whole table and
+ * `getFavoriteNotes()` over `WHERE favorite = 1`. A mutation therefore has to be reflected in both,
+ * and they disagree on purpose -- unfavoriting drops a note from the favorites stream while it
+ * stays in the notes stream, which is exactly the distinction the real table now draws.
  */
 class FakeNoteRepository : NoteRepository {
 
@@ -31,6 +37,7 @@ class FakeNoteRepository : NoteRepository {
     var syncResult: Result<Unit> = Result.success(Unit)
     var buildLocalMediaDetailsResult: Result<List<NoteMediaDetail>> = Result.success(emptyList())
 
+    private val notesFlow = MutableStateFlow<List<HomeNote>>(emptyList())
     private val favoritesFlow = MutableStateFlow<List<HomeNote>>(emptyList())
 
     var deleteCallCount = 0
@@ -44,6 +51,11 @@ class FakeNoteRepository : NoteRepository {
 
     fun setFavorites(notes: List<HomeNote>) {
         favoritesFlow.value = notes
+    }
+
+    /** Seeds the mirror [getNotesStream] observes, the way a fetched page would. */
+    fun setNotesStream(notes: List<HomeNote>) {
+        notesFlow.value = notes
     }
 
     /** Stubs a successful page. [nextCursor] drives pagination independently of [notes].size. */
@@ -63,6 +75,12 @@ class FakeNoteRepository : NoteRepository {
     override suspend fun updateNote(homeNote: HomeNote): Result<Unit> {
         updateCallCount++
         lastUpdatedNote = homeNote
+        // Unconditional, matching the real repository once its favorite gate was dropped.
+        if (updateResult.isSuccess) {
+            notesFlow.update { notes ->
+                notes.map { if (it.noteId == homeNote.noteId) homeNote else it }
+            }
+        }
         return updateResult
     }
 
@@ -75,6 +93,7 @@ class FakeNoteRepository : NoteRepository {
         // Room query reactively dropping it, so tests exercising that pipeline (e.g. delete-then-
         // assert-removed-from-list) see the same behavior as production.
         if (deleteResult.isSuccess) {
+            notesFlow.update { notes -> notes.filterNot { it.noteId == noteId } }
             favoritesFlow.update { notes -> notes.filterNot { it.noteId == noteId } }
         }
         return deleteResult
@@ -89,6 +108,12 @@ class FakeNoteRepository : NoteRepository {
         // mirror, but that query is `WHERE favorite = 1`, so what a subscriber sees is unchanged.
         if (favoriteResult.isSuccess) {
             val toggled = homeNote.copy(favorite = !homeNote.favorite)
+            // The note keeps its row either way, flag flipped -- the real repository upserts in
+            // both directions now rather than deleting on unfavorite.
+            notesFlow.update { notes ->
+                if (notes.none { it.noteId == toggled.noteId }) notes + toggled
+                else notes.map { if (it.noteId == toggled.noteId) toggled else it }
+            }
             favoritesFlow.update { notes ->
                 when {
                     toggled.favorite && notes.none { it.noteId == toggled.noteId } ->
@@ -119,6 +144,8 @@ class FakeNoteRepository : NoteRepository {
     override suspend fun buildLocalMediaDetails(
         uriList: List<MediaUri>
     ): Result<List<NoteMediaDetail>> = buildLocalMediaDetailsResult
+
+    override fun getNotesStream(): Flow<List<HomeNote>> = notesFlow
 
     override fun getFavoriteNotesStream(query: String): Flow<List<HomeNote>> =
         favoritesFlow.map { notes ->

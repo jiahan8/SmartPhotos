@@ -395,10 +395,12 @@ favorited notes only — every `noteDao` write was gated on the flag and unfavor
 `favoriteNote` upserts in both directions instead of deleting. The table holds every note the feed
 has paged through.
 
-**Nothing reads it for the feed yet.** Home and Search still render point-in-time `QuerySnapshot`s,
-`getFavoriteNotesStream`'s `WHERE favorite = 1` is still the only query anything observes, and
-`NoteHandler` is still how a mutation on one screen reaches another. So the deviation above stands
-in full; what changed is that the data is there to observe. Two consequences while it is half-done:
+**The live query exists; nothing observes it yet.** `NoteDao.getNotes()` and
+`NoteRepository.getNotesStream()` are in place over the whole table, but Home and Search still
+render point-in-time `QuerySnapshot`s and `NoteHandler` is still how a mutation on one screen
+reaches another. So the deviation above stands in full — a stream with no subscriber changes no
+behaviour. What is done is the data and the query; what is left is the three ViewModels. Two
+consequences while it is half-done:
 
 - `cacheNotes` logs a failed mirror write rather than failing the fetch, because a broken cache must
   not blank a screen whose fetch succeeded. **That is only right until the feed observes Room** — at
@@ -414,15 +416,22 @@ What the deviation costs, listed so nobody rediscovers it as a bug:
   silently until something rewrites that row.
 - No live query for Home or Search, which is the entire reason `NoteHandler` exists.
 
-**Next step, in order:** add `NoteDao.getNotes(): Flow<List<DatabaseNote>>` and a
-`NoteRepository.getNotesStream()` over it; move Home, Search and NotePreview onto it; delete
+**Next step:** move Home, Search and NotePreview onto `getNotesStream()`, then delete
 `NoteHandler` rather than extending it. Only the third cost above is removed by that — offline
 writes and reconciliation are a separate, larger project, and keeping them out is what makes this
-one tractable. Two things worth knowing before starting: `DatabaseNote` already carries every
-`HomeNote` field, so **no schema change and no Room migration**; and `searchNotes` currently reads
-the *entire* collection on every query and filters client-side, so pointing Search at a `LIKE` on
-the mirror is strictly cheaper than what it does today, not a trade. Until then keep new
-repositories on the same Firestore-first shape rather than introducing a third pattern.
+one tractable. Two things worth knowing before starting: `getNotesStream()` carries **no cursor**,
+because `getNotes(cursor)` owns the remote pagination and writes each page into the mirror, so a
+subscriber sees the result rather than driving it — that is the `RemoteMediator` shape without the
+Paging 3 dependency, and it works only because the collection is one user's own notes
+(`user/{uid}/note`) rather than a shared feed. And `searchNotes` currently reads the *entire*
+collection on every query and filters client-side, so pointing Search at the mirror is strictly
+cheaper than what it does today, not a trade. Until then keep new repositories on the same
+Firestore-first shape rather than introducing a third pattern.
+
+The one behaviour to get right in that step is the empty state. Room becomes the read path before
+anything has filled it, so a fresh install or a cleared cache renders an empty table while the
+first fetch is still in flight. `HomeContent.Empty` must not win that race — treat "no rows yet and
+no fetch has completed" as loading, and cover it with a test rather than a careful reading.
 
 ### Cross-feature communication
 

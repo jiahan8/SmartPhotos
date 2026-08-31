@@ -401,6 +401,9 @@ class DefaultNoteRepository @Inject constructor(
         return emptyList()
     }
 
+    override fun getNotesStream(): Flow<List<HomeNote>> =
+        noteDao.getNotes().map { notes -> notes.map { it.toHomeNote() } }
+
     override fun getFavoriteNotesStream(query: String): Flow<List<HomeNote>> =
         noteDao.getFavoriteNotes().map { notes ->
             val homeNotes = notes.map { it.toHomeNote() }

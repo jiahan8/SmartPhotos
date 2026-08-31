@@ -16,6 +16,7 @@ import com.google.firebase.functions.HttpsCallableResult
 import com.jiahan.smartcamera.R
 import com.jiahan.smartcamera.database.dao.NoteDao
 import com.jiahan.smartcamera.database.data.DatabaseNote
+import com.jiahan.smartcamera.database.data.toDatabaseNote
 import com.jiahan.smartcamera.domain.HomeNote
 import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.NoteMediaDetail
@@ -30,6 +31,8 @@ import io.mockk.slot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -315,6 +318,21 @@ class DefaultNoteRepositoryTest {
         assertTrue(result.isSuccess)
         val cached = captureCachedNotes()
         assertEquals("edited", cached.single().text)
+    }
+
+    @Test
+    fun `getNotesStream maps the mirrored rows to domain notes`() = runTest(dispatcher) {
+        every { noteDao.getNotes() } returns flowOf(
+            listOf(homeNote(favorite = false).toDatabaseNote())
+        )
+
+        val notes = repository.getNotesStream().first()
+
+        assertEquals(NOTE_ID, notes.single().noteId)
+        assertEquals("alice", notes.single().username)
+        // The query itself -- that it returns non-favorites, newest first, and re-emits on a write
+        // -- is NoteDaoTest's job, against a real database. This pins only the mapping.
+        assertFalse(notes.single().favorite)
     }
 
     private fun homeNote(favorite: Boolean) = HomeNote(

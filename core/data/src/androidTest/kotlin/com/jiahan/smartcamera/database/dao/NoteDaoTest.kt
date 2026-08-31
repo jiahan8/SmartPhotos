@@ -58,6 +58,57 @@ class NoteDaoTest {
         profilePictureUrl = null,
     )
 
+    /*
+     * getNotes() is the mirror the feed will observe; getFavoriteNotes() is the favorites-only
+     * query it sits beside. The pair below is the distinction that matters: the table stopped
+     * being favorites-only, so one query has to see a non-favorited note and the other must not.
+     */
+
+    @Test
+    fun getNotes_returnsEveryNoteRegardlessOfFavoriteFlag() = runBlocking {
+        noteDao.upsertNotes(
+            listOf(
+                note("fav", favorite = true),
+                note("notFav", favorite = false),
+            )
+        )
+
+        val notes = noteDao.getNotes().first()
+
+        assertEquals(2, notes.size)
+        assertTrue(notes.any { it.noteId == "notFav" })
+    }
+
+    @Test
+    fun getNotes_areOrderedByCreatedDateDescending() = runBlocking {
+        noteDao.upsertNotes(
+            listOf(
+                note("old", favorite = false, createdDate = 100L),
+                note("newest", favorite = false, createdDate = 300L),
+                note("middle", favorite = true, createdDate = 200L),
+            )
+        )
+
+        val notes = noteDao.getNotes().first()
+
+        assertEquals(
+            listOf("newest", "middle", "old"),
+            notes.map { it.noteId }
+        )
+    }
+
+    @Test
+    fun getNotes_reEmitsWhenANoteIsUpserted() = runBlocking {
+        noteDao.upsertNotes(listOf(note("first", favorite = false)))
+        assertEquals(1, noteDao.getNotes().first().size)
+
+        // The property the feed depends on: a page written in has to reach a live subscriber
+        // without anyone re-querying.
+        noteDao.upsertNotes(listOf(note("second", favorite = false)))
+
+        assertEquals(2, noteDao.getNotes().first().size)
+    }
+
     @Test
     fun upsertNotes_thenGetFavoriteNotes_returnsOnlyFavorites() = runBlocking {
         noteDao.upsertNotes(
