@@ -105,13 +105,14 @@ Run from the repo root (Gradle wrapper):
   `assembleDebug`, unit tests, Roborazzi and lint never compile androidTest sources, and
   `di/HiltGraphSmokeTest.kt`'s member injection walks the binding graph furthest. Run it after any
   change to a module's dependencies or an `@Inject` constructor, especially without a device handy.
-- **`./gradlew assembleRelease` is the only thing that compiles the release variant, and CI does not
-  run it.** Everything CI does — `assembleDebug`, the unit tests, Roborazzi, `lintDebug` — compiles
-  debug, so a dependency that reaches a module only through `debugImplementation` compiles clean all
-  the way to a green pipeline and then fails the release build. That is not hypothetical: it is
-  exactly how `:feature:auth`'s `@Preview` broke `compileReleaseKotlin` (see the note in its build
-  file). Run it after changing any module's dependency block, alongside
-  `compileDebugAndroidTestKotlin` above — between them they cover the two variants nothing else does.
+- **`./gradlew assembleRelease` is the only thing that compiles the release variant.** Every other
+  check — `assembleDebug`, the unit tests, Roborazzi, `lintDebug` — compiles debug, so a dependency
+  that reaches a module only through `debugImplementation` compiles clean everywhere else and fails
+  here. That is not hypothetical: it is exactly how `:feature:auth`'s `@Preview` broke
+  `compileReleaseKotlin` (see the note in its build file), unnoticed because CI built no release
+  either. **CI now runs it**, so the gap is closed for anything that reaches `main` — but run it
+  locally after changing any module's dependency block, alongside `compileDebugAndroidTestKotlin`
+  above. Between them they cover the two variants nothing else does.
 - Instrumented tests (`./gradlew connectedDebugAndroidTest`) need a device/emulator; live in ten
   modules — `app/`, `core/data/`, and every `:feature:*` except `:feature:explore`. `:app` uses a
   custom `HiltTestRunner`, the AndroidX Test Orchestrator, and `clearPackageData=true` for hermetic
@@ -137,9 +138,15 @@ Run from the repo root (Gradle wrapper):
 ### CI
 
 `.github/workflows/ci.yml` runs on every push to `main`, every pull request, and on demand: it
-builds the debug APK, then runs the unit tests, the screenshot comparison, and `lintDebug` as three
-separate steps on JDK 21 (each runs even if an earlier one failed, so one run reports every
-problem), plus a parallel job linting `functions/`.
+builds the debug APK and the release APK, then runs the unit tests, the screenshot comparison, and
+`lintDebug` as separate steps on JDK 21 (each runs even if an earlier one failed, so one run reports
+every problem), plus a parallel job linting `functions/`.
+
+The release step is `assembleRelease -x uploadCrashlyticsMappingFileRelease`, and both halves are
+deliberate: it is the only step that compiles the release variant or runs R8, and the exclusion
+keeps CI from uploading a mapping file to Crashlytics for a build it will never ship. Everything
+else in the job builds debug, which is how a `debugImplementation`-only dependency stayed green here
+while `compileReleaseKotlin` was broken.
 
 It needs one repository secret, `GOOGLE_SERVICES_JSON` — `app/google-services.json` is gitignored
 and the Google Services plugin fails the build without it. Generate the value with `base64 -i

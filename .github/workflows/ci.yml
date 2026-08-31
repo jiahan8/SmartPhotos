@@ -18,7 +18,9 @@ jobs:
   android:
     name: Build, test and lint
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 40, not 30: the release build added an R8 pass to a job that already builds debug, runs 410
+    # tests, diffs the goldens and lints. A timeout is a confusing way to learn a job got slower.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
@@ -58,6 +60,27 @@ jobs:
 
       - name: Build debug APK
         run: ./gradlew assembleDebug
+
+      # The release variant, which nothing else here compiles. Every other step in this job builds
+      # debug -- assembleDebug above, testDebugUnitTest, verifyRoborazziDebug, lintDebug -- so a
+      # dependency that reaches a module only through `debugImplementation` used to compile clean
+      # all the way to a green tick and then fail `./gradlew assembleRelease` on someone's laptop.
+      # That is not hypothetical: :feature:auth's `@Preview` resolved through the feature
+      # convention's debugImplementation(ui-tooling) and broke compileReleaseKotlin for several
+      # commits without this job noticing. It also puts R8 in the pipeline, so a missing keep rule
+      # is caught here rather than in a release build.
+      #
+      # -x uploadCrashlyticsMappingFileRelease: assembleRelease wires that task in, and it uploads
+      # a mapping file to Firebase. CI builds a release APK on every pull request and ships none of
+      # them, so the upload would be noise in Crashlytics and a network call that can fail for
+      # reasons that have nothing to do with the change under test. Real releases are built
+      # elsewhere and still upload.
+      #
+      # There is no signing config, so this produces an unsigned APK. That is fine: the point is
+      # that the variant compiles and shrinks, not that the artifact is installable.
+      - name: Build release APK
+        if: ${{ !cancelled() }}
+        run: ./gradlew assembleRelease -x uploadCrashlyticsMappingFileRelease
 
       # :core:domain is named explicitly because it is a plain Kotlin JVM module: its unit tests
       # run under `test`, not the Android `testDebugUnitTest` variant task, so a bare
