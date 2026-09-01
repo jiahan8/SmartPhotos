@@ -19,9 +19,6 @@
  */
 plugins {
     id("smartphotos.android.feature")
-    // NoteRoute and EditNoteRoute are @Serializable. Left out of the feature convention
-    // deliberately -- see the note in :feature:settings.
-    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -31,8 +28,10 @@ android {
 dependencies {
 
     /*
-     * :core:domain, :core:ui, Compose, icons, Hilt, lifecycle, :core:testing, junit, mockk and
-     * kotlinx-coroutines-test all arrive from `smartphotos.android.feature`.
+     * :core:domain, :core:ui, the Compose set, icons, Hilt, lifecycle, the serialization plugin and
+     * its runtime, and the whole test/androidTest baseline -- :core:testing, junit, mockk,
+     * kotlinx-coroutines-test, Turbine and the five on-device lines -- all arrive from
+     * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
 
     // MediaFileRepository and toMediaUri() for the picked media, plus the three note-validation
@@ -43,7 +42,6 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     // ContextCompat.checkSelfPermission, for the camera permission check.
     implementation(libs.androidx.core.ktx)
-    implementation(libs.kotlinx.serialization.core)
 
     // toRoute<EditNoteRoute>() in EditNoteViewModel.
     implementation(libs.androidx.navigation.compose)
@@ -51,15 +49,7 @@ dependencies {
     // AsyncImage, for the picked-media thumbnails.
     implementation(libs.coil.compose)
 
-    // Both ViewModel tests assert on flows with no `.value` to read.
-    testImplementation(libs.turbine)
     // EditNoteViewModelTest is Robolectric-backed: toRoute() builds a real Bundle.
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.junit)
-
-    androidTestImplementation(project(":core:testing"))
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.test.runner)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
 }

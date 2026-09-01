@@ -20,9 +20,6 @@
  */
 plugins {
     id("smartphotos.android.feature")
-    // SearchRoute is @Serializable. Left out of the feature convention deliberately -- see the
-    // note in :feature:settings.
-    alias(libs.plugins.kotlin.serialization)
     // searchScreen_idle's golden lives here now -- the other half of :app's ScreenScreenshotTest,
     // whose three Home captures went to :feature:home. See the note in that module's build file.
     id("smartphotos.android.screenshot")
@@ -35,8 +32,10 @@ android {
 dependencies {
 
     /*
-     * :core:domain, :core:ui, Compose, icons, Hilt, lifecycle, :core:testing, junit, mockk and
-     * kotlinx-coroutines-test all arrive from `smartphotos.android.feature`.
+     * :core:domain, :core:ui, the Compose set, icons, Hilt, lifecycle, the serialization plugin and
+     * its runtime, and the whole test/androidTest baseline -- :core:testing, junit, mockk,
+     * kotlinx-coroutines-test, Turbine and the five on-device lines -- all arrive from
+     * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
 
     // NoteShareDelegate and NoteErrorReporter.
@@ -44,14 +43,4 @@ dependencies {
 
     // ShareCompat.IntentBuilder, for the share chooser.
     implementation(libs.androidx.core.ktx)
-    implementation(libs.kotlinx.serialization.core)
-
-    // SearchViewModelTest asserts on `actionError`, a SharedFlow with no `.value` to read.
-    testImplementation(libs.turbine)
-
-    androidTestImplementation(project(":core:testing"))
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.test.runner)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
 }

@@ -15,9 +15,6 @@
  */
 plugins {
     id("smartphotos.android.feature")
-    // HomeRoute is @Serializable. Left out of the feature convention deliberately -- see the note
-    // in :feature:settings.
-    alias(libs.plugins.kotlin.serialization)
     // The three homeScreen_* goldens live here now, beside the screen they capture. They came from
     // :app's ScreenScreenshotTest, which captured Home and Search together because both screens
     // lived up there; splitting it sent one half here and the other to :feature:search -- and took
@@ -43,8 +40,10 @@ android {
 dependencies {
 
     /*
-     * :core:domain, :core:ui, Compose, icons, Hilt, lifecycle, :core:testing, junit, mockk and
-     * kotlinx-coroutines-test all arrive from `smartphotos.android.feature`.
+     * :core:domain, :core:ui, the Compose set, icons, Hilt, lifecycle, the serialization plugin and
+     * its runtime, and the whole test/androidTest baseline -- :core:testing, junit, mockk,
+     * kotlinx-coroutines-test, Turbine and the five on-device lines -- all arrive from
+     * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
 
     // NoteShareDelegate and NoteErrorReporter.
@@ -52,16 +51,4 @@ dependencies {
 
     // ShareCompat.IntentBuilder, for the share chooser.
     implementation(libs.androidx.core.ktx)
-    implementation(libs.kotlinx.serialization.core)
-
-    // HomeViewModelTest asserts on `actionError`, a SharedFlow with no `.value` to read.
-    testImplementation(libs.turbine)
-
-    // sharedTest/ runs in both source sets, so :core:testing is needed in both -- the same
-    // reasoning as :feature:auth and :app.
-    androidTestImplementation(project(":core:testing"))
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.test.runner)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
 }

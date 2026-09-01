@@ -30,9 +30,6 @@
  */
 plugins {
     id("smartphotos.android.feature")
-    // AuthRoute is @Serializable. Left out of the feature convention deliberately -- see the note
-    // in :feature:settings.
-    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -59,18 +56,22 @@ android {
 dependencies {
 
     /*
-     * :core:domain, :core:ui, Compose, icons, Hilt, lifecycle and :core:testing all arrive from
-     * `smartphotos.android.feature`. What is left here is what only auth needs.
+     * :core:domain, :core:ui, the Compose set, icons, Hilt, lifecycle, the serialization plugin and
+     * its runtime, and the whole test/androidTest baseline -- :core:testing, junit, mockk,
+     * kotlinx-coroutines-test, Turbine and the five on-device lines -- all arrive from
+     * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
 
     // validateUsername/validateDisplayName, and the field labels and username messages AuthScreen
-    // and AuthViewModel resolve as `CommonR`. Not in the feature convention: profile is the only
-    // other consumer, and it has not moved yet -- one module is a sample size of one.
+    // and AuthViewModel resolve as `CommonR`. Seven of the nine features declare this edge now, but
+    // deliberately not from the convention: they want different tenants of the module -- auth the
+    // validators, profile the media seam, the four note screens the delegates -- and the rule here
+    // is "more than one module wants it, for the same reason". Explore and settings want none of
+    // it, and a convention that gave it to them would hide that.
     implementation(project(":core:common"))
 
     // AsyncImage, for the launcher icon the nav graph passes in as `logoRes`.
     implementation(libs.coil.compose)
-    implementation(libs.kotlinx.serialization.core)
 
     /*
      * `@Preview` on AuthScreen's previews. This is `implementation`, not the `debugImplementation`
@@ -87,11 +88,6 @@ dependencies {
      */
     implementation(libs.androidx.ui.tooling.preview)
 
-    // AuthViewModelTest asserts on `navigationEvent`, a Channel-backed Flow with no `.value` to
-    // read -- the case AGENTS.md names Turbine for. Not in the feature convention: explore's and
-    // settings' suites do not need it.
-    testImplementation(libs.turbine)
-
     // The JVM half of sharedTest. Robolectric is what makes AndroidJUnit4 resolve to a sandbox
     // rather than the on-device runner; no Roborazzi here, because this module captures no
     // screenshots.
@@ -99,15 +95,4 @@ dependencies {
     testImplementation(libs.androidx.junit)
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.ui.test.junit4)
-
-    /*
-     * The on-device half of the same file. It builds its ViewModel from :core:testing's fakes and
-     * injects nothing, so the default AndroidJUnitRunner is enough and this module declares no
-     * testInstrumentationRunner -- the same reasoning as :feature:settings.
-     */
-    androidTestImplementation(project(":core:testing"))
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.test.runner)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
 }

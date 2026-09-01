@@ -23,9 +23,6 @@
  */
 plugins {
     id("smartphotos.android.feature")
-    // The three routes are @Serializable. Left out of the feature convention deliberately -- see
-    // the note in :feature:settings.
-    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -35,8 +32,10 @@ android {
 dependencies {
 
     /*
-     * :core:domain, :core:ui, Compose, icons, Hilt, lifecycle, :core:testing, junit, mockk and
-     * kotlinx-coroutines-test all arrive from `smartphotos.android.feature`.
+     * :core:domain, :core:ui, the Compose set, icons, Hilt, lifecycle, the serialization plugin and
+     * its runtime, and the whole test/androidTest baseline -- :core:testing, junit, mockk,
+     * kotlinx-coroutines-test, Turbine and the five on-device lines -- all arrive from
+     * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
 
     // NoteShareDelegate and NoteErrorReporter, plus MediaFileRepository -- PhotoPreviewViewModel
@@ -45,7 +44,6 @@ dependencies {
 
     // ShareCompat.IntentBuilder and androidx.core.net.toUri.
     implementation(libs.androidx.core.ktx)
-    implementation(libs.kotlinx.serialization.core)
 
     // toRoute<PreviewRoute>() in all three ViewModels.
     implementation(libs.androidx.navigation.compose)
@@ -57,15 +55,7 @@ dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
 
-    // The ViewModel tests assert on SharedFlows with no `.value` to read.
-    testImplementation(libs.turbine)
     // NotePreviewViewModelTest is Robolectric-backed: toRoute() builds a real Bundle.
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.junit)
-
-    androidTestImplementation(project(":core:testing"))
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.test.runner)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
 }

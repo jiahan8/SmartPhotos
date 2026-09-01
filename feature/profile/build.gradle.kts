@@ -21,9 +21,6 @@
  */
 plugins {
     id("smartphotos.android.feature")
-    // ProfileRoute is @Serializable. Left out of the feature convention deliberately -- see the
-    // note in :feature:settings.
-    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -45,32 +42,20 @@ android {
 dependencies {
 
     /*
-     * :core:domain, :core:ui, Compose, icons, Hilt, lifecycle and :core:testing all arrive from
-     * `smartphotos.android.feature`. What is left here is what only profile needs.
+     * :core:domain, :core:ui, the Compose set, icons, Hilt, lifecycle, the serialization plugin and
+     * its runtime, and the whole test/androidTest baseline -- :core:testing, junit, mockk,
+     * kotlinx-coroutines-test, Turbine and the five on-device lines -- all arrive from
+     * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
 
     // MediaFileRepository and toMediaUri(), plus the email/name/username labels and the username
-    // validators shared with :feature:auth. This is now the second feature to declare it -- the
-    // point at which it would go into the feature convention if a third wants it for the same
-    // reason. Auth wants the validators and profile wants the media seam, which are not the same
-    // reason, so it stays here.
+    // validators shared with :feature:auth. Still declared per-module rather than in the feature
+    // convention, for the reason spelled out in :feature:auth's build file: seven features take
+    // this edge, but for three unrelated tenants, and two features take it for none.
     implementation(project(":core:common"))
 
     // The photo-picker, camera and permission launchers ProfileScreen holds.
     implementation(libs.androidx.activity.compose)
     // ContextCompat.checkSelfPermission, for the camera permission check.
     implementation(libs.androidx.core.ktx)
-    implementation(libs.kotlinx.serialization.core)
-
-    // ProfileViewModelTest asserts on `events`, a SharedFlow with no `.value` to read.
-    testImplementation(libs.turbine)
-
-    // ProfileScreenTest builds its ViewModel from :core:testing's fakes and injects nothing, so the
-    // default AndroidJUnitRunner is enough and this module declares no testInstrumentationRunner --
-    // the same reasoning as :feature:auth and :feature:settings.
-    androidTestImplementation(project(":core:testing"))
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.test.runner)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
 }

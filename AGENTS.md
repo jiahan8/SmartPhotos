@@ -3,12 +3,12 @@
 Android app (Kotlin) for organizing photos/notes with ML-based tagging. Firebase backend + a
 Node.js Cloud Functions project live in `functions/`.
 
-Fifteen Gradle modules, plus an included build for the shared Gradle config:
+Sixteen Gradle modules, plus an included build for the shared Gradle config:
 
 - `:app` — UI, ViewModels, navigation, and app-level plumbing: `MyApp`, the messaging service,
-  `DefaultErrorHandler`/`ResourceProviderImpl`, `FirebaseModule`, `AppModule`. Hosts the NavHost,
-  supplies each screen's navigation lambdas, and installs the Hilt bindings — no feature screen
-  renders here. Sources under `app/src/main/java/com/jiahan/smartcamera/`.
+  `DefaultErrorHandler`/`ResourceProviderImpl`, `AppModule`. Hosts the NavHost, supplies each
+  screen's navigation lambdas, and installs the Hilt bindings — no feature screen renders here.
+  Sources under `app/src/main/java/com/jiahan/smartcamera/`.
 - `:core:domain` — pure Kotlin JVM (no Android Gradle plugin, no Hilt/KSP): domain models, the
   repository *interfaces*, `safeCall`, the `ErrorHandler` interface, DI qualifiers. Sources under
   `core/domain/src/main/kotlin/com/jiahan/smartcamera/`.
@@ -21,7 +21,7 @@ Fifteen Gradle modules, plus an included build for the shared Gradle config:
   Sources under `core/common/src/main/kotlin/com/jiahan/smartcamera/`.
 - `:core:data` — an Android library holding every implementation of a `:core:domain`/`:core:common`
   contract: the `Default*`/`Firebase*` repositories, the Room database, DataStore wiring,
-  `DataModule`. Sources under `core/data/src/main/kotlin/com/jiahan/smartcamera/`.
+  `FirebaseModule`, `DataModule`. Sources under `core/data/src/main/kotlin/com/jiahan/smartcamera/`.
 - `:core:ui` — an Android library, shared Compose vocabulary: `common/` (14 composables),
   `ui/theme/`, and `util/DateTimeUtils.kt`/`FlowUtils.kt`. Sources under
   `core/ui/src/main/kotlin/com/jiahan/smartcamera/`.
@@ -34,14 +34,34 @@ Fifteen Gradle modules, plus an included build for the shared Gradle config:
   `IncomingShareHandler`, read downward by `:app`'s `AppModule`/`MainViewModel`; `:feature:search`
   owns `SEARCH_DEEP_LINK_URI_PATTERN`, read downward by the nav graph. Sources under
   `feature/<name>/src/main/kotlin/com/jiahan/smartcamera/`.
-- `:core:testing` — an Android library of shared test fixtures: nine `fake/` repository doubles,
-  `MainDispatcherRule`, `BaseScreenshotTest`. Taken as `testImplementation`
-  (`androidTestImplementation` too wherever a `sharedTest/` runs in both), so nothing in it
-  reaches a production classpath. Note it takes an `api` edge on `:core:data`, so `:core:data`
-  cannot depend on it back — its own tests declare Robolectric directly. A **regular library module, not AGP's `testFixtures`** — that was
-  tried and doesn't work, since the Kotlin Android plugin generates no Kotlin compilation for the
-  testFixtures variant. Its dependencies are `api` throughout: a fixtures module's API surface is
-  *other* modules' types (`FakeNoteRepository` **is** a `NoteRepository`).
+- `:core:testing` — an Android library of shared test fixtures: nine `fake/` repository doubles and
+  `MainDispatcherRule`. Taken as `testImplementation` (`androidTestImplementation` too wherever a
+  `sharedTest/` runs in both), so nothing in it reaches a production classpath. It depends on
+  `:core:domain` and `:core:common` and **deliberately not on `:core:data`** — every fake implements
+  an interface, and those interfaces all live in the two modules above precisely so a test never
+  resolves a `Default*`. That edge did exist, unused, and being `api` it put Firestore, Room,
+  DataStore and Play app-update on the unit-test compile classpath of all nine features, so "no
+  feature depends on `:core:data`" held for main sources and quietly failed for tests. Removing it
+  also freed `:core:data` to take this module on `testImplementation` if a suite there ever wants
+  the fakes — with the edge in place that was a cycle. A fixtures module is a supplier to the data
+  layer or a consumer of it, never both. A **regular library module, not AGP's `testFixtures`** —
+  that was tried and doesn't work, since the Kotlin Android plugin generates no Kotlin compilation
+  for the testFixtures variant. Its dependencies are `api` throughout: a fixtures module's API
+  surface is *other* modules' types (`FakeNoteRepository` **is** a `NoteRepository`).
+- `:core:screenshot-testing` — an Android library holding `BaseScreenshotTest` and the four
+  artifacts it names (Robolectric, Roborazzi ×2, compose `ui-test-junit4`). Nobody declares it: the
+  `smartphotos.android.screenshot` convention adds it on `testImplementation`, so applying that
+  plugin is the whole of what makes a module a screenshot module. `api` throughout, same rule as
+  `:core:testing`.
+  **This was part of `:core:testing` and the split is the same fix as the `:core:data` edge above,
+  one layer over.** Because everything in a fixtures module is `api`, the harness's Roborazzi and
+  Robolectric artifacts landed on the unit-test compile classpath of all nine features plus `:app`
+  and `:core:ui` — `:feature:explore`, which captures nothing and has no androidTest source set at
+  all, resolved the entire compose ui-test stack. Only four modules capture goldens, and the tell
+  that nobody was relying on the leak is that every module wanting Robolectric for a
+  *non*-screenshot suite (`:app`, `:core:data`, `:feature:auth`, `:feature:note`,
+  `:feature:preview`) already declared it itself. Keep the two apart: fixtures every test module
+  wants, harness only the capturing four.
 - `build-logic/` — not a module but an included build, holding the six convention plugins
   (`smartphotos.android.application`, `.android.library`, `.android.compose`, `.android.feature`,
   `.android.screenshot`, `.jvm.library`); see [Convention plugins](#convention-plugins).
@@ -56,12 +76,16 @@ com.jiahan.smartcamera.feature.<name>.R` — including from a file inside that m
 `com.jiahan.smartcamera.core.common.R` / `com.jiahan.smartcamera.core.ui.R`.
 
 Dependency arrows run one way: `:app` → `:core:data` → `:core:domain`; `:app` → `:core:ui` →
-`:core:domain`; `:app` → `:core:data` → `:core:common` → `:core:domain`; `:app` → each
-`:feature:*` → the `:core` libraries it needs. `:core:testing` hangs off test classpaths only. No
-feature module depends on another, and none reaches `:core:data` — check with `./gradlew
-:feature:profile:dependencies --configuration debugCompileClasspath`. Nothing depends on `:app`, so
-a repository implementation can never reach a ViewModel, an `:app` `R` string, or `BuildConfig`.
-`:core:ui` and `:core:data` are siblings — neither depends on the other.
+`:core:domain`; `:app` → `:core:data` → `:core:common` → `:core:domain`; `:app` → each `:feature:*`
+→ the `:core` libraries it needs. `:core:testing` and `:core:screenshot-testing` hang off test
+classpaths only. No feature module depends on another, and none reaches `:core:data` — and that is
+**enforced, not just documented**: `smartphotos.android.feature` fails configuration with a named
+error if a feature declares either edge, scanning every declaration bucket rather than only the
+compile ones, because the one violation this build actually shipped (`:core:testing` → `:core:data`)
+lived on a test classpath. Inspect a graph with `./gradlew :feature:profile:dependencies
+--configuration debugCompileClasspath`. Nothing depends on `:app`, so a repository implementation
+can never reach a ViewModel, an `:app` `R` string, or `BuildConfig`. `:core:ui` and `:core:data` are
+siblings — neither depends on the other.
 
 ## Build, test, lint
 
@@ -72,7 +96,8 @@ Run from the repo root (Gradle wrapper):
   - Both tasks: `:core:domain` is a plain Kotlin JVM module, so its tests run under `test`, not the
     Android-variant `testDebugUnitTest`, which every other (Android-library) module already runs
     under, as do `lintDebug` and `connectedDebugAndroidTest`. 410 tests total across 14 modules
-    (`:core:testing` has no unit tests of its own — it *is* the fixtures).
+    (`:core:testing` and `:core:screenshot-testing` have no unit tests of their own — they *are*
+    the fixtures and the harness).
   - Single class: `--tests "com.jiahan.smartcamera.home.HomeViewModelTest"`
   - Single method: `--tests "com.jiahan.smartcamera.home.HomeViewModelTest.methodName"`
   - Assert on a settled `StateFlow` by reading `.value`. Reach for
@@ -86,9 +111,12 @@ Run from the repo root (Gradle wrapper):
   `:core:ui`, `:feature:home`, `:feature:search`, `:feature:settings` — and in none of them by
   accident, since a golden is only meaningful next to the composable it pins. Each keeps its own
   goldens under its own `src/test/screenshots/`; the shared harness (`BaseScreenshotTest`) is in
-  `:core:testing`. A module capturing them applies `smartphotos.android.screenshot` and nothing
-  else — that plugin brings the Roborazzi tasks, the VCS-tracked `outputDir` and
-  `unitTests.isIncludeAndroidResources`. It still needs
+  `:core:screenshot-testing`. A module capturing them applies `smartphotos.android.screenshot` and
+  nothing else — that plugin brings the Roborazzi tasks, the VCS-tracked `outputDir`,
+  `unitTests.isIncludeAndroidResources` **and the harness module itself** on `testImplementation`,
+  which is why no build file names `:core:screenshot-testing`. (It also fails configuration if
+  `:core:screenshot-testing` applies it, since that edge would be a self-dependency.) It still
+  needs
   `debugImplementation(libs.androidx.ui.test.manifest)` on top, which the feature convention
   already supplies to a `:feature:*` module, and `:core:ui` declares for itself — without it
   `createComposeRule()` fails to resolve an activity. `testDebugUnitTest` *runs* these tests but does
@@ -105,6 +133,8 @@ Run from the repo root (Gradle wrapper):
   `assembleDebug`, unit tests, Roborazzi and lint never compile androidTest sources, and
   `di/HiltGraphSmokeTest.kt`'s member injection walks the binding graph furthest. Run it after any
   change to a module's dependencies or an `@Inject` constructor, especially without a device handy.
+  **CI now runs it** as its own step, so the gap is closed for anything reaching `main` — the same
+  treatment `assembleRelease` got, for the same reason.
 - **`./gradlew assembleRelease` is the only thing that compiles the release variant.** Every other
   check — `assembleDebug`, the unit tests, Roborazzi, `lintDebug` — compiles debug, so a dependency
   that reaches a module only through `debugImplementation` compiles clean everywhere else and fails
@@ -138,9 +168,15 @@ Run from the repo root (Gradle wrapper):
 ### CI
 
 `.github/workflows/ci.yml` runs on every push to `main`, every pull request, and on demand: it
-builds the debug APK and the release APK, then runs the unit tests, the screenshot comparison, and
-`lintDebug` as separate steps on JDK 21 (each runs even if an earlier one failed, so one run reports
-every problem), plus a parallel job linting `functions/`.
+builds the debug APK and the release APK, compiles the androidTest sources, then runs the unit
+tests, the screenshot comparison, and `lintDebug` as separate steps on JDK 21 (each runs even if an
+earlier one failed, so one run reports every problem), plus a parallel job linting `functions/`.
+
+Three of those steps exist for the same reason and are worth reading together: `assembleRelease`,
+`compileDebugAndroidTestKotlin` and `lintDebug` each compile something no other step does. The first
+two are the two variants `assembleDebug` and the unit tests never reach, and each one has already
+hidden a real break (`:feature:auth`'s `@Preview` in release; `:core:data`'s DataStore and Room
+bindings in androidTest).
 
 The release step is `assembleRelease -x uploadCrashlyticsMappingFileRelease`, and both halves are
 deliberate: it is the only step that compiles the release variant or runs R8, and the exclusion
@@ -155,9 +191,11 @@ app/google-services.json` and paste it into Settings > Secrets and variables > A
 
 Each run uploads two artifacts: `unit-test-report` and `screenshot-and-lint-reports` (download the
 latter on a screenshot failure — its `*_compare.png` files show reference/diff/actual side by side).
-**Both artifact lists are literal per-module paths, not a glob — a new module that captures
-screenshots or produces a lint report must be added to both by hand**, or a failure in it reports as
-a red X with nothing to open.
+Both artifact lists are **globs** (`*/build/…` and `*/*/build/…`, two depths because `:app` is one
+level deep and the `core`/`feature` modules are two), so a new module's reports are collected with
+no edit here. They were literal per-module paths and drifted three separate times — `:core:ui`,
+`:feature:explore` and `:feature:settings` each reported nothing for a while, which turns a failure
+in that module into a red X with nothing to open. Keep them globs.
 
 Two things to know about the goldens:
 
@@ -182,10 +220,10 @@ the same settings:
 | Plugin | Applied by | Applies | Sets |
 | --- | --- | --- | --- |
 | `smartphotos.android.application` | `:app` | AGP application, Kotlin Android | compileSdk 37, minSdk 28, Java 11, JVM target 11, test-JVM pin |
-| `smartphotos.android.library` | `:core:common`, `:core:data`, `:core:ui`, `:core:testing` | AGP library, Kotlin Android | the same |
-| `smartphotos.android.compose` | `:app`, `:core:ui`, `:core:testing` | Compose compiler | `buildFeatures.compose = true` |
-| `smartphotos.android.feature` | all nine `:feature:*` modules | the library + compose conventions, KSP, Hilt | the `:core:domain`/`:core:ui` edges, the Compose set, icons, Hilt, lifecycle, `ui-test-manifest`, `:core:testing` |
-| `smartphotos.android.screenshot` | `:core:ui`, `:feature:home`, `:feature:search`, `:feature:settings` | Roborazzi | `outputDir` → `src/test/screenshots`, `unitTests.isIncludeAndroidResources` |
+| `smartphotos.android.library` | `:core:common`, `:core:data`, `:core:ui`, `:core:testing`, `:core:screenshot-testing` | AGP library, Kotlin Android | the same |
+| `smartphotos.android.compose` | `:app`, `:core:ui`, `:core:screenshot-testing` | Compose compiler | `buildFeatures.compose = true` |
+| `smartphotos.android.feature` | all nine `:feature:*` modules | the library + compose conventions, KSP, Hilt, kotlin-serialization | the `:core:domain`/`:core:ui` edges, the Compose set, icons, Hilt, lifecycle, `ui-test-manifest`, the test baseline (`:core:testing`, junit, mockk, coroutines-test, Turbine) and the androidTest baseline; **enforces the feature layering** |
+| `smartphotos.android.screenshot` | `:core:ui`, `:feature:home`, `:feature:search`, `:feature:settings` | Roborazzi | `outputDir` → `src/test/screenshots`, `unitTests.isIncludeAndroidResources`, `testImplementation(:core:screenshot-testing)`; **refuses to apply to the harness module** |
 | `smartphotos.jvm.library` | `:core:domain` | Kotlin JVM — **nothing Android** | Java 11, JVM target 11, test-JVM pin |
 
 `.android.screenshot` is also the one that needs a plugin *artifact* in `build-logic`'s own
@@ -202,6 +240,11 @@ in the consuming module, not at compile time in `build-logic`.**
 
 Rules worth knowing before editing these plugins:
 
+- **The layering rules live here too.** `smartphotos.android.feature` enforces "a feature depends on
+  no other feature and never on `:core:data`" at configuration time. This build already enforces
+  `:core:domain`'s purity with the compiler (no Android plugin, so `import android.*` cannot
+  resolve); a rule held only by review decays, which is how an unused `api` edge put Firestore and
+  Room on nine modules' test classpath without anyone reading a build file wrong.
 - **Put a setting here only when more than one module wants it, for the same reason.** `targetSdk`
   stays per-app-module, `namespace` stays per-library, `buildConfig = true` stays in `:app` only
   (see the Build type rule under [Conventions](#conventions)).
@@ -224,9 +267,9 @@ Rules worth knowing before editing these plugins:
 ## Architecture
 
 MVVM with a layered structure, one Gradle module per feature. **All nine feature modules are
-extracted**, and `:app` is down to ~1,350 lines: `MainActivity`, `MyApp`, `MainViewModel`,
-`SmartPhotosApp`, `navigation/`, the messaging service, the two DI modules, and four `util/`
-implementations. It hosts the NavHost, supplies each screen's navigation lambdas, and installs the
+extracted**, and `:app` is down to ~1,300 lines across 14 files: `MainActivity`, `MyApp`,
+`MainViewModel`, `SmartPhotosApp`, `navigation/`, the messaging service, `di/AppModule.kt`, and
+five `util/` files including `util/di/UtilModule.kt`. It hosts the NavHost, supplies each screen's navigation lambdas, and installs the
 Hilt bindings — nothing that renders a feature screen lives there. Cross-cutting layers:
 
 - **UI** — Jetpack Compose screens (`*Screen.kt`) + the Navigation Compose graph in
@@ -519,10 +562,18 @@ strings, no `navArgument` lists, no manual URL escaping of arguments.
 - **DI**: Hilt, all *modules* `@InstallIn(SingletonComponent::class)`. Constructor-injected classes
   may still be narrower — `:core:common`'s `NoteErrorReporter` is `@ViewModelScoped` — so "all
   modules are singleton" isn't "everything is a singleton". App-wide bindings live in
-  `di/AppModule.kt`/`di/FirebaseModule.kt` (both in `:app`); other cross-cutting layers get their
-  own module — `util/di/UtilModule.kt` in `:app`, `data/di/DataModule.kt` and
+  `di/AppModule.kt` in `:app`; other cross-cutting layers get their own module —
+  `util/di/UtilModule.kt` in `:app`, `data/di/DataModule.kt`, `data/di/FirebaseModule.kt` and
   `database/di/DatabaseModule.kt` in `:core:data`. There's no per-feature `di/` package yet — follow
   this layer-scoped pattern rather than introducing one.
+  **A `@Provides` module belongs in the module its bindings are consumed from, not in `:app`.**
+  Hilt aggregates every `@InstallIn(SingletonComponent::class)` module into one component generated
+  in `:app`, so a provider works from anywhere and there is nothing to fail if it sits too high.
+  `FirebaseModule` sat in `:app` for exactly that reason, providing seven SDK singletons whose only
+  consumers were `:core:data` repositories — which put the whole Firebase surface in `:app`'s
+  dependency block for code `:app` does not contain, and meant nothing below `:app` could assemble a
+  repository. It now lives beside `DataModule`. Ask where a binding is *injected*, not where it is
+  convenient to declare.
 - **`:core:data` dependency configurations**: anything whose type appears in an `@Inject
   constructor` parameter there must be `api`, not `implementation`. Hilt aggregates every
   `@InstallIn(SingletonComponent::class)` binding into a single component generated in `:app`, so
@@ -563,8 +614,13 @@ strings, no `navArgument` lists, no manual URL escaping of arguments.
   removed them: `:app` carried ML Kit ×4, GenAI, media3 ×4 and `material-icons-extended` for the
   length of the whole feature split, long after the code that wanted them had moved into a module of
   its own. Two exceptions, both flagged in place where they are declared: an artifact that is loaded
-  reflectively or auto-initialises (`firebase-perf`, `coil-network-okhttp`), and a compiler plugin
-  whose absence changes codegen rather than resolution (`kotlin-serialization` in `:core:data`).
+  reflectively or auto-initialises (`firebase-perf`, `firebase-inappmessaging-display`,
+  `coil-network-okhttp`), and a compiler plugin whose absence changes codegen rather than resolution
+  (`kotlin-serialization` in `:core:data`). The in-app-messaging one earned its place the hard way:
+  it *was* named, by a `provideFirebaseInAppMessaging` binding nothing in the build ever injected.
+  **An unused Hilt binding reads exactly like a live one** — it has no import to be missing and no
+  compile error to raise — so check for an injection site, not just a reference, before treating a
+  `@Provides` as load-bearing.
   Check with `./gradlew :<module>:dependencies --configuration debugCompileClasspath` and, for what
   the sources actually reference, a grep for the import root.
 - **A test lives in the module that owns its subject.** Tests do not move themselves when a class

@@ -29,10 +29,6 @@
  */
 plugins {
     id("smartphotos.android.feature")
-    // SettingsRoute is @Serializable. Left out of the feature convention deliberately: a feature
-    // with no destination of its own would not need it, and applying a compiler plugin no source
-    // needs is hard to notice later.
-    alias(libs.plugins.kotlin.serialization)
     // settingsScreen_default's golden lives here, beside the screen it captures -- the same move
     // NoteItemScreenshotTest made into :core:ui. This file is where the "a convention plugin could
     // take this over next" note was written; the fourth screenshot module is what collected on it.
@@ -46,27 +42,12 @@ android {
 dependencies {
 
     /*
-     * Everything the other feature modules also want -- :core:domain (api), :core:ui, Compose,
-     * icons, Hilt, lifecycle, :core:testing -- comes from `smartphotos.android.feature`. What is
-     * left here is what only this module needs.
+     * :core:domain, :core:ui, the Compose set, icons, Hilt, lifecycle, the serialization plugin and
+     * its runtime, and the whole test/androidTest baseline -- :core:testing, junit, mockk,
+     * kotlinx-coroutines-test, Turbine and the five on-device lines -- all arrive from
+     * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
 
     // ConfigurationCompat, to read the active locale for the Language row.
     implementation(libs.androidx.core.ktx)
-    implementation(libs.kotlinx.serialization.core)
-
-    testImplementation(libs.turbine)
-
-    /*
-     * SettingsScreenTest came over with the screen. It builds its ViewModel from :core:testing's
-     * fakes directly and injects nothing, so it needs no HiltTestRunner and no orchestrator -- the
-     * default AndroidJUnitRunner is enough, which is why this module declares no
-     * `testInstrumentationRunner` of its own. :app keeps its runner for the suites that do use
-     * Hilt.
-     */
-    androidTestImplementation(project(":core:testing"))
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.test.runner)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
 }

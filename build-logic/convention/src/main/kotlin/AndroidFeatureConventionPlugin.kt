@@ -1,6 +1,8 @@
 import com.jiahan.smartcamera.buildlogic.libs
+import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.kotlin.dsl.dependencies
 
 /**
@@ -48,6 +50,20 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
         pluginManager.apply("smartphotos.android.compose")
         pluginManager.apply("com.google.devtools.ksp")
         pluginManager.apply("com.google.dagger.hilt.android")
+        /*
+         * Every feature declares a `@Serializable` route, so the compiler plugin and the runtime
+         * artifact below are unanimous across all nine.
+         *
+         * An earlier draft of this file argued them out, on the grounds that "a route is not
+         * required to be serializable-by-plugin -- a feature with no destination of its own would
+         * not need it". That was written against a two-module sample. Nine features later every one
+         * of them owns at least one destination and restated both lines verbatim, which is the
+         * threshold this build uses. A future feature with no route of its own pays an unused
+         * compiler plugin; that is cheaper than nine copies of the same two lines.
+         */
+        pluginManager.apply("org.jetbrains.kotlin.plugin.serialization")
+
+        verifyNoLateralDependencies()
 
         dependencies {
             add("api", project(":core:domain"))
@@ -84,10 +100,99 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
              */
             add("debugImplementation", libs.findLibrary("androidx-ui-test-manifest").get())
 
+            // kotlinx-serialization-core, the runtime half of the plugin applied above. Same nine
+            // out of nine, same reasoning.
+            add("implementation", libs.findLibrary("kotlinx-serialization-core").get())
+
             add("testImplementation", project(":core:testing"))
             add("testImplementation", libs.findLibrary("junit").get())
             add("testImplementation", libs.findLibrary("mockk").get())
             add("testImplementation", libs.findLibrary("kotlinx-coroutines-test").get())
+            // Eight of nine declared this for the same reason: a ViewModel test asserting on the
+            // *sequence* a StateFlow emits, or on a SharedFlow with no `.value` to read. Only
+            // :feature:explore did not, and its ViewModel is the one with no such assertion yet.
+            add("testImplementation", libs.findLibrary("turbine").get())
+
+            /*
+             * The on-device half of a feature's screen test. Eight of the nine modules declared
+             * these five lines verbatim -- :feature:explore is the exception, having no androidTest
+             * source set at all, and it pays only an unused test classpath for them.
+             *
+             * :core:testing arrives here as well as on `testImplementation` above because a
+             * `sharedTest/` suite compiles into both source sets and builds its ViewModel from the
+             * same fakes in each. None of these suites injects anything, which is why no feature
+             * module declares a `testInstrumentationRunner`: the default AndroidJUnitRunner is
+             * enough, and :app keeps its HiltTestRunner for the suites that do use a component.
+             */
+            add("androidTestImplementation", project(":core:testing"))
+            add("androidTestImplementation", libs.findLibrary("androidx-junit").get())
+            add("androidTestImplementation", libs.findLibrary("androidx-test-runner").get())
+            add(
+                "androidTestImplementation",
+                platform(libs.findLibrary("androidx-compose-bom").get()),
+            )
+            add("androidTestImplementation", libs.findLibrary("androidx-ui-test-junit4").get())
         }
+    }
+}
+
+/**
+ * Fails configuration if this feature module declares a dependency on another `:feature:*` module
+ * or on `:core:data`.
+ *
+ * AGENTS.md states both rules -- "No feature module depends on another, and none reaches
+ * `:core:data`" -- and until now nothing held them. That asymmetry is what this build usually
+ * avoids: `:core:domain`'s purity is enforced by leaving the Android plugin off it, so `import
+ * android.*` fails to compile rather than failing review. The layering rules one level up were
+ * prose, and prose is how the `:core:testing` -> `:core:data` edge survived: unused, invisible in
+ * the imports, and quietly putting Firestore, Room and DataStore on all nine features' unit-test
+ * classpath. A rule nothing checks is a rule that decays.
+ *
+ * Every configuration is scanned, not just the compile ones, because that edge lived on a test
+ * classpath. `:core:testing` is the deliberate exception in the other direction -- it is the
+ * fixtures module every feature takes, and it no longer reaches `:core:data` itself.
+ *
+ * Runs at configuration time so it fails before any compilation starts. Under the configuration
+ * cache it re-runs whenever configuration does, which is exactly when a dependency could have
+ * changed.
+ */
+private fun Project.verifyNoLateralDependencies() = afterEvaluate {
+    val forbidden = configurations.filter {
+        // The declaration buckets (`implementation`, `testImplementation`, ...) rather than the
+        // resolvable classpaths that extend them. Both see the same dependency, so scanning
+        // everything reports one bad line three or four times over and names configurations nobody
+        // wrote. Declaring straight onto a resolvable configuration is its own mistake, and not one
+        // this build makes.
+        !it.isCanBeResolved
+    }.flatMap { configuration ->
+        configuration.dependencies
+            .filterIsInstance<ProjectDependency>()
+            .map { it.path }
+            // Defensive, and kept after the filter above made it redundant: AGP puts a module's own
+            // main variant on its androidTest classpaths, which reads as "this feature depends on a
+            // :feature:* module". Those are resolvable configurations so they no longer reach here,
+            // but a module is never a violation of its own layering rule and should not depend on
+            // which bucket AGP chose.
+            .filter { it != path }
+            .filter { it.startsWith(":feature:") || it == ":core:data" }
+            .map { "$it (via ${configuration.name})" }
+    }.distinct().sorted()
+
+    if (forbidden.isNotEmpty()) {
+        throw GradleException(
+            """
+            |$path declares a dependency the feature layering forbids:
+            |
+            |${forbidden.joinToString("\n") { "  - $it" }}
+            |
+            |A :feature:* module depends on :core:* only. It must not depend on another feature --
+            |two screens that need the same thing means that thing belongs in a :core: module -- and
+            |it must not reach :core:data, because the repositories a ViewModel injects are
+            |interfaces in :core:domain, bound in :app.
+            |
+            |If a feature needs an Android-typed contract, move the *interface* down to :core:common
+            |and leave its implementation in :core:data -- the same move MediaFileRepository made.
+            """.trimMargin(),
+        )
     }
 }

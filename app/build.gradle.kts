@@ -103,10 +103,11 @@ dependencies {
     // and ErrorMessageMappers reach its R as `CommonR`.
     implementation(project(":core:common"))
 
-    // Every Default* repository, the Room database and the DataStore wiring. Room and DataStore
-    // left :app with them; the Firebase and Play Core artifacts below stay because :app still
-    // compiles against those itself. Several arrive from :core:data as `api` too (Hilt needs
-    // them resolvable here) -- declaring them anyway states what :app's own code uses.
+    // Every Default* repository, the Room database, the DataStore wiring and -- since the
+    // Firebase SDK providers moved down with the repositories that inject them -- FirebaseModule.
+    // What is left of Firebase below is only what :app's own sources name. Several of those arrive
+    // from :core:data as `api` as well (Hilt needs them resolvable here); declaring them anyway
+    // states what :app's own code uses.
     implementation(project(":core:data"))
 
     // The first feature module. :app supplies its navigation lambdas and hosts its route in
@@ -223,24 +224,39 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)
 
-    // Firebase: what :app's own code compiles against -- FirebaseModule's providers, MyApp's
-    // App Check setup, the messaging service, DefaultErrorHandler and ErrorMessageMappers.
-    // firebase-storage is deliberately absent: nothing in :app has referenced it since
-    // DefaultNoteRepository/DefaultUserRepository moved to :core:data.
+    /*
+     * Firebase: what :app's own sources name, and nothing else.
+     *
+     * analytics, config, firestore, auth and functions used to be here too, for one reason --
+     * FirebaseModule's providers. That module now lives in :core:data beside the repositories that
+     * are the only consumers of every binding in it, so those five lines went with it. They still
+     * reach this compile classpath through :core:data's `api` block, which is what Hilt needs; the
+     * point of not declaring them is that this file stops claiming :app compiles against Firestore.
+     *
+     * firebase-storage is deliberately absent for the older version of the same reason: nothing in
+     * :app has referenced it since DefaultNoteRepository/DefaultUserRepository moved to :core:data.
+     */
     implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.analytics)
-    implementation(libs.firebase.config)
+    // DefaultErrorHandler, which reports to Crashlytics in release builds.
     implementation(libs.firebase.crashlytics)
+    // SmartPhotosMessagingService extends FirebaseMessagingService and reads RemoteMessage.
+    // :core:data declares this artifact too, for the FirebaseMessaging instance DefaultUserRepository
+    // injects -- two modules naming one artifact for two unrelated types is not duplication.
     implementation(libs.firebase.messaging)
-    implementation(libs.firebase.firestore)
-    implementation(libs.firebase.auth)
-    implementation(libs.firebase.functions)
-    implementation(libs.firebase.inappmessaging.display)
+    // MyApp installs one of these two App Check provider factories on startup.
     implementation(libs.firebase.appcheck.playintegrity)
     implementation(libs.firebase.appcheck.debug)
-    // No source reference: the firebase-perf Gradle plugin above instruments the build and needs
-    // the SDK present, and the SDK auto-initialises. Don't remove it as an unused dependency.
+    /*
+     * The two with no source reference at all, and both stay. firebase-perf: the Gradle plugin
+     * above instruments the build and needs the SDK present, and the SDK auto-initialises.
+     * firebase-inappmessaging-display: its own ContentProvider initialises it and it renders
+     * campaigns with nothing calling it. `provideFirebaseInAppMessaging` was the one thing that
+     * ever named it and it was a dead binding -- nothing in the build injected
+     * FirebaseInAppMessaging -- so it was dropped rather than moved with the rest of FirebaseModule.
+     * Don't remove either of these as an unused dependency.
+     */
     implementation(libs.firebase.perf)
+    implementation(libs.firebase.inappmessaging.display)
 
     // Play Core: AppModule builds the AppUpdateManager. The ktx wrapper the update flow
     // itself uses is in :core:data, with DefaultAppUpdateRepository.

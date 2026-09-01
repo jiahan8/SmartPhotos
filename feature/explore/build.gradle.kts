@@ -17,9 +17,6 @@
  */
 plugins {
     id("smartphotos.android.feature")
-    // ExploreRoute is @Serializable. Navigation Compose generates the route pattern from it.
-    // Deliberately not in the feature convention -- see the note there.
-    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -29,20 +26,14 @@ android {
 dependencies {
 
     /*
-     * :core:domain (api), :core:ui, the Compose set, icons, Hilt, lifecycle and :core:testing all
-     * arrive from `smartphotos.android.feature`. The two long comments that used to stand here --
-     * why the :core:domain edge is `api` and why the :core:ui edge is not -- moved into that
-     * plugin, since they are now the rule for every feature rather than this module's local
-     * reasoning.
-     *
-     * What is left is what only Explore needs.
+     * :core:domain, :core:ui, the Compose set, icons, Hilt, lifecycle, the serialization plugin and
+     * its runtime, and the whole test/androidTest baseline -- :core:testing, junit, mockk,
+     * kotlinx-coroutines-test, Turbine and the five on-device lines -- all arrive from
+     * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
 
     // BackHandler, in ExploreScreen's search mode.
     implementation(libs.androidx.activity.compose)
     // AsyncImage, for the Unsplash photos.
     implementation(libs.coil.compose)
-    implementation(libs.kotlinx.serialization.core)
-
-    testImplementation(libs.mockk)
 }

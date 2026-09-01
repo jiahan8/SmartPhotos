@@ -101,9 +101,11 @@ dependencies {
     // that applies neither that plugin nor any other route to it.
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    // DateTimeUtilsTest and FlowUtilsTest, plus NoteItemScreenshotTest -- the Roborazzi harness
-    // and Robolectric reach this source set through :core:testing's `api` block rather than being
-    // declared here.
+    // DateTimeUtilsTest and FlowUtilsTest. This is the fakes-and-MainDispatcherRule module; the
+    // Roborazzi harness NoteItemScreenshotTest extends is :core:screenshot-testing, which arrives
+    // through `smartphotos.android.screenshot` above rather than being declared here. The two were
+    // one module until the `api` block of the first put Roborazzi on nine features that capture
+    // nothing.
     testImplementation(project(":core:testing"))
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

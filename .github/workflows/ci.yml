@@ -82,6 +82,22 @@ jobs:
         if: ${{ !cancelled() }}
         run: ./gradlew assembleRelease -x uploadCrashlyticsMappingFileRelease
 
+      # Compiles the androidTest sources, which nothing else in this job does -- assembleDebug and
+      # assembleRelease above, testDebugUnitTest, verifyRoborazziDebug and lintDebug below all stop
+      # at main and test. It is the same gap the release step closes one variant over, and it hides
+      # the same class of bug: :app's HiltGraphSmokeTest injects members over the generated
+      # component, which is what walks the Hilt binding graph furthest, so an @Inject constructor
+      # parameter hidden behind `implementation` instead of `api` fails here and nowhere else.
+      # That is not hypothetical either -- it is exactly how :core:data's DataStore and Room
+      # bindings broke while assembleDebug stayed green.
+      #
+      # Compiling is the whole point: connectedDebugAndroidTest would need an emulator, and the
+      # failure this catches happens at compile time. `./scripts/run-test-lab.sh` still runs the
+      # suites themselves on real devices.
+      - name: Compile instrumented tests
+        if: ${{ !cancelled() }}
+        run: ./gradlew compileDebugAndroidTestKotlin
+
       # :core:domain is named explicitly because it is a plain Kotlin JVM module: its unit tests
       # run under `test`, not the Android `testDebugUnitTest` variant task, so a bare
       # testDebugUnitTest would skip them silently rather than fail. Every other module is an
@@ -97,41 +113,21 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-report
-          # One entry per module with unit tests, because the globs are literal paths -- the
-          # same hand-maintained list as the reports below. It had drifted: :core:ui,
-          # :feature:explore and :feature:settings all had suites that reported nothing here, so a
-          # failure in one came back as a red X with no report to open. Filled in when
-          # :core:common and :feature:auth were added, and extended again for :feature:profile and
-          # :feature:favorite. **A new module with tests has to be added here by hand.**
+          # Globs, not the hand-maintained list of literal per-module paths this used to be.
+          # upload-artifact matches with @actions/glob, so one pattern per depth covers every
+          # module that has a report -- and, more to the point, every module that gains one. The
+          # literal list had drifted three separate times (:core:ui, :feature:explore and
+          # :feature:settings each reported nothing for a while), and each drift turned a failure
+          # in that module into a red X with no report to open.
+          #
+          # Two depths because the modules are two deep (core/*, feature/*) and :app is one.
+          # `test/` as well as `testDebugUnitTest/` because :core:domain is a plain Kotlin JVM
+          # module and its task is `test`.
           path: |
-            app/build/reports/tests/testDebugUnitTest/
-            app/build/test-results/testDebugUnitTest/
-            core/common/build/reports/tests/testDebugUnitTest/
-            core/common/build/test-results/testDebugUnitTest/
-            core/data/build/reports/tests/testDebugUnitTest/
-            core/data/build/test-results/testDebugUnitTest/
-            core/domain/build/reports/tests/test/
-            core/domain/build/test-results/test/
-            core/ui/build/reports/tests/testDebugUnitTest/
-            core/ui/build/test-results/testDebugUnitTest/
-            feature/auth/build/reports/tests/testDebugUnitTest/
-            feature/auth/build/test-results/testDebugUnitTest/
-            feature/explore/build/reports/tests/testDebugUnitTest/
-            feature/explore/build/test-results/testDebugUnitTest/
-            feature/favorite/build/reports/tests/testDebugUnitTest/
-            feature/favorite/build/test-results/testDebugUnitTest/
-            feature/home/build/reports/tests/testDebugUnitTest/
-            feature/home/build/test-results/testDebugUnitTest/
-            feature/note/build/reports/tests/testDebugUnitTest/
-            feature/note/build/test-results/testDebugUnitTest/
-            feature/preview/build/reports/tests/testDebugUnitTest/
-            feature/preview/build/test-results/testDebugUnitTest/
-            feature/profile/build/reports/tests/testDebugUnitTest/
-            feature/profile/build/test-results/testDebugUnitTest/
-            feature/search/build/reports/tests/testDebugUnitTest/
-            feature/search/build/test-results/testDebugUnitTest/
-            feature/settings/build/reports/tests/testDebugUnitTest/
-            feature/settings/build/test-results/testDebugUnitTest/
+            */build/reports/tests/test*/
+            */build/test-results/test*/
+            */*/build/reports/tests/test*/
+            */*/build/test-results/test*/
           if-no-files-found: ignore
 
       # Split from the unit tests so a red X says which kind of thing broke: logic or pixels.
@@ -161,32 +157,16 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: screenshot-and-lint-reports
-          # One entry per module that produces the report, because the globs are literal paths.
-          # Four modules capture screenshots now -- :core:ui, :feature:home, :feature:search and
-          # :feature:settings -- and a golden failure in any of them is only diagnosable if its
-          # *_compare.png files come back. :core:ui's was missing from this list for a release
-          # after NoteItemScreenshotTest moved there, which would have made a failure there report
-          # with no images at all. :app is off the list entirely now: ScreenScreenshotTest split
-          # between home and search, so the roborazzi plugin left :app with the goldens.
+          # Globs, for the reason the unit-test step above gives. Four modules capture screenshots
+          # today (:core:ui, :feature:home, :feature:search, :feature:settings) and a fifth needs no
+          # edit here to be diagnosable: a golden failure is only readable if its *_compare.png
+          # files come back, and :core:ui's were missing from the literal list for a release after
+          # NoteItemScreenshotTest moved there.
           path: |
-            core/ui/build/outputs/roborazzi/
-            feature/home/build/outputs/roborazzi/
-            feature/search/build/outputs/roborazzi/
-            feature/settings/build/outputs/roborazzi/
-            app/build/reports/lint-results-debug.html
-            core/common/build/reports/lint-results-debug.html
-            core/data/build/reports/lint-results-debug.html
-            core/ui/build/reports/lint-results-debug.html
-            core/testing/build/reports/lint-results-debug.html
-            feature/auth/build/reports/lint-results-debug.html
-            feature/explore/build/reports/lint-results-debug.html
-            feature/favorite/build/reports/lint-results-debug.html
-            feature/home/build/reports/lint-results-debug.html
-            feature/note/build/reports/lint-results-debug.html
-            feature/preview/build/reports/lint-results-debug.html
-            feature/profile/build/reports/lint-results-debug.html
-            feature/search/build/reports/lint-results-debug.html
-            feature/settings/build/reports/lint-results-debug.html
+            */build/outputs/roborazzi/
+            */*/build/outputs/roborazzi/
+            */build/reports/lint-results-debug.html
+            */*/build/reports/lint-results-debug.html
           if-no-files-found: ignore
 
   functions:

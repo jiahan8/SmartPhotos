@@ -25,9 +25,6 @@
  */
 plugins {
     id("smartphotos.android.feature")
-    // FavoriteRoute is @Serializable. Left out of the feature convention deliberately -- see the
-    // note in :feature:settings.
-    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -37,9 +34,10 @@ android {
 dependencies {
 
     /*
-     * :core:domain, :core:ui, Compose, icons, Hilt, lifecycle, :core:testing, junit, mockk and
-     * kotlinx-coroutines-test all arrive from `smartphotos.android.feature`. What is left here is
-     * what only favorite needs.
+     * :core:domain, :core:ui, the Compose set, icons, Hilt, lifecycle, the serialization plugin and
+     * its runtime, and the whole test/androidTest baseline -- :core:testing, junit, mockk,
+     * kotlinx-coroutines-test, Turbine and the five on-device lines -- all arrive from
+     * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
 
     // NoteShareDelegate and NoteErrorReporter, which four screens share and which came down here
@@ -49,16 +47,4 @@ dependencies {
 
     // ShareCompat.IntentBuilder, for the share chooser.
     implementation(libs.androidx.core.ktx)
-    implementation(libs.kotlinx.serialization.core)
-
-    // FavoriteViewModelTest asserts on `actionError`, a SharedFlow with no `.value` to read.
-    testImplementation(libs.turbine)
-
-    // FavoriteScreenTest builds its ViewModel from :core:testing's fakes and injects nothing, so
-    // the default AndroidJUnitRunner is enough and this module declares no testInstrumentationRunner.
-    androidTestImplementation(project(":core:testing"))
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.test.runner)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
 }

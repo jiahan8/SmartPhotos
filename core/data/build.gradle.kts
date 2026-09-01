@@ -143,8 +143,15 @@ dependencies {
      * stays a plain JVM test.
      *
      * Declared directly rather than taken from :core:testing, which is where the rest of the build
-     * gets Robolectric: that module has an `api` edge on this one, so the dependency would be a
-     * cycle. A fixtures module can be a consumer of this module or a supplier to it, not both.
+     * gets Robolectric. That used to be forced: :core:testing carried an `api` edge on this module,
+     * so the reverse direction was a cycle. The edge turned out to be unused -- no fake names a
+     * type from here -- and removing it leaves this module free to take :core:testing on
+     * `testImplementation` whenever a suite here wants the fakes. It has not been done yet only
+     * because these four suites stub Firebase directly rather than through a fake; do it when one
+     * of them would rather have a FakeNoteRepository than a mockk.
+     *
+     * The rule the removal restored: a fixtures module is a supplier to this layer or a consumer
+     * of it, never both.
      */
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.junit)
