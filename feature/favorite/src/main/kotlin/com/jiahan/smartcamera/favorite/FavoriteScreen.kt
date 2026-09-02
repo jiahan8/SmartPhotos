@@ -41,11 +41,11 @@ fun FavoriteScreen(
     onNavigateToEditNote: (noteId: String) -> Unit,
     onNavigateToPhotoPreview: (url: String) -> Unit,
     onNavigateToVideoPreview: (url: String) -> Unit,
-    viewModel: FavoriteViewModel = hiltViewModel(),
-    onScrollDirectionChanged: (Boolean) -> Unit = {},
     scrollToTop: Long?,
     onScrollToTopConsumed: () -> Unit,
-    snackbarHostState: SnackbarHostState
+    snackbarHostState: SnackbarHostState,
+    onScrollDirectionChanged: (Boolean) -> Unit = {},
+    viewModel: FavoriteViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val pullToRefreshState = rememberPullToRefreshState()

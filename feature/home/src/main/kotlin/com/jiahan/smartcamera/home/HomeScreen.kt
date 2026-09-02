@@ -63,11 +63,11 @@ fun HomeScreen(
     onNavigateToPhotoPreview: (url: String) -> Unit,
     onNavigateToVideoPreview: (url: String) -> Unit,
     onNavigateToExplore: () -> Unit,
-    viewModel: HomeViewModel = hiltViewModel(),
-    onScrollDirectionChanged: (Boolean) -> Unit = {},
     scrollToTop: Long?,
     onScrollToTopConsumed: () -> Unit,
-    snackbarHostState: SnackbarHostState
+    snackbarHostState: SnackbarHostState,
+    onScrollDirectionChanged: (Boolean) -> Unit = {},
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
@@ -105,7 +105,11 @@ fun HomeScreen(
     val shouldLoadMore by rememberShouldLoadMore(listState) {
         (content as? HomeContent.Success)?.notes?.size ?: 0
     }
-    LaunchedEffect(shouldLoadMore) {
+    // isLoadingMore is a key as well as a guard: without it, a shouldLoadMore that was already
+    // true when the in-flight page landed would never re-trigger, and pagination would stall until
+    // the user scrolled enough to flip it false and back. This cannot spin -- loadMoreNotes()
+    // returns without touching isLoadingMore once hasMoreData is false, so the key stops changing.
+    LaunchedEffect(shouldLoadMore, uiState.isLoadingMore) {
         if (shouldLoadMore && !uiState.isLoadingMore) {
             viewModel.loadMoreNotes()
         }

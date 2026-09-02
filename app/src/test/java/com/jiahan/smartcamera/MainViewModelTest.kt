@@ -300,11 +300,24 @@ class MainViewModelTest {
     // handle), so the ViewModel's job here is only to delegate.
     @Test
     fun `completeUpdate delegates to the repository`() = runTest {
-        coEvery { appUpdateRepository.completeUpdate() } just runs
+        coEvery { appUpdateRepository.completeUpdate() } returns Result.success(Unit)
 
         createViewModel().completeUpdate()
 
         coVerify { appUpdateRepository.completeUpdate() }
+    }
+
+    // Play's install call fails on a stale handle. The repository folds that into the Result
+    // rather than throwing, so a failure has to stay inside viewModelScope instead of taking the
+    // app down with it.
+    @Test
+    fun `completeUpdate logs a repository failure instead of throwing`() = runTest {
+        val exception = RuntimeException("install failed")
+        coEvery { appUpdateRepository.completeUpdate() } returns Result.failure(exception)
+
+        createViewModel().completeUpdate()
+
+        verify { errorHandler.logError(exception) }
     }
 
     @Test

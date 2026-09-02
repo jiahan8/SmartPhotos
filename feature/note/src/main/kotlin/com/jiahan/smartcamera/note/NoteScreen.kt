@@ -75,8 +75,8 @@ fun NoteScreen(
     onBack: () -> Unit,
     onNavigateToPhotoPreview: (uri: String) -> Unit,
     onNavigateToVideoPreview: (uri: String) -> Unit,
-    viewModel: NoteViewModel = hiltViewModel(),
-    snackbarHostState: SnackbarHostState
+    snackbarHostState: SnackbarHostState,
+    viewModel: NoteViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }

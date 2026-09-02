@@ -120,7 +120,15 @@ fun ExploreScreen(
             uiState.photos?.size ?: 0
         }
     }
-    LaunchedEffect(shouldLoadMore, uiState.isSearchActive, uiState.hasSubmittedSearch) {
+    // displayedIsLoadingMore is a key for the same reason as HomeScreen's isLoadingMore: it is
+    // read by the guard, so the effect has to re-run when it clears or the next page is never
+    // requested. Both loadMore* functions no-op once their hasMoreData is false, so this settles.
+    LaunchedEffect(
+        shouldLoadMore,
+        displayedIsLoadingMore,
+        uiState.isSearchActive,
+        uiState.hasSubmittedSearch
+    ) {
         if (shouldLoadMore && !displayedIsLoadingMore) {
             if (uiState.isSearchActive && uiState.hasSubmittedSearch) {
                 viewModel.loadMoreSearchResults()

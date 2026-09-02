@@ -47,8 +47,8 @@ import com.jiahan.smartcamera.core.ui.R as UiR
 @Composable
 fun VideoPreviewScreen(
     onBack: () -> Unit,
-    viewModel: VideoPreviewViewModel = hiltViewModel(),
-    snackbarHostState: SnackbarHostState
+    snackbarHostState: SnackbarHostState,
+    viewModel: VideoPreviewViewModel = hiltViewModel()
 ) {
     val videoSource = viewModel.videoSource
     val context = LocalContext.current

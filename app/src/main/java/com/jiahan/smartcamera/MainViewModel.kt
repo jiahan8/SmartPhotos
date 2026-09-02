@@ -167,6 +167,9 @@ class MainViewModel @Inject constructor(
     }
 
     fun completeUpdate() {
-        viewModelScope.launch { appUpdateRepository.completeUpdate() }
+        viewModelScope.launch {
+            appUpdateRepository.completeUpdate()
+                .onFailure { e -> errorHandler.logError(e) }
+        }
     }
 }

@@ -71,8 +71,13 @@ class MainActivity : ComponentActivity() {
 
             // startFlexibleUpdate() shows Play Store's own confirmation UI before downloading,
             // so this only needs to kick off the flow -- no extra in-app prompt required. The
-            // launcher result is ignored since the user cancelling just means updateState stays
-            // Available and this effect fires again next recomposition.
+            // launcher result is ignored because there is nothing here to do with it: cancelling
+            // leaves updateState on Available, and the effect below is *keyed* on that state, so it
+            // does not re-run. A keyed LaunchedEffect fires on key change, never on recomposition,
+            // and AppUpdateState.Available is a data object -- a re-emission is equal, so the key
+            // does not change either. The offer is therefore made once per transition into
+            // Available and not repeated for the rest of the session, which is the intent: Play
+            // already showed its own dialog and re-prompting a user who declined would nag.
             val appUpdateLauncher = rememberLauncherForActivityResult(
                 ActivityResultContracts.StartIntentSenderForResult()
             ) {}

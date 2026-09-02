@@ -54,8 +54,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun PhotoPreviewScreen(
     onBack: () -> Unit,
-    viewModel: PhotoPreviewViewModel = hiltViewModel(),
-    snackbarHostState: SnackbarHostState
+    snackbarHostState: SnackbarHostState,
+    viewModel: PhotoPreviewViewModel = hiltViewModel()
 ) {
     val photoSource = viewModel.photoSource
     val context = LocalContext.current

@@ -83,8 +83,8 @@ fun NotePreviewScreen(
     onNavigateToPhotoPreview: (url: String) -> Unit,
     onNavigateToVideoPreview: (url: String) -> Unit,
     onNavigateToEdit: (noteId: String) -> Unit,
-    viewModel: NotePreviewViewModel = hiltViewModel(),
-    snackbarHostState: SnackbarHostState
+    snackbarHostState: SnackbarHostState,
+    viewModel: NotePreviewViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current

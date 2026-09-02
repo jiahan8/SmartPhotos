@@ -509,6 +509,32 @@ calling out the discrepancy.
   not a convention to copy; reach for the right tier when adding state a user would be annoyed to
   lose.
 
+### Composable parameter order
+
+Required parameters first, then optional (defaulted) ones, with the ViewModel **last**:
+
+```kotlin
+fun PhotoPreviewScreen(
+    onBack: () -> Unit,
+    snackbarHostState: SnackbarHostState,
+    viewModel: PhotoPreviewViewModel = hiltViewModel()
+)
+```
+
+This is [Compose's own API guideline](https://developer.android.com/develop/ui/compose/api-guidelines),
+and the cost of getting it wrong is concrete rather than stylistic: a default sitting ahead of a
+required parameter can never be taken positionally, so every caller past that point is forced into
+named arguments to reach it. All ten screen composables had `viewModel = hiltViewModel()` in the
+middle of the list, which is why nothing broke when they were reordered — all 25 call sites already
+named every argument, and the defaults were unusable.
+
+**The exception is a trailing lambda, which stays last even though the parameters before it carry
+defaults.** `bounceClick`'s `onClick`, `SearchBar`'s `placeholder` and `SmartCameraTheme`'s
+`content` are the three here, and Material3 itself is shaped the same way
+(`Button(onClick, modifier, enabled, …, content)`) — being callable as `Modifier.bounceClick { }`
+is worth more than the ordering rule. Those three are the only places a defaulted parameter should
+precede a required one; anywhere else it is a mistake.
+
 ### One-off UI events
 
 Snackbars and other fire-and-forget signals travel from ViewModel to screen on a

@@ -61,8 +61,8 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onNavigateToAuth: () -> Unit,
     versionName: String,
-    viewModel: SettingsViewModel = hiltViewModel(),
     snackbarHostState: SnackbarHostState,
+    viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current

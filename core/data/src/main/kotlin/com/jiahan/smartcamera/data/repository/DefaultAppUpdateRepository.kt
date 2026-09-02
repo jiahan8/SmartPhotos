@@ -8,6 +8,7 @@ import com.google.android.play.core.ktx.bytesDownloaded
 import com.google.android.play.core.ktx.requestUpdateFlow
 import com.google.android.play.core.ktx.totalBytesToDownload
 import com.jiahan.smartcamera.domain.AppUpdateState
+import com.jiahan.smartcamera.util.safeCall
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -40,7 +41,7 @@ class DefaultAppUpdateRepository @Inject constructor(
         return available.startFlexibleUpdate(launcher)
     }
 
-    override suspend fun completeUpdate() {
+    override suspend fun completeUpdate(): Result<Unit> = safeCall {
         (latestResult as? AppUpdateResult.Downloaded)?.completeUpdate()
     }
 

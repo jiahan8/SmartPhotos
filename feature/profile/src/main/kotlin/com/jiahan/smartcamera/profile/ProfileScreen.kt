@@ -73,8 +73,8 @@ import com.jiahan.smartcamera.feature.profile.R
 fun ProfileScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToPhotoPreview: (url: String) -> Unit,
-    viewModel: ProfileViewModel = hiltViewModel(),
-    snackbarHostState: SnackbarHostState
+    snackbarHostState: SnackbarHostState,
+    viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val bottomSheetState = rememberModalBottomSheetState()
