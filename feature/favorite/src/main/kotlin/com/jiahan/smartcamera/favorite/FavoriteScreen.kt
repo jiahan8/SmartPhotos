@@ -118,6 +118,8 @@ fun FavoriteScreen(
                             )
                         }
 
+                    is FavoriteContent.Error -> FullScreenMessage(state.message)
+
                     is FavoriteContent.Success ->
                         if (state.notes.isEmpty()) {
                             FullScreenMessage(

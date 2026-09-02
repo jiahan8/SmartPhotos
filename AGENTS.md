@@ -95,7 +95,7 @@ Run from the repo root (Gradle wrapper):
 - Unit tests (JVM, Robolectric-backed): `./gradlew testDebugUnitTest :core:domain:test`
   - Both tasks: `:core:domain` is a plain Kotlin JVM module, so its tests run under `test`, not the
     Android-variant `testDebugUnitTest`, which every other (Android-library) module already runs
-    under, as do `lintDebug` and `connectedDebugAndroidTest`. 410 tests total across 14 modules
+    under, as do `lintDebug` and `connectedDebugAndroidTest`. 417 tests total across 14 modules
     (`:core:testing` and `:core:screenshot-testing` have no unit tests of their own — they *are*
     the fixtures and the harness).
   - Single class: `--tests "com.jiahan.smartcamera.home.HomeViewModelTest"`
@@ -540,15 +540,20 @@ strings, no `navArgument` lists, no manual URL escaping of arguments.
 - **The route type lives in the feature package, beside the screen it names** — `home/HomeRoute.kt`,
   `search/SearchRoute.kt`, `note/NoteRoutes.kt`, `preview/PreviewRoutes.kt`, and so on. What stays
   in `navigation/` is the wiring that legitimately needs to see every route at once:
-  `SmartPhotosNavGraph.kt`, `BottomNavItem.kt`, `NavTransitions.kt`. Put a new route with its
+  `SmartPhotosNavGraph.kt`, `TopLevelDestination.kt`, `NavTransitions.kt`. Put a new route with its
   screen, not in `navigation/` — that's what lets a feature's ViewModel read its own arguments back
   with `toRoute<…>()` without importing upward.
 - **The routes share no supertype, deliberately** — a route in a feature module can't implement an
-  interface declared in `:app`, so `startDestination` and `BottomNavItem.route` are typed `Any`,
-  which is what Navigation Compose itself uses for a destination. Don't reintroduce a marker
-  interface to get the exhaustiveness back.
-- Route types stay plain data. UI-only metadata (bottom-bar icon and title) lives in
-  `navigation/BottomNavItem.kt`, because only some destinations appear in the bottom bar.
+  interface declared in `:app`, so `startDestination` and `TopLevelDestination.route` are typed
+  `Any`, which is what Navigation Compose itself uses for a destination. A sealed supertype is not
+  merely inconvenient here but impossible: Kotlin requires every direct subtype to sit in the same
+  module *and* package as the declaration, which no feature-module route can. Don't reintroduce a
+  marker interface to get the exhaustiveness back.
+- Route types stay plain data. UI-only metadata (bottom-bar icon, title, and whether re-tapping
+  the tab scrolls its list back to the top) lives in `navigation/TopLevelDestination.kt`, because
+  only some destinations appear in the bottom bar. It is an `enum`, not a data class plus a list,
+  so its `Any` route cannot be widened: the constructor is private, the set is closed at five, and
+  a `when` over it stays exhaustive across module boundaries.
 - A route's property names are its argument names — Navigation serializes by property name, and the
   ViewModel tests build a `SavedStateHandle` from the same keys (`mapOf("noteId" to …)`). Renaming
   one changes the generated route pattern and breaks its test; renaming the route *class* changes
@@ -615,12 +620,24 @@ strings, no `navArgument` lists, no manual URL escaping of arguments.
   length of the whole feature split, long after the code that wanted them had moved into a module of
   its own. Two exceptions, both flagged in place where they are declared: an artifact that is loaded
   reflectively or auto-initialises (`firebase-perf`, `firebase-inappmessaging-display`,
-  `coil-network-okhttp`), and a compiler plugin whose absence changes codegen rather than resolution
-  (`kotlin-serialization` in `:core:data`). The in-app-messaging one earned its place the hard way:
-  it *was* named, by a `provideFirebaseInAppMessaging` binding nothing in the build ever injected.
-  **An unused Hilt binding reads exactly like a live one** — it has no import to be missing and no
-  compile error to raise — so check for an injection site, not just a reference, before treating a
-  `@Provides` as load-bearing.
+  `coil-network-okhttp`, `coil-gif`), and a compiler plugin whose absence changes codegen rather than
+  resolution (`kotlin-serialization` in `:core:data`).
+  **The exception list is the dangerous half of this rule, and it has now been got wrong in both
+  directions.** `firebase-inappmessaging-display` was on the wrong side: it *was* named, by a
+  `provideFirebaseInAppMessaging` binding nothing in the build ever injected — an unused Hilt binding
+  reads exactly like a live one, with no import to be missing and no compile error to raise, so check
+  for an injection *site* before treating a `@Provides` as load-bearing. `coil-gif` was on the wrong
+  side the other way: the sweep removed it because "nothing registers a GIF decoder here", which
+  under Coil 3 is what a *working* setup looks like. Both it and `coil-network-okhttp` ship a
+  `META-INF/services` entry (`coil3.util.DecoderServiceLoaderTarget` /
+  `FetcherServiceLoaderTarget`) that Coil reads when it builds an `ImageLoader`, so presence on the
+  classpath **is** the registration and a hand-written `components { add(...) }` block is precisely
+  what you would not find. GIFs stopped animating and nothing failed to compile.
+  **Before deleting a dependency nothing imports, look inside the artifact.** `unzip -p <aar>
+  classes.jar | ...`, or check its `META-INF/services` — a service file, a `ContentProvider` in its
+  manifest, or a Gradle plugin that expects the SDK present all mean "used" in a way grep cannot
+  see. The debug APK is the ground truth: `unzip -l app-debug.apk | grep META-INF/services` lists
+  what actually registered (release renames them under R8, so compare counts there, not names).
   Check with `./gradlew :<module>:dependencies --configuration debugCompileClasspath` and, for what
   the sources actually reference, a grep for the import root.
 - **A test lives in the module that owns its subject.** Tests do not move themselves when a class

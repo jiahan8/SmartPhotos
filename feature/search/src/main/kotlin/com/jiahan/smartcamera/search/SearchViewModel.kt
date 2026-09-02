@@ -15,6 +15,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -22,9 +23,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -67,7 +71,18 @@ class SearchViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(SearchUiState())
     val uiState = _uiState.asStateFlow()
-    val actionError = noteErrorReporter.actionError
+
+    private val _fetchError = MutableSharedFlow<String>(extraBufferCapacity = 1)
+
+    /**
+     * Note-action failures (delete, favorite) merged with search failures the results survive.
+     *
+     * The merge is what stops a failed search going silent. [content] prefers cached matches over
+     * [SearchContent.Error], which is right -- readable results beat an error screen -- but it also
+     * means a [SearchStatus.Failed] the mirror can answer is never rendered anywhere. Same shape as
+     * `HomeViewModel.actionError`, for the same reason.
+     */
+    val actionError = merge(noteErrorReporter.actionError, _fetchError)
     val shareEvent = noteShare.shareEvent
 
     val searchQuery = _uiState
@@ -75,7 +90,27 @@ class SearchViewModel @Inject constructor(
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STATEFLOW_WHILE_SUBSCRIBED_MS), "")
 
-    private val debouncedQuery = searchQuery.debounce(DEBOUNCE_MS.milliseconds)
+    /**
+     * One debounce timer, shared by both things that react to a settled query: the fetch driven
+     * from `init` and the mirror read in [results].
+     *
+     * `debounce` is a cold operator, so collecting it twice -- which this did -- started two
+     * independent 300 ms timers over the same upstream, each driving one half of the [content]
+     * combine. Nothing ordered them, and if the [results] side had ever won the race, the combine
+     * would briefly have paired the *new* query's empty result with the *previous* query's
+     * `Settled`, rendering "no results found" for a search that had not run yet.
+     *
+     * Shared, both consumers wake from a single emission in subscription order, and the `init`
+     * collector subscribes first -- at construction, before the UI can collect [content] -- so its
+     * synchronous `searchStatus = Searching` write always lands before [results] switches streams.
+     *
+     * `replay = 1` also drops a redundant delay: [content] is `WhileSubscribed`, so leaving the
+     * screen for longer than the timeout used to re-run the debounce and stall the results for
+     * another 300 ms on the way back.
+     */
+    private val debouncedQuery = searchQuery
+        .debounce(DEBOUNCE_MS.milliseconds)
+        .shareIn(viewModelScope, SharingStarted.Eagerly, replay = 1)
 
     private val searchStatus = MutableStateFlow<SearchStatus>(SearchStatus.Idle)
 
@@ -143,7 +178,18 @@ class SearchViewModel @Inject constructor(
             .onSuccess { searchStatus.value = SearchStatus.Settled }
             .onFailure { e ->
                 errorHandler.logError(e)
-                searchStatus.value = SearchStatus.Failed(errorHandler.getErrorMessage(e))
+                val message = errorHandler.getErrorMessage(e)
+                // Only an empty mirror earns the full-screen error. With matches already cached,
+                // blanking them over a failed search would throw away readable notes, so `content`
+                // keeps them -- `notes.isNotEmpty()` wins in the combine above -- and the failure
+                // surfaces transiently instead of vanishing. The mirror is re-read here rather than
+                // inferred from the entry point, because a first search and a refresh can each land
+                // on either side of it. Same split as `HomeViewModel.fetchNotes`.
+                if (noteRepository.searchNotesStream(query).first().isEmpty()) {
+                    searchStatus.value = SearchStatus.Failed(message)
+                } else {
+                    _fetchError.tryEmit(message)
+                }
             }
     }
 

@@ -79,7 +79,17 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
             add("implementation", libs.findLibrary("androidx-material-icons-extended").get())
             add("implementation", libs.findLibrary("androidx-foundation").get())
             add("implementation", libs.findLibrary("androidx-lifecycle-runtime-ktx").get())
-            add("implementation", libs.findLibrary("androidx-lifecycle-viewmodel-compose").get())
+            /*
+             * `hiltViewModel()`, which every feature screen defaults its ViewModel parameter to.
+             * This is now the only module in the build that declares it, and the only one that
+             * needs to: a default argument compiles into the callee, so :app constructing all nine
+             * screens in its nav graph does not make the call site :app's.
+             *
+             * Two near-neighbours are deliberately absent, and neither is in the version catalog
+             * any more. lifecycle-viewmodel-compose supplies the plain `viewModel()` and is
+             * imported by no file here. hilt-navigation-compose is the older home of
+             * `hiltViewModel()` itself -- superseded by the artifact below, not additional to it.
+             */
             add("implementation", libs.findLibrary("androidx-hilt-lifecycle-viewmodel-compose").get())
             add("implementation", libs.findLibrary("hilt-android").get())
             add("ksp", libs.findLibrary("hilt-android-compiler").get())

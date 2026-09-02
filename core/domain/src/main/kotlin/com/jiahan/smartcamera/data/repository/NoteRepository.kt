@@ -6,6 +6,7 @@ import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.NoteCursor
 import com.jiahan.smartcamera.domain.NoteMediaDetail
 import com.jiahan.smartcamera.domain.NotePage
+import com.jiahan.smartcamera.util.AppConstants.DEFAULT_PAGE_SIZE
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -22,7 +23,11 @@ interface NoteRepository {
      * [NotePage.nextCursor] back to advance; callers own their own position, so two callers
      * paginating at once do not interfere.
      */
-    suspend fun getNotes(cursor: NoteCursor? = null, pageSize: Int = 10): Result<NotePage>
+    suspend fun getNotes(
+        cursor: NoteCursor? = null,
+        pageSize: Int = DEFAULT_PAGE_SIZE
+    ): Result<NotePage>
+
     suspend fun addNote(homeNote: HomeNote): Result<Unit>
     suspend fun updateNote(homeNote: HomeNote): Result<Unit>
     suspend fun searchNotes(query: String): Result<List<HomeNote>>
@@ -42,8 +47,10 @@ interface NoteRepository {
         uriList: List<MediaUri>,
         deleteAfterUpload: Boolean = false
     )
+
     suspend fun uploadMediaToFirebase(noteMediaDetailList: List<NoteMediaDetail>): Result<List<MediaDetail>>
     suspend fun buildLocalMediaDetails(uriList: List<MediaUri>): Result<List<NoteMediaDetail>>
+
     /**
      * The local mirror of the notes feed, newest first, re-emitting whenever it changes.
      *

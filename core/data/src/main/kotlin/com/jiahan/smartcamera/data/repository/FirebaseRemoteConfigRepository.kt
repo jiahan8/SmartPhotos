@@ -71,8 +71,29 @@ class FirebaseRemoteConfigRepository @Inject constructor(
                 override fun onUpdate(configUpdate: ConfigUpdate) {
                     if (EXPLORE_ICON_VISIBLE_KEY !in configUpdate.updatedKeys) return
                     producerScope.launch {
-                        remoteConfig.activate().await()
-                        trySend(remoteConfig.getBoolean(EXPLORE_ICON_VISIBLE_KEY))
+                        /*
+                         * safeCall, not a bare `await()`. This launch is an ordinary child of the
+                         * callbackFlow producer, so an activate() failure cancels the producer
+                         * with that exception and re-throws it at the collector -- and the
+                         * collector is HomeViewModel's init block, collecting in viewModelScope
+                         * with no `catch`. Under a SupervisorJob that is an uncaught exception and
+                         * a dead process, over a config refresh whose only job is to toggle an
+                         * icon.
+                         *
+                         * A Flow-returning repository function is one of the two things that
+                         * cannot carry a Result, so it has to absorb its own failures -- which is
+                         * what `onError` below already does for the listener's own. The asymmetry
+                         * between the two was the bug.
+                         *
+                         * safeCall rather than runCatching because runCatching swallows the
+                         * CancellationException raised when this flow is closed, which would break
+                         * cancellation instead of a process; see its KDoc in :core:domain.
+                         */
+                        safeCall { remoteConfig.activate().await() }
+                            .onSuccess {
+                                trySend(remoteConfig.getBoolean(EXPLORE_ICON_VISIBLE_KEY))
+                            }
+                            .onFailure { errorHandler.logError(it) }
                     }
                 }
 

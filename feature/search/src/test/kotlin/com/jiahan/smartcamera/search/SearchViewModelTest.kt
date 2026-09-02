@@ -17,6 +17,7 @@ import io.mockk.mockk
 import io.mockk.runs
 import io.mockk.unmockkAll
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
@@ -25,6 +26,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -216,6 +218,73 @@ class SearchViewModelTest {
             assertEquals(1, viewModel.notes().size)
         }
 
+    /**
+     * The other half of the test above. `content` preferring cached matches is what keeps readable
+     * results on screen, and it is also what makes the failure unrenderable there -- so it has to
+     * leave through [SearchViewModel.actionError] or not at all.
+     */
+    @Test
+    fun `search failure over a populated mirror reports through actionError`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            mirror(listOf(makeNote("a", text = "cat food")))
+            val exception = RuntimeException("offline")
+            coEvery { noteRepository.searchNotes(any()) } returns Result.failure(exception)
+            every { errorHandler.getErrorMessage(exception) } returns "offline"
+            val viewModel = searchViewModel()
+
+            viewModel.actionError.test {
+                viewModel.updateSearchQuery("cat")
+                advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
+                advanceUntilIdle()
+
+                assertEquals("offline", awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    /**
+     * The two halves of the [SearchViewModel.content] combine must not disagree about which query
+     * they are describing.
+     *
+     * `results` and `searchStatus` are driven by one shared debounced query, so a settled query
+     * wakes both from a single emission and the `init` collector -- which subscribes first -- has
+     * written `Searching` before `results` switches streams. The pair this guards against is
+     * (new query's empty results, previous query's `Settled`), which renders "no results found"
+     * for a search that has not run. Back when the two halves each ran their own `debounce` timer,
+     * nothing ruled that pair out.
+     *
+     * The stubbed search is slow on purpose: without it the whole chain settles inside one
+     * `advanceTimeBy` and `StateFlow` conflation would hide the intermediate state either way.
+     */
+    @Test
+    fun `switching query goes through Loading rather than a stale no-results`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            val cat = makeNote("a", text = "cat food")
+            stubSearch(listOf(cat), query = "cat")
+            val viewModel = searchViewModel()
+
+            viewModel.updateSearchQuery("cat")
+            advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
+            advanceUntilIdle()
+
+            viewModel.content.test {
+                assertEquals(SearchContent.Success(listOf(cat)), awaitItem())
+
+                coEvery { noteRepository.searchNotes("zzz") } coAnswers {
+                    delay(50.milliseconds)
+                    Result.success(emptyList())
+                }
+                viewModel.updateSearchQuery("zzz")
+                advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
+
+                assertEquals(SearchContent.Loading, awaitItem())
+
+                advanceUntilIdle()
+                assertEquals(SearchContent.Success(emptyList()), awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
     @Test
     fun `rapid query changes only trigger one search for the last value`() =
         runTest(mainDispatcherRule.testDispatcher) {
@@ -267,6 +336,34 @@ class SearchViewModelTest {
             advanceTimeBy(1.milliseconds)
 
             assertFalse(viewModel.uiState.value.isRefreshing)
+        }
+
+    /**
+     * `refresh()` is reachable only from a non-empty `Success`, so a refresh failure always has
+     * matches on screen and always takes the snackbar branch -- it can never surface as
+     * [SearchContent.Error].
+     */
+    @Test
+    fun `refresh failure over a populated mirror reports through actionError`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            stubSearch(listOf(makeNote("a", text = "cat food")), query = "cat")
+            val viewModel = searchViewModel()
+            viewModel.updateSearchQuery("cat")
+            advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
+
+            val exception = RuntimeException("refresh failed")
+            coEvery { noteRepository.searchNotes(any()) } returns Result.failure(exception)
+            every { errorHandler.getErrorMessage(exception) } returns "refresh failed"
+
+            viewModel.actionError.test {
+                viewModel.refresh()
+                advanceUntilIdle()
+
+                assertEquals("refresh failed", awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+            // The failure did not blank the matches it reported over.
+            assertEquals(1, viewModel.notes().size)
         }
 
     // -------------------------------------------------------------------------

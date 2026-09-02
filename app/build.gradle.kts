@@ -202,25 +202,33 @@ dependencies {
 
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.datetime)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
 
     /*
      * Coil, and only the part :app uses. MyApp is the `SingletonImageLoader.Factory` and the
      * messaging service resolves a notification icon through it; neither draws a composable, so
      * this is coil-core rather than the coil-compose every module that renders an image declares.
-     * The okhttp fetcher has no source reference and is required anyway: the singleton this module
-     * builds is the one every feature's AsyncImage resolves through, and without a network
-     * component on the classpath every remote load fails at runtime.
+     *
+     * The other two have no source reference and both are load-bearing anyway. The singleton this
+     * module builds is the one every feature's AsyncImage resolves through, and Coil 3 assembles
+     * its components from `META-INF/services` entries on the classpath at ImageLoader-build time:
+     * coil-network-okhttp contributes the fetcher every remote load needs, coil-gif the decoder
+     * that makes an animated GIF animate instead of rendering its first frame.
+     *
+     * coil-gif was dropped once already, in the commit that swept :app's unused dependencies, on
+     * the reasoning that "nothing registers a GIF decoder here". With Coil 3 nothing ever does --
+     * `GifDecoder` is registered by the artifact's own service file, so a hand-written
+     * `components { add(...) }` block is exactly what you would *not* expect to find. GIFs silently
+     * stopped animating. **Neither of these is an unused dependency; don't remove them.**
      */
     implementation(libs.coil.core)
     implementation(libs.coil.network.okhttp)
+    implementation(libs.coil.gif)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 
-    // Hilt. hilt-navigation-compose is deliberately absent: `hiltViewModel()` comes from
-    // hilt-lifecycle-viewmodel-compose, which is what every feature screen actually imports.
-    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
+    // Hilt. Note what is *not* here: `hiltViewModel()` is called by no file in this module, so
+    // neither of the two artifacts that supply it is. See the note at the bottom of this block.
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)
 
@@ -284,6 +292,27 @@ dependencies {
      *   declared in the feature module that owns it, which applies the plugin itself, and nothing
      *   here touches `Json`. Compare :core:data, which keeps the plugin with no `@Serializable` of
      *   its own for a reason that does not apply here -- see the note in its build file.
+     * - lifecycle-viewmodel-compose. It supplies `viewModel()` and `LocalViewModelStoreOwner`, and
+     *   not one file in the build imports either: every screen takes its ViewModel from
+     *   `hiltViewModel()` instead. It was declared here *and* by the feature convention, so it was
+     *   on :app and all nine features; the catalog alias went with it. lifecycle-runtime-ktx
+     *   stays, as the deliberate lifecycle baseline.
+     * - hilt-lifecycle-viewmodel-compose, which *is* where `hiltViewModel()` comes from -- removed
+     *   from here, kept in the feature convention. The line looked load-bearing because the nav
+     *   graph below constructs every feature screen, and every one of those screens defaults its
+     *   ViewModel parameter to `hiltViewModel()`. **A default argument is compiled into the callee,
+     *   not the call site**, so the expression belongs to the feature module and resolves there;
+     *   :app names neither `hiltViewModel()` nor any type from the artifact. hilt-navigation-compose
+     *   was never here for the same reason, one layer earlier -- it is the older home of the same
+     *   function, and its catalog alias went too.
+     *
+     * And the mirror-image case, which is not a removal but is the same rule read backwards:
+     * **lifecycle-runtime-compose is the one lifecycle artifact this build actually uses and the
+     * one nothing declares.** `collectAsStateWithLifecycle` is in thirteen files across ten
+     * modules, and the artifact reaches every one of them as a transitive of compose-ui, through
+     * :core:ui's `api`. That compiles today and is versioned by the Compose BOM rather than by
+     * `lifecycleRuntimeKtx` -- an unused declaration is cheap to carry, but an undeclared *use*
+     * breaks the day the transitive path changes.
      *
      * All of it arrived with code that has since moved into a module of its own. **A dependency
      * does not fail a build by being unused, so it outlives the code that wanted it unless

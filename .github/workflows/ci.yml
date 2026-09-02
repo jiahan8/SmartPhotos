@@ -18,7 +18,7 @@ jobs:
   android:
     name: Build, test and lint
     runs-on: ubuntu-latest
-    # 40, not 30: the release build added an R8 pass to a job that already builds debug, runs 410
+    # 40, not 30: the release build added an R8 pass to a job that already builds debug, runs 417
     # tests, diffs the goldens and lints. A timeout is a confusing way to learn a job got slower.
     timeout-minutes: 40
     steps:

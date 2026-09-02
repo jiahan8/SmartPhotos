@@ -52,15 +52,20 @@ class FavoriteViewModelTest {
         every { errorHandler.getErrorMessage(any()) } returns "Error"
         coEvery { noteRepository.syncFavoriteNotes() } returns Result.success(Unit)
         every { noteRepository.getFavoriteNotesStream(any()) } returns flowOf(emptyList())
-        viewModel =
-            FavoriteViewModel(
-                noteRepository,
-                analyticsRepository,
-                noteErrorReporter,
-                noteShare,
-                errorHandler
-            )
+        viewModel = buildViewModel()
     }
+
+    /**
+     * Rebuilt per test rather than only in [setUp], because `init` runs the sync: a test that wants
+     * to see a *failed* one has to re-stub before the ViewModel exists.
+     */
+    private fun buildViewModel() = FavoriteViewModel(
+        noteRepository,
+        analyticsRepository,
+        noteErrorReporter,
+        noteShare,
+        errorHandler
+    )
 
     @After
     fun tearDown() = unmockkAll()
@@ -79,24 +84,28 @@ class FavoriteViewModelTest {
         coVerify { noteRepository.syncFavoriteNotes() }
     }
 
+    /**
+     * The negative half of the split, and this test used to assert the opposite.
+     *
+     * It expected a snackbar here, which was right while an empty mirror rendered
+     * "favorite a note to see it here" -- the transient signal was the *only* way a failed sync
+     * reached the user. Now the failure is the screen, so a snackbar repeating it would be the
+     * same message twice. The emission moved to the populated-mirror case below, which is where
+     * `content` cannot show the failure.
+     */
     @Test
-    fun `init sync failure emits action error`() = runTest(mainDispatcherRule.testDispatcher) {
-        coEvery { noteRepository.syncFavoriteNotes() } returns Result.failure(RuntimeException("sync"))
-        every { errorHandler.getErrorMessage(any()) } returns "sync error"
-        val vm = FavoriteViewModel(
-            noteRepository,
-            analyticsRepository,
-            noteErrorReporter,
-            noteShare,
-            errorHandler
-        )
+    fun `init sync failure over an empty mirror stays silent on actionError`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            coEvery { noteRepository.syncFavoriteNotes() } returns
+                    Result.failure(RuntimeException("sync"))
+            every { errorHandler.getErrorMessage(any()) } returns "sync error"
+            val viewModel = buildViewModel()
 
-        vm.actionError.test {
-            advanceUntilIdle()
-            assertEquals("sync error", awaitItem())
-            cancelAndIgnoreRemainingEvents()
+            viewModel.actionError.test {
+                advanceUntilIdle()
+                expectNoEvents()
+            }
         }
-    }
 
     // -------------------------------------------------------------------------
     // Refresh
@@ -119,6 +128,67 @@ class FavoriteViewModelTest {
             viewModel.refresh()
             advanceUntilIdle()
             assertFalse(viewModel.uiState.value.isRefreshing)
+        }
+
+    // -------------------------------------------------------------------------
+    // Sync failure
+    // -------------------------------------------------------------------------
+
+    /**
+     * The case a plain `isSyncing` boolean could not express.
+     *
+     * With no cached favorites and a sync that failed, the screen used to render
+     * "favorite a note to see it here" -- an empty *result*, when the truth was an empty *mirror*
+     * plus a failure. Those are different things and only one of them is the user's fault.
+     */
+    @Test
+    fun `sync failure over an empty mirror surfaces as an error`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            val exception = RuntimeException("offline")
+            coEvery { noteRepository.syncFavoriteNotes() } returns Result.failure(exception)
+            every { errorHandler.getErrorMessage(exception) } returns "offline"
+            val viewModel = buildViewModel()
+
+            viewModel.content.test {
+                advanceUntilIdle()
+                assertEquals(FavoriteContent.Error("offline"), expectMostRecentItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `sync failure over a populated mirror keeps the favorites on screen`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            val cached = listOf(makeNote("doc1"))
+            every { noteRepository.getFavoriteNotesStream(any()) } returns flowOf(cached)
+            val exception = RuntimeException("offline")
+            coEvery { noteRepository.syncFavoriteNotes() } returns Result.failure(exception)
+            every { errorHandler.getErrorMessage(exception) } returns "offline"
+            val viewModel = buildViewModel()
+
+            viewModel.content.test {
+                advanceUntilIdle()
+                // Readable favorites beat an error screen; the failure travels transiently instead.
+                assertEquals(FavoriteContent.Success(cached), expectMostRecentItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `sync failure over a populated mirror reports through actionError`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            every { noteRepository.getFavoriteNotesStream(any()) } returns
+                    flowOf(listOf(makeNote("doc1")))
+            val exception = RuntimeException("offline")
+            coEvery { noteRepository.syncFavoriteNotes() } returns Result.failure(exception)
+            every { errorHandler.getErrorMessage(exception) } returns "offline"
+            val viewModel = buildViewModel()
+
+            viewModel.actionError.test {
+                advanceUntilIdle()
+                assertEquals("offline", awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
         }
 
     // -------------------------------------------------------------------------
