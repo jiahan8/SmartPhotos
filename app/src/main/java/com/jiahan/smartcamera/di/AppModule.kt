@@ -5,7 +5,6 @@ import com.google.android.play.core.appupdate.AppUpdateManager
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.jiahan.smartcamera.BuildConfig
 import com.jiahan.smartcamera.note.IncomingShareHandler
-import com.jiahan.smartcamera.note.NoteHandler
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -21,10 +20,6 @@ import kotlin.time.Clock
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
-
-    @Provides
-    @Singleton
-    fun provideNoteHandler(): NoteHandler = NoteHandler()
 
     @Provides
     @Singleton

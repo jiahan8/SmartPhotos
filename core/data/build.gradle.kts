@@ -75,6 +75,12 @@ dependencies {
     // signatures, so :app compiles against them through this dependency as well as its own.
     api(project(":core:domain"))
 
+    // Same reason, one module along: `MediaFileRepository` is the interface
+    // DefaultMediaFileRepository implements and a constructor parameter of DefaultNoteRepository,
+    // and `toPlatformUri()` is called in three files here. Both came down to :core:common when
+    // :feature:profile was extracted, because a feature module must not depend on this one.
+    api(project(":core:common"))
+
     implementation(libs.androidx.core.ktx)
     // ActivityResultLauncher / IntentSenderRequest, for the in-app update flow.
     implementation(libs.androidx.activity)
@@ -128,6 +134,27 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
+
+    /*
+     * The three repository suites that came down from :app run under Robolectric, and both reasons
+     * are this module's own: DefaultNoteRepository takes a Context, and every Firebase call here is
+     * stubbed with `Tasks.forResult`/`forException`, which needs a real Android runtime rather than
+     * the JVM stub jar. DatabaseConvertersTest, the suite that was already here, needs neither and
+     * stays a plain JVM test.
+     *
+     * Declared directly rather than taken from :core:testing, which is where the rest of the build
+     * gets Robolectric. That used to be forced: :core:testing carried an `api` edge on this module,
+     * so the reverse direction was a cycle. The edge turned out to be unused -- no fake names a
+     * type from here -- and removing it leaves this module free to take :core:testing on
+     * `testImplementation` whenever a suite here wants the fakes. It has not been done yet only
+     * because these four suites stub Firebase directly rather than through a fake; do it when one
+     * of them would rather have a FakeNoteRepository than a mockk.
+     *
+     * The rule the removal restored: a fixtures module is a supplier to this layer or a consumer
+     * of it, never both.
+     */
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.junit)
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.test.runner)

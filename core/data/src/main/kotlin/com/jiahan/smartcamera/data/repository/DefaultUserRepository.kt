@@ -7,6 +7,7 @@ import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.FirebaseFunctionsException
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.storage
@@ -74,9 +75,10 @@ class DefaultUserRepository @Inject constructor(
         metadata: String,
         username: String
     ): Result<Unit> = safeCall {
-        functions.getHttpsCallable(FUNCTION_CREATE_USER_PROFILE)
-            .call(hashMapOf(FIELD_METADATA to metadata, FIELD_USERNAME to username))
-            .await()
+        callReservingUsername(
+            FUNCTION_CREATE_USER_PROFILE,
+            hashMapOf(FIELD_METADATA to metadata, FIELD_USERNAME to username)
+        )
     }
 
     override suspend fun updateUserProfile(
@@ -107,9 +109,37 @@ class DefaultUserRepository @Inject constructor(
     // Delegates to the updateUsername Cloud Function, which atomically
     // reserves the new username and releases the previous one.
     private suspend fun updateUsername(username: String) {
-        functions.getHttpsCallable(FUNCTION_UPDATE_USERNAME)
-            .call(hashMapOf(FIELD_USERNAME to username))
-            .await()
+        callReservingUsername(FUNCTION_UPDATE_USERNAME, hashMapOf(FIELD_USERNAME to username))
+    }
+
+    /**
+     * Calls one of the two username-reserving Cloud Functions, translating the conflicts they
+     * report into [AppError] cases.
+     *
+     * Both functions raise an `HttpsError` whose message is hardcoded English on the server, so
+     * something has to stop that reaching a user. That used to be `usernameErrorMessageResId` in
+     * :app, tried by AuthViewModel and ProfileViewModel ahead of `ErrorHandler.getErrorMessage`.
+     * Reading a Firebase error code is data-layer knowledge, and leaving it in the ViewModel layer
+     * would have put `firebase-functions` on a feature module's classpath when auth was extracted.
+     * Raising the app's own identity instead is the rule the rest of the data layer already
+     * follows, and `appErrorMessageResId` -- applied inside `getErrorMessage` -- renders it with no
+     * code at the call site.
+     *
+     * `INVALID_ARGUMENT` maps to [AppError.UsernameReserved] unconditionally, which is exactly what
+     * the mapper it replaces did. Both functions validate nothing but the username, so the code
+     * cannot presently mean anything else; if one of them grows a second argument to validate, this
+     * needs the structured `details` payload that `foldNoteValidationError` reads.
+     */
+    private suspend fun callReservingUsername(name: String, data: HashMap<String, String>) {
+        try {
+            functions.getHttpsCallable(name).call(data).await()
+        } catch (e: FirebaseFunctionsException) {
+            throw when (e.code) {
+                FirebaseFunctionsException.Code.ALREADY_EXISTS -> AppError.UsernameTaken()
+                FirebaseFunctionsException.Code.INVALID_ARGUMENT -> AppError.UsernameReserved()
+                else -> e
+            }
+        }
     }
 
     override suspend fun updateFcmToken(token: String): Result<Unit> = safeCall {

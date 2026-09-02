@@ -1,0 +1,16 @@
+<resources>
+    <string name="cd_choose_photos">Choose photos</string>
+    <string name="cd_remove_image">Remove image</string>
+    <string name="cd_take_photo">Take a photo</string>
+    <string name="cd_take_video">Record a video</string>
+    <string name="create_note">Create a note</string>
+    <string name="discard">Discard</string>
+    <string name="discard_changes">Discard changes?</string>
+    <string name="discard_changes_desc">Your edits to this note will not be saved.</string>
+    <string name="new_note">New note</string>
+    <string name="save">Save</string>
+    <string name="whats_new">What\'s new?</string>
+    <string name="whats_on_mind">What\'s on your mind?</string>
+    <string name="write_a_thought">Write a thought…</string>
+    <string name="write_this_moment">Write about this moment</string>
+</resources>

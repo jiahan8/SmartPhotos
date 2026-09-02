@@ -39,6 +39,10 @@ interface AppUpdateRepository {
     /**
      * Installs an update that has finished downloading and restarts the app. No-ops unless the
      * last observed state was [AppUpdateState.Downloaded].
+     *
+     * Play's install call can fail -- the handle is stale once the update is consumed or
+     * removed -- so this carries a [Result] like every other fallible repository operation,
+     * rather than throwing into the caller's scope.
      */
-    suspend fun completeUpdate()
+    suspend fun completeUpdate(): Result<Unit>
 }

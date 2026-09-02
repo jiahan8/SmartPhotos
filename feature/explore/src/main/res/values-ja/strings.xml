@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cd_close_search">検索を閉じる</string>
+    <string name="explore">探索</string>
+    <string name="no_photos_found">写真が見つかりません</string>
+    <string name="photo">写真</string>
+    <string name="search_photos">写真を検索</string>
+</resources>

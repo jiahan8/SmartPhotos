@@ -1,0 +1,19 @@
+<resources>
+    <!-- Field labels: AuthScreen and ProfileScreen both render these three -->
+    <string name="email">Email</string>
+    <string name="name">Name</string>
+    <string name="username">Username</string>
+
+    <!-- Validation results, and the two username conflicts appErrorMessageResId renders -->
+    <string name="name_empty">Name cannot be empty</string>
+    <string name="name_too_long">Name cannot exceed 50 characters</string>
+    <string name="username_empty">Username cannot be empty</string>
+    <string name="username_too_long">Username cannot exceed 30 characters</string>
+    <string name="username_invalid_characters">Username can only contain letters, numbers, periods, and underscores</string>
+    <string name="username_reserved">This username is reserved</string>
+    <string name="username_not_available">Please choose another username</string>
+    <string name="share_note_failure">Couldn\'t share this note. Please try again.</string>
+    <string name="note_validation">Note cannot exceed 500 characters</string>
+    <string name="note_media_limit">You can attach up to 20 photos or videos per note</string>
+    <string name="note_empty">Add some text or media before saving</string>
+</resources>

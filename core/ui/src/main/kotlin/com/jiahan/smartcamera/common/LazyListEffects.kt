@@ -30,6 +30,16 @@ fun ScrollDirectionEffect(
     }
 }
 
+/**
+ * Scrolls [listState] back to the top when [scrollToTop] carries a new timestamp, then reports it
+ * consumed.
+ *
+ * [hasItems] is a key, not just a read. The request arrives from `MainViewModel` the moment a
+ * top-level tab is re-tapped, which can be before the list has anything in it; keyed on
+ * [scrollToTop] alone the effect would run once against an empty list, skip the body, and never
+ * fire again -- dropping the request and leaving `scrollToTop` unconsumed, since `onConsumed` is
+ * inside the guard. With both as keys, the pending scroll runs as soon as the items land.
+ */
 @Composable
 fun ScrollToTopEffect(
     scrollToTop: Long?,
@@ -37,7 +47,7 @@ fun ScrollToTopEffect(
     hasItems: Boolean,
     onConsumed: () -> Unit
 ) {
-    LaunchedEffect(scrollToTop) {
+    LaunchedEffect(scrollToTop, hasItems) {
         scrollToTop?.let {
             if (hasItems) {
                 listState.animateScrollToItem(0)

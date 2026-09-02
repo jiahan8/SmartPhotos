@@ -1,0 +1,24 @@
+<resources>
+    <!-- Screen -->
+    <string name="password">Password</string>
+    <string name="login">Login</string>
+    <string name="sign_up">Sign Up</string>
+    <string name="need_account">Don\'t have an account? Sign Up</string>
+    <string name="already_have_account">Already have an account? Sign In</string>
+    <string name="forgot_password">Forgot Password?</string>
+
+    <!-- Status messages -->
+    <string name="email_password_empty">Email and password cannot be empty</string>
+    <string name="all_fields_required">All fields are required</string>
+    <string name="password_reset_email_sent">Password reset email sent</string>
+    <string name="enter_email">Please enter your email first</string>
+    <string name="email_not_registered">Email not registered</string>
+    <string name="verification_email_sent">Verification email sent. Please check your inbox (and spam/junk folder) and verify your email before logging in.</string>
+    <string name="email_not_verified">Please verify your email before logging in. Check your inbox (and spam/junk folder) for the verification link.</string>
+    <string name="verification_email_resent">Verification email has been resent. Please check your inbox (and spam/junk folder).</string>
+    <string name="email_verification_note">You will need to verify your email address before accessing your account. Be sure to check your spam/junk folder.</string>
+    <string name="resend_verification_email">Resend verification email</string>
+
+    <!-- Content descriptions (accessibility) -->
+    <string name="cd_app_logo">Smart Photos app logo</string>
+</resources>

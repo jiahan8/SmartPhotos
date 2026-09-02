@@ -28,6 +28,11 @@ dependencies {
     // classpath and fail at apply time.
     compileOnly(libs.android.gradlePlugin)
     compileOnly(libs.kotlin.gradlePlugin)
+    // Roborazzi *is* here, and the contrast with the Compose note below is the rule: a convention
+    // needs a plugin's artifact exactly when it configures that plugin's own extension.
+    // AndroidScreenshotConventionPlugin sets `roborazzi { outputDir }`, so it has to resolve
+    // RoborazziExtension at compile time.
+    compileOnly(libs.roborazzi.gradlePlugin)
     // No compose-compiler-gradle-plugin: AndroidComposeConventionPlugin applies that plugin by id
     // and then touches only AGP's own `buildFeatures.compose`, so none of its DSL types are
     // referenced at compile time. Add it back if a convention ever configures the Compose compiler
@@ -47,6 +52,14 @@ gradlePlugin {
         register("androidCompose") {
             id = "smartphotos.android.compose"
             implementationClass = "AndroidComposeConventionPlugin"
+        }
+        register("androidFeature") {
+            id = "smartphotos.android.feature"
+            implementationClass = "AndroidFeatureConventionPlugin"
+        }
+        register("androidScreenshot") {
+            id = "smartphotos.android.screenshot"
+            implementationClass = "AndroidScreenshotConventionPlugin"
         }
         register("jvmLibrary") {
             id = "smartphotos.jvm.library"

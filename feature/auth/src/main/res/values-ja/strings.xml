@@ -1,0 +1,24 @@
+<resources>
+    <!-- Screen -->
+    <string name="password">パスワード</string>
+    <string name="login">ログイン</string>
+    <string name="sign_up">新規登録</string>
+    <string name="need_account">アカウントをお持ちでない方は新規登録</string>
+    <string name="already_have_account">すでにアカウントをお持ちの方はログイン</string>
+    <string name="forgot_password">パスワードをお忘れですか？</string>
+
+    <!-- Status messages -->
+    <string name="email_password_empty">メールアドレスとパスワードを入力してください</string>
+    <string name="all_fields_required">すべての項目を入力してください</string>
+    <string name="password_reset_email_sent">パスワードリセットのメールを送信しました</string>
+    <string name="enter_email">まずメールアドレスを入力してください</string>
+    <string name="email_not_registered">このメールアドレスは登録されていません</string>
+    <string name="verification_email_sent">確認メールを送信しました。受信箱（および迷惑メールフォルダ）を確認し、認証を完了してください。</string>
+    <string name="email_not_verified">メールを認証してください。受信箱（および迷惑メールフォルダ）を確認して認証リンクを開いてください。</string>
+    <string name="verification_email_resent">確認メールを再送信しました。受信箱（および迷惑メールフォルダ）をご確認ください。</string>
+    <string name="email_verification_note">アカウントにアクセスするには、メールアドレスの認証が必要です。迷惑メールフォルダもご確認ください。</string>
+    <string name="resend_verification_email">確認メールを再送信</string>
+
+    <!-- Content descriptions (accessibility) -->
+    <string name="cd_app_logo">スマートフォトのアプリロゴ</string>
+</resources>

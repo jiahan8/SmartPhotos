@@ -9,6 +9,7 @@
     only in this module.
 -->
     <string name="cancel">Cancel</string>
+    <string name="cd_back">Navigate back</string>
     <string name="cd_clear_field">Clear text</string>
     <string name="cd_marked_as_favorite">Marked as favorite</string>
     <string name="cd_more_options">More options</string>
@@ -24,4 +25,7 @@
     <string name="remove_like">Remove like</string>
     <string name="search">Search</string>
     <string name="share">Share</string>
+    <string name="cd_hide_password">Hide password</string>
+    <string name="cd_show_password">Show password</string>
+    <string name="no_results_found">No results found</string>
 </resources>

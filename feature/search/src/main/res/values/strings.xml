@@ -1,0 +1,8 @@
+<resources>
+    <string name="find_notes">Find saved notes</string>
+    <string name="find_photos">Find your photos</string>
+    <string name="look_up">Look up something you wrote</string>
+    <string name="search_notes_photos">Search notes and photos</string>
+    <string name="search_your_notes">Search your notes</string>
+    <string name="what_you_looking_for">What are you looking for?</string>
+</resources>

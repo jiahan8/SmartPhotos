@@ -7,6 +7,8 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.FirebaseFunctionsException
+import com.google.firebase.functions.HttpsCallableResult
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.storage
 import com.jiahan.smartcamera.database.dao.NoteDao
@@ -90,7 +92,12 @@ class DefaultNoteRepository @Inject constructor(
         private const val FIELD_SCORE = "score"
 
         // Cloud Function names / argument keys
+        private const val ARG_REASON = "reason"
+        private const val REASON_TEXT_TOO_LONG = "TEXT_TOO_LONG"
+        private const val REASON_TOO_MANY_MEDIA = "TOO_MANY_MEDIA_ITEMS"
+        private const val REASON_EMPTY_NOTE = "EMPTY_NOTE"
         private const val FUNCTION_CREATE_NOTE = "createNote"
+        private const val RESULT_DOCUMENT_PATH = "documentPath"
         private const val FUNCTION_UPDATE_NOTE = "updateNote"
         private const val ARG_NOTE_ID = "noteId"
         private const val ARG_TEXT = "text"
@@ -154,6 +161,7 @@ class DefaultNoteRepository @Inject constructor(
             val lastDocument = snapshot.documents
                 .takeIf { it.size >= pageSize }
                 ?.lastOrNull()
+            cacheNotes(notes)
             NotePage(
                 notes = notes,
                 nextCursor = lastDocument?.let { FirestoreNoteCursor(currentUserId, it) }
@@ -173,25 +181,30 @@ class DefaultNoteRepository @Inject constructor(
                 ARG_IS_VIDEO to media.isVideo
             )
         }
-        functions.getHttpsCallable(FUNCTION_CREATE_NOTE)
+        val response = functions.getHttpsCallable(FUNCTION_CREATE_NOTE)
             .call(hashMapOf(ARG_TEXT to homeNote.text, ARG_MEDIA_LIST to mediaListPayload))
             .await()
-    }
+
+        mirrorCreatedNote(response)
+    }.foldNoteValidationError()
 
     // Delegates to the updateNote Cloud Function for the same reason addNote
     // delegates to createNote: server-side validation and ownership checks a
     // direct client-side Firestore update couldn't do. Only [homeNote]'s text
     // is sent -- a note's media is fixed at creation time -- but the whole note
-    // is taken so the favorites cache can be refreshed with it below.
+    // is taken so the local mirror can be refreshed with it below.
     override suspend fun updateNote(homeNote: HomeNote): Result<Unit> = safeCall {
         functions.getHttpsCallable(FUNCTION_UPDATE_NOTE)
             .call(hashMapOf(ARG_NOTE_ID to homeNote.noteId, ARG_TEXT to homeNote.text))
             .await()
-        if (homeNote.favorite) {
-            noteDao.upsertNotes(listOf(homeNote.toDatabaseNote()))
-        }
-    }
+        // Unconditional: this write used to be gated on `homeNote.favorite`, back when the table
+        // held favorites only. It mirrors the whole feed now, so an edit to any note has to land.
+        noteDao.upsertNotes(listOf(homeNote.toDatabaseNote()))
+    }.foldNoteValidationError()
 
+    // Reads the whole collection and filters client-side, which is what it has always done. What
+    // changed is where the result goes: it is mirrored on the way out, so searchNotesStream covers
+    // notes the feed never paged rather than narrowing search to what Home has scrolled.
     override suspend fun searchNotes(query: String): Result<List<HomeNote>> = safeCall {
         noteCollectionReference?.let { ref ->
             val snapshot = ref
@@ -200,12 +213,14 @@ class DefaultNoteRepository @Inject constructor(
                 .await()
             val userIds = snapshot.documents.mapNotNull { it.getString(FIELD_USER_ID) }.distinct()
             val userDocumentsMap = getUserDocumentsInBatch(userIds)
-            snapshot.documents
+            val results = snapshot.documents
                 .filter { document -> matchesSearchQuery(document, query) }
                 .mapNotNull { document ->
                     val userId = document.getString(FIELD_USER_ID) ?: return@mapNotNull null
                     userDocumentsMap[userId]?.let { getHomeNote(document, it) }
                 }
+            cacheNotes(results)
+            results
         } ?: emptyList()
     }
 
@@ -218,11 +233,15 @@ class DefaultNoteRepository @Inject constructor(
         val newFavoriteStatus = homeNote.favorite.not()
         noteCollectionReference?.document(homeNote.noteId)
             ?.update(FIELD_FAVORITE, newFavoriteStatus)?.await()
-        if (newFavoriteStatus) {
-            noteDao.upsertNotes(listOf(homeNote.copy(favorite = true).toDatabaseNote()))
-        } else {
-            noteDao.deleteNote(homeNote.noteId)
-        }
+        // One upsert for both directions. Unfavoriting used to delete the row, which was right
+        // when the table was a favorites-only cache and wrong now that it mirrors the feed -- the
+        // note still exists, it is just no longer favorited. Upsert rather than the DAO's
+        // `updateFavorite` because the row may not be there yet: a note can be favorited straight
+        // from a screen that never paged it in, and an UPDATE against a missing row is a silent
+        // no-op that would lose it from Favorite.
+        noteDao.upsertNotes(
+            listOf(homeNote.copy(favorite = newFavoriteStatus).toDatabaseNote())
+        )
     }
 
     override suspend fun getNote(noteId: String): Result<HomeNote> = safeCall {
@@ -233,7 +252,7 @@ class DefaultNoteRepository @Inject constructor(
                 ?: throw AppError.NoteUnavailable()
             val userDocument = getUserDocumentSnapshot(userId)
             if (!userDocument.exists()) throw AppError.NoteUnavailable()
-            getHomeNote(noteDocument, userDocument)
+            getHomeNote(noteDocument, userDocument).also { cacheNotes(listOf(it)) }
         } ?: throw AppError.NotAuthenticated()
     }
 
@@ -286,6 +305,69 @@ class DefaultNoteRepository @Inject constructor(
         }
     }
 
+    /**
+     * Mirrors a fetched page into Room.
+     *
+     * No longer best effort. It was, while nothing read this table for the feed and a failed cache
+     * write blanking a screen whose fetch succeeded would have been the worse trade. Home renders
+     * the mirror now, so a page that fails to land is a page the user cannot see -- and swallowing
+     * that would also let the caller advance its cursor past it, turning a lost write into a
+     * permanent hole in the feed. Failing the enclosing [safeCall] leaves the cursor where it was,
+     * so the page is retried instead.
+     */
+    /**
+     * Folds a createNote/updateNote validation rejection into an [AppError].
+     *
+     * Both functions signal every validation failure as one `invalid-argument` code and tell them
+     * apart in a structured `details.reason` payload, so this reads the payload rather than the
+     * code -- the one way it differs from how [AppError.UsernameTaken] is folded. Doing it here
+     * rather than in a ViewModel-layer mapper is what keeps `FirebaseFunctionsException` below the
+     * repository boundary, and off a feature module's classpath.
+     *
+     * An unrecognised reason is left alone: it means a malformed request no legitimate client can
+     * produce, and it should surface as the generic failure rather than as a specific message that
+     * happens to be wrong.
+     */
+    /**
+     * Reads a just-created note back so it lands in the mirror.
+     *
+     * The client cannot build that row itself -- the id and the `created` timestamp are both
+     * stamped server-side -- and until this existed a new note reached the feed only through a
+     * `NoteHandler` event telling Home to refetch everything. One extra document read retires that
+     * whole mechanism.
+     *
+     * Deliberately not fatal: the note *was* created, so failing here would report a write that
+     * succeeded as an error. A lost read-back costs the user a pull-to-refresh, which is exactly
+     * what a failed reload cost them before.
+     */
+    private suspend fun mirrorCreatedNote(response: HttpsCallableResult) {
+        val noteId = (response.data as? Map<*, *>)?.get(RESULT_DOCUMENT_PATH) as? String
+        if (noteId == null) {
+            errorHandler.logError(AppError.NoteUnavailable())
+            return
+        }
+        getNote(noteId).onFailure { e -> errorHandler.logError(e) }
+    }
+
+    private fun <T> Result<T>.foldNoteValidationError(): Result<T> {
+        val reason = ((exceptionOrNull() as? FirebaseFunctionsException)?.details as? Map<*, *>)
+            ?.get(ARG_REASON) as? String
+        return when (reason) {
+            REASON_TEXT_TOO_LONG -> Result.failure(AppError.NoteTextTooLong())
+            REASON_TOO_MANY_MEDIA -> Result.failure(AppError.NoteMediaLimitExceeded())
+            REASON_EMPTY_NOTE -> Result.failure(AppError.NoteEmpty())
+            else -> this
+        }
+    }
+
+    private suspend fun cacheNotes(notes: List<HomeNote>) {
+        if (notes.isEmpty()) return
+        noteDao.upsertNotes(notes.map { it.toDatabaseNote() })
+    }
+
+    // Still favorites-only, and still correct: the DAO's syncFavoriteNotes clears the favorited
+    // rows and reinserts what the server says is favorited, leaving the mirrored non-favorites
+    // alone. It becomes a full sync when the feed moves onto Room.
     override suspend fun syncFavoriteNotes(): Result<Unit> = safeCall {
         val favorites = fetchAllFavoritesFromFirestore()
         noteDao.syncFavoriteNotes(favorites.map { it.toDatabaseNote() })
@@ -377,6 +459,18 @@ class DefaultNoteRepository @Inject constructor(
         }
         return emptyList()
     }
+
+    override fun getNotesStream(limit: Int): Flow<List<HomeNote>> =
+        noteDao.getNotes(limit).map { notes -> notes.map { it.toHomeNote() } }
+
+    override fun getNoteStream(noteId: String): Flow<HomeNote?> =
+        noteDao.getNote(noteId).map { note -> note?.toHomeNote() }
+
+    override fun searchNotesStream(query: String): Flow<List<HomeNote>> =
+        noteDao.getNotes().map { notes ->
+            notes.map { it.toHomeNote() }
+                .filter { note -> matchesQuery(note.text, note.mediaList, query) }
+        }
 
     override fun getFavoriteNotesStream(query: String): Flow<List<HomeNote>> =
         noteDao.getFavoriteNotes().map { notes ->

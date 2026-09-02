@@ -13,6 +13,7 @@ import com.jiahan.smartcamera.util.FileConstants.MIME_TYPE_VIDEO_PREFIX
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_PHOTO
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_THUMBNAIL
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_VIDEO
+import com.jiahan.smartcamera.util.safeCall
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -62,7 +63,7 @@ class DefaultMediaFileRepository @Inject constructor(
 
     override suspend fun downloadToCacheFile(url: String, isVideo: Boolean): Uri? =
         withContext(ioDispatcher) {
-            try {
+            safeCall {
                 val timeStamp = System.currentTimeMillis()
                 val prefix = if (isVideo) PREFIX_VIDEO else PREFIX_PHOTO
                 val extension = if (isVideo) EXTENSION_MP4 else EXTENSION_JPG
@@ -71,10 +72,7 @@ class DefaultMediaFileRepository @Inject constructor(
                     FileOutputStream(file).use { output -> input.copyTo(output) }
                 }
                 getUriForFile(context, FILE_PROVIDER_AUTHORITY, file)
-            } catch (e: Exception) {
-                errorHandler.logError(e)
-                null
-            }
+            }.onFailure { e -> errorHandler.logError(e) }.getOrNull()
         }
 
     override fun isVideoUri(uri: Uri): Boolean =

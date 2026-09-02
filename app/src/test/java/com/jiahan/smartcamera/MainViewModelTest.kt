@@ -7,13 +7,14 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
 import com.jiahan.smartcamera.data.datastore.UserPreferences
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
+import com.jiahan.smartcamera.auth.AuthRoute
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AppUpdateRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.domain.AppUpdateState
-import com.jiahan.smartcamera.navigation.Screen
+import com.jiahan.smartcamera.home.HomeRoute
 import com.jiahan.smartcamera.note.IncomingShare
 import com.jiahan.smartcamera.note.IncomingShareHandler
 import com.jiahan.smartcamera.util.ErrorHandler
@@ -116,7 +117,7 @@ class MainViewModelTest {
 
         val vm = createViewModel()
 
-        assertEquals(Screen.Home, vm.uiState.value.startDestination)
+        assertEquals(HomeRoute, vm.uiState.value.startDestination)
         coVerify { userRepository.registerForPushNotifications() }
     }
 
@@ -135,7 +136,7 @@ class MainViewModelTest {
 
         val vm = createViewModel()
 
-        assertEquals(Screen.Auth, vm.uiState.value.startDestination)
+        assertEquals(AuthRoute, vm.uiState.value.startDestination)
         coVerify(exactly = 0) { userRepository.registerForPushNotifications() }
     }
 
@@ -146,7 +147,7 @@ class MainViewModelTest {
 
         val vm = createViewModel()
 
-        assertEquals(Screen.Auth, vm.uiState.value.startDestination)
+        assertEquals(AuthRoute, vm.uiState.value.startDestination)
     }
 
     @Test
@@ -196,9 +197,9 @@ class MainViewModelTest {
     fun `updateStartDestination overrides the destination`() = runTest {
         val vm = createViewModel()
 
-        vm.updateStartDestination(Screen.Home)
+        vm.updateStartDestination(HomeRoute)
 
-        assertEquals(Screen.Home, vm.uiState.value.startDestination)
+        assertEquals(HomeRoute, vm.uiState.value.startDestination)
     }
 
     // -------------------------------------------------------------------------
@@ -299,11 +300,24 @@ class MainViewModelTest {
     // handle), so the ViewModel's job here is only to delegate.
     @Test
     fun `completeUpdate delegates to the repository`() = runTest {
-        coEvery { appUpdateRepository.completeUpdate() } just runs
+        coEvery { appUpdateRepository.completeUpdate() } returns Result.success(Unit)
 
         createViewModel().completeUpdate()
 
         coVerify { appUpdateRepository.completeUpdate() }
+    }
+
+    // Play's install call fails on a stale handle. The repository folds that into the Result
+    // rather than throwing, so a failure has to stay inside viewModelScope instead of taking the
+    // app down with it.
+    @Test
+    fun `completeUpdate logs a repository failure instead of throwing`() = runTest {
+        val exception = RuntimeException("install failed")
+        coEvery { appUpdateRepository.completeUpdate() } returns Result.failure(exception)
+
+        createViewModel().completeUpdate()
+
+        verify { errorHandler.logError(exception) }
     }
 
     @Test

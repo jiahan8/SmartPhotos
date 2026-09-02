@@ -18,7 +18,9 @@ jobs:
   android:
     name: Build, test and lint
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 40, not 30: the release build added an R8 pass to a job that already builds debug, runs 417
+    # tests, diffs the goldens and lints. A timeout is a confusing way to learn a job got slower.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
@@ -59,35 +61,84 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug
 
+      # The release variant, which nothing else here compiles. Every other step in this job builds
+      # debug -- assembleDebug above, testDebugUnitTest, verifyRoborazziDebug, lintDebug -- so a
+      # dependency that reaches a module only through `debugImplementation` used to compile clean
+      # all the way to a green tick and then fail `./gradlew assembleRelease` on someone's laptop.
+      # That is not hypothetical: :feature:auth's `@Preview` resolved through the feature
+      # convention's debugImplementation(ui-tooling) and broke compileReleaseKotlin for several
+      # commits without this job noticing. It also puts R8 in the pipeline, so a missing keep rule
+      # is caught here rather than in a release build.
+      #
+      # -x uploadCrashlyticsMappingFileRelease: assembleRelease wires that task in, and it uploads
+      # a mapping file to Firebase. CI builds a release APK on every pull request and ships none of
+      # them, so the upload would be noise in Crashlytics and a network call that can fail for
+      # reasons that have nothing to do with the change under test. Real releases are built
+      # elsewhere and still upload.
+      #
+      # There is no signing config, so this produces an unsigned APK. That is fine: the point is
+      # that the variant compiles and shrinks, not that the artifact is installable.
+      - name: Build release APK
+        if: ${{ !cancelled() }}
+        run: ./gradlew assembleRelease -x uploadCrashlyticsMappingFileRelease
+
+      # Compiles the androidTest sources, which nothing else in this job does -- assembleDebug and
+      # assembleRelease above, testDebugUnitTest, verifyRoborazziDebug and lintDebug below all stop
+      # at main and test. It is the same gap the release step closes one variant over, and it hides
+      # the same class of bug: :app's HiltGraphSmokeTest injects members over the generated
+      # component, which is what walks the Hilt binding graph furthest, so an @Inject constructor
+      # parameter hidden behind `implementation` instead of `api` fails here and nowhere else.
+      # That is not hypothetical either -- it is exactly how :core:data's DataStore and Room
+      # bindings broke while assembleDebug stayed green.
+      #
+      # Compiling is the whole point: connectedDebugAndroidTest would need an emulator, and the
+      # failure this catches happens at compile time. `./scripts/run-test-lab.sh` still runs the
+      # suites themselves on real devices.
+      - name: Compile instrumented tests
+        if: ${{ !cancelled() }}
+        run: ./gradlew compileDebugAndroidTestKotlin
+
       # :core:domain is named explicitly because it is a plain Kotlin JVM module: its unit tests
       # run under `test`, not the Android `testDebugUnitTest` variant task, so a bare
-      # testDebugUnitTest would skip them silently rather than fail. :core:data and :core:ui need
-      # no such mention -- both are Android libraries, so the unqualified testDebugUnitTest
-      # reaches them, as does lintDebug below. (verifyRoborazziDebug is app-only for a different
-      # reason: the roborazzi plugin is applied to :app alone, so the task exists nowhere else.
-      # That stayed true through the :core:ui extraction -- the screenshot tests did not move.)
+      # testDebugUnitTest would skip them silently rather than fail. Every other module is an
+      # Android library, so the unqualified testDebugUnitTest reaches it, as does lintDebug below
+      # and verifyRoborazziDebug in the four modules that apply the roborazzi plugin.
+      #
+      # `!cancelled()` like every other check in this job. Without it this was the one step a
+      # failure above could skip, and the two steps immediately before it are the two most likely
+      # to be the first thing red on a dependency change -- so a broken release variant used to
+      # cost a whole extra fix-and-push cycle just to find out whether the tests also failed.
       - name: Unit tests
+        if: ${{ !cancelled() }}
         run: ./gradlew testDebugUnitTest :core:domain:test
 
       # Uploaded here, before the screenshot step below re-runs the test task with a filter and
-      # rewrites app/build/test-results/ down to just the screenshot classes.
+      # rewrites the screenshot modules' test-results/ down to just the screenshot classes.
       - name: Upload unit test report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-report
+          # Globs, not the hand-maintained list of literal per-module paths this used to be.
+          # upload-artifact matches with @actions/glob, so one pattern per depth covers every
+          # module that has a report -- and, more to the point, every module that gains one. The
+          # literal list had drifted three separate times (:core:ui, :feature:explore and
+          # :feature:settings each reported nothing for a while), and each drift turned a failure
+          # in that module into a red X with no report to open.
+          #
+          # Two depths because the modules are two deep (core/*, feature/*) and :app is one.
+          # `test/` as well as `testDebugUnitTest/` because :core:domain is a plain Kotlin JVM
+          # module and its task is `test`.
           path: |
-            app/build/reports/tests/testDebugUnitTest/
-            app/build/test-results/testDebugUnitTest/
-            core/data/build/reports/tests/testDebugUnitTest/
-            core/data/build/test-results/testDebugUnitTest/
-            core/domain/build/reports/tests/test/
-            core/domain/build/test-results/test/
+            */build/reports/tests/test*/
+            */build/test-results/test*/
+            */*/build/reports/tests/test*/
+            */*/build/test-results/test*/
           if-no-files-found: ignore
 
       # Split from the unit tests so a red X says which kind of thing broke: logic or pixels.
       # testDebugUnitTest *runs* the Roborazzi tests but never diffs them against the goldens
-      # in app/src/test/screenshots/ -- only verifyRoborazziDebug compares. Scoping it to the
+      # in each module's src/test/screenshots/ -- only verifyRoborazziDebug compares. Scoping it to the
       # screenshot package re-runs just those tests instead of the whole suite, which costs a
       # few seconds rather than doubling the test time. The filter is on the package, not a
       # class-name pattern, so a future screenshot test can't quietly escape verification.
@@ -112,10 +163,16 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: screenshot-and-lint-reports
+          # Globs, for the reason the unit-test step above gives. Four modules capture screenshots
+          # today (:core:ui, :feature:home, :feature:search, :feature:settings) and a fifth needs no
+          # edit here to be diagnosable: a golden failure is only readable if its *_compare.png
+          # files come back, and :core:ui's were missing from the literal list for a release after
+          # NoteItemScreenshotTest moved there.
           path: |
-            app/build/outputs/roborazzi/
-            app/build/reports/lint-results-debug.html
-            core/data/build/reports/lint-results-debug.html
+            */build/outputs/roborazzi/
+            */*/build/outputs/roborazzi/
+            */build/reports/lint-results-debug.html
+            */*/build/reports/lint-results-debug.html
           if-no-files-found: ignore
 
   functions:

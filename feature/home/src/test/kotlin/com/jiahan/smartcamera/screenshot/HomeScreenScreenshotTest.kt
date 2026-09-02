@@ -1,0 +1,125 @@
+package com.jiahan.smartcamera.screenshot
+
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import com.jiahan.smartcamera.domain.HomeNote
+import com.jiahan.smartcamera.domain.NotePage
+import com.jiahan.smartcamera.fake.FakeErrorHandler
+import com.jiahan.smartcamera.fake.FakeMediaFileRepository
+import com.jiahan.smartcamera.fake.FakeNoteRepository
+import com.jiahan.smartcamera.fake.FakeRemoteConfigRepository
+import com.jiahan.smartcamera.fake.FakeResourceProvider
+import com.jiahan.smartcamera.home.HomeScreen
+import com.jiahan.smartcamera.home.HomeViewModel
+import com.jiahan.smartcamera.note.NoteErrorReporter
+import com.jiahan.smartcamera.note.NoteShareDelegate
+import com.jiahan.smartcamera.ui.theme.SmartCameraTheme
+import org.junit.Test
+import org.robolectric.RuntimeEnvironment
+import kotlin.time.Instant
+
+/**
+ * Full-screen Roborazzi screenshot tests for [HomeScreen], driven by the real [HomeViewModel] wired
+ * to in-memory fakes and captured once the state settles.
+ *
+ * Only states that settle synchronously (no `debounce`/`delay`) are captured, so the images are
+ * deterministic; the notes carry no remote image URLs, so Coil never performs I/O.
+ *
+ * Came over from :app's `ScreenScreenshotTest`, which captured this screen and Search together
+ * because both screens lived there. Splitting it put each half in the module that owns its screen
+ * -- the same move `NoteItemScreenshotTest` made into :core:ui and `SettingsScreenScreenshotTest`
+ * into :feature:settings -- and left :app with no screenshot tests at all.
+ */
+class HomeScreenScreenshotTest : BaseScreenshotTest() {
+
+    private fun captureSettled(content: @Composable () -> Unit) {
+        capture { SmartCameraTheme { content() } }
+    }
+
+    private fun note(noteId: String, text: String, favorite: Boolean = false) = HomeNote(
+        noteId = noteId,
+        text = text,
+        username = "tester",
+        favorite = favorite,
+        createdDate = Instant.fromEpochMilliseconds(1_700_000_000_000L),
+    )
+
+    private fun homeViewModel(notes: Result<NotePage>): HomeViewModel {
+        val repo = FakeNoteRepository().apply { notesResult = notes }
+        val errorHandler = FakeErrorHandler()
+        val noteErrorReporter = NoteErrorReporter(errorHandler)
+        return HomeViewModel(
+            repo,
+            noteErrorReporter,
+            NoteShareDelegate(
+                FakeMediaFileRepository(),
+                noteErrorReporter,
+                FakeResourceProvider(RuntimeEnvironment.getApplication())
+            ),
+            errorHandler,
+            FakeRemoteConfigRepository(),
+        )
+    }
+
+    @Test
+    fun homeScreen_empty() {
+        captureSettled {
+            HomeScreen(
+                // The literal app_name renders, so the goldens are unchanged by the hoist.
+                title = "Smart Photos",
+                onNavigateToNotePreview = {},
+                onNavigateToEditNote = {},
+                onNavigateToPhotoPreview = {},
+                onNavigateToVideoPreview = {},
+                onNavigateToExplore = {},
+                viewModel = homeViewModel(Result.success(NotePage(emptyList()))),
+                scrollToTop = null,
+                onScrollToTopConsumed = {},
+                snackbarHostState = remember { SnackbarHostState() },
+            )
+        }
+    }
+
+    @Test
+    fun homeScreen_success() {
+        val notes = listOf(
+            note("doc1", "First note in the feed."),
+            note("doc2", "A second note, marked as a favourite.", favorite = true),
+        )
+        captureSettled {
+            HomeScreen(
+                // The literal app_name renders, so the goldens are unchanged by the hoist.
+                title = "Smart Photos",
+                onNavigateToNotePreview = {},
+                onNavigateToEditNote = {},
+                onNavigateToPhotoPreview = {},
+                onNavigateToVideoPreview = {},
+                onNavigateToExplore = {},
+                viewModel = homeViewModel(Result.success(NotePage(notes))),
+                scrollToTop = null,
+                onScrollToTopConsumed = {},
+                snackbarHostState = remember { SnackbarHostState() },
+            )
+        }
+    }
+
+    @Test
+    fun homeScreen_error() {
+        captureSettled {
+            HomeScreen(
+                // The literal app_name renders, so the goldens are unchanged by the hoist.
+                title = "Smart Photos",
+                onNavigateToNotePreview = {},
+                onNavigateToEditNote = {},
+                onNavigateToPhotoPreview = {},
+                onNavigateToVideoPreview = {},
+                onNavigateToExplore = {},
+                viewModel = homeViewModel(Result.failure(RuntimeException("Something went wrong"))),
+                scrollToTop = null,
+                onScrollToTopConsumed = {},
+                snackbarHostState = remember { SnackbarHostState() },
+            )
+        }
+    }
+}
