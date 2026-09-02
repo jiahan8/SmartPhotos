@@ -54,6 +54,11 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
+# `collectAsStateWithLifecycle`, which :app and all nine features call. Declared rather than
+# required: it reaches every one of them as a transitive of compose-ui through :core:ui's `api`, so
+# it compiled for a long time with nothing naming it -- and was versioned by the Compose BOM instead
+# of by the lifecycle pin the rest of this group shares.
+androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycleRuntimeKtx" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 # activity, not activity-compose: :core:data uses only ActivityResultLauncher and
 # IntentSenderRequest, so it has no reason to pull Compose in. Declared rather than required --

@@ -79,6 +79,10 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
             add("implementation", libs.findLibrary("androidx-material-icons-extended").get())
             add("implementation", libs.findLibrary("androidx-foundation").get())
             add("implementation", libs.findLibrary("androidx-lifecycle-runtime-ktx").get())
+            // `collectAsStateWithLifecycle`, which every one of the nine feature screens
+            // calls. It arrives transitively from compose-ui either way; declared so the
+            // lifecycle pin decides its version rather than the Compose BOM.
+            add("implementation", libs.findLibrary("androidx-lifecycle-runtime-compose").get())
             /*
              * `hiltViewModel()`, which every feature screen defaults its ViewModel parameter to.
              * This is now the only module in the build that declares it, and the only one that

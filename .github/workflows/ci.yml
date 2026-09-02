@@ -103,7 +103,13 @@ jobs:
       # testDebugUnitTest would skip them silently rather than fail. Every other module is an
       # Android library, so the unqualified testDebugUnitTest reaches it, as does lintDebug below
       # and verifyRoborazziDebug in the four modules that apply the roborazzi plugin.
+      #
+      # `!cancelled()` like every other check in this job. Without it this was the one step a
+      # failure above could skip, and the two steps immediately before it are the two most likely
+      # to be the first thing red on a dependency change -- so a broken release variant used to
+      # cost a whole extra fix-and-push cycle just to find out whether the tests also failed.
       - name: Unit tests
+        if: ${{ !cancelled() }}
         run: ./gradlew testDebugUnitTest :core:domain:test
 
       # Uploaded here, before the screenshot step below re-runs the test task with a filter and

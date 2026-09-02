@@ -156,6 +156,9 @@ dependencies {
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    // collectAsStateWithLifecycle, which MainActivity calls four times. See the note at the
+    // bottom of this block for why it went undeclared for so long.
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
@@ -306,13 +309,14 @@ dependencies {
      *   was never here for the same reason, one layer earlier -- it is the older home of the same
      *   function, and its catalog alias went too.
      *
-     * And the mirror-image case, which is not a removal but is the same rule read backwards:
-     * **lifecycle-runtime-compose is the one lifecycle artifact this build actually uses and the
-     * one nothing declares.** `collectAsStateWithLifecycle` is in thirteen files across ten
-     * modules, and the artifact reaches every one of them as a transitive of compose-ui, through
-     * :core:ui's `api`. That compiles today and is versioned by the Compose BOM rather than by
-     * `lifecycleRuntimeKtx` -- an unused declaration is cheap to carry, but an undeclared *use*
-     * breaks the day the transitive path changes.
+     * And the mirror-image case, which is the same rule read backwards and is why
+     * lifecycle-runtime-compose is now declared above. `collectAsStateWithLifecycle` is in
+     * thirteen files across ten modules -- :app and all nine features -- and for all that time the
+     * artifact arrived only as a transitive of compose-ui, through :core:ui's `api`. It compiled,
+     * so nothing complained; what it cost was a version chosen by the Compose BOM rather than by
+     * `lifecycleRuntimeKtx` like the rest of its atomic group, and a build that would have broken
+     * on the day compose-ui stopped depending on it. **An unused declaration is cheap to carry;
+     * an undeclared use is the expensive one, and only the second kind is invisible.**
      *
      * All of it arrived with code that has since moved into a module of its own. **A dependency
      * does not fail a build by being unused, so it outlives the code that wanted it unless
