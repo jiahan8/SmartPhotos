@@ -306,29 +306,6 @@ class DefaultNoteRepository @Inject constructor(
     }
 
     /**
-     * Mirrors a fetched page into Room.
-     *
-     * No longer best effort. It was, while nothing read this table for the feed and a failed cache
-     * write blanking a screen whose fetch succeeded would have been the worse trade. Home renders
-     * the mirror now, so a page that fails to land is a page the user cannot see -- and swallowing
-     * that would also let the caller advance its cursor past it, turning a lost write into a
-     * permanent hole in the feed. Failing the enclosing [safeCall] leaves the cursor where it was,
-     * so the page is retried instead.
-     */
-    /**
-     * Folds a createNote/updateNote validation rejection into an [AppError].
-     *
-     * Both functions signal every validation failure as one `invalid-argument` code and tell them
-     * apart in a structured `details.reason` payload, so this reads the payload rather than the
-     * code -- the one way it differs from how [AppError.UsernameTaken] is folded. Doing it here
-     * rather than in a ViewModel-layer mapper is what keeps `FirebaseFunctionsException` below the
-     * repository boundary, and off a feature module's classpath.
-     *
-     * An unrecognised reason is left alone: it means a malformed request no legitimate client can
-     * produce, and it should surface as the generic failure rather than as a specific message that
-     * happens to be wrong.
-     */
-    /**
      * Reads a just-created note back so it lands in the mirror.
      *
      * The client cannot build that row itself -- the id and the `created` timestamp are both
@@ -349,6 +326,19 @@ class DefaultNoteRepository @Inject constructor(
         getNote(noteId).onFailure { e -> errorHandler.logError(e) }
     }
 
+    /**
+     * Folds a createNote/updateNote validation rejection into an [AppError].
+     *
+     * Both functions signal every validation failure as one `invalid-argument` code and tell them
+     * apart in a structured `details.reason` payload, so this reads the payload rather than the
+     * code -- the one way it differs from how [AppError.UsernameTaken] is folded. Doing it here
+     * rather than in a ViewModel-layer mapper is what keeps `FirebaseFunctionsException` below the
+     * repository boundary, and off a feature module's classpath.
+     *
+     * An unrecognised reason is left alone: it means a malformed request no legitimate client can
+     * produce, and it should surface as the generic failure rather than as a specific message that
+     * happens to be wrong.
+     */
     private fun <T> Result<T>.foldNoteValidationError(): Result<T> {
         val reason = ((exceptionOrNull() as? FirebaseFunctionsException)?.details as? Map<*, *>)
             ?.get(ARG_REASON) as? String
@@ -360,6 +350,16 @@ class DefaultNoteRepository @Inject constructor(
         }
     }
 
+    /**
+     * Mirrors a fetched page into Room.
+     *
+     * No longer best effort. It was, while nothing read this table for the feed and a failed cache
+     * write blanking a screen whose fetch succeeded would have been the worse trade. Home renders
+     * the mirror now, so a page that fails to land is a page the user cannot see -- and swallowing
+     * that would also let the caller advance its cursor past it, turning a lost write into a
+     * permanent hole in the feed. Failing the enclosing [safeCall] leaves the cursor where it was,
+     * so the page is retried instead.
+     */
     private suspend fun cacheNotes(notes: List<HomeNote>) {
         if (notes.isEmpty()) return
         noteDao.upsertNotes(notes.map { it.toDatabaseNote() })
@@ -468,15 +468,16 @@ class DefaultNoteRepository @Inject constructor(
 
     override fun searchNotesStream(query: String): Flow<List<HomeNote>> =
         noteDao.getNotes().map { notes ->
-            notes.map { it.toHomeNote() }
-                .filter { note -> matchesQuery(note.text, note.mediaList, query) }
+            notes.filter { note -> matchesQuery(note.text, note.mediaList, query) }
+                .map { it.toHomeNote() }
         }
 
     override fun getFavoriteNotesStream(query: String): Flow<List<HomeNote>> =
         noteDao.getFavoriteNotes().map { notes ->
-            val homeNotes = notes.map { it.toHomeNote() }
-            if (query.isEmpty()) homeNotes
-            else homeNotes.filter { note -> matchesQuery(note.text, note.mediaList, query) }
+            val matches =
+                if (query.isBlank()) notes
+                else notes.filter { note -> matchesQuery(note.text, note.mediaList, query) }
+            matches.map { it.toHomeNote() }
         }
 
     private fun getHomeNote(

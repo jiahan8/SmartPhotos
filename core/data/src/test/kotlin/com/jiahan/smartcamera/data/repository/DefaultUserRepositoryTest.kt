@@ -8,7 +8,6 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.FirebaseFunctionsException
 import com.google.firebase.functions.HttpsCallableReference
-import com.google.firebase.functions.HttpsCallableResult
 import com.google.firebase.messaging.FirebaseMessaging
 import com.jiahan.smartcamera.domain.AppError
 import com.jiahan.smartcamera.domain.MediaUri
@@ -52,7 +51,7 @@ class DefaultUserRepositoryTest {
         val exception: FirebaseFunctionsException = mockk(relaxed = true)
         every { exception.code } returns code
         val callable: HttpsCallableReference = mockk()
-        every { callable.call(any()) } returns Tasks.forException<HttpsCallableResult>(exception)
+        every { callable.call(any()) } returns Tasks.forException(exception)
         every { functions.getHttpsCallable(any()) } returns callable
     }
 

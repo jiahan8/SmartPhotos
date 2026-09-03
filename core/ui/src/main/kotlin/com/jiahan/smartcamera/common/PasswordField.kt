@@ -1,7 +1,6 @@
 package com.jiahan.smartcamera.common
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
@@ -36,6 +35,11 @@ import com.jiahan.smartcamera.core.ui.R
  * Visibility is hoisted rather than `remember`ed: `SettingsViewModel` already keeps the three flags
  * on `SettingsDialogState.ChangePassword`, so owning it here would give the dialog two sources of
  * truth for the same boolean.
+ *
+ * [modifier] defaults to a bare `Modifier`, so every caller repeats `Modifier.fillMaxWidth()`. Do
+ * not fold that back into the default: modifiers passed by a caller *replace* the default rather
+ * than combining with it, so the first caller to pass one of its own would silently lose the width
+ * and render at its intrinsic size. This is Compose's `ModifierParameter` lint rule.
  */
 @Composable
 fun PasswordField(
@@ -44,7 +48,7 @@ fun PasswordField(
     label: String,
     visible: Boolean,
     onVisibilityChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier.fillMaxWidth(),
+    modifier: Modifier = Modifier,
     errorMessage: String? = null,
     imeAction: ImeAction = ImeAction.Next,
     keyboardActions: KeyboardActions = KeyboardActions.Default,

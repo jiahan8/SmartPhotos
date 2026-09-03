@@ -5,8 +5,7 @@ import kotlinx.serialization.Serializable
 
 /**
  * Navigation routes for the three preview screens. Routes live in the feature package that owns
- * them rather than in one central hierarchy -- see
- * [com.jiahan.smartcamera.navigation.smartPhotosNavGraph].
+ * them rather than in one central hierarchy -- see `smartPhotosNavGraph`.
  *
  * All three ViewModels read their route back with `savedStateHandle.toRoute<...>()`, so the
  * property names below are the argument names Navigation serializes -- renaming one changes both

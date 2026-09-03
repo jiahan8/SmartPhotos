@@ -145,6 +145,7 @@ fun AuthScreen(
                 label = stringResource(R.string.password),
                 visible = passwordVisible,
                 onVisibilityChange = { viewModel.updatePasswordVisibility(it) },
+                modifier = Modifier.fillMaxWidth(),
                 imeAction = ImeAction.Done,
                 keyboardActions = KeyboardActions(
                     onDone = { viewModel.submit() }

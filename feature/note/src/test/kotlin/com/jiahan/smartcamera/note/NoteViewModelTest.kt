@@ -1,7 +1,6 @@
 package com.jiahan.smartcamera.note
 
 import android.net.Uri
-import app.cash.turbine.test
 import com.jiahan.smartcamera.MainDispatcherRule
 import com.jiahan.smartcamera.data.datastore.UserPreferences
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository

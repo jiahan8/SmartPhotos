@@ -13,7 +13,7 @@ import javax.inject.Inject
  * exposes this as its own `actionError`, while [NoteShareDelegate] -- which it injects separately
  * -- reports share failures onto it. Without [ViewModelScoped] the two would get different
  * instances with different flows, and every share failure would be silently dropped by the screen
- * observing the other one. It used to be [NoteActionsDelegate] making the same argument; that class
+ * observing the other one. It used to be `NoteActionsDelegate` making the same argument; that class
  * inlined into its four callers when the Room mirror made it two lines long.
  */
 @ViewModelScoped

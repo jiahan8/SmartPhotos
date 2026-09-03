@@ -94,7 +94,10 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
              * imported by no file here. hilt-navigation-compose is the older home of
              * `hiltViewModel()` itself -- superseded by the artifact below, not additional to it.
              */
-            add("implementation", libs.findLibrary("androidx-hilt-lifecycle-viewmodel-compose").get())
+            add(
+                "implementation",
+                libs.findLibrary("androidx-hilt-lifecycle-viewmodel-compose").get()
+            )
             add("implementation", libs.findLibrary("hilt-android").get())
             add("ksp", libs.findLibrary("hilt-android-compiler").get())
             add("implementation", libs.findLibrary("kotlinx-coroutines-android").get())
@@ -180,6 +183,7 @@ private fun Project.verifyNoLateralDependencies() = afterEvaluate {
         !it.isCanBeResolved
     }.flatMap { configuration ->
         configuration.dependencies
+            .asSequence()
             .filterIsInstance<ProjectDependency>()
             .map { it.path }
             // Defensive, and kept after the filter above made it redundant: AGP puts a module's own
@@ -190,6 +194,7 @@ private fun Project.verifyNoLateralDependencies() = afterEvaluate {
             .filter { it != path }
             .filter { it.startsWith(":feature:") || it == ":core:data" }
             .map { "$it (via ${configuration.name})" }
+            .toList()
     }.distinct().sorted()
 
     if (forbidden.isNotEmpty()) {

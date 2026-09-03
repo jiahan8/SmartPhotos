@@ -16,8 +16,8 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
+import io.mockk.slot
 import io.mockk.unmockkAll
-import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -40,10 +40,9 @@ import org.robolectric.annotation.Config
  * internal [androidx.navigation.serialization.RouteDecoder] constructs a real [android.os.Bundle]
  * — that needs Robolectric's shadow to work outside a real Android runtime, hence Robolectric here.
  *
- * A plain [Application] stands in for [com.jiahan.smartcamera.MyApp] (as in
- * [com.jiahan.smartcamera.screenshot.BaseScreenshotTest]): the real one installs the Firebase App
- * Check provider in `onCreate()`, which throws under Robolectric because no default `FirebaseApp`
- * is initialized there.
+ * A plain [Application] stands in for `MyApp` (as in `BaseScreenshotTest`): the real one installs
+ * the Firebase App Check provider in `onCreate()`, which throws under Robolectric because no
+ * default `FirebaseApp` is initialized there.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(AndroidJUnit4::class)
@@ -117,11 +116,18 @@ class NotePreviewViewModelTest {
 
     @Test
     fun `init observes the row for its own note id`() = runTest {
+        // Widened from setUp's keyed stub so a wrong id is answered and then caught by the
+        // assertion. Captured rather than verified: `verify { getNoteStream(noteId) }` would call
+        // the Flow-returning method and discard the result, which is a cold flow built and never
+        // collected. Here the flow stays the stub's return value.
+        val observedNoteId = slot<String>()
+        every { noteRepository.getNoteStream(capture(observedNoteId)) } returns noteMirror
+
         createViewModel()
 
         // The old ViewModel collected every note's update event and filtered by id by hand. The
         // query is keyed, so an unrelated note's write cannot reach this screen at all.
-        verify { noteRepository.getNoteStream(noteId) }
+        assertEquals(noteId, observedNoteId.captured)
     }
 
     @Test

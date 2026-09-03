@@ -124,7 +124,8 @@ class NoteScreenTest {
             .performTextInput("My new note")
         waitForText("My new note")
 
-        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_clear_field)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_clear_field))
+            .performClick()
 
         composeTestRule.onNodeWithText(string(R.string.save)).assertIsNotEnabled()
     }
@@ -172,7 +173,8 @@ class NoteScreenTest {
                 .fetchSemanticsNodes().isNotEmpty()
         }
 
-        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_note_photo)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_note_photo))
+            .performClick()
 
         assertEquals("https://example.com/photo.jpg", navigatedToPhotoPreviewUri)
     }

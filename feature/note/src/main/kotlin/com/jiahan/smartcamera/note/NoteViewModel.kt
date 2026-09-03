@@ -3,8 +3,6 @@ package com.jiahan.smartcamera.note
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jiahan.smartcamera.feature.note.R
-import com.jiahan.smartcamera.core.common.R as CommonR
 import com.jiahan.smartcamera.data.datastore.UserPreferences
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
@@ -29,6 +27,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.jiahan.smartcamera.core.common.R as CommonR
 
 sealed interface UploadStatus {
     data object Idle : UploadStatus
@@ -176,6 +175,7 @@ class NoteViewModel @Inject constructor(
                 postTextError = when {
                     text.length > MAX_POST_TEXT_LENGTH ->
                         resourceProvider.getString(CommonR.string.note_validation)
+
                     else -> null
                 }
             )
@@ -189,18 +189,23 @@ class NoteViewModel @Inject constructor(
         viewModelScope.launch {
             noteRepository.buildLocalMediaDetails(mediaUriList)
                 .onSuccess { newMediaDetailList ->
-                    val combinedMediaList = newMediaDetailList + _uiState.value.mediaList
-                    if (combinedMediaList.size > MAX_NOTE_MEDIA_ITEMS) {
-                        _uiState.update {
-                            it.copy(
+                    // Combined inside `update` rather than from a `_uiState.value` read taken
+                    // before it: this runs after a suspension, and each call to this function
+                    // launches its own coroutine, so two picks landing together would otherwise
+                    // both start from the same base list and the second would drop the first's
+                    // additions.
+                    _uiState.update { state ->
+                        val combinedMediaList = newMediaDetailList + state.mediaList
+                        if (combinedMediaList.size > MAX_NOTE_MEDIA_ITEMS) {
+                            state.copy(
                                 mediaList = combinedMediaList.take(MAX_NOTE_MEDIA_ITEMS),
                                 uploadStatus = UploadStatus.Error(
                                     resourceProvider.getString(CommonR.string.note_media_limit)
                                 )
                             )
+                        } else {
+                            state.copy(mediaList = combinedMediaList)
                         }
-                    } else {
-                        _uiState.update { it.copy(mediaList = combinedMediaList) }
                     }
                 }
                 .onFailure { e -> errorHandler.logError(e) }
@@ -208,11 +213,12 @@ class NoteViewModel @Inject constructor(
     }
 
     fun removeUriFromList(index: Int) {
-        val currentList = _uiState.value.mediaList
-        if (index >= 0 && index < currentList.size) {
-            val newList = currentList.toMutableList()
-            newList.removeAt(index)
-            _uiState.update { it.copy(mediaList = newList) }
+        _uiState.update { state ->
+            if (index in state.mediaList.indices) {
+                state.copy(mediaList = state.mediaList.filterIndexed { i, _ -> i != index })
+            } else {
+                state
+            }
         }
     }
 

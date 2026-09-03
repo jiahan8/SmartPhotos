@@ -7,7 +7,7 @@ package com.jiahan.smartcamera.util
  *
  * Deliberately free of Android and Firebase types, so injecting it into a repository imports no
  * platform dependency. How errors are actually recorded, and where the fallback string comes
- * from, is [DefaultErrorHandler]'s business.
+ * from, is `DefaultErrorHandler`'s business.
  */
 interface ErrorHandler {
 

@@ -146,6 +146,7 @@ fun SettingsScreen(
                             label = stringResource(R.string.current_password),
                             visible = dialogState.currentPasswordVisible,
                             onVisibilityChange = { viewModel.updateCurrentPasswordVisibility(it) },
+                            modifier = Modifier.fillMaxWidth(),
                         )
                         PasswordField(
                             value = dialogState.newPassword,
@@ -153,6 +154,7 @@ fun SettingsScreen(
                             label = stringResource(R.string.new_password),
                             visible = dialogState.newPasswordVisible,
                             onVisibilityChange = { viewModel.updateNewPasswordVisibility(it) },
+                            modifier = Modifier.fillMaxWidth(),
                             errorMessage = dialogState.newPasswordErrorMessage,
                         )
                         PasswordField(
@@ -161,6 +163,7 @@ fun SettingsScreen(
                             label = stringResource(R.string.confirm_new_password),
                             visible = dialogState.confirmNewPasswordVisible,
                             onVisibilityChange = { viewModel.updateConfirmNewPasswordVisibility(it) },
+                            modifier = Modifier.fillMaxWidth(),
                             errorMessage = dialogState.confirmNewPasswordErrorMessage,
                             imeAction = ImeAction.Done,
                             keyboardActions = KeyboardActions(

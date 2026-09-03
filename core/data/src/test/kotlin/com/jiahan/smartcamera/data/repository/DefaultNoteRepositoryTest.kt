@@ -144,7 +144,12 @@ class DefaultNoteRepositoryTest {
         every { authorSnapshot.getString(FIELD_PROFILE_PICTURE) } returns null
 
         // getNotes: user/{uid}/note orderBy(created).limit(pageSize), returning the one note above.
-        every { noteCollection.orderBy(FIELD_CREATED, Query.Direction.DESCENDING) } returns feedQuery
+        every {
+            noteCollection.orderBy(
+                FIELD_CREATED,
+                Query.Direction.DESCENDING
+            )
+        } returns feedQuery
         every { feedQuery.limit(any()) } returns limitedQuery
         every { limitedQuery.get() } returns Tasks.forResult(feedSnapshot)
         every { feedSnapshot.documents } returns listOf(noteSnapshot)
@@ -324,13 +329,17 @@ class DefaultNoteRepositoryTest {
 
     @Test
     fun `getNotesStream passes the window straight through to the DAO`() = runTest(dispatcher) {
-        every { noteDao.getNotes(any<Int>()) } returns flowOf(emptyList())
+        // Captured rather than verified: `verify { noteDao.getNotes(30) }` would call the
+        // Flow-returning DAO method and discard the result, which is a cold flow built and never
+        // collected. Asserting the captured argument keeps the flow as the stub's return value.
+        val limit = slot<Int>()
+        every { noteDao.getNotes(capture(limit)) } returns flowOf(emptyList())
 
         repository.getNotesStream(limit = 30).first()
 
         // The feed's window is the query's LIMIT: the repository holds no pagination state of its
         // own, so a caller asking for 30 must not silently get the whole table.
-        verify { noteDao.getNotes(30) }
+        assertEquals(30, limit.captured)
     }
 
     @Test
@@ -358,6 +367,30 @@ class DefaultNoteRepositoryTest {
 
         assertEquals("a", results.single().noteId)
     }
+
+    @Test
+    fun `getFavoriteNotesStream filters the mirror by text`() = runTest(dispatcher) {
+        every { noteDao.getFavoriteNotes() } returns flowOf(favoriteRows())
+
+        val results = repository.getFavoriteNotesStream("grocery").first()
+
+        assertEquals("a", results.single().noteId)
+    }
+
+    @Test
+    fun `getFavoriteNotesStream treats a whitespace-only query as no query`() =
+        runTest(dispatcher) {
+            every { noteDao.getFavoriteNotes() } returns flowOf(favoriteRows())
+
+            val results = repository.getFavoriteNotesStream("   ").first()
+
+            // Blank, not empty. FavoriteViewModel passes the search field through untrimmed, and
+            // the screen picks its empty-state copy with isBlank, so a query of spaces has to mean
+            // "no query" here too. Checking isEmpty instead sent "   " into matchesQuery as a
+            // literal substring, which here matches nothing -- the screen then rendered "favorite
+            // a note to see it here" over a mirror that was full of favorites.
+            assertEquals(listOf("a", "b"), results.map { it.noteId })
+        }
 
     @Test
     fun `searchNotes mirrors its results into Room`() = runTest(dispatcher) {
@@ -414,6 +447,11 @@ class DefaultNoteRepositoryTest {
         assertTrue(result.isSuccess)
         assertEquals(NOTE_ID, captureCachedNotes().single().noteId)
     }
+
+    private fun favoriteRows() = listOf(
+        homeNote(favorite = true).copy(noteId = "a", text = "grocery list").toDatabaseNote(),
+        homeNote(favorite = true).copy(noteId = "b", text = "errands").toDatabaseNote(),
+    )
 
     private fun homeNote(favorite: Boolean) = HomeNote(
         noteId = NOTE_ID,

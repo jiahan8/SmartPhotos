@@ -9,8 +9,7 @@ import kotlinx.coroutines.flow.Flow
  * Data-layer contract for Play's in-app update flow.
  *
  * Play Core types stay behind this interface: callers see [AppUpdateState] and never touch
- * `AppUpdateResult`/`AppUpdateManager`, so [com.jiahan.smartcamera.MainViewModel] stays unit
- * testable against a fake.
+ * `AppUpdateResult`/`AppUpdateManager`, so `MainViewModel` stays unit testable against a fake.
  *
  * The one platform handle that does cross the boundary is the [ActivityResultLauncher] in
  * [startFlexibleUpdate] — Play offers no way to start its consent flow without one, and only an

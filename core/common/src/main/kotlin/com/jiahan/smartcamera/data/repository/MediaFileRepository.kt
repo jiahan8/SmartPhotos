@@ -19,7 +19,7 @@ import android.net.Uri
  *
  * Those Android types are also why this sits in :core:common rather than beside the other
  * contracts in :core:domain, which has no Android plugin. It lived in :core:data next to
- * [DefaultMediaFileRepository] until `:feature:profile` was extracted and needed to inject it: a
+ * `DefaultMediaFileRepository` until `:feature:profile` was extracted and needed to inject it: a
  * feature module must not depend on :core:data, so the interface came down to the module both
  * sides can see while the implementation stayed put. `AppUpdateRepository` is the other interface
  * stranded that way and has *not* followed, because nothing below :app injects it — move it if and

@@ -101,8 +101,9 @@ class ExploreViewModel @Inject constructor(
         val query = _uiState.value.searchQuery.trim()
         if (query.isBlank()) return
 
-        searchReloadJob?.cancel()
+        val previousSearchReloadJob = searchReloadJob
         searchReloadJob = viewModelScope.launch {
+            previousSearchReloadJob?.cancelAndJoin()
             searchLoadMoreJob?.cancelAndJoin()
             lastSubmittedQuery = query
             searchCurrentPage = UNSPLASH_FIRST_PAGE
@@ -145,8 +146,9 @@ class ExploreViewModel @Inject constructor(
      * reset invalidates, so letting it land would splice a stale window into the new list.
      */
     private fun reload(showRefreshIndicator: Boolean) {
-        reloadJob?.cancel()
+        val previousReloadJob = reloadJob
         reloadJob = viewModelScope.launch {
+            previousReloadJob?.cancelAndJoin()
             loadMoreJob?.cancelAndJoin()
             _uiState.update {
                 it.copy(isRefreshing = showRefreshIndicator, isLoadingMore = false)

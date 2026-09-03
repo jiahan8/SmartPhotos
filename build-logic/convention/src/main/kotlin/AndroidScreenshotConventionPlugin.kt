@@ -55,9 +55,8 @@ import org.gradle.kotlin.dsl.dependencies
  *   write it.
  *
  * Note that `roborazzi-junit-rule` is not here either, and is no longer declared anywhere: it
- * supplies `RoborazziRule`, and [com.jiahan.smartcamera.screenshot.BaseScreenshotTest] calls
- * `captureRoboImage()` directly instead. Three modules carried it because the first one to capture
- * a screenshot did.
+ * supplies `RoborazziRule`, and `BaseScreenshotTest` calls `captureRoboImage()` directly instead.
+ * Three modules carried it because the first one to capture a screenshot did.
  */
 class AndroidScreenshotConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) = with(target) {

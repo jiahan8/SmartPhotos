@@ -35,8 +35,8 @@ import org.junit.runner.RunWith
  * instrumentation runner. The [AndroidJUnit4] runner resolves to Robolectric on the JVM and to the
  * real Android runner on-device. That source set came with the test when auth became a module:
  * :app is not the only place it can live, and leaving it behind would have put a test above the
- * code it exercises. [SettingsScreenTest][com.jiahan.smartcamera.settings.SettingsScreenTest] is
- * androidTest-only by comparison, which is the weaker of the two arrangements.
+ * code it exercises. `SettingsScreenTest` is androidTest-only by comparison, which is the weaker
+ * of the two arrangements.
  */
 @RunWith(AndroidJUnit4::class)
 class AuthScreenTest {
@@ -119,7 +119,8 @@ class AuthScreenTest {
             composeTestRule.onNodeWithText(string(CommonR.string.name)).performTextInput(name)
         }
         if (username.isNotEmpty()) {
-            composeTestRule.onNodeWithText(string(CommonR.string.username)).performTextInput(username)
+            composeTestRule.onNodeWithText(string(CommonR.string.username))
+                .performTextInput(username)
         }
         composeTestRule.onNodeWithText(string(CommonR.string.email)).performTextInput(email)
         composeTestRule.onNodeWithText(string(R.string.password)).performTextInput(password)
@@ -205,7 +206,8 @@ class AuthScreenTest {
     fun typingEmail_updatesViewModelState() {
         val viewModel = launchAuthScreen()
 
-        composeTestRule.onNodeWithText(string(CommonR.string.email)).performTextInput("user@test.com")
+        composeTestRule.onNodeWithText(string(CommonR.string.email))
+            .performTextInput("user@test.com")
         composeTestRule.waitForIdle()
 
         assertEquals("user@test.com", viewModel.uiState.value.email)
@@ -216,7 +218,8 @@ class AuthScreenTest {
         // Defaults: signIn success, email verified, getUser success -> should navigate home.
         launchAuthScreen()
 
-        composeTestRule.onNodeWithText(string(CommonR.string.email)).performTextInput("user@test.com")
+        composeTestRule.onNodeWithText(string(CommonR.string.email))
+            .performTextInput("user@test.com")
         composeTestRule.onNodeWithText(string(R.string.password)).performTextInput("password123")
         composeTestRule.onNodeWithText(string(R.string.login)).performScrollTo().performClick()
 
@@ -232,7 +235,8 @@ class AuthScreenTest {
         authRepository.signInResult = Result.failure(RuntimeException(errorMessage))
         launchAuthScreen()
 
-        composeTestRule.onNodeWithText(string(CommonR.string.email)).performTextInput("user@test.com")
+        composeTestRule.onNodeWithText(string(CommonR.string.email))
+            .performTextInput("user@test.com")
         composeTestRule.onNodeWithText(string(R.string.password)).performTextInput("wrong-password")
         composeTestRule.onNodeWithText(string(R.string.login)).performScrollTo().performClick()
 
@@ -250,7 +254,8 @@ class AuthScreenTest {
         authRepository.checkEmailVerifiedResult = Result.success(false)
         launchAuthScreen()
 
-        composeTestRule.onNodeWithText(string(CommonR.string.email)).performTextInput("user@test.com")
+        composeTestRule.onNodeWithText(string(CommonR.string.email))
+            .performTextInput("user@test.com")
         composeTestRule.onNodeWithText(string(R.string.password)).performTextInput("password123")
         composeTestRule.onNodeWithText(string(R.string.login)).performScrollTo().performClick()
 

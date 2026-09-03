@@ -3,7 +3,6 @@ package com.jiahan.smartcamera.note
 import android.app.Application
 import androidx.lifecycle.SavedStateHandle
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import app.cash.turbine.test
 import com.jiahan.smartcamera.MainDispatcherRule
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
@@ -39,10 +38,9 @@ import org.robolectric.annotation.Config
  * [androidx.navigation.serialization.RouteDecoder] constructs a real [android.os.Bundle] — that
  * needs Robolectric's shadow to work outside a real Android runtime, hence Robolectric here.
  *
- * A plain [Application] stands in for [com.jiahan.smartcamera.MyApp] (as in
- * [com.jiahan.smartcamera.screenshot.BaseScreenshotTest]): the real one installs the Firebase App
- * Check provider in `onCreate()`, which throws under Robolectric because no default `FirebaseApp`
- * is initialized there.
+ * A plain [Application] stands in for `MyApp` (as in `BaseScreenshotTest`): the real one installs
+ * the Firebase App Check provider in `onCreate()`, which throws under Robolectric because no
+ * default `FirebaseApp` is initialized there.
  */
 @RunWith(AndroidJUnit4::class)
 @Config(application = Application::class)
