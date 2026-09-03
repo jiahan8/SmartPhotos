@@ -1,340 +1,245 @@
 # SmartPhotos
 
 Android app (Kotlin) for organizing photos/notes with ML-based tagging. Firebase backend + a
-Node.js Cloud Functions project live in `functions/`.
+Node.js Cloud Functions project in `functions/`. Sixteen Gradle modules, plus `build-logic/` — an
+included build holding the six convention plugins.
 
-Sixteen Gradle modules, plus an included build for the shared Gradle config:
+**This file is loaded into every agent conversation, so it states rules, not reasoning. When a rule
+here has a longer story behind it — the incident that produced it, the alternative that was tried —
+that story is in [ARCHITECTURE.md](ARCHITECTURE.md).**
 
-- `:app` — UI, ViewModels, navigation, and app-level plumbing: `MyApp`, the messaging service,
-  `DefaultErrorHandler`/`ResourceProviderImpl`, `AppModule`. Hosts the NavHost, supplies each
-  screen's navigation lambdas, and installs the Hilt bindings — no feature screen renders here.
-  Sources under `app/src/main/java/com/jiahan/smartcamera/`.
-- `:core:domain` — pure Kotlin JVM (no Android Gradle plugin, no Hilt/KSP): domain models, the
-  repository *interfaces*, `safeCall`, the `ErrorHandler` interface, DI qualifiers. Sources under
-  `core/domain/src/main/kotlin/com/jiahan/smartcamera/`.
-- `:core:common` — an Android library, deliberately not Compose: `validateUsername`/
-  `validateDisplayName` and their strings, the `MediaFileRepository` contract, `util/MediaUriExt.kt`,
-  and the two `@ViewModelScoped` classes every feature module shares — `note/NoteShareDelegate.kt`
-  and `note/NoteErrorReporter.kt` (why this module has Hilt/KSP). Rule: an Android-typed *contract*
-  belongs here; its implementation stays in `:core:data`. This is the module closest to needing a
-  split — if an unrelated fifth tenant lands, split it before it needs a name like `:core:misc`.
-  Sources under `core/common/src/main/kotlin/com/jiahan/smartcamera/`.
-- `:core:data` — an Android library holding every implementation of a `:core:domain`/`:core:common`
-  contract: the `Default*`/`Firebase*` repositories, the Room database, DataStore wiring,
-  `FirebaseModule`, `DataModule`. Sources under `core/data/src/main/kotlin/com/jiahan/smartcamera/`.
-- `:core:ui` — an Android library, shared Compose vocabulary: `common/` (14 composables),
-  `ui/theme/`, and `util/DateTimeUtils.kt`/`FlowUtils.kt`. Sources under
-  `core/ui/src/main/kotlin/com/jiahan/smartcamera/`.
-- `:feature:explore` / `:favorite` / `:settings` / `:auth` / `:profile` / `:search` / `:home` /
-  `:preview` / `:note` — one Android library per screen: its Compose screen(s), ViewModel(s), route,
-  and tests. Each depends on `:core:*` only — never on another feature, never on `:core:data`
-  directly (the repositories a ViewModel injects are interfaces, bound in `:app`), never on `:app`.
-  Notable exceptions worth knowing: `:feature:preview` is the only module carrying ExoPlayer/Coil
-  (the only screens that play video or load a full-screen image); `:feature:note` owns
-  `IncomingShareHandler`, read downward by `:app`'s `AppModule`/`MainViewModel`; `:feature:search`
-  owns `SEARCH_DEEP_LINK_URI_PATTERN`, read downward by the nav graph. Sources under
-  `feature/<name>/src/main/kotlin/com/jiahan/smartcamera/`.
-- `:core:testing` — an Android library of shared test fixtures: nine `fake/` repository doubles and
-  `MainDispatcherRule`. Taken as `testImplementation` (`androidTestImplementation` too wherever a
-  `sharedTest/` runs in both), so nothing in it reaches a production classpath. It depends on
-  `:core:domain` and `:core:common` and **deliberately not on `:core:data`** — every fake implements
-  an interface, and those interfaces all live in the two modules above precisely so a test never
-  resolves a `Default*`. That edge did exist, unused, and being `api` it put Firestore, Room,
-  DataStore and Play app-update on the unit-test compile classpath of all nine features, so "no
-  feature depends on `:core:data`" held for main sources and quietly failed for tests. Removing it
-  also freed `:core:data` to take this module on `testImplementation` if a suite there ever wants
-  the fakes — with the edge in place that was a cycle. A fixtures module is a supplier to the data
-  layer or a consumer of it, never both. A **regular library module, not AGP's `testFixtures`** —
-  that was tried and doesn't work, since the Kotlin Android plugin generates no Kotlin compilation
-  for the testFixtures variant. Its dependencies are `api` throughout: a fixtures module's API
-  surface is *other* modules' types (`FakeNoteRepository` **is** a `NoteRepository`).
-- `:core:screenshot-testing` — an Android library holding `BaseScreenshotTest` and the four
-  artifacts it names (Robolectric, Roborazzi ×2, compose `ui-test-junit4`). Nobody declares it: the
-  `smartphotos.android.screenshot` convention adds it on `testImplementation`, so applying that
-  plugin is the whole of what makes a module a screenshot module. `api` throughout, same rule as
-  `:core:testing`.
-  **This was part of `:core:testing` and the split is the same fix as the `:core:data` edge above,
-  one layer over.** Because everything in a fixtures module is `api`, the harness's Roborazzi and
-  Robolectric artifacts landed on the unit-test compile classpath of all nine features plus `:app`
-  and `:core:ui` — `:feature:explore`, which captures nothing and has no androidTest source set at
-  all, resolved the entire compose ui-test stack. Only four modules capture goldens, and the tell
-  that nobody was relying on the leak is that every module wanting Robolectric for a
-  *non*-screenshot suite (`:app`, `:core:data`, `:feature:auth`, `:feature:note`,
-  `:feature:preview`) already declared it itself. Keep the two apart: fixtures every test module
-  wants, harness only the capturing four.
-- `build-logic/` — not a module but an included build, holding the six convention plugins
-  (`smartphotos.android.application`, `.android.library`, `.android.compose`, `.android.feature`,
-  `.android.screenshot`, `.jvm.library`); see [Convention plugins](#convention-plugins).
+| Module | What lives there |
+| --- | --- |
+| `:app` | `MainActivity`, `MyApp`, `MainViewModel`, `SmartPhotosApp`, `navigation/`, the messaging service, `di/AppModule.kt`, `util/`. Hosts the NavHost, supplies each screen's navigation lambdas, installs the Hilt bindings — **no feature screen renders here**. |
+| `:core:domain` | Pure Kotlin JVM (no AGP, no Hilt/KSP): domain models, repository *interfaces*, `safeCall`, the `ErrorHandler` interface, DI qualifiers. |
+| `:core:common` | Android library, deliberately not Compose: `validateUsername`/`validateDisplayName` + their strings, the `MediaFileRepository` contract, `util/MediaUriExt.kt`, and the two `@ViewModelScoped` classes every feature shares (`NoteShareDelegate`, `NoteErrorReporter` — why it has Hilt/KSP). |
+| `:core:data` | Android library holding every implementation of a `:core:domain`/`:core:common` contract: the `Default*`/`Firebase*` repositories, Room, DataStore, `FirebaseModule`, `DataModule`. |
+| `:core:ui` | Android library, shared Compose vocabulary: `common/` (14 composables), `ui/theme/`, `util/DateTimeUtils.kt`/`FlowUtils.kt`. |
+| `:feature:*` | One Android library per screen — `home`, `search`, `note`, `preview`, `favorite`, `profile`, `settings`, `auth`, `explore` — holding its Compose screen(s), ViewModel(s), route and tests. |
+| `:core:testing` | Shared test fixtures: nine `fake/` repository doubles + `MainDispatcherRule`. `testImplementation` only (plus `androidTestImplementation` wherever a `sharedTest/` runs in both). |
+| `:core:screenshot-testing` | `BaseScreenshotTest` + the four artifacts it names (Robolectric, Roborazzi ×2, compose `ui-test-junit4`). No build file declares it — `smartphotos.android.screenshot` pulls it in. |
 
-Kotlin package names are deliberately identical across modules (`com.jiahan.smartcamera.util`,
-`.di`, `.common`, `.data.repository`, `.data.datastore`, …), so a type moving between modules is
-usually a pure `git mv` with no import churn. Feature module *namespaces* don't follow that rule,
-though: they're `com.jiahan.smartcamera.feature.<name>` even though the Kotlin packages stayed bare
-(`.explore`, `.auth`, …), so each feature's `R` is reached as `import
-com.jiahan.smartcamera.feature.<name>.R` — including from a file inside that module, since its own
-`R` is not in its own Kotlin package. `:core:common` and `:core:ui` are the same shape:
-`com.jiahan.smartcamera.core.common.R` / `com.jiahan.smartcamera.core.ui.R`.
+Sources sit at `<module>/src/main/kotlin/com/jiahan/smartcamera/` (`:app` uses `java/`).
 
-Dependency arrows run one way: `:app` → `:core:data` → `:core:domain`; `:app` → `:core:ui` →
-`:core:domain`; `:app` → `:core:data` → `:core:common` → `:core:domain`; `:app` → each `:feature:*`
-→ the `:core` libraries it needs. `:core:testing` and `:core:screenshot-testing` hang off test
-classpaths only. No feature module depends on another, and none reaches `:core:data` — and that is
-**enforced, not just documented**: `smartphotos.android.feature` fails configuration with a named
-error if a feature declares either edge, scanning every declaration bucket rather than only the
-compile ones, because the one violation this build actually shipped (`:core:testing` → `:core:data`)
-lived on a test classpath. Inspect a graph with `./gradlew :feature:profile:dependencies
---configuration debugCompileClasspath`. Nothing depends on `:app`, so a repository implementation
-can never reach a ViewModel, an `:app` `R` string, or `BuildConfig`. `:core:ui` and `:core:data` are
-siblings — neither depends on the other.
+### Module rules
+
+- **An Android-typed *contract* goes in `:core:common`; its implementation stays in `:core:data`.**
+  `:core:common` is the module closest to needing a split — if an unrelated fifth tenant lands,
+  split it before it needs a name like `:core:misc`.
+- **Neither fixtures module may depend on `:core:data`**, and both are `api` throughout (a fixtures
+  module's API surface is *other* modules' types — `FakeNoteRepository` **is** a `NoteRepository`).
+  Every fake implements an interface, and those interfaces live in `:core:domain`/`:core:common`
+  precisely so a test never resolves a `Default*`. **A fixtures module is a supplier to the data
+  layer or a consumer of it, never both.**
+- **Keep the two apart:** `:core:testing` is fixtures every test module wants,
+  `:core:screenshot-testing` a harness only the four capturing modules want. Both are **regular
+  library modules, not AGP's `testFixtures`** — that was tried and doesn't work, since the Kotlin
+  Android plugin generates no Kotlin compilation for that variant.
+
+### Dependency rules
+
+Arrows run one way: `:app` → `:core:data` → `:core:common` → `:core:domain`; `:app` → `:core:ui` →
+`:core:domain`; `:app` → each `:feature:*` → the `:core` libraries it needs. `:core:ui` and
+`:core:data` are siblings. Nothing depends on `:app`, so a repository implementation can never reach
+a ViewModel, an `:app` `R` string, or `BuildConfig`. The fixtures modules hang off test classpaths
+only. Inspect a graph with `./gradlew :feature:profile:dependencies --configuration
+debugCompileClasspath`.
+
+**No feature depends on another feature or on `:core:data` — enforced at configuration time**, not
+just documented: `smartphotos.android.feature` fails with a named error, scanning every declaration
+bucket rather than only the compile ones. Three feature edges are worth knowing: `:feature:preview`
+is the only module carrying ExoPlayer/Coil (the only screens that play video or load a full-screen
+image); `:feature:note` owns `IncomingShareHandler` and `:feature:search` owns
+`SEARCH_DEEP_LINK_URI_PATTERN`, both read *downward* by `:app`.
+
+**Kotlin package names are identical across modules** (`com.jiahan.smartcamera.util`, `.di`,
+`.data.repository`, …), so a type moving between modules is usually a pure `git mv` with no import
+churn. Namespaces are not: a feature's namespace is `com.jiahan.smartcamera.feature.<name>` while
+its Kotlin packages stayed bare, so its own `R` is reached as `import
+com.jiahan.smartcamera.feature.<name>.R` — including from a file inside that module. `:core:common`
+and `:core:ui` are the same shape (`com.jiahan.smartcamera.core.common.R` / `.core.ui.R`).
 
 ## Build, test, lint
 
 Run from the repo root (Gradle wrapper):
 
-- Build debug APK: `./gradlew assembleDebug`
-- Unit tests (JVM, Robolectric-backed): `./gradlew testDebugUnitTest :core:domain:test`
-  - Both tasks: `:core:domain` is a plain Kotlin JVM module, so its tests run under `test`, not the
-    Android-variant `testDebugUnitTest`, which every other (Android-library) module already runs
-    under, as do `lintDebug` and `connectedDebugAndroidTest`. 417 tests total across 14 modules
-    (`:core:testing` and `:core:screenshot-testing` have no unit tests of their own — they *are*
-    the fixtures and the harness).
-  - Single class: `--tests "com.jiahan.smartcamera.home.HomeViewModelTest"`
-  - Single method: `--tests "com.jiahan.smartcamera.home.HomeViewModelTest.methodName"`
-  - Assert on a settled `StateFlow` by reading `.value`. Reach for
-    [Turbine](https://github.com/cashapp/turbine) (`.test { ... }`) when the *sequence* matters, or
-    for a `SharedFlow` event (no `.value` to read at all). Never hand-roll a collector into a list.
-  - ViewModel tests replace `Dispatchers.Main` with `MainDispatcherRule` (`:core:testing`) —
-    `@get:Rule val mainDispatcherRule = MainDispatcherRule()`, since `viewModelScope` dispatches to
-    Main. Defaults to `UnconfinedTestDispatcher`; pass `StandardTestDispatcher` when a test needs
-    virtual-time control (e.g. a debounce).
-- Screenshot tests (Roborazzi) live beside the composable they capture, in four modules today:
-  `:core:ui`, `:feature:home`, `:feature:search`, `:feature:settings` — and in none of them by
-  accident, since a golden is only meaningful next to the composable it pins. Each keeps its own
-  goldens under its own `src/test/screenshots/`; the shared harness (`BaseScreenshotTest`) is in
-  `:core:screenshot-testing`. A module capturing them applies `smartphotos.android.screenshot` and
-  nothing else — that plugin brings the Roborazzi tasks, the VCS-tracked `outputDir`,
-  `unitTests.isIncludeAndroidResources` **and the harness module itself** on `testImplementation`,
-  which is why no build file names `:core:screenshot-testing`. (It also fails configuration if
-  `:core:screenshot-testing` applies it, since that edge would be a self-dependency.) It still
-  needs
-  `debugImplementation(libs.androidx.ui.test.manifest)` on top, which the feature convention
-  already supplies to a `:feature:*` module, and `:core:ui` declares for itself — without it
-  `createComposeRule()` fails to resolve an activity. `testDebugUnitTest` *runs* these tests but does
-  **not** diff them against goldens — only `./gradlew verifyRoborazziDebug` does (what CI runs before
-  pushing UI changes). Re-record with `./gradlew recordRoborazziDebug` when a diff reflects an
-  intended change, and inspect the new PNGs before committing.
-- **Moving a type between modules can leave KSP's incremental state stale**, producing a wall of
-  `InjectProcessingStep was unable to process 'X(…,Foo,…)' because 'Foo' could not be resolved` from
-  `:app:kspDebugKotlin` for a type that's actually on the classpath and compiles fine on its own.
-  `./gradlew clean` fixes it — check this before assuming an `api`/`implementation`
-  misconfiguration (see [Conventions](#conventions)); the tell is that the unresolved name is
-  unqualified while its neighbours from the same module are fully qualified.
-- **`./gradlew compileDebugAndroidTestKotlin` catches Hilt graph errors nothing else does** —
-  `assembleDebug`, unit tests, Roborazzi and lint never compile androidTest sources, and
-  `di/HiltGraphSmokeTest.kt`'s member injection walks the binding graph furthest. Run it after any
-  change to a module's dependencies or an `@Inject` constructor, especially without a device handy.
-  **CI now runs it** as its own step, so the gap is closed for anything reaching `main` — the same
-  treatment `assembleRelease` got, for the same reason.
-- **`./gradlew assembleRelease` is the only thing that compiles the release variant.** Every other
-  check — `assembleDebug`, the unit tests, Roborazzi, `lintDebug` — compiles debug, so a dependency
-  that reaches a module only through `debugImplementation` compiles clean everywhere else and fails
-  here. That is not hypothetical: it is exactly how `:feature:auth`'s `@Preview` broke
-  `compileReleaseKotlin` (see the note in its build file), unnoticed because CI built no release
-  either. **CI now runs it**, so the gap is closed for anything that reaches `main` — but run it
-  locally after changing any module's dependency block, alongside `compileDebugAndroidTestKotlin`
-  above. Between them they cover the two variants nothing else does.
-- Instrumented tests (`./gradlew connectedDebugAndroidTest`) need a device/emulator; live in ten
-  modules — `app/`, `core/data/`, and every `:feature:*` except `:feature:explore`. `:app` uses a
-  custom `HiltTestRunner`, the AndroidX Test Orchestrator, and `clearPackageData=true` for hermetic
-  runs — don't remove these without understanding why. The library modules declare no
-  `testInstrumentationRunner` of their own; their suites build a ViewModel from `:core:testing`'s
-  fakes and inject nothing.
-  - **`sharedTest/` is the arrangement to copy for a new screen test.** A Compose behaviour suite
-    placed there compiles into *both* the unit-test and androidTest source sets, so it runs on the
-    JVM under Robolectric and on-device, written once — `:feature:home`'s `HomeScreenTest` and
-    `:feature:auth`'s `AuthScreenTest` do this (two `sourceSets` lines plus
-    `unitTests.isIncludeAndroidResources = true`). But check an existing androidTest-only suite's own
-    note before promoting it: `ProfileScreenTest` is device-only because its bottom-anchored save
-    button and inline validation text depend on real viewport/scroll behaviour, and moving it to
-    `sharedTest` confirmed exactly that (three of five tests passed under Robolectric, two failed).
-  - The same suite also runs on Firebase Test Lab's device farm via `./scripts/run-test-lab.sh`
-    (needs the `gcloud` CLI, auth, and the Blaze plan).
-- Distribute a debug build via Firebase App Distribution: `firebase login` once, then
-  `./gradlew assembleDebug appDistributionUploadDebug` (the `testers` group must exist under
-  Firebase console > App Distribution first).
-- Cloud Functions (`functions/`, Node 24): `npm --prefix functions run lint` (eslint, google
-  config). `npm --prefix functions run serve` / `deploy` for emulate/deploy (needs Firebase CLI auth).
+| Task | Command |
+| --- | --- |
+| Debug APK | `./gradlew assembleDebug` |
+| Unit tests (417 across 14 modules) | `./gradlew testDebugUnitTest :core:domain:test` |
+| Hilt graph + androidTest sources | `./gradlew compileDebugAndroidTestKotlin` |
+| Release variant | `./gradlew assembleRelease` |
+| Screenshot diff / re-record | `./gradlew verifyRoborazziDebug` / `recordRoborazziDebug` |
+| Lint | `./gradlew lintDebug` |
+| Instrumented (needs a device) | `./gradlew connectedDebugAndroidTest` |
+| Cloud Functions lint (Node 24) | `npm --prefix functions run lint` |
+
+- **Run `compileDebugAndroidTestKotlin` and `assembleRelease` after changing any module's dependency
+  block or an `@Inject` constructor.** They cover the two variants nothing else reaches: the first
+  is the only thing compiling androidTest sources (so the only thing catching a Hilt graph error,
+  via `di/HiltGraphSmokeTest.kt`), the second the only thing compiling release (so the only thing
+  catching a dependency that reaches a module through `debugImplementation` alone). CI runs both.
+- **A wall of `InjectProcessingStep was unable to process 'X(…,Foo,…)' because 'Foo' could not be
+  resolved` after moving a type between modules is stale KSP state, not a dependency bug.**
+  `./gradlew clean` fixes it. The tell is that the unresolved name is unqualified while its
+  neighbours from the same module are fully qualified; check this before assuming an
+  `api`/`implementation` misconfiguration (see [Conventions](#conventions)).
+- Debug build via Firebase App Distribution: `firebase login` once, then `./gradlew assembleDebug
+  appDistributionUploadDebug` (the `testers` group must exist in the Firebase console first).
+  Cloud Functions: `npm --prefix functions run serve` / `deploy` (needs Firebase CLI auth).
+
+### Unit tests
+
+`:core:domain` is a plain Kotlin JVM module, so its tests run under `test`, not the Android-variant
+`testDebugUnitTest` every other module uses (as do `lintDebug` and `connectedDebugAndroidTest`) —
+hence both tasks above. `:core:testing` and `:core:screenshot-testing` have no tests of their own.
+
+- Single class: `--tests "com.jiahan.smartcamera.home.HomeViewModelTest"`; single method: append
+  `.methodName`.
+- **Assert on a settled `StateFlow` by reading `.value`.** Reach for
+  [Turbine](https://github.com/cashapp/turbine) (`.test { ... }`) when the *sequence* matters, or
+  for a `SharedFlow` event (no `.value` to read at all). Never hand-roll a collector into a list.
+- **ViewModel tests replace `Dispatchers.Main` with `MainDispatcherRule`** (`:core:testing`) —
+  `@get:Rule val mainDispatcherRule = MainDispatcherRule()`, since `viewModelScope` dispatches to
+  Main. Defaults to `UnconfinedTestDispatcher`; pass `StandardTestDispatcher` when a test needs
+  virtual-time control (e.g. a debounce).
+
+### Screenshot tests
+
+Roborazzi goldens live beside the composable they capture, in four modules: `:core:ui`,
+`:feature:home`, `:feature:search`, `:feature:settings`. Each keeps its own under
+`src/test/screenshots/`.
+
+- **A capturing module applies `smartphotos.android.screenshot` and nothing else** — the plugin
+  brings the Roborazzi tasks, the VCS-tracked `outputDir`, `unitTests.isIncludeAndroidResources`
+  **and the harness module itself**. It still needs
+  `debugImplementation(libs.androidx.ui.test.manifest)` on top (supplied by the feature convention,
+  declared by `:core:ui` for itself), without which `createComposeRule()` can't resolve an activity.
+- `testDebugUnitTest` *runs* these tests but does **not** diff them; only `verifyRoborazziDebug`
+  does. Re-record only for an intended change, and inspect the new PNGs before committing.
+- **The unit-test JVM is pinned to UTC/en-US** (`configureTestJvm()` in `build-logic`), because a
+  screenshot rendering a timestamp goes through `Long.toFormattedDateTime()`, whose `zone`/`locale`
+  default to the system's. If you change the pin, re-record. **A golden diff appearing only on CI is
+  far more likely non-determinism in the test than a platform rendering difference** — check for a
+  clock, locale or random value in the fixture first.
+- **A golden that renders a build-varying value is a hoisting problem, not a re-recording chore** —
+  `SettingsScreen` takes `versionName` as a parameter and the test pins `"1.0.0"`.
+
+### Instrumented tests
+
+Ten modules — `app/`, `core/data/`, and every `:feature:*` except `:feature:explore`. `:app` uses a
+custom `HiltTestRunner`, the AndroidX Test Orchestrator and `clearPackageData=true` for hermetic
+runs; **don't remove these without understanding why.** Library modules declare no
+`testInstrumentationRunner` — their suites build a ViewModel from `:core:testing`'s fakes. The same
+suites run on Firebase Test Lab via `./scripts/run-test-lab.sh` (needs `gcloud`, auth, Blaze).
+
+**`sharedTest/` is the arrangement to copy for a new screen test.** A Compose behaviour suite placed
+there compiles into *both* the unit-test and androidTest source sets, so it runs under Robolectric
+and on-device, written once — `:feature:home`'s `HomeScreenTest` and `:feature:auth`'s
+`AuthScreenTest` do this (two `sourceSets` lines plus `unitTests.isIncludeAndroidResources = true`).
+**Check an existing androidTest-only suite's own note before promoting it**: `ProfileScreenTest` is
+device-only because its bottom-anchored save button and inline validation text depend on real
+viewport/scroll behaviour.
 
 ### CI
 
-`.github/workflows/ci.yml` runs on every push to `main`, every pull request, and on demand: it
-builds the debug APK and the release APK, compiles the androidTest sources, then runs the unit
-tests, the screenshot comparison, and `lintDebug` as separate steps on JDK 21 (each runs even if an
-earlier one failed, so one run reports every problem), plus a parallel job linting `functions/`.
+`.github/workflows/ci.yml` runs on every push to `main`, every PR, and on demand: debug APK, release
+APK (`-x uploadCrashlyticsMappingFileRelease`), androidTest compile, then unit tests, screenshot
+comparison and `lintDebug` as separate steps on JDK 21 — each runs even if an earlier one failed, so
+one run reports every problem. A parallel job lints `functions/`.
 
-Three of those steps exist for the same reason and are worth reading together: `assembleRelease`,
-`compileDebugAndroidTestKotlin` and `lintDebug` each compile something no other step does. The first
-two are the two variants `assembleDebug` and the unit tests never reach, and each one has already
-hidden a real break (`:feature:auth`'s `@Preview` in release; `:core:data`'s DataStore and Room
-bindings in androidTest).
-
-The release step is `assembleRelease -x uploadCrashlyticsMappingFileRelease`, and both halves are
-deliberate: it is the only step that compiles the release variant or runs R8, and the exclusion
-keeps CI from uploading a mapping file to Crashlytics for a build it will never ship. Everything
-else in the job builds debug, which is how a `debugImplementation`-only dependency stayed green here
-while `compileReleaseKotlin` was broken.
-
-It needs one repository secret, `GOOGLE_SERVICES_JSON` — `app/google-services.json` is gitignored
-and the Google Services plugin fails the build without it. Generate the value with `base64 -i
-app/google-services.json` and paste it into Settings > Secrets and variables > Actions as a
-*repository* secret (the job declares no environment).
-
-Each run uploads two artifacts: `unit-test-report` and `screenshot-and-lint-reports` (download the
-latter on a screenshot failure — its `*_compare.png` files show reference/diff/actual side by side).
-Both artifact lists are **globs** (`*/build/…` and `*/*/build/…`, two depths because `:app` is one
-level deep and the `core`/`feature` modules are two), so a new module's reports are collected with
-no edit here. They were literal per-module paths and drifted three separate times — `:core:ui`,
-`:feature:explore` and `:feature:settings` each reported nothing for a while, which turns a failure
-in that module into a red X with nothing to open. Keep them globs.
-
-Two things to know about the goldens:
-
-- The unit-test JVM is pinned to UTC/en-US (`configureTestJvm()` in `build-logic`, applied by every
-  convention plugin), because any screenshot rendering a note's timestamp goes through
-  `Long.toFormattedDateTime()`, whose `zone`/`locale` default to the system's — without the pin,
-  goldens are machine-dependent (they'd pass on a UTC+8 laptop and fail on the UTC CI runner). If you
-  change the pin, re-record. More generally: **a golden diff that appears only on CI is far more
-  likely to be non-determinism in the test than a rendering difference between platforms** — check
-  for a clock, locale, or random value in the fixture before assuming the environment is at fault.
-- **A golden that renders a build-varying value is a hoisting problem, not a re-recording chore.**
-  `SettingsScreen` takes `versionName` as a parameter (it has to — `:feature:settings` is a library
-  with no application `BuildConfig`) and the test pins `"1.0.0"`, instead of the screenshot going
-  stale on every version bump.
+- It needs one repository secret, `GOOGLE_SERVICES_JSON` (`app/google-services.json` is gitignored
+  and the Google Services plugin fails without it): `base64 -i app/google-services.json`, pasted
+  into Settings > Secrets and variables > Actions as a *repository* secret.
+- On a screenshot failure download the `screenshot-and-lint-reports` artifact — its `*_compare.png`
+  files show reference/diff/actual side by side.
+- **The artifact path lists are globs** (`*/build/…` and `*/*/build/…`) so a new module is collected
+  with no edit. **Keep them globs** — as literal paths they drifted three times.
 
 ### Convention plugins
 
 `build-logic/` is an included build (`includeBuild("build-logic")` from `pluginManagement` in
-`settings.gradle.kts`), holding six plugins that every module applies by id instead of restating
-the same settings:
+`settings.gradle.kts`), holding six plugins that every module applies by id instead of restating the
+same settings:
 
 | Plugin | Applied by | Applies | Sets |
 | --- | --- | --- | --- |
 | `smartphotos.android.application` | `:app` | AGP application, Kotlin Android | compileSdk 37, minSdk 28, Java 11, JVM target 11, test-JVM pin |
 | `smartphotos.android.library` | `:core:common`, `:core:data`, `:core:ui`, `:core:testing`, `:core:screenshot-testing` | AGP library, Kotlin Android | the same |
 | `smartphotos.android.compose` | `:app`, `:core:ui`, `:core:screenshot-testing` | Compose compiler | `buildFeatures.compose = true` |
-| `smartphotos.android.feature` | all nine `:feature:*` modules | the library + compose conventions, KSP, Hilt, kotlin-serialization | the `:core:domain`/`:core:ui` edges, the Compose set, icons, Hilt, lifecycle, `ui-test-manifest`, the test baseline (`:core:testing`, junit, mockk, coroutines-test, Turbine) and the androidTest baseline; **enforces the feature layering** |
+| `smartphotos.android.feature` | all nine `:feature:*` | the library + compose conventions, KSP, Hilt, kotlin-serialization | the `:core:domain`/`:core:ui` edges, the Compose set, icons, lifecycle, `ui-test-manifest`, the test baseline (`:core:testing`, junit, mockk, coroutines-test, Turbine) and the androidTest baseline; **enforces the feature layering** |
 | `smartphotos.android.screenshot` | `:core:ui`, `:feature:home`, `:feature:search`, `:feature:settings` | Roborazzi | `outputDir` → `src/test/screenshots`, `unitTests.isIncludeAndroidResources`, `testImplementation(:core:screenshot-testing)`; **refuses to apply to the harness module** |
 | `smartphotos.jvm.library` | `:core:domain` | Kotlin JVM — **nothing Android** | Java 11, JVM target 11, test-JVM pin |
 
-`.android.screenshot` is also the one that needs a plugin *artifact* in `build-logic`'s own
-dependencies (`roborazzi-gradlePlugin`, `compileOnly`), because it configures Roborazzi's own
-extension rather than just applying it by id — the same distinction the Compose note there draws
-from the other side.
-
-A feature module's build file should contain only what that feature alone needs beyond the
-convention — e.g. explore keeps `coil-compose`/`activity-compose`; settings keeps
-`androidx-core-ktx`/Roborazzi. `build-logic` looks the version catalog up by string name
-(`Project.libs` in `buildlogic/VersionCatalog.kt`), since the generated `libs.androidx.material3`-
-style accessors are a build-script-only feature — **an alias typo there fails at configuration time
-in the consuming module, not at compile time in `build-logic`.**
-
-Rules worth knowing before editing these plugins:
-
-- **The layering rules live here too.** `smartphotos.android.feature` enforces "a feature depends on
-  no other feature and never on `:core:data`" at configuration time. This build already enforces
-  `:core:domain`'s purity with the compiler (no Android plugin, so `import android.*` cannot
-  resolve); a rule held only by review decays, which is how an unused `api` edge put Firestore and
-  Room on nine modules' test classpath without anyone reading a build file wrong.
-- **Put a setting here only when more than one module wants it, for the same reason.** `targetSdk`
-  stays per-app-module, `namespace` stays per-library, `buildConfig = true` stays in `:app` only
-  (see the Build type rule under [Conventions](#conventions)).
-- **One module is a sample size of one — wait for the second before writing a shared convention.**
-  `smartphotos.android.feature` didn't exist while `:feature:explore` was the only feature module,
-  because there was no way to tell which lines were *the shape of a feature* versus *the shape of
-  Explore*. A second consumer (`:feature:settings`) is what answered it — and answered it partly
-  against expectation (the icon packs, assumed Explore-specific, turned out shared).
-- **`build-logic` targets Java 17, the modules target 11.** Not drift — the convention plugins run
-  in the Gradle daemon (needs 17+), while 11 is what the app compiles against. Don't "fix" one to
-  match the other.
-- **The plugin artifacts (`android-gradlePlugin`, `kotlin-gradlePlugin`, `compose-gradlePlugin`) are
-  `compileOnly`**, used only by `build-logic/convention`. The modules'
-  `pluginManager.apply("com.android.application")` calls resolve against the build classpath the
-  root `build.gradle.kts` establishes with its `apply false` block — that block must keep listing
-  them.
+- **A feature's build file contains only what that feature alone needs beyond the convention** —
+  explore keeps `coil-compose`/`activity-compose`; settings keeps `androidx-core-ktx`/Roborazzi.
+- **Put a setting here only when more than one module wants it.** `targetSdk` stays per-app-module,
+  `namespace` per-library, `buildConfig = true` in `:app` only. **One module is a sample size of one
+  — wait for the second before writing a shared convention.**
+- **`build-logic` targets Java 17, the modules target 11.** Not drift: the plugins run in the Gradle
+  daemon (needs 17+), 11 is what the app compiles against. Don't "fix" either.
+- **The plugin artifacts are `compileOnly`**, so the modules' `pluginManager.apply(...)` calls
+  resolve against the build classpath the root `build.gradle.kts` establishes with its `apply false`
+  block — which must keep listing them. `.android.screenshot` is the exception needing a real plugin
+  artifact (`roborazzi-gradlePlugin`), since it configures Roborazzi's extension.
+- **An alias typo in `build-logic`'s catalog lookup fails at configuration time in the consuming
+  module, not at compile time in `build-logic`** — it looks the catalog up by string name
+  (`Project.libs`), since the generated `libs.*` accessors are build-script-only.
 - **AGP 9's `CommonExtension` is not generic and exposes only property accessors** —
-  `defaultConfig.minSdk = …`, not the `defaultConfig { }` block form shown in AGP-8-era guides.
+  `defaultConfig.minSdk = …`, not the `defaultConfig { }` block form of AGP-8-era guides.
 
 ## Architecture
 
-MVVM with a layered structure, one Gradle module per feature. **All nine feature modules are
-extracted**, and `:app` is down to ~1,300 lines across 14 files: `MainActivity`, `MyApp`,
-`MainViewModel`, `SmartPhotosApp`, `navigation/`, the messaging service, `di/AppModule.kt`, and
-five `util/` files including `util/di/UtilModule.kt`. It hosts the NavHost, supplies each screen's navigation lambdas, and installs the
-Hilt bindings — nothing that renders a feature screen lives there. Cross-cutting layers:
+MVVM, one Gradle module per feature. See [ARCHITECTURE.md](ARCHITECTURE.md) for the system diagram,
+the Firestore collections, and the Cloud Functions' division of labour.
 
-- **UI** — Jetpack Compose screens (`*Screen.kt`) + the Navigation Compose graph in
-  `navigation/SmartPhotosNavGraph.kt`, with each destination's route type in the feature package
-  that owns it (`home/HomeRoute.kt`, `preview/PreviewRoutes.kt`, …).
+- **UI** — Compose screens (`*Screen.kt`) + the graph in `navigation/SmartPhotosNavGraph.kt`, each
+  destination's route type living in the feature package that owns it.
 - **ViewModel** — `@HiltViewModel` classes exposing a `*UiState` data class via `StateFlow`. The
-  loading/loaded/error branch is a nested sealed sub-type (e.g. `HomeContent` in
-  `home/HomeViewModel.kt`), kept separate from flat fields on the outer `*UiState` for orthogonal UI
-  state (`isRefreshing`, dialogs, pagination) that shouldn't force a full state-machine branch.
-- **Repository** (`data/repository/`) — one interface + one `Default*` implementation per
-  repository (e.g. `NoteRepository`/`DefaultNoteRepository`), bound in `data/di/DataModule.kt`.
-  Coordinates Firebase Firestore/Storage (remote) and Room/DataStore (local). Interfaces live in
-  `:core:domain`; implementations and `DataModule` in `:core:data`. Two interfaces can't live in
-  `:core:domain` because their signatures carry Android types: `AppUpdateRepository`
-  (`ActivityResultLauncher`/`IntentSenderRequest`) stays in `:core:data` beside its `Default*` since
-  only `:app`'s `MainViewModel` injects it; `MediaFileRepository` (`Bitmap`/`Uri`) moved to
-  `:core:common` because a feature module needed to inject it and must not depend on `:core:data`.
-  Move the next Android-typed interface down only when a feature needs it.
-- **Domain** (`domain/`, in `:core:domain`) — plain data classes shared across features (`HomeNote`,
-  `MediaDetail`, `User`, …). No Android plugin on the module, so a stray `import android.*` fails
-  the build — purity is enforced by the compiler, not by review.
-- **Local** — Room database in `database/` (schemas exported to `core/data/schemas/`), DataStore
-  preferences in `data/datastore/` (contract + model, `UserPreferencesRepository`/
-  `UserPreferences`, in `:core:domain`; wiring in `:core:data`). A note's media list persists into
-  the `notes.media_list` column as `kotlinx.serialization` JSON keyed by `MediaDetail`'s property
-  names — an on-disk format, so renaming one needs `@SerialName` to keep old rows decodable.
+  loading/loaded/error branch is a **nested sealed sub-type** (e.g. `HomeContent`), kept separate
+  from flat fields on the outer `*UiState` for orthogonal UI state (`isRefreshing`, dialogs,
+  pagination) that shouldn't force a full state-machine branch.
+- **Repository** (`data/repository/`) — one interface + one `Default*` implementation each, bound in
+  `data/di/DataModule.kt`. Interfaces live in `:core:domain`; implementations and `DataModule` in
+  `:core:data`. **Two interfaces can't live in `:core:domain` because their signatures carry Android
+  types:** `AppUpdateRepository` (`ActivityResultLauncher`/`IntentSenderRequest`) stays in
+  `:core:data` beside its `Default*` since only `:app`'s `MainViewModel` injects it;
+  `MediaFileRepository` (`Bitmap`/`Uri`) sits in `:core:common` because a feature injects it and
+  must not depend on `:core:data`. Move the next Android-typed interface down only when a feature
+  needs it.
+- **Domain** (`domain/`, `:core:domain`) — plain data classes shared across features.
+- **Local** — Room in `database/` (schemas exported to `core/data/schemas/`), DataStore in
+  `data/datastore/` (contract + model in `:core:domain`, wiring in `:core:data`). **A note's media
+  list persists into `notes.media_list` as `kotlinx.serialization` JSON keyed by `MediaDetail`'s
+  property names** — an on-disk format, so renaming one needs `@SerialName` to keep old rows
+  decodable.
 - **Remote** — Firebase (Auth, Firestore, Storage, Remote Config, Analytics, Crashlytics, FCM) plus
-  Cloud Functions in `functions/index.js` calling Google Cloud Vision API for text/label/object
-  detection on uploaded photos.
+  Cloud Functions in `functions/index.js` calling Google Cloud Vision.
 
 ### Separation of concerns
 
 - Composables render state and forward user intents; they never call Firebase/Room/DataStore
-  directly or hold business logic beyond simple derived/UI-only state (scroll position, sheet
-  visibility).
-- ViewModels own presentation logic and state transformation; they depend on repository
-  *interfaces* (dependency inversion), never `Default*` implementations or Firebase/Room types
-  directly, so they stay unit-testable without a real backend.
-- Repositories own data-source coordination and expose domain models — never Firestore
-  `DocumentSnapshot`/`QuerySnapshot` or Room entities — across the interface boundary. Every
-  fallible operation returns `Result<T>` rather than throwing, so callers never wrap a call in
-  try/catch; wrap the body in `util/safeCall`. The exemptions are the ones that can't carry a
-  `Result`: a `Flow`-returning stream, and fire-and-forget work like `quickUploadMediaToFirebase`,
-  which logs its failures internally. Firestore is the source of truth and writes go there first,
-  then Room — see [Source of truth](#source-of-truth).
-- Domain models are plain data with no Android/Firebase/Room dependencies. A local media location
-  crosses this boundary as `domain/MediaUri.kt`, never `android.net.Uri` — convert with
-  `toMediaUri()`/`toPlatformUri()` (`util/MediaUriExt.kt`, `:core:common`) at the ViewModel boundary
-  on the way down or inside a `Default*` implementation on the way out.
+  directly or hold business logic beyond UI-only state (scroll position, sheet visibility).
+- ViewModels depend on repository *interfaces*, never `Default*` implementations or Firebase/Room
+  types, so they stay unit-testable without a real backend.
+- Repositories expose domain models — never Firestore `DocumentSnapshot`/`QuerySnapshot` or Room
+  entities — across the interface boundary. **Every fallible operation returns `Result<T>` rather
+  than throwing** (wrap the body in `util/safeCall`), so callers never wrap a call in try/catch. The
+  exemptions are the ones that can't carry a `Result`: a `Flow`-returning stream, and
+  fire-and-forget work like `quickUploadMediaToFirebase`, which logs its failures internally.
+- **A local media location crosses the domain boundary as `domain/MediaUri.kt`, never
+  `android.net.Uri`** — convert with `toMediaUri()`/`toPlatformUri()` (`util/MediaUriExt.kt`,
+  `:core:common`) at the ViewModel boundary on the way down, or inside a `Default*` on the way out.
 
-When adding a feature, prefer extending this layering over reaching across it (a screen calling
-`FirebaseFirestore` directly, or a repository returning a Room `@Entity` to a ViewModel).
+When adding a feature, prefer extending this layering over reaching across it.
 
 ### Source of truth
 
-**A deliberate deviation from the offline-first architecture guide.** That guidance makes the local
-database the source of truth: the UI observes Room, writes land locally first, a sync layer
-reconciles with the backend. This app does the opposite — Firestore is the source of truth and Room
-is written only after the Firestore write returns. The four note-rendering screens (Home, Search,
-NotePreview, Favorite) *read* the Room mirror, which is the read half of offline-first, not the
-write half: there are still no offline writes and no reconciliation.
-
-Each of those screens exposes a `content: StateFlow` built with `combine(<a Room query>, <a fetch
-status>)` and shared `WhileSubscribed`. The remote call still happens, but none of them hands its
-result straight to the UI — each write-through fills the `notes` table and the screen re-reads it:
+**Firestore is the source of truth; Room is written only after the Firestore write returns.** A
+deliberate inversion of the offline-first guide — the four note-rendering screens *read* the Room
+mirror, which is the read half of offline-first, not the write half. Each exposes a `content:
+StateFlow` built with `combine(<a Room query>, <a fetch status>)` and shared `WhileSubscribed`; the
+remote call still happens, but its result fills the `notes` table and the screen re-reads it:
 
 | Screen | Query | Fetch that fills it |
 | --- | --- | --- |
@@ -345,169 +250,122 @@ result straight to the UI — each write-through fills the `notes` table and the
 
 **Copy this `combine` shape for a new mirrored list.** Fetch status decides only what an *empty*
 result means (nothing fetched yet = loading, fetch failed = error) — any cached rows beat both, so a
-failed refresh keeps the list on screen and reports itself through `actionError` rather than
-blanking the feed.
+failed refresh keeps the list on screen and reports itself through `actionError`.
 
-Rules that keep this correct:
+- **`getNotesStream` takes a `limit`**, widened one page at a time as the cursor advances (and reset
+  wherever the cursor resets) — without it Home renders the whole table, not just what it has paged.
+- **A mirror-write failure must fail the fetch, not log-and-continue.** A swallowed write is a note
+  the user can't see, with the cursor already advanced past it.
+- **Every remote read writes what it fetched into the table before returning** — one that skips this
+  renders nothing, since screens never look at return values. `addNote` reads its own note back via
+  `getNote`, because the createNote function returns only `{documentPath}`.
+- `syncFavoriteNotes` reconciles only the favorited rows; nothing reconciles the rest of the table.
+- **Room answers before the first fetch does**, so a fresh install must not render "create your
+  first note" while the first fetch is in flight — see `HomeViewModel`'s `FetchStatus.Pending`
+  branch and its two pinning tests. The mirror image is a *failed* fetch: full-screen error on an
+  empty cache, `actionError` snackbar on a populated one.
 
-- `getNotesStream` takes a `limit`, widened one page at a time as the cursor advances (and reset
-  wherever the cursor resets). Without it Home would render the whole table, not just what it has
-  paged — Search and NotePreview write into `notes` too.
-- A mirror-write failure must **fail the fetch**, not log-and-continue — with screens rendering the
-  table, a swallowed write is a note the user can't see, with the cursor already advanced past it.
-- **Every remote read writes what it fetched into the table before returning.** A new remote read
-  that skips this renders nothing, since screens never look at return values. `addNote` reads its
-  own note back via `getNote` after creating it, because the createNote Cloud Function returns only
-  `{documentPath}` — the id and server-stamped `created` exist only server-side.
-- `syncFavoriteNotes` reconciles only the favorited rows (clears + reinserts what the server says is
-  favorited); nothing reconciles the rest of the table.
-
-Known gaps, so nobody rediscovers them as bugs: **no offline writes** (a mutation with no network
-fails at the Firestore call and never reaches Room), and **no reconciliation** (a row deleted
-server-side, or on another device, lingers locally until something rewrites it). Both are a larger,
-deliberately out-of-scope project.
-
-Get the empty state right when mirroring a new screen: Room answers before the first fetch does, so
-a fresh install must not render "create your first note" while the first fetch is still in flight —
-see `HomeViewModel`'s `FetchStatus.Pending` branch and its two pinning tests. The mirror image is a
-*failed* fetch: right to full-screen-error on an empty cache, wrong on a populated one — with rows
-on screen, the failure goes to `actionError` as a snackbar instead.
+**Known gaps, so nobody rediscovers them as bugs:** no offline writes, and no reconciliation (a row
+deleted server-side lingers locally until something rewrites it). Both are deliberately out of scope.
 
 ### Cross-feature communication
 
-**There is no cross-feature communication mechanism, and that is deliberate.** A screen that must
-reflect a mutation made on another screen observes the Room mirror
-([Source of truth](#source-of-truth)) instead of listening for an event. **Do not reintroduce one.**
-If a list *could* be backed by a live query, back it with the query.
+**There is no cross-feature communication mechanism, and that is deliberate. Do not reintroduce
+one.** A screen that must reflect a mutation made on another screen observes the Room mirror
+([Source of truth](#source-of-truth)). If a list *could* be backed by a live query, back it with the
+query.
 
-For an event a screen must never miss — the one still in use is `note/IncomingShareHandler.kt` —
+**For an event a screen must never miss** — the one still in use is `note/IncomingShareHandler.kt` —
 use a `StateFlow` holding the pending value plus an explicit `consume()`, not a `SharedFlow`: a
-default `MutableSharedFlow` has no replay, so a subscriber that isn't collecting yet silently misses
-the event.
+default `MutableSharedFlow` has no replay, so a subscriber that isn't collecting yet misses it.
 
 ### Error handling
 
-Route thrown errors through `util/ErrorHandler` rather than reading `Throwable.localizedMessage`
-directly. Its two methods belong to different layers:
+Route thrown errors through `util/ErrorHandler`, never `Throwable.localizedMessage`. Its two methods
+belong to different layers:
 
 - **`logError(throwable, tag)` — any layer, repositories included.** Only touches `Log` (debug) and
   Crashlytics (release), so a repository logging a failure it swallows is correct.
-- **`getErrorMessage(throwable)` — ViewModel layer only.** Resolves a string resource through
-  `ResourceProvider`, making its result user-facing presentation, not data. Repositories must not
-  call it: they log and then either propagate the exception or fold it into a `Result`/null return,
-  and the ViewModel converts that into a `*UiState` error field.
+- **`getErrorMessage(throwable)` — ViewModel layer only.** It resolves a string resource, making its
+  result presentation, not data. Repositories log and then propagate or fold into a `Result`/null;
+  the ViewModel converts that into a `*UiState` error field.
 
-**A repository that needs to raise its own failure throws a `domain/AppError`, never a message.**
-Resolving a string resource is presentation, so building one in a repository
-(`IllegalStateException(context.getString(...))`) puts ViewModel-layer work in the data layer and
-forces a `Context` into a class that otherwise needs none. `AppError` is a sealed type carrying an
-identity (`NotAuthenticated`, `NoteUnavailable`, `NoMediaAvailable`, `UsernameTaken`,
-`UsernameReserved`, …); `appErrorMessageResId` maps each to a string and is applied *inside*
-`getErrorMessage`, so a ViewModel already routing failures through `ErrorHandler` renders it with no
-extra code. Add a case to the sealed type and the mapper together.
+**A repository that raises its own failure throws a `domain/AppError`, never a message** —
+`IllegalStateException(context.getString(...))` puts ViewModel-layer work in the data layer and
+forces a `Context` into a class that needs none. `AppError` is a sealed type carrying an identity
+(`NotAuthenticated`, `NoteUnavailable`, `UsernameTaken`, …); `appErrorMessageResId` maps each to a
+string *inside* `getErrorMessage`. **Add a case to the sealed type and the mapper together.**
 
-**This splits the test as well as the code.** A repository test asserts the `AppError` the
-repository raised; the string that error resolves to is `ErrorMessageMappersTest`'s, in the module
-that owns the mapping. A data-layer test that asserts user-facing English is reaching a layer up for
-its assertion, and the tell is mechanical: it cannot move into `:core:data` with its subject,
-because `DefaultErrorHandler`, `ResourceProviderImpl` and `:app`'s `R` do not exist down there.
+**This splits the test as well as the code.** A repository test asserts the `AppError` raised; the
+string it resolves to is `ErrorMessageMappersTest`'s. A data-layer test asserting user-facing
+English is reaching a layer up — the tell is mechanical: it can't move into `:core:data` with its
+subject, because `DefaultErrorHandler` and `:app`'s `R` don't exist there.
 
-**A Firebase type read above the repository boundary is a module boundary waiting to be
-violated** — fold it into an `AppError` before it is, not after. A Firebase-specific fold (e.g.
-reading a `FirebaseFunctionsException`'s code or structured payload) belongs *below* the repository
-boundary, inside the `Default*` implementation (see `DefaultNoteRepository.foldNoteValidationError`
-/ the equivalent in `DefaultUserRepository`) — never in a ViewModel-layer mapper, which would put
-`firebase-functions` on a feature module's classpath.
+**Fold a Firebase type into an `AppError` below the repository boundary**, inside the `Default*`
+(see `DefaultNoteRepository.foldNoteValidationError`) — never in a ViewModel-layer mapper, which
+would put `firebase-functions` on a feature module's classpath.
 
-The three pieces live in three files, by layer: `util/ErrorHandler.kt` (the interface + `ErrorTag`,
-`:core:domain`, no imports), `util/DefaultErrorHandler.kt` (Android/Firebase-bound implementation,
-`:app`), `util/ErrorMessageMappers.kt` (the `R`-resolving `appErrorMessageResId` mapper, `:app`,
-several cases resolving `:core:common`'s `R` since those strings have a second reader down there).
-Keep a new mapper in the third file rather than reuniting them.
+The three pieces live in three files, by layer: `util/ErrorHandler.kt` (interface + `ErrorTag`,
+`:core:domain`), `util/DefaultErrorHandler.kt` (implementation, `:app`), `util/ErrorMessageMappers.kt`
+(the `R`-resolving mapper, `:app`). Keep a new mapper in the third rather than reuniting them.
 
 ### Kotlin Multiplatform readiness
 
-We may migrate parts of this codebase (`domain/`, repository interfaces, other business logic) to
-Kotlin Multiplatform down the line. This isn't a mandate to add KMP tooling now, but when choosing
-between otherwise-equivalent approaches, prefer the one that keeps that migration cheap:
+We may migrate `domain/`, repository interfaces and other business logic to KMP later. Not a mandate
+to add tooling now, but between otherwise-equivalent approaches prefer the cheaper one to migrate:
 
-- Keep `domain/` models and repository *interfaces* free of Android/Firebase/Room types — required
-  by [Separation of concerns](#separation-of-concerns) above, and enforced by the compiler rather
-  than review, since they live in `:core:domain`, which has no Android Gradle plugin.
-  **Be honest about what module extraction alone buys**, though: `:core:data` and `:core:ui` are
-  Android libraries full of Firebase/Room/Compose, so nothing in them became shareable by moving —
-  that's modularization, not KMP progress. Same for the `:feature:*` modules — Compose end to end,
-  and the *least* shareable code in the build. Don't report "modules extracted" and "KMP progress"
-  as one number.
-- Prefer `kotlinx` libraries (`kotlinx.coroutines`, `kotlinx.datetime`, `kotlinx.serialization`)
-  over equivalents with no `commonMain` implementation (`java.time`, Gson) in shared-leaning code,
-  when a choice exists.
-- Keep `android.*` out of the *contracts*: domain models, repository interfaces, and the data
-  classes those interfaces carry. `Default*` implementations are Android-bound by definition and
-  aren't what this rule targets. One interface is deliberately exempt: `MediaFileRepository` keeps
-  its `Uri`/`Bitmap` parameters because it exists precisely to wrap `ContentResolver`/`FileProvider`
-  work behind a seam — don't wrap those parameters to satisfy this rule, and don't cite it as
-  precedent for a new contract.
-- **The next actual KMP step is converting `:core:domain` from `kotlin.jvm` to
-  `kotlin.multiplatform`** (`commonMain` + `androidTarget()`). Nearly every import in its `main`
-  sources is already multiplatform (`kotlin.time.Instant`, `kotlinx.coroutines`, `kotlinx.datetime`,
-  `kotlinx.serialization`) with one exception — `javax.inject.Qualifier` in `di/Qualifiers.kt`,
-  which would move to an `androidMain` source set since Hilt is Android-only.
-- **The ceiling to know about before planning further:** Hilt has no KMP support, and it's
-  load-bearing below `:app` — every `Default*` is `@Inject constructor` and `DataModule` is
-  `@InstallIn(SingletonComponent::class)`. A shared data layer would need Koin or hand-written
-  constructor wiring with Hilt confined to the Android edge. That decision, not module splitting, is
-  what sets how far KMP can go here.
-- The module *names* deviate from Google's Now in Android deliberately: `:core:domain` here holds
-  domain models, pure repository interfaces, `safeCall`, and DI qualifiers — NiA's equivalent split
-  keeps repository implementations alongside the interfaces, which isn't possible here since
-  `:core:data` needs the Android plugin. Keep this note beside the name rather than renaming to
-  `:core:model` (inaccurate — it holds more than models).
+- **Keep `android.*` out of the *contracts*** — domain models, repository interfaces, and the data
+  classes they carry. `Default*` implementations are Android-bound by definition and aren't what
+  this targets; `MediaFileRepository` is deliberately exempt, so don't cite it as precedent.
+- **Prefer `kotlinx` libraries** (`kotlinx.coroutines`, `kotlinx.datetime`, `kotlinx.serialization`)
+  over equivalents with no `commonMain` implementation (`java.time`, Gson) in shared-leaning code.
+- **Don't report module extraction as KMP progress** — `:core:data`, `:core:ui` and every
+  `:feature:*` are Android libraries full of Firebase/Room/Compose, so nothing in them became
+  shareable by moving. Don't rename `:core:domain` to `:core:model`; it holds more than models.
+
+The next step, and the Hilt ceiling that limits how far it can go, are in
+[ARCHITECTURE.md](ARCHITECTURE.md#kotlin-multiplatform).
 
 ## Follow official Android guidance
 
-When implementing or reviewing changes, prefer solutions aligned with Google's official Android
-guidance over ad-hoc approaches:
+Prefer solutions aligned with Google's official guidance over ad-hoc approaches. **If an official
+recommendation conflicts with an existing pattern here, follow the official recommendation, update
+the codebase convention to match, and call out the discrepancy.**
 
-- [Android app architecture guide](https://developer.android.com/topic/architecture) —
-  unidirectional data flow, `StateFlow`/`UiState` exposed from ViewModels (not events polled by the
-  UI), repositories as the single source of truth — with the one documented exception that the
-  notes feed reads Firestore directly ([Source of truth](#source-of-truth)).
-- [Jetpack Compose guidance](https://developer.android.com/develop/ui/compose/documentation) —
-  state hoisting, `remember` for recomposition efficiency, avoiding side effects outside
-  `LaunchedEffect`/`DisposableEffect`. Use `derivedStateOf` only where a frequently-changing state
-  feeds a rarely-changing derived value (a scroll offset driving an `isScrolled` boolean); applied
-  more broadly it adds overhead instead of removing it.
-- [Kotlin coroutines & Flow best practices](https://developer.android.com/kotlin/coroutines/coroutines-best-practices)
-  — scope coroutines to `viewModelScope`, inject `CoroutineDispatcher`s rather than hardcoding
-  `Dispatchers.IO`, avoid `GlobalScope`. The UI here is Compose-only, so `LaunchedEffect` and
-  `rememberCoroutineScope` are the composition-side equivalents; `lifecycleScope` appearing in a new
-  file is a smell, not a convention.
-- [Material Design 3](https://m3.material.io/) for new UI/theming work.
-- Kotlin style: follow the [Kotlin coding conventions](https://kotlinlang.org/docs/coding-conventions.html)
-  (already enforced here via `kotlin.code.style=official` in `gradle.properties`) — see
-  [Kotlin coding conventions](#kotlin-coding-conventions) below for project-specific notes.
+[App architecture](https://developer.android.com/topic/architecture) (unidirectional data flow,
+`StateFlow`/`UiState` from ViewModels, repositories as single source of truth — with the documented
+exception in [Source of truth](#source-of-truth)) ·
+[Compose](https://developer.android.com/develop/ui/compose/documentation) (state hoisting,
+`remember`, no side effects outside `LaunchedEffect`/`DisposableEffect`) ·
+[Coroutines & Flow](https://developer.android.com/kotlin/coroutines/coroutines-best-practices) ·
+[Material 3](https://m3.material.io/) ·
+[Kotlin conventions](https://kotlinlang.org/docs/coding-conventions.html). Two project-specific
+sharpenings:
 
-If an official recommendation conflicts with an existing pattern in this codebase, follow the
-official recommendation and update the existing codebase convention to match it for consistency,
-calling out the discrepancy.
+- **Use `derivedStateOf` only where a frequently-changing state feeds a rarely-changing derived
+  value** (a scroll offset driving an `isScrolled` boolean); applied more broadly it adds overhead
+  instead of removing it.
+- **Inject `CoroutineDispatcher`s rather than hardcoding `Dispatchers.IO`, and never `GlobalScope`.**
+  The UI is Compose-only, so `LaunchedEffect`/`rememberCoroutineScope` are the composition-side
+  equivalents — **`lifecycleScope` in a new file is a smell, not a convention.**
 
-### Jetpack Compose state hoisting
+### Compose state hoisting
 
-- Screen-level composables (`*Screen.kt`) collect `UiState` from the ViewModel (via
-  `collectAsStateWithLifecycle()`) and hoist it down as plain parameters/lambdas; child composables
-  should stay stateless and never take a ViewModel reference, so they can be previewed and tested
-  with plain state.
-- There are three tiers, not two. `remember`/`mutableStateOf` for state that is genuinely local and
-  ephemeral to composition (IME visibility, an animation trigger). `rememberSaveable` for local
-  state that must also survive configuration change and process death (a half-typed field, an
-  expanded section). The ViewModel's `UiState` for anything another screen needs or that outlives
-  the composition — with `SavedStateHandle` for the parts of it that must survive process death.
-- "Put it in the ViewModel" does not by itself mean "it survives" — a ViewModel is cleared when its
-  `NavBackStackEntry` is popped, and no ViewModel survives process death. `rememberSaveable` appears
-  nowhere in `app/src/main` today, so no UI state currently survives process death — that's a gap,
-  not a convention to copy; reach for the right tier when adding state a user would be annoyed to
-  lose.
+Screen-level composables (`*Screen.kt`) collect `UiState` via `collectAsStateWithLifecycle()` and
+hoist it down as plain parameters/lambdas; **child composables stay stateless and never take a
+ViewModel reference**, so they can be previewed and tested with plain state.
+
+**There are three tiers, not two:**
+
+| Tier | For |
+| --- | --- |
+| `remember`/`mutableStateOf` | State genuinely local and ephemeral to composition (IME visibility, an animation trigger) |
+| `rememberSaveable` | Local state that must survive configuration change and process death (a half-typed field, an expanded section) |
+| ViewModel `UiState` | Anything another screen needs or that outlives the composition — with `SavedStateHandle` for the parts that must survive process death |
+
+"Put it in the ViewModel" does not by itself mean "it survives": a ViewModel is cleared when its
+`NavBackStackEntry` is popped, and none survives process death. `rememberSaveable` appears nowhere
+in `app/src/main` today — that's a gap, not a convention to copy.
 
 ### Composable parameter order
 
@@ -523,224 +381,196 @@ fun PhotoPreviewScreen(
 
 This is [Compose's own API guideline](https://developer.android.com/develop/ui/compose/api-guidelines),
 and the cost of getting it wrong is concrete rather than stylistic: a default sitting ahead of a
-required parameter can never be taken positionally, so every caller past that point is forced into
-named arguments to reach it. All ten screen composables had `viewModel = hiltViewModel()` in the
-middle of the list, which is why nothing broke when they were reordered — all 25 call sites already
-named every argument, and the defaults were unusable.
+required parameter can never be taken positionally, forcing every caller past that point into named
+arguments.
 
 **The exception is a trailing lambda, which stays last even though the parameters before it carry
-defaults.** `bounceClick`'s `onClick`, `SearchBar`'s `placeholder` and `SmartCameraTheme`'s
-`content` are the three here, and Material3 itself is shaped the same way
-(`Button(onClick, modifier, enabled, …, content)`) — being callable as `Modifier.bounceClick { }`
-is worth more than the ordering rule. Those three are the only places a defaulted parameter should
-precede a required one; anywhere else it is a mistake.
+defaults** — `bounceClick`'s `onClick`, `SearchBar`'s `placeholder` and `SmartCameraTheme`'s
+`content`, matching Material3's own shape (`Button(onClick, modifier, enabled, …, content)`). Those
+three are the only places a defaulted parameter should precede a required one.
 
 ### One-off UI events
 
 Snackbars and other fire-and-forget signals travel from ViewModel to screen on a
 `MutableSharedFlow(extraBufferCapacity = 1)` exposed as a read-only `SharedFlow`, collected in the
-screen's `LaunchedEffect` and shown through `SnackbarHostState`. `actionError` (Home, Search,
-Favorite and the preview screens, all via `:core:common`'s `NoteErrorReporter`) and
-`ProfileViewModel.events` are the existing instances — follow their shape rather than inventing a
-third.
+screen's `LaunchedEffect` and shown through `SnackbarHostState`. `actionError` (via `:core:common`'s
+`NoteErrorReporter`) and `ProfileViewModel.events` are the existing instances — **follow their shape
+rather than inventing a third.**
 
-**This deviates from the [official guidance](https://developer.android.com/topic/architecture/ui-layer/events)**,
-which says a ViewModel event should update `UiState` with the UI signalling consumption back. It
-stands because these signals have no state to restore — a snackbar already shown must not reappear.
-Two limits that come with it:
+This deviates from the [official guidance](https://developer.android.com/topic/architecture/ui-layer/events)
+and stands because these signals have no state to restore — a snackbar already shown must not
+reappear. Two limits come with it:
 
-- Anything that must survive configuration change or process death is not one of these — error text
-  a screen keeps displaying belongs in `UiState` (e.g. `HomeContent.Error`); only the transient,
-  toast-like signal goes on the flow.
-- `tryEmit` into a one-slot buffer drops silently when events land back-to-back with no collector
-  ready, and a `LaunchedEffect` collector only exists while the composition does. Don't put anything
-  the user must not miss on this flow.
+- **Anything that must survive configuration change or process death is not one of these** — error
+  text a screen keeps displaying belongs in `UiState` (e.g. `HomeContent.Error`).
+- **`tryEmit` into a one-slot buffer drops silently** when events land back-to-back with no
+  collector ready, and a `LaunchedEffect` collector only exists while the composition does. Don't
+  put anything the user must not miss on this flow.
 
 ### Navigation
 
-Navigation Compose's type-safe routes: each destination is a top-level `@Serializable`
-`data object`/`data class`, registered with `composable<HomeRoute> { ... }` and reached via
-`navController.navigate(NotePreviewRoute(id))`. Add destinations that way — no hand-built path
-strings, no `navArgument` lists, no manual URL escaping of arguments.
+Navigation Compose's type-safe routes: each destination is a top-level `@Serializable` `data
+object`/`data class`, registered with `composable<HomeRoute> { ... }` and reached via
+`navController.navigate(NotePreviewRoute(id))`. **No hand-built path strings, no `navArgument`
+lists, no manual URL escaping.**
 
-- **The route type lives in the feature package, beside the screen it names** — `home/HomeRoute.kt`,
-  `search/SearchRoute.kt`, `note/NoteRoutes.kt`, `preview/PreviewRoutes.kt`, and so on. What stays
-  in `navigation/` is the wiring that legitimately needs to see every route at once:
-  `SmartPhotosNavGraph.kt`, `TopLevelDestination.kt`, `NavTransitions.kt`. Put a new route with its
-  screen, not in `navigation/` — that's what lets a feature's ViewModel read its own arguments back
-  with `toRoute<…>()` without importing upward.
-- **The routes share no supertype, deliberately** — a route in a feature module can't implement an
-  interface declared in `:app`, so `startDestination` and `TopLevelDestination.route` are typed
-  `Any`, which is what Navigation Compose itself uses for a destination. A sealed supertype is not
-  merely inconvenient here but impossible: Kotlin requires every direct subtype to sit in the same
-  module *and* package as the declaration, which no feature-module route can. Don't reintroduce a
-  marker interface to get the exhaustiveness back.
-- Route types stay plain data. UI-only metadata (bottom-bar icon, title, and whether re-tapping
-  the tab scrolls its list back to the top) lives in `navigation/TopLevelDestination.kt`, because
-  only some destinations appear in the bottom bar. It is an `enum`, not a data class plus a list,
-  so its `Any` route cannot be widened: the constructor is private, the set is closed at five, and
-  a `when` over it stays exhaustive across module boundaries.
-- A route's property names are its argument names — Navigation serializes by property name, and the
+- **The route type lives in the feature package, beside the screen it names.** What stays in
+  `navigation/` is the wiring that needs to see every route at once: `SmartPhotosNavGraph.kt`,
+  `TopLevelDestination.kt`, `NavTransitions.kt`. Keeping a route with its screen is what lets a
+  feature's ViewModel read its own arguments back with `toRoute<…>()` without importing upward.
+- **The routes share no supertype, deliberately** — `startDestination` and
+  `TopLevelDestination.route` are typed `Any`, as Navigation Compose itself does. A sealed supertype
+  isn't merely inconvenient but impossible: Kotlin requires every direct subtype in the same module
+  *and* package as the declaration. **Don't reintroduce a marker interface to get exhaustiveness
+  back.**
+- **Route types stay plain data.** UI-only metadata (bottom-bar icon, title, whether re-tapping the
+  tab scrolls its list to the top) lives in `navigation/TopLevelDestination.kt`, because only some
+  destinations appear in the bottom bar. It is an `enum`, not a data class plus a list, so its `Any`
+  route can't be widened: the constructor is private, the set is closed at five, and a `when` over
+  it stays exhaustive across module boundaries.
+- **A route's property names are its argument names** — Navigation serializes by property name, and
   ViewModel tests build a `SavedStateHandle` from the same keys (`mapOf("noteId" to …)`). Renaming
-  one changes the generated route pattern and breaks its test; renaming the route *class* changes
-  the route pattern too, which invalidates a back stack saved by an older build.
-- An enum used as a route argument needs `@Keep` (see `MediaSourceType` in `preview/PreviewRoutes.kt`).
-  Navigation resolves enum arguments through `Class.forName()`, so R8 renaming one breaks navigation
-  in release builds only — a failure that shows up in neither debug runs nor unit tests.
+  one breaks its test; renaming the route *class* invalidates a back stack saved by an older build.
+- **An enum used as a route argument needs `@Keep`** (see `MediaSourceType` in
+  `preview/PreviewRoutes.kt`). Navigation resolves enum arguments through `Class.forName()`, so R8
+  renaming one breaks navigation in release builds only — invisible to debug runs and unit tests.
 
 ## Conventions
 
-- **DI**: Hilt, all *modules* `@InstallIn(SingletonComponent::class)`. Constructor-injected classes
-  may still be narrower — `:core:common`'s `NoteErrorReporter` is `@ViewModelScoped` — so "all
-  modules are singleton" isn't "everything is a singleton". App-wide bindings live in
-  `di/AppModule.kt` in `:app`; other cross-cutting layers get their own module —
-  `util/di/UtilModule.kt` in `:app`, `data/di/DataModule.kt`, `data/di/FirebaseModule.kt` and
-  `database/di/DatabaseModule.kt` in `:core:data`. There's no per-feature `di/` package yet — follow
-  this layer-scoped pattern rather than introducing one.
-  **A `@Provides` module belongs in the module its bindings are consumed from, not in `:app`.**
-  Hilt aggregates every `@InstallIn(SingletonComponent::class)` module into one component generated
-  in `:app`, so a provider works from anywhere and there is nothing to fail if it sits too high.
-  `FirebaseModule` sat in `:app` for exactly that reason, providing seven SDK singletons whose only
-  consumers were `:core:data` repositories — which put the whole Firebase surface in `:app`'s
-  dependency block for code `:app` does not contain, and meant nothing below `:app` could assemble a
-  repository. It now lives beside `DataModule`. Ask where a binding is *injected*, not where it is
-  convenient to declare.
-- **`:core:data` dependency configurations**: anything whose type appears in an `@Inject
-  constructor` parameter there must be `api`, not `implementation`. Hilt aggregates every
-  `@InstallIn(SingletonComponent::class)` binding into a single component generated in `:app`, so
-  `:app`'s annotation processor has to resolve those parameter types itself; hiding one behind
-  `implementation` fails with `InjectProcessingStep was unable to process 'x' because 'Y' could not
-  be resolved`. Under Hilt a library's constructor parameters are effectively part of its API. A
+### Dependency injection
+
+Hilt, all *modules* `@InstallIn(SingletonComponent::class)` — but constructor-injected classes may
+be narrower (`NoteErrorReporter` is `@ViewModelScoped`), so "all modules are singleton" isn't
+"everything is a singleton". App-wide bindings live in `di/AppModule.kt` (`:app`); other
+cross-cutting layers get their own module — `util/di/UtilModule.kt` (`:app`),
+`data/di/DataModule.kt`, `data/di/FirebaseModule.kt`, `database/di/DatabaseModule.kt`
+(`:core:data`). There is no per-feature `di/` package; follow this layer-scoped pattern.
+
+**A `@Provides` module belongs in the module its bindings are consumed from, not in `:app`.** Hilt
+aggregates every singleton module into one component generated in `:app`, so a provider works from
+anywhere and nothing fails if it sits too high — which is how `FirebaseModule` sat in `:app`,
+putting the whole Firebase surface in `:app`'s dependency block for code `:app` doesn't contain.
+**Ask where a binding is *injected*, not where it's convenient to declare.**
+
+**Don't reference `Dispatchers.IO` directly in new code.** Inject `@param:IoDispatcher private val
+ioDispatcher: CoroutineDispatcher` (qualifier in `di/Qualifiers.kt`, `:core:domain`; provider in
+`di/AppModule.kt`, `:app`) so tests can substitute a `TestDispatcher`. `@ApplicationScope` provides
+the app-lifetime `CoroutineScope` for work that must outlive a ViewModel. The one deliberate
+exception is `data/datastore/DataStoreModule.kt`, where DataStore's own scope is built at module
+level.
+
+### Dependency configurations
+
+- **In `:core:data`, anything whose type appears in an `@Inject constructor` parameter must be
+  `api`, not `implementation`** — `:app`'s annotation processor has to resolve those types itself,
+  and hiding one fails with `InjectProcessingStep was unable to process 'x' because 'Y' could not be
+  resolved`. **Under Hilt a library's constructor parameters are effectively part of its API.** A
   dependency used only inside function bodies stays `implementation` (`firebase-storage`,
-  `play-app-update-ktx`). The failure surfaces in `compileDebugAndroidTestKotlin` well before
-  `connectedDebugAndroidTest`, and can hide from `assembleDebug` entirely.
-- **`:core:ui` dependency configurations**: the same rule from the other direction — **a Compose
-  artifact whose type appears in a public signature is `api`.** `Modifier`, `SnackbarHostState`,
-  `Typography`, `Color`, `Shape`, `ImageVector`, `LazyListState`, and so on each appear in a public
-  composable's signature, so `compose-bom`, `ui`, `ui-graphics`, `material3`, `foundation` are all
-  `api`. `coil-compose`, `kotlinx-coroutines-android`, `ui-tooling-preview` and the icon packs stay
-  `implementation`: used in function bodies, never handed out. Check with `./gradlew
-  :core:ui:dependencies --configuration api` — if something in a public signature is missing from
-  that list, it's declared wrong.
-- **Dispatchers and scopes**: don't reference `Dispatchers.IO` directly in new code. Inject
-  `@param:IoDispatcher private val ioDispatcher: CoroutineDispatcher` — the qualifier lives in
-  `di/Qualifiers.kt` in `:core:domain`, its provider in `di/AppModule.kt` in `:app` — so tests can
-  substitute a `TestDispatcher`. `@ApplicationScope` provides the app-lifetime `CoroutineScope` for
-  work that must outlive a ViewModel. The one deliberate exception is
-  `data/datastore/DataStoreModule.kt`, where DataStore's own scope is built at module level.
-- **Build type**: in code that lives below `:app`, or is headed there, don't read
-  `BuildConfig.DEBUG` — inject `@param:DebugBuild private val isDebugBuild: Boolean` (qualifier in
-  `di/Qualifiers.kt`, provider in `di/AppModule.kt`). `com.jiahan.smartcamera.BuildConfig` belongs
-  to the application module's namespace, so it's a compile error below `:app`, not a silent wrong
-  value. **Don't generalize this to application-module code**: `BuildConfig.DEBUG` is a `static
-  final boolean`, so R8 constant-folds it and strips the dead branch from the release binary; an
-  injected flag is a runtime value and ships both. `MyApp.kt` and `util/DefaultErrorHandler.kt` keep
-  reading it directly for that reason. For a value that's *rendered* rather than branched on (e.g.
-  `versionName`, `logoRes`), hoist it as a parameter instead of adding a qualifier — there's no dead
-  branch to fold away.
-- **Dependencies**: every version lives in `gradle/libs.versions.toml` and is referenced through the
-  generated `libs.*` accessors — never an inline `implementation("group:artifact:1.2.3")`.
-  **A module declares what its own sources name, and a dependency it stops naming is deleted, not
-  left.** Unused ones cost nothing at compile time and so survive every refactor that should have
-  removed them: `:app` carried ML Kit ×4, GenAI, media3 ×4 and `material-icons-extended` for the
-  length of the whole feature split, long after the code that wanted them had moved into a module of
-  its own. Two exceptions, both flagged in place where they are declared: an artifact that is loaded
-  reflectively or auto-initialises (`firebase-perf`, `firebase-inappmessaging-display`,
-  `coil-network-okhttp`, `coil-gif`), and a compiler plugin whose absence changes codegen rather than
-  resolution (`kotlin-serialization` in `:core:data`).
-  **The exception list is the dangerous half of this rule, and it has now been got wrong in both
-  directions.** `firebase-inappmessaging-display` was on the wrong side: it *was* named, by a
-  `provideFirebaseInAppMessaging` binding nothing in the build ever injected — an unused Hilt binding
-  reads exactly like a live one, with no import to be missing and no compile error to raise, so check
-  for an injection *site* before treating a `@Provides` as load-bearing. `coil-gif` was on the wrong
-  side the other way: the sweep removed it because "nothing registers a GIF decoder here", which
-  under Coil 3 is what a *working* setup looks like. Both it and `coil-network-okhttp` ship a
-  `META-INF/services` entry (`coil3.util.DecoderServiceLoaderTarget` /
-  `FetcherServiceLoaderTarget`) that Coil reads when it builds an `ImageLoader`, so presence on the
-  classpath **is** the registration and a hand-written `components { add(...) }` block is precisely
-  what you would not find. GIFs stopped animating and nothing failed to compile.
-  **Before deleting a dependency nothing imports, look inside the artifact.** `unzip -p <aar>
-  classes.jar | ...`, or check its `META-INF/services` — a service file, a `ContentProvider` in its
-  manifest, or a Gradle plugin that expects the SDK present all mean "used" in a way grep cannot
-  see. The debug APK is the ground truth: `unzip -l app-debug.apk | grep META-INF/services` lists
-  what actually registered (release renames them under R8, so compare counts there, not names).
-  Check with `./gradlew :<module>:dependencies --configuration debugCompileClasspath` and, for what
-  the sources actually reference, a grep for the import root.
-- **A test lives in the module that owns its subject.** Tests do not move themselves when a class
-  does, and nothing fails when they stay: `:app` kept both `Default*Repository` suites and a
-  screenshot test of two feature screens because its test classpath can still see all of them.
-  When a test cannot follow its subject down, that is a finding, not a reason to leave it — it means
-  the test is asserting something from a layer above. The two repository suites asserted the
-  rendered *message* through `:app`'s `DefaultErrorHandler`; splitting the assertion at the
-  `AppError` identity (the message half was already pinned by `ErrorMessageMappersTest`, where it
-  belongs) is what let them move. See [Error handling](#error-handling).
-- **Resources**: they belong to the module whose code resolves them, and
-  `android.nonTransitiveRClass=true` means each module's `R` holds only its own. A `:core:ui` string
-  is reached from elsewhere as `import com.jiahan.smartcamera.core.ui.R as UiR`; `:core:common`'s
-  the same way as `CommonR`. `:app` may also read a *feature* module's `R` downward (e.g.
-  `import com.jiahan.smartcamera.feature.profile.R as ProfileR`), when one string is genuinely the
-  same copy for the same thing in both places (a destination name doubling as a bottom-bar label).
-  Rules:
-  - **A resource/function moves to the module that owns it, and "owns" means the only consumer.**
-    It moves down (to `:core:ui`/`:core:common`/`:core:domain`) as soon as the *first* second caller
-    appears — don't wait for a hypothetical second feature. A consumer *count* can't tell "shared
-    vocabulary" (`cd_back`, `no_results_found`) from "two strings that happen to share a word" (a
-    screen title vs. a `contentDescription`, a tab label vs. a preview title) — only the call sites
-    can. A shared *return type* (e.g. `ValidationResult`) has to land where every caller can see it,
-    same shape as a shared string.
-  - A vector drawable moved out of `:app` may stop resolving `?attr/colorControlNormal` (AppCompat
-    reaches `:app` only transitively). If it's drawn only through Compose's `Icon(painter = …)`,
-    delete the `android:tint` line rather than adding AppCompat — `Icon` already overrides it with
-    its own `ColorFilter`.
-  - Don't "solve" a cross-module string by declaring it in both modules — the application's value
-    wins the merge, but it silently duplicates user-visible text and its translations, and the two
-    drift.
-  - Don't turn `nonTransitiveRClass` off to avoid the aliasing — it's why a library's `R` stays
-    small and its resources stay attributable.
-  - For a genuinely reusable component, consider hoisting the string out as a parameter instead of
-    having the component resolve product copy itself.
-- **Pagination**: repositories hold no position state — the caller owns its place in the list, so
-  two callers paginating at once can't corrupt each other. The key depends on the data source: notes
-  page by an opaque `NoteCursor` (`getNotes(cursor)` returns a `NotePage` carrying the next one,
-  null = first page), while Explore holds a page index (Unsplash pages by number). The ViewModel
-  keeps that key plus `pageSize` and `hasMoreData`, with `isRefreshing`/`isLoadingMore` as separate
-  fields on the `*UiState` (not separate `StateFlow`s). Two rules easy to get wrong:
-  - Derive "is there another page" from the rows the data source returned, never from the mapped
-    domain list's size — mapping can drop rows (a failed author lookup), and a short list would then
-    be read as "end of feed."
-  - Route *every* path that rebuilds the list from the first page (pull-to-refresh, a cross-feature
-    add, the initial load) through one `reload()`, cancelling any in-flight load-more before
-    resetting position, with load-more no-opping while a reload is active. A page fetched against the
-    old position that lands after the reset splices a stale window into the new list. A ViewModel
-    running two independent paginated lists needs one reload/load-more job pair per list.
-- **Paging 3 is deliberately not a dependency** — a cost/benefit call, not impossibility. A
-  `DocumentSnapshot` cursor is an awkward `PagingSource` key, and Explore pages an Unsplash-backed
-  Cloud Function by number rather than by cursor; the hand-rolled pagination above already covers
-  what the two feeds need. Revisit if the notes feed needs `PagingSource`/`RemoteMediator`.
-- **Firestore security rules** (`firestore.rules`) deny all access by default; per-collection rules
-  are additive (OR'd). Keep new collections behind an explicit `request.auth != null` (or stricter).
-- **Cloud Functions** code style is enforced by `eslint-config-google` — run the functions lint
-  command above before committing changes under `functions/`.
+  `play-app-update-ktx`).
+- **In `:core:ui`, a Compose artifact whose type appears in a public signature is `api`** —
+  `Modifier`, `SnackbarHostState`, `Typography`, `Color`, `Shape`, `ImageVector`, `LazyListState`,
+  so `compose-bom`, `ui`, `ui-graphics`, `material3` and `foundation` all are. `coil-compose`,
+  `kotlinx-coroutines-android`, `ui-tooling-preview` and the icon packs stay `implementation`. Check
+  with `./gradlew :core:ui:dependencies --configuration api`.
+
+### Dependencies
+
+**Every version lives in `gradle/libs.versions.toml`, referenced through the generated `libs.*`
+accessors** — never an inline `implementation("group:artifact:1.2.3")`.
+
+**A module declares what its own sources name, and a dependency it stops naming is deleted, not
+left.** Two exceptions, both flagged in place where they're declared: an artifact loaded
+reflectively or auto-initialising (`firebase-perf`, `firebase-inappmessaging-display`,
+`coil-network-okhttp`, `coil-gif`), and a compiler plugin whose absence changes codegen rather than
+resolution (`kotlin-serialization` in `:core:data`).
+
+**That exception list is the dangerous half of this rule, and has been got wrong in both
+directions:**
+
+- **Check for an injection *site* before treating a `@Provides` as load-bearing** — an unused Hilt
+  binding reads exactly like a live one, with no import to be missing and no compile error to raise.
+- **Before deleting a dependency nothing imports, look inside the artifact** (`unzip -p <aar>
+  classes.jar | ...`, or its `META-INF/services`). A service file, a `ContentProvider` in its
+  manifest, or a Gradle plugin expecting the SDK all mean "used" in a way grep cannot see — under
+  Coil 3, classpath presence **is** the registration, so a *working* GIF setup is precisely one with
+  no `components { add(...) }` block to find. The debug APK is ground truth: `unzip -l app-debug.apk
+  | grep META-INF/services` (release renames them under R8, so compare counts there, not names).
+
+### Tests and resources
+
+- **A test lives in the module that owns its subject.** Tests don't move themselves when a class
+  does, and nothing fails when they stay. **When a test cannot follow its subject down, that is a
+  finding, not a reason to leave it** — it means the test asserts something from a layer above.
+- **Resources belong to the module whose code resolves them**, and `android.nonTransitiveRClass=true`
+  means each module's `R` holds only its own — reached from elsewhere as `import
+  com.jiahan.smartcamera.core.ui.R as UiR` (`:core:common`'s as `CommonR`). `:app` may read a
+  *feature* module's `R` downward when one string is genuinely the same copy for the same thing in
+  both places.
+- **A resource or function moves to the module that owns it, and "owns" means the only consumer** —
+  as soon as the *first* second caller appears, not a hypothetical second feature. A consumer
+  *count* can't tell "shared vocabulary" (`cd_back`, `no_results_found`) from "two strings that
+  happen to share a word" (a screen title vs. a `contentDescription`); only the call sites can. A
+  shared *return type* (e.g. `ValidationResult`) lands where every caller sees it.
+- A vector drawable moved out of `:app` may stop resolving `?attr/colorControlNormal` (AppCompat
+  reaches `:app` only transitively). **If it's drawn only through Compose's `Icon(painter = …)`,
+  delete the `android:tint` line rather than adding AppCompat** — `Icon` overrides it anyway.
+- **Don't declare a cross-module string in both modules**: the application's value wins the merge,
+  but it silently duplicates user-visible text and its translations, and they drift. **Don't turn
+  `nonTransitiveRClass` off** either. For a genuinely reusable component, consider hoisting the
+  string out as a parameter instead of having the component resolve product copy itself.
+
+### Pagination
+
+**Repositories hold no position state** — the caller owns its place in the list, so two callers
+paginating at once can't corrupt each other. The key depends on the source: notes page by an opaque
+`NoteCursor` (`getNotes(cursor)` returns a `NotePage` carrying the next one, null = first page),
+Explore by page index. The ViewModel keeps that key plus `pageSize` (defaulting to
+`AppConstants.DEFAULT_PAGE_SIZE` in `:core:domain`) and `hasMoreData`, with
+`isRefreshing`/`isLoadingMore` as fields on the `*UiState` (not separate `StateFlow`s).
+
+- **Derive "is there another page" from the rows the data source returned, never from the mapped
+  domain list's size** — mapping can drop rows (a failed author lookup), and a short list would then
+  read as "end of feed".
+- **Route every path that rebuilds the list from the first page** (pull-to-refresh, a cross-feature
+  add, the initial load) **through one `reload()`**, cancelling any in-flight load-more before
+  resetting position, with load-more no-opping while a reload is active. A page fetched against the
+  old position that lands after the reset splices a stale window into the new list. A ViewModel
+  running two paginated lists needs one reload/load-more job pair per list.
+- **Paging 3 is deliberately not a dependency** — a cost/benefit call, not impossibility. Revisit if
+  the notes feed needs `PagingSource`/`RemoteMediator`.
+
+### Build type
+
+**Below `:app`, don't read `BuildConfig.DEBUG`** — inject `@param:DebugBuild private val
+isDebugBuild: Boolean`. `com.jiahan.smartcamera.BuildConfig` belongs to the application module's
+namespace, so it's a compile error below `:app`, not a silent wrong value. **Don't generalize this
+to application-module code**: `BuildConfig.DEBUG` is a `static final boolean`, so R8 constant-folds
+it and strips the dead branch, while an injected flag is a runtime value that ships both — `MyApp.kt`
+and `util/DefaultErrorHandler.kt` read it directly for that reason. For a value that's *rendered*
+rather than branched on (`versionName`, `logoRes`), hoist it as a parameter instead.
+
+### Backend
+
+- **`firestore.rules` denies all access by default**; per-collection rules are additive (OR'd). Keep
+  new collections behind an explicit `request.auth != null` or stricter.
+- **Cloud Functions style is enforced by `eslint-config-google`** — run the functions lint command
+  before committing changes under `functions/`.
 
 ### Kotlin coding conventions
 
-Follows the [official Kotlin style guide](https://kotlinlang.org/docs/coding-conventions.html)
-(`kotlin.code.style=official`). Project-specific points worth calling out beyond the official guide:
+Beyond the official style guide (`kotlin.code.style=official`):
 
-- Prefer the read-only collection types (`List`, `Map`) over `MutableList`/`MutableMap` across
-  public API surfaces — but note that read-only is not immutable. Upcasting a `MutableList` to
-  `List` hands the caller a live view the owner can still mutate underneath them, so when a property
-  or return value is backed by a mutable field, copy at the boundary (`.toList()`) instead of
-  relying on the declared type.
-- Prefer a sealed type over a nullable field where both express the same state, matching the nested
-  loading/loaded/error content types each ViewModel's `*UiState` wraps (see Architecture above).
-- Name booleans and boolean-returning functions as predicates (`isRefreshing`, `hasMoreData`,
-  `canRetry`), matching the pagination/state fields already used in ViewModels.
+- **Prefer read-only collection types (`List`, `Map`) across public API surfaces — but read-only is
+  not immutable.** Upcasting a `MutableList` to `List` hands the caller a live view the owner can
+  still mutate underneath them, so when a property or return value is backed by a mutable field,
+  copy at the boundary (`.toList()`).
+- **Prefer a sealed type over a nullable field** where both express the same state.
+- **Name booleans and boolean-returning functions as predicates** (`isRefreshing`, `hasMoreData`,
+  `canRetry`).
 
 ### Formatting
 
-There is no `ktlint`/`spotless`/`detekt` Gradle plugin configured in this project — formatting is
-enforced by convention, not a CLI check. After making Kotlin changes, reformat touched files with
-Android Studio's formatter (**Code → Reformat Code**, or `Cmd+Opt+L` / `Ctrl+Alt+L`) using the
-project's default (official Kotlin style) settings before committing, and avoid introducing
-unrelated whitespace/import-order diffs in files you didn't otherwise change.
+No `ktlint`/`spotless`/`detekt` plugin is configured — formatting is enforced by convention. After
+Kotlin changes, reformat touched files with Android Studio's formatter (**Code → Reformat Code**)
+using the project's default settings, and avoid unrelated whitespace/import-order diffs in files you
+didn't otherwise change.

@@ -3,6 +3,7 @@
 ### Architecture & Patterns
 * MVVM architecture
 * Jetpack Compose
+* Modularization
 * Hilt (Dependency Injection)
 
 ### UI & Design
@@ -27,15 +28,15 @@
 * Firebase Analytics
 * Firebase Crashlytics
 * Firebase Cloud Messaging (Push Notifications)
+* Firebase In-App Messaging
 * Firebase A/B Testing
 * Firebase Cloud Functions
-* Firebase In-App Messaging
+* Firebase App Check
+* Firebase Performance Monitoring
 * Google Cloud
 
 ### Machine Learning & AI
-* Google Cloud Vision API (Text Detection)
-* Google Cloud Vision API (Label Detection)
-* Google Cloud Vision API (Object Localization)
+* Google Cloud Vision API (Text Detection, Label Detection, Object Localization, Landmark Detection, Logo Detection)
 
 ### Media & Images
 * Coil (Image Loading)
@@ -56,6 +57,7 @@
 * Kotlin Symbol Processing (KSP)
 * R8 (Code Shrinking & Obfuscation)
 * Build Configuration Management
+* GitHub Actions CI (Build, Unit Tests, Screenshot Verification, Lint)
 
 ### Architecture Overview
 SmartPhotos follows the **MVVM (Model-View-ViewModel)** architecture pattern, combined with a clean layered structure to ensure separation of concerns, testability, and scalability.
