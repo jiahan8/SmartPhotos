@@ -100,7 +100,7 @@ code `:app` does not contain, and meant nothing below `:app` could assemble a re
 | UI | `<feature>/*Screen.kt` (`:feature:*`), `navigation/` (`:app`) | Render `UiState`, forward user intents. No Firebase/Room/DataStore calls, no business logic beyond UI-only state. |
 | ViewModel | `<feature>/*ViewModel.kt` (`:feature:*`) | `@HiltViewModel`, exposes a `*UiState` via `StateFlow` wrapping a nested sealed loading/loaded/error content type. Depends on repository *interfaces* only. |
 | Repository | interfaces in `:core:domain` (plus two in `:core:common`/`:core:data`), `Default*` implementations in `:core:data` | Coordinates remote (Firestore/Storage/Functions) and local (Room/DataStore). Exposes domain models only. Every fallible operation returns `Result<T>` via `safeCall`. |
-| Domain | `domain/` (`:core:domain`) | Plain data classes (`HomeNote`, `MediaDetail`, `User`, …). No Android plugin on the module, so `import android.*` cannot compile. |
+| Domain | `domain/` (`:core:domain`) | Plain data classes (`HomeNote`, `MediaDetail`, `User`, …). A multiplatform module, so `commonMain` compiles against the intersection of `jvm` and three iOS targets and neither `import android.*` nor `import java.*` resolves. |
 | Local | `database/`, `data/datastore/` (`:core:data`) | The Room mirror and preferences. Schemas exported to `core/data/schemas/`. |
 | Remote | Firebase SDKs + `functions/index.js` | Auth, Firestore, Storage, Remote Config, Analytics, Crashlytics, FCM; Cloud Functions for anything needing a trusted server. |
 
@@ -227,7 +227,10 @@ component is assembled in `:app` — which is why `:core:data` can inject `@IoDi
 
 `di/Qualifiers.kt` (`:core:domain`) holds the `@IoDispatcher`, `@ApplicationScope` and `@DebugBuild`
 annotations themselves, kept apart from the providers because they are plain JSR-330 and can live in
-a pure-JVM module while `@Provides` methods cannot.
+a non-Android module while `@Provides` methods cannot. Since `:core:domain` went multiplatform
+they sit in its `jvmMain` source set rather than `commonMain` — JSR-330 is a JVM artifact and Hilt
+is Android-only, so they are the one thing in that module an iOS target could never use. Android
+consumers resolve the `jvm` variant, so nothing at the injection sites changed.
 
 **Not everything is a `@Singleton`.** `NoteShareDelegate` and `NoteErrorReporter` (`:core:common`)
 are `@ViewModelScoped` via a plain `@Inject` constructor — the
@@ -296,17 +299,51 @@ The long-term intent is to share `domain/`, the repository interfaces and other 
 day-to-day rules that keep that cheap are in [AGENTS.md](AGENTS.md#kotlin-multiplatform-readiness);
 this is the state of play.
 
-**The next actual step is converting `:core:domain` from `kotlin.jvm` to `kotlin.multiplatform`**
-(`commonMain` + `androidTarget()`). Nearly every import in its main sources is already multiplatform
-— `kotlin.time.Instant`, `kotlinx.coroutines`, `kotlinx.datetime`, `kotlinx.serialization` — with
-one exception: `javax.inject.Qualifier` in `di/Qualifiers.kt`, which would move to an `androidMain`
-source set since Hilt is Android-only.
+### What is done
+
+**`:core:domain` is a `kotlin.multiplatform` module** — `jvm()` plus `iosArm64`,
+`iosSimulatorArm64` and `iosX64`, via `smartphotos.kmp.library`. Its 33 unit tests run on the JVM
+and on an iOS simulator from the same `commonTest` sources. The conversion was as small as the
+audit predicted, because the module's imports were already multiplatform (`kotlin.time.Instant`,
+`kotlinx.coroutines`, `kotlinx.datetime`, `kotlinx.serialization`); what it needed was Gradle
+wiring, `javax.inject.Qualifier` moving to `jvmMain`, the two test files moving off `org.junit`, and
+one genuine surprise — **`kotlin.jvm.*` is not a default import in `commonMain`**, so `MediaUri`'s
+`@JvmInline` needed an explicit `import kotlin.jvm.JvmInline`. That last one was found by the build,
+not by the audit, which is the argument for the CI guard below.
+
+`jvm()`, deliberately, not `androidTarget()`: an Android target would mean applying
+`com.android.library` here, and this module's whole charter is that there is no Android plugin to
+make `android.*` resolve. Android consumers select the `jvm` variant through KGP's platform-type
+compatibility rule — the same way every module in this build already consumes
+`kotlinx-serialization-core`, which publishes no `androidJvm` variant either.
+
+**The guarantee is checked, not asserted.** CI runs
+`:core:domain:compileCommonMainKotlinMetadata`, which compiles `commonMain` against the
+*intersection* of all four targets, so a `java.*` import added there fails the build on a Linux
+runner with no Xcode. `jvmTest` alone would compile and pass it.
+
+### What is left
 
 **The ceiling to know about before planning further: Hilt has no KMP support, and it is load-bearing
 below `:app`.** Every `Default*` is an `@Inject constructor` and `DataModule` is
 `@InstallIn(SingletonComponent::class)`. A genuinely shared data layer would need Koin or
 hand-written constructor wiring, with Hilt confined to the Android edge. **That decision, not module
 splitting, is what sets how far KMP can go here.**
+
+**The second ceiling is Firebase**, and it is the larger of the two: seven Android-only SDKs
+(Firestore, Auth, Functions, Storage, Messaging, Remote Config, Analytics) sit behind the
+`Default*`/`Firebase*` implementations. Sharing them means either GitLive's `firebase-kotlin-sdk`
+or `expect`/`actual` per platform. **Decide that before splitting `:core:data`, not during** — the
+repository *contracts* are already clean, so the choice is entirely about the implementations.
+
+Room and DataStore are not blockers: Room is KMP-capable from 2.7 (a swap from `room-ktx` to
+`room-runtime` plus an SQLite driver) and `datastore-preferences-core`, the multiplatform artifact,
+is already declared in `core/data/build.gradle.kts`.
+
+**And the number that bounds all of it: without Compose Multiplatform, roughly 22% of the app's
+~12,100 lines can ever be shared.** The UI is 8,000 of them. That is a product decision about what
+an iOS client should feel like, not a refactoring one, and it should be taken when a shared data
+layer exists to build on.
 
 Be honest about what the module extraction bought: `:core:data` and `:core:ui` are Android libraries
 full of Firebase, Room and Compose, and the nine `:feature:*` modules are Compose end to end — the

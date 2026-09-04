@@ -98,11 +98,14 @@ jobs:
         if: ${{ !cancelled() }}
         run: ./gradlew compileDebugAndroidTestKotlin
 
-      # :core:domain is named explicitly because it is a plain Kotlin JVM module: its unit tests
-      # run under `test`, not the Android `testDebugUnitTest` variant task, so a bare
-      # testDebugUnitTest would skip them silently rather than fail. Every other module is an
-      # Android library, so the unqualified testDebugUnitTest reaches it, as does lintDebug below
-      # and verifyRoborazziDebug in the four modules that apply the roborazzi plugin.
+      # :core:domain is named explicitly because it is the one Kotlin Multiplatform module: its
+      # unit tests run under `jvmTest`, not the Android `testDebugUnitTest` variant task, so a bare
+      # testDebugUnitTest would skip them silently rather than fail. It was `test` while the module
+      # was plain Kotlin JVM -- the task no longer exists, and a stale name here fails loudly, which
+      # is the one good thing about naming it. Not `allTests`: that would pull in the Apple targets,
+      # which cannot be built on this runner. Every other module is an Android library, so the
+      # unqualified testDebugUnitTest reaches it, as does lintDebug below and verifyRoborazziDebug
+      # in the four modules that apply the roborazzi plugin.
       #
       # `!cancelled()` like every other check in this job. Without it this was the one step a
       # failure above could skip, and the two steps immediately before it are the two most likely
@@ -110,7 +113,17 @@ jobs:
       # cost a whole extra fix-and-push cycle just to find out whether the tests also failed.
       - name: Unit tests
         if: ${{ !cancelled() }}
-        run: ./gradlew testDebugUnitTest :core:domain:test
+        run: ./gradlew testDebugUnitTest :core:domain:jvmTest
+
+      # What stops :core:domain's commonMain quietly stopping being common. It compiles against the
+      # intersection of every target the module declares, so a `java.*` or JVM-only API added there
+      # fails here -- while `jvmTest` above would happily compile and pass it. Metadata compilation
+      # is a JVM task, so this works on this Linux runner with no Xcode and no Apple toolchain; what
+      # it cannot cover is a Kotlin/Native codegen difference, which only
+      # `:core:domain:iosSimulatorArm64Test` on a Mac would catch.
+      - name: Verify shared sources stay common
+        if: ${{ !cancelled() }}
+        run: ./gradlew :core:domain:compileCommonMainKotlinMetadata
 
       # Uploaded here, before the screenshot step below re-runs the test task with a filter and
       # rewrites the screenshot modules' test-results/ down to just the screenshot classes.
@@ -127,13 +140,17 @@ jobs:
           # in that module into a red X with no report to open.
           #
           # Two depths because the modules are two deep (core/*, feature/*) and :app is one.
-          # `test/` as well as `testDebugUnitTest/` because :core:domain is a plain Kotlin JVM
-          # module and its task is `test`.
+          # The task-name segment is a bare `*` rather than `test*` for the same reason the
+          # module list is a glob: it was `test*` to cover :core:domain's `test` alongside every
+          # other module's `testDebugUnitTest`, and the KMP conversion renamed that task to
+          # `jvmTest`, which `test*` does not match. Nothing under test-results/ or reports/tests/
+          # is written by anything but a test task, so matching them all costs nothing and is one
+          # fewer name to keep in sync.
           path: |
-            */build/reports/tests/test*/
-            */build/test-results/test*/
-            */*/build/reports/tests/test*/
-            */*/build/test-results/test*/
+            */build/reports/tests/*/
+            */build/test-results/*/
+            */*/build/reports/tests/*/
+            */*/build/test-results/*/
           if-no-files-found: ignore
 
       # Split from the unit tests so a red X says which kind of thing broke: logic or pixels.

@@ -61,9 +61,9 @@ gradlePlugin {
             id = "smartphotos.android.screenshot"
             implementationClass = "AndroidScreenshotConventionPlugin"
         }
-        register("jvmLibrary") {
-            id = "smartphotos.jvm.library"
-            implementationClass = "JvmLibraryConventionPlugin"
+        register("kmpLibrary") {
+            id = "smartphotos.kmp.library"
+            implementationClass = "KmpLibraryConventionPlugin"
         }
     }
 }

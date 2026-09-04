@@ -1,33 +1,54 @@
 /*
- * Pure-JVM module: domain models, repository contracts, and the few helpers every layer shares.
+ * Kotlin Multiplatform module: domain models, repository contracts, and the few helpers every
+ * layer shares. `commonMain` compiles for the JVM the Android app runs on and for the three Apple
+ * targets an iOS client would use.
  *
- * The absence of the Android plugin is the whole point. `import android.*` does not resolve here,
- * so the purity rule that the Separation of concerns and KMP readiness sections of AGENTS.md state
- * in prose is enforced by the compiler instead. Anything that needs a Context, a Uri or a Firebase
- * type belongs in :app (and, once it exists, :core:data) — not here.
+ * The absence of the Android plugin was always this module's point, and multiplatform sharpens
+ * that rather than replacing it. `commonMain` compiles against the *intersection* of every
+ * declared target, so `import android.*` still does not resolve -- and neither does `java.*` any
+ * more, which the Kotlin JVM plugin could never have enforced. The purity rule that the Separation
+ * of concerns and KMP readiness sections of AGENTS.md state in prose is held by the compiler, and
+ * CI runs `compileCommonMainKotlinMetadata` so it keeps being held on a runner with no Xcode.
  *
- * No Hilt plugin either: @Inject and @Qualifier are plain JSR-330 annotations that need no
- * annotation processing in this module. The @Provides/@Binds that satisfy them stay above.
+ * Anything that needs a Context, a Uri or a Firebase type belongs in :core:common or :core:data,
+ * not here. Anything that needs only the JVM goes in `jvmMain`, which is where `di/Qualifiers.kt`
+ * now sits: Hilt is Android-only, so its JSR-330 annotations cannot follow the models down into
+ * commonMain. Android consumers resolve this module's `jvm` variant and so still see them, which
+ * is why that move needed no edit anywhere else in the build.
  */
 plugins {
-    // Applies the Kotlin JVM plugin -- and nothing Android -- plus the Java/JVM target shared
-    // with the other modules. Keeping those in one place is what stops this module's target
-    // drifting from :app's, a mismatch that surfaces as an opaque Gradle variant-resolution
-    // failure rather than an obvious version error.
-    id("smartphotos.jvm.library")
+    // Applies kotlin.multiplatform -- and nothing Android -- plus the target set and the JVM
+    // target shared with the other modules. Keeping those in one place is what stops this module's
+    // target drifting from :app's, a mismatch that surfaces as an opaque Gradle
+    // variant-resolution failure rather than an obvious version error.
+    id("smartphotos.kmp.library")
     alias(libs.plugins.kotlin.serialization)
 }
 
-dependencies {
-    // api rather than implementation for the first three: Flow, LocalDate and @Serializable all
-    // appear in the public signatures of the repository interfaces and models below, so consumers
-    // compile against them. javax.inject does not surface in a signature — the qualifiers here are
-    // our own annotation classes — so it stays implementation, which is the default to prefer.
-    api(libs.kotlinx.coroutines.core)
-    api(libs.kotlinx.datetime)
-    api(libs.kotlinx.serialization.core)
-    implementation(libs.javax.inject)
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            // api rather than implementation: Flow, LocalDate and @Serializable all appear in the
+            // public signatures of the repository interfaces and models here, so consumers compile
+            // against them. All three are multiplatform, which is why they needed no change when
+            // this module gained the Apple targets.
+            api(libs.kotlinx.coroutines.core)
+            api(libs.kotlinx.datetime)
+            api(libs.kotlinx.serialization.core)
+        }
 
-    testImplementation(libs.junit)
-    testImplementation(libs.kotlinx.coroutines.test)
+        jvmMain.dependencies {
+            // Qualifiers.kt alone, and the reason it is the module's one non-common file. It does
+            // not surface in a signature -- the qualifiers are our own annotation classes -- so it
+            // stays implementation, which is the default to prefer.
+            implementation(libs.javax.inject)
+        }
+
+        commonTest.dependencies {
+            // kotlin-test rather than junit: these tests compile for every target declared above,
+            // and org.junit exists on none of them but the JVM.
+            implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
+        }
+    }
 }

@@ -11,7 +11,7 @@ that story is in [ARCHITECTURE.md](ARCHITECTURE.md).**
 | Module | What lives there |
 | --- | --- |
 | `:app` | `MainActivity`, `MyApp`, `MainViewModel`, `SmartPhotosApp`, `navigation/`, the messaging service, `di/AppModule.kt`, `util/`. Hosts the NavHost, supplies each screen's navigation lambdas, installs the Hilt bindings — **no feature screen renders here**. |
-| `:core:domain` | Pure Kotlin JVM (no AGP, no Hilt/KSP): domain models, repository *interfaces*, `safeCall`, the `ErrorHandler` interface, DI qualifiers, and the three field validators (`util/ValidationUtils.kt`) with `ValidationResult`/`ValidationError`. |
+| `:core:domain` | Kotlin Multiplatform, `jvm` + three iOS targets (no AGP, no Hilt/KSP): domain models, repository *interfaces*, `safeCall`, the `ErrorHandler` interface, DI qualifiers, and the three field validators (`util/ValidationUtils.kt`) with `ValidationResult`/`ValidationError`. |
 | `:core:common` | Android library, deliberately not Compose: the validation strings + `validationErrorMessageResId` that resolves them, the `MediaFileRepository` contract, `util/MediaUriExt.kt`, and the two `@ViewModelScoped` classes every feature shares (`NoteShareDelegate`, `NoteErrorReporter` — why it has Hilt/KSP). |
 | `:core:data` | Android library holding every implementation of a `:core:domain`/`:core:common` contract: the `Default*`/`Firebase*` repositories, Room, DataStore, `FirebaseModule`, `DataModule`. |
 | `:core:ui` | Android library, shared Compose vocabulary: `common/` (14 composables), `ui/theme/`, `util/DateTimeUtils.kt`/`FlowUtils.kt`. |
@@ -20,6 +20,9 @@ that story is in [ARCHITECTURE.md](ARCHITECTURE.md).**
 | `:core:screenshot-testing` | `BaseScreenshotTest` + the four artifacts it names (Robolectric, Roborazzi ×2, compose `ui-test-junit4`). No build file declares it — `smartphotos.android.screenshot` pulls it in. |
 
 Sources sit at `<module>/src/main/kotlin/com/jiahan/smartcamera/` (`:app` uses `java/`).
+**`:core:domain` is the exception** — being multiplatform it uses `src/commonMain/kotlin/`, with
+`src/jvmMain/kotlin/` holding the one file that cannot be common (`di/Qualifiers.kt`) and
+`src/commonTest/kotlin/` its tests.
 
 ### Module rules
 
@@ -66,7 +69,9 @@ Run from the repo root (Gradle wrapper):
 | Task | Command |
 | --- | --- |
 | Debug APK | `./gradlew assembleDebug` |
-| Unit tests (427 across 14 modules) | `./gradlew testDebugUnitTest :core:domain:test` |
+| Unit tests (427 across 14 modules) | `./gradlew testDebugUnitTest :core:domain:jvmTest` |
+| `:core:domain` on an iOS target (Mac only) | `./gradlew :core:domain:iosSimulatorArm64Test` |
+| Prove `commonMain` is still common | `./gradlew :core:domain:compileCommonMainKotlinMetadata` |
 | Hilt graph + androidTest sources | `./gradlew compileDebugAndroidTestKotlin` |
 | Release variant | `./gradlew assembleRelease` |
 | Screenshot diff / re-record | `./gradlew verifyRoborazziDebug` / `recordRoborazziDebug` |
@@ -90,10 +95,15 @@ Run from the repo root (Gradle wrapper):
 
 ### Unit tests
 
-`:core:domain` is a plain Kotlin JVM module, so its tests run under `test`, not the Android-variant
-`testDebugUnitTest` every other module uses (as do `lintDebug` and `connectedDebugAndroidTest`) —
-hence both tasks above. `:core:testing` and `:core:screenshot-testing` have no tests of their own.
+`:core:domain` is a Kotlin Multiplatform module, so its tests run under `jvmTest`, not the
+Android-variant `testDebugUnitTest` every other module uses (as do `lintDebug` and
+`connectedDebugAndroidTest`) — hence both tasks above. **Not `allTests`**, which would pull in the
+Apple targets: those build only on a Mac, and CI is Linux. `:core:testing` and
+`:core:screenshot-testing` have no tests of their own.
 
+- **Its tests live in `commonTest` and so must compile for every target**, which rules out
+  `org.junit` (use `kotlin.test`), `java.*`, and `kotlinx.coroutines.runBlocking` — the last is
+  declared for JVM and Native but not in `commonMain`, so `runTest` is the only option there.
 - Single class: `--tests "com.jiahan.smartcamera.home.HomeViewModelTest"`; single method: append
   `.methodName`.
 - **Assert on a settled `StateFlow` by reading `.value`.** Reach for
@@ -169,7 +179,7 @@ same settings:
 | `smartphotos.android.compose` | `:app`, `:core:ui`, `:core:screenshot-testing` | Compose compiler | `buildFeatures.compose = true` |
 | `smartphotos.android.feature` | all nine `:feature:*` | the library + compose conventions, KSP, Hilt, kotlin-serialization | the `:core:domain`/`:core:ui` edges, the Compose set, icons, lifecycle, `ui-test-manifest`, the test baseline (`:core:testing`, junit, mockk, coroutines-test, Turbine) and the androidTest baseline; **enforces the feature layering** |
 | `smartphotos.android.screenshot` | `:core:ui`, `:feature:home`, `:feature:search`, `:feature:settings` | Roborazzi | `outputDir` → `src/test/screenshots`, `unitTests.isIncludeAndroidResources`, `testImplementation(:core:screenshot-testing)`; **refuses to apply to the harness module** |
-| `smartphotos.jvm.library` | `:core:domain` | Kotlin JVM — **nothing Android** | Java 11, JVM target 11, test-JVM pin |
+| `smartphotos.kmp.library` | `:core:domain` | Kotlin Multiplatform — **nothing Android** | `jvm()` + `iosArm64`/`iosSimulatorArm64`/`iosX64`, Java 11, JVM target 11, test-JVM pin |
 
 - **A feature's build file contains only what that feature alone needs beyond the convention** —
   explore keeps `coil-compose`/`activity-compose`; settings keeps `androidx-core-ktx`/Roborazzi.
@@ -339,7 +349,21 @@ to add tooling now, but between otherwise-equivalent approaches prefer the cheap
   template, not a finished job: `ResourceProvider.getString(Int)` is the same res-id-as-`Int` seam
   one layer over.**
 
-The next step, and the Hilt ceiling that limits how far it can go, are in
+**`:core:domain` is multiplatform as of this change, and that turns three of the rules above from
+advice into compiler errors** — `commonMain` compiles against the intersection of `jvm`,
+`iosArm64`, `iosSimulatorArm64` and `iosX64`, so `android.*`, `java.*` and a `kotlinx`-less
+equivalent are all rejected there rather than merely discouraged. Two consequences worth knowing
+before editing that module:
+
+- **`kotlin.jvm.*` is not a default import in `commonMain`.** A `value class` still needs
+  `@JvmInline` and now needs `import kotlin.jvm.JvmInline` with it. The tell is the pair of errors
+  "Unresolved reference 'JvmInline'" and "Value classes without '@JvmInline' annotation are not yet
+  supported" — one missing import, not a stdlib problem.
+- **Everything else stays in the Android modules.** Hilt has no KMP support, so `di/Qualifiers.kt`
+  lives in `jvmMain`; adding a `@Provides`, a `Default*` or anything Firebase to this module is not
+  a step forward.
+
+The rest of the migration, and the Hilt and Firebase ceilings that bound it, are in
 [ARCHITECTURE.md](ARCHITECTURE.md#kotlin-multiplatform).
 
 ## Follow official Android guidance
