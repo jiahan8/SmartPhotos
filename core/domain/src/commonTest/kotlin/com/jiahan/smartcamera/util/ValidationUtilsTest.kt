@@ -1,8 +1,8 @@
 package com.jiahan.smartcamera.util
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * The username and display-name cases came from :core:common's ValidationUtilsTest, the password

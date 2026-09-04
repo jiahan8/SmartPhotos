@@ -1,5 +1,10 @@
 package com.jiahan.smartcamera.domain
 
+// Explicit, unlike on the JVM: `kotlin.jvm.*` is a default import only for a JVM compilation, and
+// commonMain does not get it. The annotation itself is in the common stdlib and is required on
+// every common value class, so this is an import to add rather than a JVM detail to remove.
+import kotlin.jvm.JvmInline
+
 /**
  * A local media location, carried as the string form of the platform URI it came from.
  *
