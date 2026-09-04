@@ -43,8 +43,10 @@ fun appErrorMessageResId(error: AppError): Int = when (error) {
     is AppError.NoteUnavailable -> R.string.note_unavailable
     is AppError.NoMediaAvailable -> R.string.no_media_available
     // :core:common's R, not :app's -- `username_not_available` is also read by AuthViewModel and
-    // ProfileViewModel for their own pre-checks, and `username_reserved` by validateUsername in
-    // :core:common itself, so both sit in the module every reader can see.
+    // ProfileViewModel for their own pre-checks, and `username_reserved` by that module's own
+    // `validationErrorMessageResId`, so both sit where every reader can see them. The second
+    // reader used to be `validateUsername`; it resolves no resource now that it names a
+    // ValidationError instead, but the mapper that renders one took the reading over.
     is AppError.UsernameTaken -> CommonR.string.username_not_available
     is AppError.UsernameReserved -> CommonR.string.username_reserved
     // Also :core:common's, and for the same reason: note/'s own client-side validation shows the

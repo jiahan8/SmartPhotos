@@ -4,7 +4,10 @@
     <string name="name">Name</string>
     <string name="username">Username</string>
 
-    <!-- Validation results, and the two username conflicts appErrorMessageResId renders -->
+    <!-- Validation results, and the two username conflicts appErrorMessageResId renders.
+         validationErrorMessageResId resolves all of these except username_not_available;
+         SettingsViewModel also reads password_empty directly, and AuthViewModel and
+         ProfileViewModel read username_not_available for their own pre-checks. -->
     <string name="name_empty">Name cannot be empty</string>
     <string name="name_too_long">Name cannot exceed 50 characters</string>
     <string name="username_empty">Username cannot be empty</string>
@@ -12,6 +15,7 @@
     <string name="username_invalid_characters">Username can only contain letters, numbers, periods, and underscores</string>
     <string name="username_reserved">This username is reserved</string>
     <string name="username_not_available">Please choose another username</string>
+    <string name="password_empty">Password cannot be empty</string>
     <string name="share_note_failure">Couldn\'t share this note. Please try again.</string>
     <string name="note_validation">Note cannot exceed 500 characters</string>
     <string name="note_media_limit">You can attach up to 20 photos or videos per note</string>

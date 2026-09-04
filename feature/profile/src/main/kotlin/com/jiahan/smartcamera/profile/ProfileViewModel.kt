@@ -20,6 +20,7 @@ import com.jiahan.smartcamera.util.ValidationResult
 import com.jiahan.smartcamera.util.toMediaUri
 import com.jiahan.smartcamera.util.validateDisplayName
 import com.jiahan.smartcamera.util.validateUsername
+import com.jiahan.smartcamera.util.validationErrorMessageResId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -112,7 +113,9 @@ class ProfileViewModel @Inject constructor(
     fun updateDisplayNameText(text: String) {
         val displayNameErrorMessage =
             when (val validationResult = validateDisplayName(text.trim(), requireNonBlank = true)) {
-                is ValidationResult.Error -> resourceProvider.getString(validationResult.messageResId)
+                is ValidationResult.Error ->
+                    resourceProvider.getString(validationErrorMessageResId(validationResult.error))
+
                 else -> null
             }
         _uiState.update {
@@ -128,7 +131,9 @@ class ProfileViewModel @Inject constructor(
     fun updateUsernameText(text: String) {
         val usernameErrorMessage =
             when (val validationResult = validateUsername(text.trim(), requireNonBlank = true)) {
-                is ValidationResult.Error -> resourceProvider.getString(validationResult.messageResId)
+                is ValidationResult.Error ->
+                    resourceProvider.getString(validationErrorMessageResId(validationResult.error))
+
                 else -> null
             }
         _uiState.update { it.copy(username = text, usernameErrorMessage = usernameErrorMessage) }

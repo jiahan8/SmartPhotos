@@ -11,6 +11,8 @@ import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ResourceProvider
 import com.jiahan.smartcamera.util.ValidationResult
+import com.jiahan.smartcamera.util.validateNewPassword
+import com.jiahan.smartcamera.util.validationErrorMessageResId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -26,6 +28,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
+import com.jiahan.smartcamera.core.common.R as CommonR
 
 sealed interface SettingsStatus {
     data object Idle : SettingsStatus
@@ -213,9 +216,11 @@ class SettingsViewModel @Inject constructor(
                 dialog.newPassword,
                 requireNonBlank = true
             ) as? ValidationResult.Error)
-                ?.let { resourceProvider.getString(it.messageResId) }
+                ?.let { resourceProvider.getString(validationErrorMessageResId(it.error)) }
         val confirmError = when {
-            dialog.confirmNewPassword.isBlank() -> resourceProvider.getString(R.string.password_empty)
+            dialog.confirmNewPassword.isBlank() ->
+                resourceProvider.getString(CommonR.string.password_empty)
+
             dialog.confirmNewPassword != dialog.newPassword ->
                 resourceProvider.getString(R.string.passwords_do_not_match)
 

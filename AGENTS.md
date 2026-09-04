@@ -11,8 +11,8 @@ that story is in [ARCHITECTURE.md](ARCHITECTURE.md).**
 | Module | What lives there |
 | --- | --- |
 | `:app` | `MainActivity`, `MyApp`, `MainViewModel`, `SmartPhotosApp`, `navigation/`, the messaging service, `di/AppModule.kt`, `util/`. Hosts the NavHost, supplies each screen's navigation lambdas, installs the Hilt bindings — **no feature screen renders here**. |
-| `:core:domain` | Pure Kotlin JVM (no AGP, no Hilt/KSP): domain models, repository *interfaces*, `safeCall`, the `ErrorHandler` interface, DI qualifiers. |
-| `:core:common` | Android library, deliberately not Compose: `validateUsername`/`validateDisplayName` + their strings, the `MediaFileRepository` contract, `util/MediaUriExt.kt`, and the two `@ViewModelScoped` classes every feature shares (`NoteShareDelegate`, `NoteErrorReporter` — why it has Hilt/KSP). |
+| `:core:domain` | Pure Kotlin JVM (no AGP, no Hilt/KSP): domain models, repository *interfaces*, `safeCall`, the `ErrorHandler` interface, DI qualifiers, and the three field validators (`util/ValidationUtils.kt`) with `ValidationResult`/`ValidationError`. |
+| `:core:common` | Android library, deliberately not Compose: the validation strings + `validationErrorMessageResId` that resolves them, the `MediaFileRepository` contract, `util/MediaUriExt.kt`, and the two `@ViewModelScoped` classes every feature shares (`NoteShareDelegate`, `NoteErrorReporter` — why it has Hilt/KSP). |
 | `:core:data` | Android library holding every implementation of a `:core:domain`/`:core:common` contract: the `Default*`/`Firebase*` repositories, Room, DataStore, `FirebaseModule`, `DataModule`. |
 | `:core:ui` | Android library, shared Compose vocabulary: `common/` (14 composables), `ui/theme/`, `util/DateTimeUtils.kt`/`FlowUtils.kt`. |
 | `:feature:*` | One Android library per screen — `home`, `search`, `note`, `preview`, `favorite`, `profile`, `settings`, `auth`, `explore` — holding its Compose screen(s), ViewModel(s), route and tests. |
@@ -66,7 +66,7 @@ Run from the repo root (Gradle wrapper):
 | Task | Command |
 | --- | --- |
 | Debug APK | `./gradlew assembleDebug` |
-| Unit tests (425 across 14 modules) | `./gradlew testDebugUnitTest :core:domain:test` |
+| Unit tests (427 across 14 modules) | `./gradlew testDebugUnitTest :core:domain:test` |
 | Hilt graph + androidTest sources | `./gradlew compileDebugAndroidTestKotlin` |
 | Release variant | `./gradlew assembleRelease` |
 | Screenshot diff / re-record | `./gradlew verifyRoborazziDebug` / `recordRoborazziDebug` |
@@ -309,6 +309,15 @@ The three pieces live in three files, by layer: `util/ErrorHandler.kt` (interfac
 `:core:domain`), `util/DefaultErrorHandler.kt` (implementation, `:app`), `util/ErrorMessageMappers.kt`
 (the `R`-resolving mapper, `:app`). Keep a new mapper in the third rather than reuniting them.
 
+**`ValidationError` follows the same identity/mapper split but its mapper lives in `:core:common`,
+and the difference is the seam, not taste.** An `AppError` reaches a feature as a `Throwable` it
+already routes through `ErrorHandler`, so `appErrorMessageResId` can sit in `:app` and be applied
+*for* the feature inside `getErrorMessage`. A `ValidationResult` is returned to a ViewModel by a
+function it called itself, with nothing in between — mapping it from `:app` would mean inventing a
+seam (another `:core:domain` interface, an implementation, a binding and a fake) to reach a `when`
+over an enum. **Put a mapper where its callers can already see it; add a seam only when one exists
+for another reason.**
+
 ### Kotlin Multiplatform readiness
 
 We may migrate `domain/`, repository interfaces and other business logic to KMP later. Not a mandate
@@ -322,6 +331,13 @@ to add tooling now, but between otherwise-equivalent approaches prefer the cheap
 - **Don't report module extraction as KMP progress** — `:core:data`, `:core:ui` and every
   `:feature:*` are Android libraries full of Firebase/Room/Compose, so nothing in them became
   shareable by moving. Don't rename `:core:domain` to `:core:model`; it holds more than models.
+- **What does count is a type losing its Android reference**, and `util/ValidationUtils.kt` is the
+  worked example: three validators sat in two Android modules for one reason, that
+  `ValidationResult.Error` carried an `R.string` id. Giving it a `ValidationError` identity and a
+  mapper moved them to `:core:domain` unchanged — a blank check, a length check, a regex and a
+  reserved-name set that a `commonMain` source set could take today. **`ValidationResult` is a
+  template, not a finished job: `ResourceProvider.getString(Int)` is the same res-id-as-`Int` seam
+  one layer over.**
 
 The next step, and the Hilt ceiling that limits how far it can go, are in
 [ARCHITECTURE.md](ARCHITECTURE.md#kotlin-multiplatform).
@@ -510,7 +526,10 @@ directions:**
   as soon as the *first* second caller appears, not a hypothetical second feature. A consumer
   *count* can't tell "shared vocabulary" (`cd_back`, `no_results_found`) from "two strings that
   happen to share a word" (a screen title vs. a `contentDescription`); only the call sites can. A
-  shared *return type* (e.g. `ValidationResult`) lands where every caller sees it.
+  shared *return type* (e.g. `ValidationResult`) lands where every caller sees it. **A function
+  pinned to a module only by the `R` it resolves is a different case** — hoist the resource lookup
+  out (see `ValidationError` under [Kotlin Multiplatform readiness](#kotlin-multiplatform-readiness))
+  and it stops being pinned at all.
 - A vector drawable moved out of `:app` may stop resolving `?attr/colorControlNormal` (AppCompat
   reaches `:app` only transitively). **If it's drawn only through Compose's `Icon(painter = …)`,
   delete the `android:tint` line rather than adding AppCompat** — `Icon` overrides it anyway.

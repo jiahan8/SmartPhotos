@@ -14,5 +14,4 @@
     <string name="delete_account">アカウントを削除</string>
     <string name="delete_account_desc">このアカウントを削除してもよろしいですか？</string>
     <string name="app_version">バージョン %s</string>
-    <string name="password_empty">パスワードを入力してください</string>
 </resources>

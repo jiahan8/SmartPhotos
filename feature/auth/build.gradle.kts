@@ -14,7 +14,9 @@
  * - `validateUsername`/`validateDisplayName` went down to the new :core:common, with the ten
  *   username/name/email strings auth and profile share. That module exists because neither
  *   :core:domain (no Android plugin, so no resources) nor :core:ui (Compose vocabulary, and a
- *   validator is not a composable) could take them.
+ *   validator is not a composable) could take them. The validators went one module further later,
+ *   to :core:domain, when `ValidationResult.Error` traded its `R.string` id for an identity; the
+ *   strings and the mapper that renders them stayed.
  * - `usernameErrorMessageResId` was deleted rather than moved. It read an ALREADY_EXISTS /
  *   INVALID_ARGUMENT code off a `FirebaseFunctionsException` in the ViewModel layer, so relocating
  *   it would have put firebase-functions on this module's classpath. DefaultUserRepository now
@@ -62,12 +64,12 @@ dependencies {
      * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
 
-    // validateUsername/validateDisplayName, and the field labels and username messages AuthScreen
-    // and AuthViewModel resolve as `CommonR`. Seven of the nine features declare this edge now, but
-    // deliberately not from the convention: they want different tenants of the module -- auth the
-    // validators, profile the media seam, the four note screens the delegates -- and the rule here
-    // is "more than one module wants it, for the same reason". Explore and settings want none of
-    // it, and a convention that gave it to them would hide that.
+    // `validationErrorMessageResId`, and the field labels and username messages AuthScreen and
+    // AuthViewModel resolve as `CommonR`. Eight of the nine features declare this edge now, but
+    // deliberately not from the convention: they want different tenants of the module -- auth and
+    // settings the validation strings, profile the media seam, the four note screens the delegates
+    // -- and the rule here is "more than one module wants it, for the same reason". Explore wants
+    // none of it, and a convention that gave it to every feature would hide that.
     implementation(project(":core:common"))
 
     // AsyncImage, for the launcher icon the nav graph passes in as `logoRes`.

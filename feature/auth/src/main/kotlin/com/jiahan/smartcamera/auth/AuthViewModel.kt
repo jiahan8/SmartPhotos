@@ -13,6 +13,7 @@ import com.jiahan.smartcamera.util.ResourceProvider
 import com.jiahan.smartcamera.util.ValidationResult
 import com.jiahan.smartcamera.util.validateDisplayName
 import com.jiahan.smartcamera.util.validateUsername
+import com.jiahan.smartcamera.util.validationErrorMessageResId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -199,7 +200,11 @@ class AuthViewModel @Inject constructor(
             is ValidationResult.Error -> {
                 _uiState.update {
                     it.copy(
-                        status = AuthStatus.Error(resourceProvider.getString(validationResult.messageResId)),
+                        status = AuthStatus.Error(
+                            resourceProvider.getString(
+                                validationErrorMessageResId(validationResult.error)
+                            )
+                        ),
                         showResendButton = false
                     )
                 }
@@ -212,7 +217,11 @@ class AuthViewModel @Inject constructor(
             is ValidationResult.Error -> {
                 _uiState.update {
                     it.copy(
-                        status = AuthStatus.Error(resourceProvider.getString(validationResult.messageResId)),
+                        status = AuthStatus.Error(
+                            resourceProvider.getString(
+                                validationErrorMessageResId(validationResult.error)
+                            )
+                        ),
                         showResendButton = false
                     )
                 }

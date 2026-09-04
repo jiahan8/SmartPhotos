@@ -12,6 +12,7 @@
     <string name="username_invalid_characters">ユーザー名には英数字、ピリオド、アンダースコアのみ使用できます</string>
     <string name="username_reserved">このユーザー名は予約されています</string>
     <string name="username_not_available">別のユーザー名を選択してください</string>
+    <string name="password_empty">パスワードを入力してください</string>
     <string name="share_note_failure">このメモを共有できませんでした。もう一度お試しください。</string>
     <string name="note_validation">メモは500文字以内で入力してください</string>
     <string name="note_media_limit">メモには最大20枚の写真または動画を添付できます</string>

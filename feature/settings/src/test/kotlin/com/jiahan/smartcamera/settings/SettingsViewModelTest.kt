@@ -29,6 +29,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import com.jiahan.smartcamera.core.common.R as CommonR
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class SettingsViewModelTest {
@@ -52,7 +53,9 @@ class SettingsViewModelTest {
         every { errorHandler.getErrorMessage(any()) } returns "An error occurred"
         every { userPreferencesRepository.userPreferencesFlow } returns
                 flowOf(UserPreferences(isDarkTheme = false, username = "", profilePicture = null))
-        every { resourceProvider.getString(R.string.password_empty) } returns "Password cannot be empty"
+        every {
+            resourceProvider.getString(CommonR.string.password_empty)
+        } returns "Password cannot be empty"
         every { resourceProvider.getString(R.string.passwords_do_not_match) } returns "Passwords do not match"
         every { resourceProvider.getString(R.string.change_password_success) } returns "Password changed successfully"
         viewModel = SettingsViewModel(

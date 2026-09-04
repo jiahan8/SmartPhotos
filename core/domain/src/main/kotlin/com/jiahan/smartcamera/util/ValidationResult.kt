@@ -1,27 +1,47 @@
 package com.jiahan.smartcamera.util
 
 /**
+ * The identity of a failed field validation.
+ *
+ * Each case names one rule the validators in `ValidationUtils.kt` enforce, and
+ * `validationErrorMessageResId` (`util/ValidationMessages.kt`, :core:common) maps it to the string
+ * a ViewModel renders. That is the split `AppError`/`appErrorMessageResId` already models one layer
+ * down, and adopting it here is what let the validators come to this module: [ValidationResult.Error]
+ * used to carry an `R.string` id, which was the only reason three pure Kotlin functions -- a blank
+ * check, a length check, a regex and a reserved-name set -- needed an Android module to live in.
+ *
+ * An enum rather than a sealed class, unlike [com.jiahan.smartcamera.domain.AppError]: these carry
+ * no payload and cannot carry a stack trace, so there is nothing for a per-case class to hold, and
+ * `entries` lets `ValidationMessagesTest` prove every case resolves instead of listing them by
+ * hand. That is the reasoning `TopLevelDestination` follows.
+ *
+ * **Add a case here and its string in the mapper together** -- the mapper's `when` is exhaustive,
+ * so the compiler asks for the second half.
+ */
+enum class ValidationError {
+    NAME_EMPTY,
+    NAME_TOO_LONG,
+    USERNAME_EMPTY,
+    USERNAME_TOO_LONG,
+    USERNAME_INVALID_CHARACTERS,
+    USERNAME_RESERVED,
+    PASSWORD_EMPTY,
+}
+
+/**
  * The result of validating one user-entered field.
  *
- * Lives here rather than beside the validators because there is no one place beside them:
- * `validateUsername` and `validateDisplayName` are in `:core:common` (`util/ValidationUtils.kt`),
- * `validateNewPassword` is in `:feature:settings` (`settings/PasswordValidation.kt`), and every one
- * of them returns this type. `:core:common` is not the answer either, even though it holds two of
- * the three -- `:feature:settings` does not depend on it. This module is what every feature gets as
- * an `api` edge from `smartphotos.android.feature`, so it is the only one all three homes can see,
- * which is the same reason `ResourceProvider` is here.
+ * It sits beside the validators now. It used to sit here without them, because there was no one
+ * place beside them to sit: `validateUsername`/`validateDisplayName` were in :core:common,
+ * `validateNewPassword` in :feature:settings, and this module -- the `api` edge every feature gets
+ * from `smartphotos.android.feature` -- was the only one all three homes could see. Giving [Error]
+ * an identity rather than a resource id removed the reason they were apart, which is the step this
+ * doc used to describe as the thing keeping them out.
  *
- * [Error.messageResId] is a bare `Int` for exactly the reason `ResourceProvider.getString` takes
- * one: it compiles in a pure-JVM module while being an Android concept in everything but its type.
- * That makes it a testable seam, not a KMP asset -- a `commonMain` source set would need this to
- * carry an identity the way `AppError` does, not a resource id.
- *
- * That res id is also the only thing keeping the validators themselves out of this module. All
- * three are pure Kotlin -- a blank check, a length check, a regex, a reserved-name set -- and they
- * resolve an `R` for no reason except to fill in [Error]. Give it an identity plus a mapper, the
- * split `AppError`/`appErrorMessageResId` already models one layer over, and they follow it down.
+ * A sealed type rather than a nullable [ValidationError], per the Kotlin conventions in AGENTS.md:
+ * [Success] is a state, not the absence of one.
  */
 sealed class ValidationResult {
     object Success : ValidationResult()
-    data class Error(val messageResId: Int) : ValidationResult()
+    data class Error(val error: ValidationError) : ValidationResult()
 }

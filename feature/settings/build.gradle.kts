@@ -15,7 +15,8 @@
  * - `ValidationResult` went down to :core:domain. `validateNewPassword` came here with its
  *   `password_empty` string, because this module was its only caller; `validateUsername` and
  *   `validateDisplayName` stayed in :app for auth and profile. The shared *return type* had to
- *   land where all three can see it.
+ *   land where all three can see it. Both halves moved again since -- see the :core:common edge
+ *   below -- but the rule that placed them did not change.
  * - `PasswordField` went down to :core:ui with `cd_hide_password`, `cd_show_password` and the two
  *   `visibility` drawables. This dialog held three copies of that block and AuthScreen a fourth --
  *   the `cd_back` case from the explore extraction, where a resource with consumers in two
@@ -50,4 +51,11 @@ dependencies {
 
     // ConfigurationCompat, to read the active locale for the Language row.
     implementation(libs.androidx.core.ktx)
+
+    // This module's first :core:common edge, and it arrived rather than left: `validateNewPassword`
+    // went down to :core:domain once ValidationResult.Error carried an identity instead of an
+    // R.string, and `password_empty` went up to :core:common to sit with the mapper that renders
+    // every validation failure. SettingsViewModel reads both across this edge -- the function from
+    // :core:domain, the mapper and the string from here.
+    implementation(project(":core:common"))
 }

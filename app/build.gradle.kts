@@ -97,10 +97,11 @@ dependencies {
     // module with no Android plugin, so it is the compiler's copy of the purity rule.
     implementation(project(":core:domain"))
 
-    // The Android-bound half of the shared vocabulary: validateUsername/validateDisplayName,
-    // which profile still calls here and :feature:auth calls there, and the ten username/name/email
-    // strings the two screens and appErrorMessageResId all resolve. ProfileScreen, ProfileViewModel
-    // and ErrorMessageMappers reach its R as `CommonR`.
+    // The Android-bound half of the shared vocabulary: the username/name/email strings that
+    // AuthScreen, ProfileScreen, `validationErrorMessageResId` and `appErrorMessageResId` resolve
+    // between them, plus the media seam and the note delegates the features use. What :app itself
+    // reaches for is the R, as `CommonR` in ErrorMessageMappers -- five strings with a second
+    // reader below.
     implementation(project(":core:common"))
 
     // Every Default* repository, the Room database, the DataStore wiring and -- since the
