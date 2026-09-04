@@ -16,6 +16,7 @@ import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.ProfilePictureUpdate
 import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
+import com.jiahan.smartcamera.util.reason
 import com.jiahan.smartcamera.util.safeCall
 import com.jiahan.smartcamera.util.toPlatformUri
 import kotlinx.coroutines.tasks.await
@@ -44,6 +45,7 @@ class DefaultUserRepository @Inject constructor(
         private const val FIELD_FCM_TOKEN = "fcm_token"
         private const val FUNCTION_CREATE_USER_PROFILE = "createUserProfile"
         private const val FUNCTION_UPDATE_USERNAME = "updateUsername"
+        private const val REASON_USERNAME_RESERVED = "USERNAME_RESERVED"
         private const val FUNCTION_RECORD_USER_ACTIVITY = "recordUserActivity"
         private const val FIELD_ACTIVE_DAY = "activeDay"
         private const val ANNOUNCEMENTS_TOPIC = "announcements"
@@ -125,18 +127,36 @@ class DefaultUserRepository @Inject constructor(
      * follows, and `appErrorMessageResId` -- applied inside `getErrorMessage` -- renders it with no
      * code at the call site.
      *
-     * `INVALID_ARGUMENT` maps to [AppError.UsernameReserved] unconditionally, which is exactly what
-     * the mapper it replaces did. Both functions validate nothing but the username, so the code
-     * cannot presently mean anything else; if one of them grows a second argument to validate, this
-     * needs the structured `details` payload that `foldNoteValidationError` reads.
+     * `INVALID_ARGUMENT` is told apart by the structured `details.reason` payload, the way
+     * `foldNoteValidationError` reads createNote's. It used to map to [AppError.UsernameReserved]
+     * on the bare code, which the mapper it replaced also did -- correct only while both functions
+     * validated nothing but the username. `createUserProfile` validates `metadata` and the Auth
+     * display name under the same code, so each of those reported itself to the user as a reserved
+     * username.
+     *
+     * **A rejection carrying no reason at all is still folded to [AppError.UsernameReserved].**
+     * `functions/` deploys separately from the app, so a build shipped ahead of that deploy talks
+     * to a backend that sends no payload, and without this arm the reserved case would regress to
+     * raw English until someone ran `firebase deploy`. **Delete the `reason == null` clause once
+     * the functions in this change are live** -- it is a migration shim, not the contract.
+     *
+     * A reason this does not recognise is left alone, as in `foldNoteValidationError`: the client
+     * checks length, character set and the reserved list before submitting, so the remaining
+     * payloads name a request no legitimate client can produce. Such a rejection does reach the
+     * user as the server's English text, which is the price of not minting an AppError case per
+     * client bug -- the note validation path makes the same trade.
      */
     private suspend fun callReservingUsername(name: String, data: HashMap<String, String>) {
         try {
             functions.getHttpsCallable(name).call(data).await()
         } catch (e: FirebaseFunctionsException) {
-            throw when (e.code) {
-                FirebaseFunctionsException.Code.ALREADY_EXISTS -> AppError.UsernameTaken()
-                FirebaseFunctionsException.Code.INVALID_ARGUMENT -> AppError.UsernameReserved()
+            val reason = e.reason()
+            throw when {
+                e.code == FirebaseFunctionsException.Code.ALREADY_EXISTS -> AppError.UsernameTaken()
+                e.code == FirebaseFunctionsException.Code.INVALID_ARGUMENT &&
+                        (reason == REASON_USERNAME_RESERVED || reason == null) ->
+                    AppError.UsernameReserved()
+
                 else -> e
             }
         }

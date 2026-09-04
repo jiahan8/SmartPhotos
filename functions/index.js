@@ -351,9 +351,10 @@ exports.createNote = onCall(async (request) => {
   }
 
   // Every invalid-argument error below carries a machine-readable `reason`
-  // in its details -- noteErrorMessageResId() on the client maps these to
-  // localized strings. All of them share the invalid-argument code, so the
-  // client can't tell them apart from the code alone.
+  // in its details -- DefaultNoteRepository.foldNoteValidationError() folds
+  // the ones a user can hit into AppError cases, which appErrorMessageResId()
+  // renders as localized strings. All of them share the invalid-argument code,
+  // so the client can't tell them apart from the code alone.
   const rawText = request.data && request.data.text;
   if (rawText !== null && rawText !== undefined &&
       typeof rawText !== "string") {
@@ -430,7 +431,10 @@ function usernameDocRef(username) {
  */
 function assertUsernameNotReserved(username) {
   if (RESERVED_USERNAMES.has(username.toLowerCase())) {
-    throw new HttpsError("invalid-argument", "This username is reserved.");
+    throw new HttpsError(
+        "invalid-argument", "This username is reserved.",
+        {reason: "USERNAME_RESERVED"},
+    );
   }
 }
 
@@ -441,12 +445,16 @@ function assertUsernameNotReserved(username) {
  */
 function assertValidUsernameFormat(username) {
   if (username.length > MAX_USERNAME_LENGTH) {
-    throw new HttpsError("invalid-argument", "Username is too long.");
+    throw new HttpsError(
+        "invalid-argument", "Username is too long.",
+        {reason: "USERNAME_TOO_LONG"},
+    );
   }
   if (!USERNAME_PATTERN.test(username)) {
     throw new HttpsError(
         "invalid-argument",
         "Username contains invalid characters.",
+        {reason: "USERNAME_INVALID_CHARACTERS"},
     );
   }
 }
@@ -508,13 +516,25 @@ exports.createUserProfile = onCall(async (request) => {
     throw new HttpsError("unauthenticated", "Sign-in required.");
   }
 
+  // Every invalid-argument error raised from here on -- including the two
+  // assert helpers' -- carries a machine-readable `reason`, because this
+  // function validates more than the username and the client cannot tell those
+  // apart from the code alone. It used to read USERNAME_RESERVED off the bare
+  // invalid-argument code, so a rejected `metadata` or an over-long display
+  // name reported itself to the user as a reserved username.
   const metadata = request.data && request.data.metadata;
   const username = request.data && request.data.username;
   if (typeof username !== "string" || username.trim().length === 0) {
-    throw new HttpsError("invalid-argument", "Username is required.");
+    throw new HttpsError(
+        "invalid-argument", "Username is required.",
+        {reason: "USERNAME_REQUIRED"},
+    );
   }
   if (typeof metadata !== "string") {
-    throw new HttpsError("invalid-argument", "Metadata is required.");
+    throw new HttpsError(
+        "invalid-argument", "Metadata is required.",
+        {reason: "METADATA_REQUIRED"},
+    );
   }
   assertValidUsernameFormat(username);
   assertUsernameNotReserved(username);
@@ -524,7 +544,10 @@ exports.createUserProfile = onCall(async (request) => {
   const authUser = await admin.auth().getUser(uid);
   if (authUser.displayName &&
       authUser.displayName.length > MAX_DISPLAY_NAME_LENGTH) {
-    throw new HttpsError("invalid-argument", "Display name is too long.");
+    throw new HttpsError(
+        "invalid-argument", "Display name is too long.",
+        {reason: "DISPLAY_NAME_TOO_LONG"},
+    );
   }
   const firestore = admin.firestore();
   const userRef = firestore.collection(COLLECTION_USER).doc(uid);
@@ -563,7 +586,10 @@ exports.updateUsername = onCall(async (request) => {
 
   const username = request.data && request.data.username;
   if (typeof username !== "string" || username.trim().length === 0) {
-    throw new HttpsError("invalid-argument", "Username is required.");
+    throw new HttpsError(
+        "invalid-argument", "Username is required.",
+        {reason: "USERNAME_REQUIRED"},
+    );
   }
   assertValidUsernameFormat(username);
   assertUsernameNotReserved(username);
@@ -733,9 +759,10 @@ exports.updateNote = onCall(async (request) => {
   }
 
   // Every invalid-argument error below carries a machine-readable `reason`
-  // in its details -- noteErrorMessageResId() on the client maps these to
-  // localized strings. All of them share the invalid-argument code, so the
-  // client can't tell them apart from the code alone.
+  // in its details -- DefaultNoteRepository.foldNoteValidationError() folds
+  // the ones a user can hit into AppError cases, which appErrorMessageResId()
+  // renders as localized strings. All of them share the invalid-argument code,
+  // so the client can't tell them apart from the code alone.
   const rawText = request.data && request.data.text;
   if (rawText !== null && rawText !== undefined &&
       typeof rawText !== "string") {

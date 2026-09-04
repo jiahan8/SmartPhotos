@@ -28,6 +28,7 @@ import com.jiahan.smartcamera.util.FileConstants.EXTENSION_MP4
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_THUMBNAIL
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.createVideoThumbnail
+import com.jiahan.smartcamera.util.reason
 import com.jiahan.smartcamera.util.safeCall
 import com.jiahan.smartcamera.util.toMediaUri
 import com.jiahan.smartcamera.util.toPlatformUri
@@ -92,7 +93,6 @@ class DefaultNoteRepository @Inject constructor(
         private const val FIELD_SCORE = "score"
 
         // Cloud Function names / argument keys
-        private const val ARG_REASON = "reason"
         private const val REASON_TEXT_TOO_LONG = "TEXT_TOO_LONG"
         private const val REASON_TOO_MANY_MEDIA = "TOO_MANY_MEDIA_ITEMS"
         private const val REASON_EMPTY_NOTE = "EMPTY_NOTE"
@@ -340,8 +340,7 @@ class DefaultNoteRepository @Inject constructor(
      * happens to be wrong.
      */
     private fun <T> Result<T>.foldNoteValidationError(): Result<T> {
-        val reason = ((exceptionOrNull() as? FirebaseFunctionsException)?.details as? Map<*, *>)
-            ?.get(ARG_REASON) as? String
+        val reason = (exceptionOrNull() as? FirebaseFunctionsException)?.reason()
         return when (reason) {
             REASON_TEXT_TOO_LONG -> Result.failure(AppError.NoteTextTooLong())
             REASON_TOO_MANY_MEDIA -> Result.failure(AppError.NoteMediaLimitExceeded())

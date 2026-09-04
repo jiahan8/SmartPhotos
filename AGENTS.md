@@ -66,7 +66,7 @@ Run from the repo root (Gradle wrapper):
 | Task | Command |
 | --- | --- |
 | Debug APK | `./gradlew assembleDebug` |
-| Unit tests (417 across 14 modules) | `./gradlew testDebugUnitTest :core:domain:test` |
+| Unit tests (425 across 14 modules) | `./gradlew testDebugUnitTest :core:domain:test` |
 | Hilt graph + androidTest sources | `./gradlew compileDebugAndroidTestKotlin` |
 | Release variant | `./gradlew assembleRelease` |
 | Screenshot diff / re-record | `./gradlew verifyRoborazziDebug` / `recordRoborazziDebug` |

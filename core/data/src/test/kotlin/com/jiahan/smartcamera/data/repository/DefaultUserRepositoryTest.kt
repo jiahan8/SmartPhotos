@@ -47,9 +47,10 @@ class DefaultUserRepositoryTest {
         remoteConfigRepository = remoteConfigRepository,
     )
 
-    private fun functionsFailWith(code: FirebaseFunctionsException.Code) {
+    private fun functionsFailWith(code: FirebaseFunctionsException.Code, reason: String? = null) {
         val exception: FirebaseFunctionsException = mockk(relaxed = true)
         every { exception.code } returns code
+        every { exception.details } returns reason?.let { mapOf("reason" to it) }
         val callable: HttpsCallableReference = mockk()
         every { callable.call(any()) } returns Tasks.forException(exception)
         every { functions.getHttpsCallable(any()) } returns callable
@@ -66,10 +67,15 @@ class DefaultUserRepositoryTest {
 
     /*
      * The createUserProfile/updateUsername Cloud Functions report a conflict as an HttpsError whose
-     * text is hardcoded English on the server. These two pin the fold to the app's own vocabulary,
+     * text is hardcoded English on the server. These pin the fold to the app's own vocabulary,
      * which is what keeps that text off the screen -- and what let :feature:auth be extracted
      * without firebase-functions on its classpath, since AuthViewModel no longer inspects the code
      * itself.
+     *
+     * The reserved case is keyed on the `details.reason` payload rather than the INVALID_ARGUMENT
+     * code, and the fourth test is why: createUserProfile raises that code for `metadata` and the
+     * Auth display name as well, and reading the code alone showed those to the user as a reserved
+     * username.
      */
 
     @Test
@@ -82,12 +88,36 @@ class DefaultUserRepositoryTest {
     }
 
     @Test
-    fun `createUserProfile INVALID_ARGUMENT fails as UsernameReserved`() = runTest {
-        functionsFailWith(FirebaseFunctionsException.Code.INVALID_ARGUMENT)
+    fun `createUserProfile USERNAME_RESERVED fails as UsernameReserved`() = runTest {
+        functionsFailWith(FirebaseFunctionsException.Code.INVALID_ARGUMENT, "USERNAME_RESERVED")
 
         val result = repository.createUserProfile(metadata = "secret", username = "admin")
 
         assertTrue(result.exceptionOrNull() is AppError.UsernameReserved)
+    }
+
+    /**
+     * The compatibility arm, not the contract: `functions/` deploys separately, so a build that
+     * ships ahead of that deploy meets a backend sending no payload. Delete this with the arm once
+     * the functions are live.
+     */
+    @Test
+    fun `createUserProfile INVALID_ARGUMENT with no reason still fails as UsernameReserved`() =
+        runTest {
+            functionsFailWith(FirebaseFunctionsException.Code.INVALID_ARGUMENT)
+
+            val result = repository.createUserProfile(metadata = "secret", username = "admin")
+
+            assertTrue(result.exceptionOrNull() is AppError.UsernameReserved)
+        }
+
+    @Test
+    fun `createUserProfile INVALID_ARGUMENT for another reason surfaces unchanged`() = runTest {
+        functionsFailWith(FirebaseFunctionsException.Code.INVALID_ARGUMENT, "DISPLAY_NAME_TOO_LONG")
+
+        val result = repository.createUserProfile(metadata = "secret", username = "someone")
+
+        assertTrue(result.exceptionOrNull() is FirebaseFunctionsException)
     }
 
     @Test

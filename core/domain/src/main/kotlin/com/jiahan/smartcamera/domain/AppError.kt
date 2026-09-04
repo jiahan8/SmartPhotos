@@ -37,7 +37,13 @@ sealed class AppError(message: String) : Exception(message) {
      */
     class UsernameTaken : AppError("Username already taken")
 
-    /** The requested username is one the server refuses to reserve. */
+    /**
+     * The requested username is one the server refuses to reserve.
+     *
+     * Identified by the `USERNAME_RESERVED` reason in the rejection's `details`, not by its
+     * `INVALID_ARGUMENT` code: createUserProfile raises that code for its other argument checks
+     * too, and reading the code alone reported those as this.
+     */
     class UsernameReserved : AppError("Username reserved")
 
     /*
