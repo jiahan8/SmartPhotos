@@ -14,9 +14,9 @@ that story is in [ARCHITECTURE.md](ARCHITECTURE.md).**
 | `:core:domain` | Pure Kotlin JVM (no AGP, no Hilt/KSP): domain models, repository *interfaces*, `safeCall`, the `ErrorHandler` interface, DI qualifiers, and the three field validators (`util/ValidationUtils.kt`) with `ValidationResult`/`ValidationError`. |
 | `:core:common` | Android library, deliberately not Compose: the validation strings + `validationErrorMessageResId` that resolves them, the `MediaFileRepository` contract, `util/MediaUriExt.kt`, and the two `@ViewModelScoped` classes every feature shares (`NoteShareDelegate`, `NoteErrorReporter` — why it has Hilt/KSP). |
 | `:core:data` | Android library holding every implementation of a `:core:domain`/`:core:common` contract: the `Default*`/`Firebase*` repositories, Room, DataStore, `FirebaseModule`, `DataModule`. |
-| `:core:ui` | Android library, shared Compose vocabulary: `common/` (14 composables), `ui/theme/`, `util/DateTimeUtils.kt`/`FlowUtils.kt`. |
+| `:core:ui` | Android library, shared Compose vocabulary: `common/`, `ui/theme/`, `util/DateTimeUtils.kt`/`FlowUtils.kt`. |
 | `:feature:*` | One Android library per screen — `home`, `search`, `note`, `preview`, `favorite`, `profile`, `settings`, `auth`, `explore` — holding its Compose screen(s), ViewModel(s), route and tests. |
-| `:core:testing` | Shared test fixtures: ten `fake/` repository doubles + `MainDispatcherRule`. `testImplementation` only (plus `androidTestImplementation` wherever a `sharedTest/` runs in both). |
+| `:core:testing` | Shared test fixtures: the `fake/` doubles + `MainDispatcherRule`. `testImplementation` only (plus `androidTestImplementation` wherever a `sharedTest/` runs in both). |
 | `:core:screenshot-testing` | `BaseScreenshotTest` + the four artifacts it names (Robolectric, Roborazzi ×2, compose `ui-test-junit4`). No build file declares it — `smartphotos.android.screenshot` pulls it in. |
 | `:core:ui-testing` | `BaseScreenTest`: the activity-backed Compose rule, `string(resId)` and the four `waitFor*` helpers the eleven screen suites share. `testImplementation` + `androidTestImplementation`, both added by `smartphotos.android.feature`. |
 
@@ -27,15 +27,12 @@ Sources sit at `<module>/src/main/kotlin/com/jiahan/smartcamera/` (`:app` uses `
 - **An Android-typed *contract* goes in `:core:common`; its implementation stays in `:core:data`.**
   `:core:common` is the module closest to needing a split — if an unrelated fifth tenant lands,
   split it before it needs a name like `:core:misc`.
-- **Neither fixtures module may depend on `:core:data`**, and both are `api` throughout (a fixtures
-  module's API surface is *other* modules' types — `FakeNoteRepository` **is** a `NoteRepository`).
-  Every fake implements an interface, and those interfaces live in `:core:domain`/`:core:common`
-  precisely so a test never resolves a `Default*`. **A fixtures module is a supplier to the data
-  layer or a consumer of it, never both.**
+- **Neither fixtures module may depend on `:core:data`**, and both are `api` throughout. Every fake
+  implements an interface from `:core:domain`/`:core:common`, so a test never resolves a `Default*`.
+  **A fixtures module is a supplier to the data layer or a consumer of it, never both.**
 - **Keep the two apart:** `:core:testing` is fixtures every test module wants,
   `:core:screenshot-testing` a harness only the four capturing modules want. Both are **regular
-  library modules, not AGP's `testFixtures`** — that was tried and doesn't work, since the Kotlin
-  Android plugin generates no Kotlin compilation for that variant.
+  library modules, not AGP's `testFixtures`**, which was tried and does not work here.
 
 ### Dependency rules
 
@@ -119,10 +116,9 @@ throws on open, on the launch after the update, for every installed user, with t
   `validateDroppedTables = true` also asserts a removed table is really gone. What it cannot check
   is *data*, so assert the rows too — a migration that recreated a table empty passes validation and
   loses every cached note.
-- **`MigrationTestHelper` reads `schemas/` through the instrumentation context's assets**, which is
-  why `core/data/build.gradle.kts` adds `schemas` as an asset srcDir for both test source sets and
-  sets `unitTests.isIncludeAndroidResources`. Without those it fails with "Cannot find the schema
-  file in the assets folder", not with anything about migrations.
+- **`MigrationTestHelper` reads `schemas/` through the instrumentation context's assets**, wired up
+  in `core/data/build.gradle.kts` where the comment explains it. The failure mode when it isn't is
+  "Cannot find the schema file in the assets folder" — nothing about migrations.
 
 ### Screenshot tests
 
@@ -132,9 +128,8 @@ Roborazzi goldens live beside the composable they capture, in four modules: `:co
 the shared `common/` vocabulary is what every feature draws *with*, so a regression there is
 app-wide and no feature-level test would localise it.
 
-- **A capturing module applies `smartphotos.android.screenshot` and nothing else** — the plugin
-  brings the Roborazzi tasks, the VCS-tracked `outputDir`, `unitTests.isIncludeAndroidResources`
-  **and the harness module itself**. It still needs
+- **A capturing module applies `smartphotos.android.screenshot` and nothing else** (the table under
+  [Convention plugins](#convention-plugins) lists what that brings). It still needs
   `debugImplementation(libs.androidx.ui.test.manifest)` on top (supplied by the feature convention,
   declared by `:core:ui` for itself), without which `createComposeRule()` can't resolve an activity.
 - `testDebugUnitTest` *runs* these tests but does **not** diff them; only `verifyRoborazziDebug`
@@ -205,10 +200,10 @@ suite, suspect the classpath before the assertions.**
 **`sharedTest/` is where a screen test goes, and androidTest-only is the exception that has to
 argue for itself.** A Compose behaviour suite placed there compiles into *both* the unit-test and
 androidTest source sets, so it runs under Robolectric in CI and on-device, written once. **A
-feature needs no build-file change to use it** — `smartphotos.android.feature` already adds both
-`sourceSets` lines, `unitTests.isIncludeAndroidResources` and the test artifacts to all nine, so a
-new suite is one file in `src/sharedTest/kotlin`. Eleven suites do this; `:feature:auth` is the one
-to copy. **It is not only for Compose** —
+feature needs no build-file change to use it** — `smartphotos.android.feature` already gives all
+nine the source-set lines and the test artifacts, so a new suite is one file in
+`src/sharedTest/kotlin`. Every feature's screen suite lives there, plus three in `:core:data`;
+`:feature:auth` is the one to copy. **It is not only for Compose** —
 `:core:data`'s `NoteDaoTest` and `DefaultUserPreferencesRepositoryTest` live there too, because
 Robolectric supplies a real SQLite and a real filesystem, which is all they ever needed a device
 for.
@@ -280,27 +275,20 @@ both of those do.**
 ### CI
 
 `.github/workflows/ci.yml` runs on every push to `main`, every PR, and on demand, as **three
-parallel jobs**: `android` (debug APK, release APK with `-x uploadCrashlyticsMappingFileRelease`,
-androidTest compile, then unit tests, screenshot comparison and `lintDebug` as separate steps on JDK
-21 — each runs even if an earlier one failed, so one run reports every problem), `instrumented`, and
-one that lints `functions/`.
+parallel jobs** on JDK 21: `android` (debug APK, release APK, androidTest compile, unit tests,
+screenshot comparison, `lintDebug` — every step runs even if an earlier one failed, so one run
+reports every problem), `instrumented` (the device suites on a managed device the job boots itself,
+`--no-parallel --continue` for that same reason), and one that lints `functions/`.
 
-- **`instrumented` runs the 103 device tests on a Gradle managed device** —
-  `pixel6Api36DebugAndroidTest --no-parallel --continue`, on an emulator the job boots itself.
-  `--continue` for the reason every step in `android` carries `!cancelled()`: without it the first
-  module to fail ends the job and the suites queued behind it never run. Its own job
-  because it is the slow one, and there is no reason a unit-test failure should wait behind an
-  emulator boot. Two things it needs that no other job does: a udev rule handing `/dev/kvm` to the
-  runner (without acceleration it hits the timeout instead of failing), and a cache of the system
-  image keyed on `ManagedDevices.kt`.
-- It needs one repository secret, `GOOGLE_SERVICES_JSON` (`app/google-services.json` is gitignored
-  and the Google Services plugin fails without it): `base64 -i app/google-services.json`, pasted
-  into Settings > Secrets and variables > Actions as a *repository* secret. **Both Android jobs
-  restore it** — a new job that builds anything needs that step too.
-- On a screenshot failure download the `screenshot-and-lint-reports` artifact — its `*_compare.png`
-  files show reference/diff/actual side by side.
+**The workflow comments its own reasoning step by step — read those before changing one.** Three
+things worth knowing without opening it:
+
+- It needs one repository secret, `GOOGLE_SERVICES_JSON`, restored by **every job that builds**, so
+  a new such job needs that step too (`app/google-services.json` is gitignored).
 - **The artifact path lists are globs** (`*/build/…` and `*/*/build/…`) so a new module is collected
   with no edit. **Keep them globs** — as literal paths they drifted three times.
+- On a screenshot failure download the `screenshot-and-lint-reports` artifact — its `*_compare.png`
+  files show reference/diff/actual side by side.
 
 ### Convention plugins
 
@@ -324,15 +312,10 @@ same settings:
   — wait for the second before writing a shared convention.**
 - **`build-logic` targets Java 17, the modules target 11.** Not drift: the plugins run in the Gradle
   daemon (needs 17+), 11 is what the app compiles against. Don't "fix" either.
-- **The plugin artifacts are `compileOnly`**, so the modules' `pluginManager.apply(...)` calls
-  resolve against the build classpath the root `build.gradle.kts` establishes with its `apply false`
-  block — which must keep listing them. `.android.screenshot` is the exception needing a real plugin
-  artifact (`roborazzi-gradlePlugin`), since it configures Roborazzi's extension.
-- **An alias typo in `build-logic`'s catalog lookup fails at configuration time in the consuming
-  module, not at compile time in `build-logic`** — it looks the catalog up by string name
-  (`Project.libs`), since the generated `libs.*` accessors are build-script-only.
-- **AGP 9's `CommonExtension` is not generic and exposes only property accessors** —
-  `defaultConfig.minSdk = …`, not the `defaultConfig { }` block form of AGP-8-era guides.
+- **`build-logic` documents its own traps where they bite** — the `compileOnly` plugin artifacts
+  and the root `apply false` block they resolve against, the string-keyed catalog lookup whose typos
+  surface in the *consuming* module, AGP 9's property-only `CommonExtension`. Read the file you are
+  editing before assuming a guide's AGP-8-era shape applies.
 
 ## Architecture
 
@@ -348,11 +331,9 @@ the Firestore collections, and the Cloud Functions' division of labour.
 - **Repository** (`data/repository/`) — one interface + one `Default*` implementation each, bound in
   `data/di/DataModule.kt`. Interfaces live in `:core:domain`; implementations and `DataModule` in
   `:core:data`. **Two interfaces can't live in `:core:domain` because their signatures carry Android
-  types:** `AppUpdateRepository` (`ActivityResultLauncher`/`IntentSenderRequest`) stays in
-  `:core:data` beside its `Default*` since only `:app`'s `MainViewModel` injects it;
-  `MediaFileRepository` (`Bitmap`/`Uri`) sits in `:core:common` because a feature injects it and
-  must not depend on `:core:data`. Move the next Android-typed interface down only when a feature
-  needs it.
+  types** — `AppUpdateRepository` in `:core:data`, `MediaFileRepository` in `:core:common`; which is
+  where and why is in [ARCHITECTURE.md](ARCHITECTURE.md#layers). Move the next one down only when a
+  feature needs it.
 - **Domain** (`domain/`, `:core:domain`) — plain data classes shared across features.
 - **Local** — Room in `database/` (schemas exported to `core/data/schemas/`), DataStore in
   `data/datastore/` (contract + model in `:core:domain`, wiring in `:core:data`). **A note's media
@@ -422,8 +403,8 @@ one.** A screen that must reflect a mutation made on another screen observes the
 query.
 
 **For an event a screen must never miss** — the one still in use is `note/IncomingShareHandler.kt` —
-use a `StateFlow` holding the pending value plus an explicit `consume()`, not a `SharedFlow`: a
-default `MutableSharedFlow` has no replay, so a subscriber that isn't collecting yet misses it.
+use a `StateFlow` holding the pending value plus an explicit `consume()`, never a `SharedFlow`,
+which a subscriber that isn't collecting yet misses.
 
 ### Error handling
 
@@ -639,11 +620,11 @@ cross-cutting layers get their own module — `util/di/UtilModule.kt` (`:app`),
 `data/di/DataModule.kt`, `data/di/FirebaseModule.kt`, `database/di/DatabaseModule.kt`
 (`:core:data`). There is no per-feature `di/` package; follow this layer-scoped pattern.
 
-**A `@Provides` module belongs in the module its bindings are consumed from, not in `:app`.** Hilt
-aggregates every singleton module into one component generated in `:app`, so a provider works from
-anywhere and nothing fails if it sits too high — which is how `FirebaseModule` sat in `:app`,
-putting the whole Firebase surface in `:app`'s dependency block for code `:app` doesn't contain.
-**Ask where a binding is *injected*, not where it's convenient to declare.**
+**A `@Provides` module belongs in the module its bindings are consumed from, not in `:app`** — Hilt
+aggregates every singleton module into one component, so nothing fails when one sits too high, which
+is why this has to be a rule rather than a build error (`FirebaseModule` is the worked example, in
+[ARCHITECTURE.md](ARCHITECTURE.md#why-the-module-split-is-shaped-this-way)). **Ask where a binding
+is *injected*, not where it's convenient to declare.**
 
 **Don't reference `Dispatchers.IO` directly in new code.** Inject `@param:IoDispatcher private val
 ioDispatcher: CoroutineDispatcher` (qualifier in `di/Qualifiers.kt`, `:core:domain`; provider in
