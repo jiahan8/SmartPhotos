@@ -289,6 +289,18 @@ follow and hard to re-derive.
   module**, because with one consumer there is no way to tell *the shape of a feature* from *the
   shape of Explore*. The second consumer answered it, and partly against expectation — the icon
   packs, assumed Explore-specific, turned out to be shared. One module is a sample size of one.
+- **The first CI run that executed the instrumented tests went red in a module that has none.**
+  A device-test task does not skip itself when a module has no tests: AGP decides by looking for
+  class files in the androidTest output, and its own filter subtracts the R and BuildConfig *jars*
+  rather than the copies of those classes compiled into the project scope's jar. So `:core:common`
+  built an androidTest APK holding nothing but `R`, AGP installed it, and the instrumentation died
+  on `ClassNotFoundException: androidx.test.runner.AndroidJUnitRunner` after starting zero tests —
+  a module with no instrumented tests has no reason to declare a runner.
+  `disableAndroidTestWithoutSources` now turns the component off wherever `src/androidTest/` and
+  `src/sharedTest/` are both absent. The other half of the incident is what the job did *not* say:
+  it stopped at the first failure, so the nine feature suites queued behind it never ran on the one
+  run that was meant to run them. It passes `--continue` now — the emulator-side equivalent of the
+  `android` job's per-step `!cancelled()`.
 
 ## Kotlin Multiplatform
 

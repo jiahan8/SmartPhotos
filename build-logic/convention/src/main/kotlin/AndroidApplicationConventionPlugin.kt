@@ -1,10 +1,13 @@
 import com.android.build.api.dsl.ApplicationExtension
+import com.android.build.api.variant.ApplicationAndroidComponentsExtension
 import com.jiahan.smartcamera.buildlogic.configureKotlinAndroid
 import com.jiahan.smartcamera.buildlogic.configureManagedDevices
 import com.jiahan.smartcamera.buildlogic.configureTestJvm
+import com.jiahan.smartcamera.buildlogic.disableAndroidTestWithoutSources
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
+import org.gradle.kotlin.dsl.getByType
 
 /**
  * `smartphotos.android.application` -- applied by `:app`, the only application module.
@@ -22,6 +25,13 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
             configureKotlinAndroid(this)
             configureManagedDevices(this)
         }
+        // A no-op for :app, which has androidTest sources -- here because a second application
+        // module without them would hit exactly what :core:common hit, and this plugin carries what
+        // that module would want. The variant API rather than the DSL, hence the components
+        // extension rather than a line inside the block above.
+        disableAndroidTestWithoutSources(
+            extensions.getByType<ApplicationAndroidComponentsExtension>(),
+        )
         configureTestJvm()
     }
 }

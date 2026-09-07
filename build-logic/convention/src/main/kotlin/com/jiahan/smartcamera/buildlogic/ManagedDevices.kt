@@ -1,6 +1,9 @@
 package com.jiahan.smartcamera.buildlogic
 
 import com.android.build.api.dsl.CommonExtension
+import com.android.build.api.variant.AndroidComponentsExtension
+import com.android.build.api.variant.HasAndroidTestBuilder
+import com.android.build.api.variant.VariantBuilder
 import org.gradle.api.Project
 
 /**
@@ -19,8 +22,9 @@ import org.gradle.api.Project
  * in.
  *
  * On every Android module rather than on `:app`: eleven modules have androidTest sources and all
- * eleven want the same device. A module without them gets a task that runs nothing, which costs a
- * task name.
+ * eleven want the same device. The five Android libraries that have none are handled by
+ * [disableAndroidTestWithoutSources] below, because a device-test task with nothing to run does not
+ * skip itself.
  *
  * ### Why this device
  *
@@ -59,3 +63,42 @@ internal fun Project.configureManagedDevices(
         }
     }
 }
+
+/**
+ * Turns the androidTest component off in a module that has no instrumented test sources.
+ *
+ * **A device-test task in a module with nothing to run does not skip itself**, which is not what
+ * [configureManagedDevices] above assumed. AGP decides whether to launch by asking whether the
+ * androidTest *compile output* holds any class file: `AbstractTestDataImpl.hasTests` subtracts the
+ * R and BuildConfig jars from the project scope's classes, and the R classes are compiled into that
+ * scope's jar as well, so the subtraction never reaches them. Any module that owns a resource --
+ * or merely depends on something that does -- therefore looks like it has tests.
+ *
+ * `:core:common` is where that surfaced. It built an androidTest APK containing its own `R`, Hilt's
+ * and half of AndroidX's and nothing else, AGP installed it, and the instrumentation died on
+ * `ClassNotFoundException: androidx.test.runner.AndroidJUnitRunner` -- the runner arrives through
+ * `androidTestImplementation`, which a module with no instrumented tests has no reason to declare.
+ * "Starting 0 tests", then a crash, then a red job: the nine feature suites queued behind it never
+ * ran at all, on the first CI run that was supposed to execute them.
+ *
+ * The test is for source *directories* rather than for compiled output, because that is the half a
+ * reader can see: `src/androidTest/` and `src/sharedTest/`, the latter being the one the feature
+ * convention compiles into androidTest as well as into the unit tests. A module that grows either
+ * starts building an androidTest APK again with no edit here -- but a *third* instrumented source
+ * set would have to be added to [INSTRUMENTED_TEST_SOURCE_SETS].
+ */
+internal fun <VariantBuilderT> Project.disableAndroidTestWithoutSources(
+    androidComponents: AndroidComponentsExtension<*, VariantBuilderT, *>,
+) where VariantBuilderT : VariantBuilder, VariantBuilderT : HasAndroidTestBuilder {
+    val hasInstrumentedTestSources = INSTRUMENTED_TEST_SOURCE_SETS.any { sourceSet ->
+        projectDir.resolve("src/$sourceSet").isDirectory
+    }
+    if (hasInstrumentedTestSources) return
+
+    androidComponents.beforeVariants { variantBuilder ->
+        variantBuilder.androidTest.enable = false
+    }
+}
+
+/** The source sets that compile into androidTest -- see [disableAndroidTestWithoutSources]. */
+private val INSTRUMENTED_TEST_SOURCE_SETS = listOf("androidTest", "sharedTest")

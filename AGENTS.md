@@ -183,6 +183,16 @@ first run. `configureManagedDevices` (`build-logic`) declares it on every Androi
 why it is API 36 and `google-atd` — **read that before changing either.** The device's *name* is the
 task name, so renaming it changes the CI workflow's command.
 
+**A module with neither `src/androidTest/` nor `src/sharedTest/` has its androidTest component
+switched off** by `disableAndroidTestWithoutSources` (`build-logic`), which is why only the eleven
+have a device-test task at all. **A device-test task in a module with nothing to run does not skip
+itself:** AGP looks for class files in the androidTest output and finds the generated `R` classes,
+so it installs an APK that carries no test runner and the instrumentation dies on
+`ClassNotFoundException: androidx.test.runner.AndroidJUnitRunner` after starting zero tests. That
+took the whole `instrumented` job red on `:core:common` the first time it ran, before the nine
+feature suites queued behind it had run once. Adding a `sharedTest/` file switches the component
+back on with no build-file edit.
+
 **Espresso's version is load-bearing and nothing names it.** A Compose rule syncs through
 `Espresso.onIdle()` on device, so the version on the androidTest classpath decides whether a suite
 runs at all — and `androidx.test.ext:junit` carries a transitive espresso-core 3.5.0 that reaches
@@ -276,7 +286,9 @@ androidTest compile, then unit tests, screenshot comparison and `lintDebug` as s
 one that lints `functions/`.
 
 - **`instrumented` runs the 103 device tests on a Gradle managed device** —
-  `pixel6Api36DebugAndroidTest --no-parallel`, on an emulator the job boots itself. Its own job
+  `pixel6Api36DebugAndroidTest --no-parallel --continue`, on an emulator the job boots itself.
+  `--continue` for the reason every step in `android` carries `!cancelled()`: without it the first
+  module to fail ends the job and the suites queued behind it never run. Its own job
   because it is the slow one, and there is no reason a unit-test failure should wait behind an
   emulator boot. Two things it needs that no other job does: a udev rule handing `/dev/kvm` to the
   runner (without acceleration it hits the timeout instead of failing), and a cache of the system
@@ -298,8 +310,8 @@ same settings:
 
 | Plugin | Applied by | Applies | Sets |
 | --- | --- | --- | --- |
-| `smartphotos.android.application` | `:app` | AGP application, Kotlin Android | compileSdk 37, minSdk 28, Java 11, JVM target 11, test-JVM pin, the `pixel6Api36` managed device + `animationsDisabled` |
-| `smartphotos.android.library` | `:core:common`, `:core:data`, `:core:ui`, `:core:testing`, `:core:screenshot-testing` | AGP library, Kotlin Android | the same |
+| `smartphotos.android.application` | `:app` | AGP application, Kotlin Android | compileSdk 37, minSdk 28, Java 11, JVM target 11, test-JVM pin, the `pixel6Api36` managed device + `animationsDisabled`, androidTest off where a module has no instrumented sources |
+| `smartphotos.android.library` | `:core:common`, `:core:data`, `:core:ui`, `:core:testing`, `:core:screenshot-testing`, `:core:ui-testing` | AGP library, Kotlin Android | the same |
 | `smartphotos.android.compose` | `:app`, `:core:ui`, `:core:screenshot-testing` | Compose compiler | `buildFeatures.compose = true` |
 | `smartphotos.android.feature` | all nine `:feature:*` | the library + compose conventions, KSP, Hilt, kotlin-serialization | the `:core:domain`/`:core:ui` edges, the Compose set, icons, lifecycle, `ui-test-manifest`, the test baseline (`:core:testing`, junit, mockk, coroutines-test, Turbine) and the androidTest baseline; **enforces the feature layering** |
 | `smartphotos.android.screenshot` | `:core:ui`, `:feature:home`, `:feature:search`, `:feature:settings` | Roborazzi | `outputDir` → `src/test/screenshots`, `unitTests.isIncludeAndroidResources`, `testImplementation(:core:screenshot-testing)`; **refuses to apply to the harness module** |

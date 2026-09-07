@@ -1,10 +1,13 @@
 import com.android.build.api.dsl.LibraryExtension
+import com.android.build.api.variant.LibraryAndroidComponentsExtension
 import com.jiahan.smartcamera.buildlogic.configureKotlinAndroid
 import com.jiahan.smartcamera.buildlogic.configureManagedDevices
 import com.jiahan.smartcamera.buildlogic.configureTestJvm
+import com.jiahan.smartcamera.buildlogic.disableAndroidTestWithoutSources
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
+import org.gradle.kotlin.dsl.getByType
 
 /**
  * `smartphotos.android.library` -- applied by `:core:data` and `:core:ui`.
@@ -21,6 +24,10 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
             configureKotlinAndroid(this)
             configureManagedDevices(this)
         }
+        // Five of these libraries have no instrumented tests, and a device-test task in one of
+        // those does not skip itself. The variant API rather than the DSL, hence the components
+        // extension rather than a line inside the block above.
+        disableAndroidTestWithoutSources(extensions.getByType<LibraryAndroidComponentsExtension>())
         configureTestJvm()
     }
 }

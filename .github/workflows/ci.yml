@@ -247,8 +247,14 @@ jobs:
       # org.gradle.parallel on, and eleven modules installing and running against one emulator at
       # once exhausts the 4GB daemon heap and dies mid-run inside a UTP worker. The same rule
       # applies to running connectedDebugAndroidTest by hand.
+      #
+      # --continue for the reason every step in the `android` job carries `!cancelled()`: report
+      # every problem in one run. Without it the first module to fail ends the job, and the suites
+      # queued behind it are simply not run -- which is how a crash in :core:common, a module with
+      # no instrumented tests at all, meant the nine feature suites never executed on the first run
+      # that was supposed to execute them.
       - name: Run instrumented tests
-        run: ./gradlew pixel6Api36DebugAndroidTest --no-parallel
+        run: ./gradlew pixel6Api36DebugAndroidTest --no-parallel --continue
 
       # Globs for the reason the android job's artifact paths give: two depths because modules are
       # core/* and feature/*, plus :app at one. The managed-device reports land under a directory
