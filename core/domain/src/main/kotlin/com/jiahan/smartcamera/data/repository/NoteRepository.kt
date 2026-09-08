@@ -1,10 +1,8 @@
 package com.jiahan.smartcamera.data.repository
 
 import com.jiahan.smartcamera.domain.MediaDetail
-import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.Note
 import com.jiahan.smartcamera.domain.NoteCursor
-import com.jiahan.smartcamera.domain.NoteMediaDetail
 import com.jiahan.smartcamera.domain.NotePage
 import com.jiahan.smartcamera.util.AppConstants.DEFAULT_PAGE_SIZE
 import kotlinx.coroutines.flow.Flow
@@ -13,9 +11,11 @@ import kotlinx.coroutines.flow.Flow
  * Data-layer contract for note operations.
  *
  * Every fallible operation returns [Result] so that callers never need to
- * wrap calls in try/catch.
- * Only [getNotesStream], [getFavoriteNotesStream] and [uploadMediaToCache] are exempt:
- * the first two are reactive Flows and the last is fire-and-forget.
+ * wrap calls in try/catch. The Flow-returning members are the exemption, having no
+ * single outcome to carry.
+ *
+ * Media preparation and upload are [MediaUploadRepository]'s, not this one's: a note carries the
+ * [MediaDetail] list that produces, but nothing here reads a file or talks to Storage.
  */
 interface NoteRepository {
     /**
@@ -34,22 +34,6 @@ interface NoteRepository {
     suspend fun deleteNote(noteId: String): Result<Unit>
     suspend fun toggleFavorite(note: Note): Result<Unit>
     suspend fun getNote(noteId: String): Result<Note>
-
-    /**
-     * Fire-and-forget upload of [uriList] into the cache storage folder: failures are logged
-     * internally instead of returned, and files with no content are skipped.
-     *
-     * Pass `deleteAfterUpload = true` for temporary capture files the caller owns — each one is
-     * deleted once its upload is done, whether that upload succeeded, failed, or was skipped.
-     * Leave it `false` for URIs the app doesn't own, such as gallery picks.
-     */
-    suspend fun uploadMediaToCache(
-        uriList: List<MediaUri>,
-        deleteAfterUpload: Boolean = false
-    )
-
-    suspend fun uploadMedia(noteMediaDetailList: List<NoteMediaDetail>): Result<List<MediaDetail>>
-    suspend fun buildLocalMediaDetails(uriList: List<MediaUri>): Result<List<NoteMediaDetail>>
 
     /**
      * The local mirror of the notes feed, newest first, re-emitting whenever it changes.

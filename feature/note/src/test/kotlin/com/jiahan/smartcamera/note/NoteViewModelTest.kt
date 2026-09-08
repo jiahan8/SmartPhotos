@@ -6,6 +6,7 @@ import com.jiahan.smartcamera.data.datastore.UserPreferences
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
+import com.jiahan.smartcamera.data.repository.MediaUploadRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.domain.MediaUri
@@ -38,6 +39,7 @@ class NoteViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val noteRepository: NoteRepository = mockk()
+    private val mediaUploadRepository: MediaUploadRepository = mockk()
     private val userPreferencesRepository: UserPreferencesRepository = mockk()
     private val analyticsRepository: AnalyticsRepository = mockk()
     private val mediaFileRepository: MediaFileRepository = mockk()
@@ -64,6 +66,7 @@ class NoteViewModelTest {
                 )
         viewModel = NoteViewModel(
             noteRepository,
+            mediaUploadRepository,
             userPreferencesRepository,
             analyticsRepository,
             mediaFileRepository,
@@ -166,8 +169,8 @@ class NoteViewModelTest {
                 isVideo = false
             )
         )
-        coEvery { noteRepository.buildLocalMediaDetails(any()) } returns Result.success(mediaDetails)
-        coEvery { noteRepository.uploadMediaToCache(any(), any()) } returns Unit
+        coEvery { mediaUploadRepository.buildLocalMediaDetails(any()) } returns Result.success(mediaDetails)
+        coEvery { mediaUploadRepository.uploadMediaToCache(any(), any()) } returns Unit
 
         viewModel.addMedia(listOf(mockk(), mockk()))
         assertEquals(2, viewModel.uiState.value.mediaList.size)
@@ -194,7 +197,7 @@ class NoteViewModelTest {
 
     @Test
     fun `resetUploadStatus resets to Idle`() = runTest {
-        coEvery { noteRepository.uploadMedia(any()) } returns
+        coEvery { mediaUploadRepository.uploadMedia(any()) } returns
                 Result.failure(RuntimeException("upload fail"))
         viewModel.updateNoteText("hello")
         viewModel.saveNote()
@@ -224,20 +227,20 @@ class NoteViewModelTest {
     @Test
     fun `cancelPhotoCapture quick-uploads uri and clears photoUri`() = runTest {
         val (uri, mediaUri) = fakeUri("content://media/photo")
-        coEvery { noteRepository.uploadMediaToCache(listOf(mediaUri), true) } returns Unit
+        coEvery { mediaUploadRepository.uploadMediaToCache(listOf(mediaUri), true) } returns Unit
         viewModel.updatePhotoUri(uri)
         viewModel.cancelPhotoCapture(uri)
-        coVerify { noteRepository.uploadMediaToCache(listOf(mediaUri), true) }
+        coVerify { mediaUploadRepository.uploadMediaToCache(listOf(mediaUri), true) }
         assertNull(viewModel.uiState.value.photoUri)
     }
 
     @Test
     fun `cancelVideoCapture quick-uploads uri and clears videoUri`() = runTest {
         val (uri, mediaUri) = fakeUri("content://media/video")
-        coEvery { noteRepository.uploadMediaToCache(listOf(mediaUri), true) } returns Unit
+        coEvery { mediaUploadRepository.uploadMediaToCache(listOf(mediaUri), true) } returns Unit
         viewModel.updateVideoUri(uri)
         viewModel.cancelVideoCapture(uri)
-        coVerify { noteRepository.uploadMediaToCache(listOf(mediaUri), true) }
+        coVerify { mediaUploadRepository.uploadMediaToCache(listOf(mediaUri), true) }
         assertNull(viewModel.uiState.value.videoUri)
     }
 
@@ -248,7 +251,7 @@ class NoteViewModelTest {
     @Test
     fun `saveNote success emits Success state`() = runTest {
         viewModel.updateNoteText("My note")
-        coEvery { noteRepository.uploadMedia(any()) } returns
+        coEvery { mediaUploadRepository.uploadMedia(any()) } returns
                 Result.success(listOf(MediaDetail(photoUrl = "http://url")))
         coEvery { noteRepository.addNote(any()) } returns Result.success(Unit)
 
@@ -263,7 +266,7 @@ class NoteViewModelTest {
     @Test
     fun `saveNote failure on media upload sets Error state`() = runTest {
         viewModel.updateNoteText("My note")
-        coEvery { noteRepository.uploadMedia(any()) } returns
+        coEvery { mediaUploadRepository.uploadMedia(any()) } returns
                 Result.failure(RuntimeException("upload fail"))
         every { errorHandler.getErrorMessage(any()) } returns "upload fail"
 

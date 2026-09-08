@@ -1,7 +1,5 @@
 package com.jiahan.smartcamera.data.repository
 
-import android.content.Context
-import com.google.firebase.Firebase
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
@@ -9,8 +7,6 @@ import com.google.firebase.firestore.Query
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.FirebaseFunctionsException
 import com.google.firebase.functions.HttpsCallableResult
-import com.google.firebase.storage.FirebaseStorage
-import com.google.firebase.storage.storage
 import com.jiahan.smartcamera.database.dao.NoteDao
 import com.jiahan.smartcamera.database.data.toDatabaseNote
 import com.jiahan.smartcamera.database.data.toNote
@@ -18,48 +14,27 @@ import com.jiahan.smartcamera.domain.AppError
 import com.jiahan.smartcamera.domain.DetectedLabel
 import com.jiahan.smartcamera.domain.DetectedObject
 import com.jiahan.smartcamera.domain.MediaDetail
-import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.Note
 import com.jiahan.smartcamera.domain.NoteCursor
-import com.jiahan.smartcamera.domain.NoteMediaDetail
 import com.jiahan.smartcamera.domain.NotePage
-import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
-import com.jiahan.smartcamera.util.FileConstants.EXTENSION_MP4
-import com.jiahan.smartcamera.util.FileConstants.PREFIX_THUMBNAIL
 import com.jiahan.smartcamera.util.ErrorHandler
-import com.jiahan.smartcamera.util.createVideoThumbnail
 import com.jiahan.smartcamera.util.reason
 import com.jiahan.smartcamera.util.safeCall
-import com.jiahan.smartcamera.util.toMediaUri
-import com.jiahan.smartcamera.util.toPlatformUri
-import com.jiahan.smartcamera.di.ApplicationScope
-import com.jiahan.smartcamera.di.IoDispatcher
-import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlin.time.Instant
-import kotlin.uuid.Uuid
 
 class DefaultNoteRepository @Inject constructor(
-    @param:ApplicationContext private val context: Context,
-    private val remoteConfigRepository: RemoteConfigRepository,
     private val authRepository: AuthRepository,
     private val firestore: FirebaseFirestore,
     private val functions: FirebaseFunctions,
     private val noteDao: NoteDao,
-    private val mediaFileRepository: MediaFileRepository,
     private val errorHandler: ErrorHandler,
-    @param:ApplicationScope private val applicationScope: CoroutineScope,
-    @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : NoteRepository {
 
     companion object {
@@ -107,14 +82,6 @@ class DefaultNoteRepository @Inject constructor(
         private const val ARG_THUMBNAIL_URL = "thumbnailUrl"
         private const val ARG_IS_VIDEO = "isVideo"
     }
-
-    private val storage: FirebaseStorage by lazy {
-        Firebase.storage(remoteConfigRepository.getStorageUrl())
-    }
-    private val storageFolder: String by lazy { remoteConfigRepository.getStorageFolderName() }
-    private val cacheStorageFolder: String by lazy { remoteConfigRepository.getStorageCacheFolderName() }
-    private fun userScopedPath(folder: String, userId: String, fileName: String) =
-        "$folder/$userId/$fileName"
 
     /**
      * The Firestore document a page ended on. Carries the account it was issued for so a cursor
@@ -256,55 +223,6 @@ class DefaultNoteRepository @Inject constructor(
         } ?: throw AppError.NotAuthenticated()
     }
 
-    override suspend fun uploadMedia(
-        noteMediaDetailList: List<NoteMediaDetail>
-    ): Result<List<MediaDetail>> = safeCall {
-        val userId = authRepository.currentUserId
-            ?: throw AppError.NotAuthenticated()
-        coroutineScope {
-            noteMediaDetailList.map { noteMediaDetail ->
-                async(ioDispatcher) {
-                    safeCall {
-                        val mediaId = Uuid.random().toString()
-                        val extension =
-                            if (noteMediaDetail.isVideo) EXTENSION_MP4 else EXTENSION_JPG
-                        val storageRef =
-                            storage.reference.child(
-                                userScopedPath(storageFolder, userId, "$mediaId$extension")
-                            )
-
-                        val mediaUri = noteMediaDetail.photoUri ?: noteMediaDetail.videoUri
-                        ?: throw AppError.NoMediaAvailable()
-
-                        storageRef.putFile(mediaUri.toPlatformUri()).await()
-                        val mediaUrl = storageRef.downloadUrl.await().toString()
-
-                        val thumbnailUrl = noteMediaDetail.thumbnailUri?.let { thumbUri ->
-                            val thumbnailId = PREFIX_THUMBNAIL + Uuid.random().toString()
-                            val thumbnailRef =
-                                storage.reference.child(
-                                    userScopedPath(
-                                        storageFolder,
-                                        userId,
-                                        "$thumbnailId$EXTENSION_JPG"
-                                    )
-                                )
-                            thumbnailRef.putFile(thumbUri.toPlatformUri()).await()
-                            thumbnailRef.downloadUrl.await().toString()
-                        }
-
-                        MediaDetail(
-                            photoUrl = if (!noteMediaDetail.isVideo) mediaUrl else null,
-                            videoUrl = if (noteMediaDetail.isVideo) mediaUrl else null,
-                            thumbnailUrl = thumbnailUrl,
-                            isVideo = noteMediaDetail.isVideo
-                        )
-                    }.onFailure(errorHandler::logError).getOrNull()
-                }
-            }.awaitAll().filterNotNull()
-        }
-    }
-
     /**
      * Reads a just-created note back so it lands in the mirror.
      *
@@ -370,53 +288,6 @@ class DefaultNoteRepository @Inject constructor(
     override suspend fun syncFavoriteNotes(): Result<Unit> = safeCall {
         val favorites = fetchAllFavoritesFromFirestore()
         noteDao.syncFavoriteNotes(favorites.map { it.toDatabaseNote() })
-    }
-
-    override suspend fun buildLocalMediaDetails(
-        uriList: List<MediaUri>
-    ): Result<List<NoteMediaDetail>> =
-        safeCall {
-            withContext(ioDispatcher) {
-                uriList.mapNotNull { mediaUri ->
-                    safeCall {
-                        val uri = mediaUri.toPlatformUri()
-                        val isVideo = mediaFileRepository.isVideoUri(uri)
-                        val thumbnailUri = if (isVideo) {
-                            createVideoThumbnail(context, uri)
-                                ?.let { mediaFileRepository.saveBitmapAsTempFile(it) }
-                                ?.toMediaUri()
-                        } else null
-                        NoteMediaDetail(
-                            photoUri = if (!isVideo) mediaUri else null,
-                            videoUri = if (isVideo) mediaUri else null,
-                            thumbnailUri = thumbnailUri,
-                            isVideo = isVideo
-                        )
-                    }.onFailure(errorHandler::logError).getOrNull()
-                }
-            }
-        }
-
-    override suspend fun uploadMediaToCache(
-        uriList: List<MediaUri>,
-        deleteAfterUpload: Boolean
-    ) {
-        val userId = authRepository.currentUserId
-        uriList.forEach { mediaUri ->
-            applicationScope.launch(ioDispatcher) {
-                val uri = mediaUri.toPlatformUri()
-                if (userId != null && mediaFileRepository.hasContent(uri)) {
-                    safeCall {
-                        val mediaId = Uuid.random().toString()
-                        val storageRef = storage.reference.child(
-                            userScopedPath(cacheStorageFolder, userId, mediaId)
-                        )
-                        storageRef.putFile(uri).await()
-                    }.onFailure(errorHandler::logError)
-                }
-                if (deleteAfterUpload) mediaFileRepository.deleteFile(uri)
-            }
-        }
     }
 
     private suspend fun getUserDocumentSnapshot(userId: String) =

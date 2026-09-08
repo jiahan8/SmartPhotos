@@ -55,4 +55,14 @@ class DefaultUserPreferencesRepository @Inject constructor(
                 ?: preferences.remove(PreferencesKeys.PROFILE_PICTURE)
         }
     }
+
+    // Removes the two user-scoped keys by name rather than calling `preferences.clear()`, which
+    // would take the theme with them. Enumerating is also what makes a newly added key a decision:
+    // it does not get cleared until someone lists it here.
+    override suspend fun clearUserScopedPreferences(): Result<Unit> = safeCall {
+        dataStore.edit { preferences ->
+            preferences.remove(PreferencesKeys.USERNAME)
+            preferences.remove(PreferencesKeys.PROFILE_PICTURE)
+        }
+    }
 }

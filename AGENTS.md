@@ -328,7 +328,13 @@ the Firestore collections, and the Cloud Functions' division of labour.
   loading/loaded/error branch is a **nested sealed sub-type** (e.g. `HomeContent`), kept separate
   from flat fields on the outer `*UiState` for orthogonal UI state (`isRefreshing`, dialogs,
   pagination) that shouldn't force a full state-machine branch.
-- **Repository** (`data/repository/`) — one interface + one `Default*` implementation each, bound in
+- **Repository** (`data/repository/`) — **one per data type, not one per feature**: media
+  preparation and upload are `MediaUploadRepository`'s, note persistence is `NoteRepository`'s, and
+  a caller that creates a note with attachments injects both. That split is what keeps `Context`,
+  Firebase Storage and an application-lifetime scope out of the class every note screen injects —
+  and it is why `:feature:profile` depends on `MediaUploadRepository` alone, having only ever
+  wanted to cache a profile picture. **Before adding a method, ask whether it is about this
+  repository's data type**; one interface + one `Default*` implementation each, bound in
   `data/di/DataModule.kt`. Interfaces live in `:core:domain`; implementations and `DataModule` in
   `:core:data`. **Two interfaces can't live in `:core:domain` because their signatures carry Android
   types** — `AppUpdateRepository` in `:core:data`, `MediaFileRepository` in `:core:common`; which is
@@ -339,7 +345,10 @@ the Firestore collections, and the Cloud Functions' division of labour.
   `data/datastore/` (contract + model in `:core:domain`, wiring in `:core:data`). **A note's media
   list persists into `notes.media_list` as `kotlinx.serialization` JSON keyed by `MediaDetail`'s
   property names** — an on-disk format, so renaming one needs `@SerialName` to keep old rows
-  decodable.
+  decodable. **A new per-user local store is registered with `data/LocalUserDataCleaner.kt` in the
+  same commit** — it is the single list of what sign-out and delete-account erase, and a store
+  missing from it reads exactly like one that is there: no compile error, and no failing test
+  anywhere but its own. Device preferences (the theme) are deliberately not on that list.
 - **Remote** — Firebase (Auth, Firestore, Storage, Remote Config, Analytics, Crashlytics, FCM) plus
   Cloud Functions in `functions/index.js` calling Google Cloud Vision.
 

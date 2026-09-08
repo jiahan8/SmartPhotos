@@ -101,4 +101,29 @@ class DefaultUserPreferencesRepositoryTest {
         assertEquals("bob", prefs.username)
         assertNull(prefs.profilePictureUrl)
     }
+
+    @Test
+    fun clearUserScopedPreferences_dropsTheSignedInUsersIdentity() = runBlocking {
+        repository.updateLocalUserProfile("alice", "https://example.com/alice.png")
+
+        repository.clearUserScopedPreferences()
+
+        val prefs = repository.userPreferences.first()
+        assertEquals("", prefs.username)
+        assertNull(prefs.profilePictureUrl)
+    }
+
+    /**
+     * The half of the split that is easy to get wrong: `preferences.clear()` would pass the
+     * assertions above and silently reset the theme every time somebody signed out.
+     */
+    @Test
+    fun clearUserScopedPreferences_keepsTheDeviceTheme() = runBlocking {
+        repository.setDarkTheme(true)
+        repository.updateLocalUserProfile("alice", "https://example.com/alice.png")
+
+        repository.clearUserScopedPreferences()
+
+        assertTrue(repository.userPreferences.first().isDarkTheme)
+    }
 }

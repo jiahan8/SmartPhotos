@@ -20,6 +20,7 @@ import com.jiahan.smartcamera.domain.NoteMediaDetail
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
 import com.jiahan.smartcamera.fake.FakeMediaFileRepository
+import com.jiahan.smartcamera.fake.FakeMediaUploadRepository
 import com.jiahan.smartcamera.fake.FakeNoteRepository
 import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.fake.FakeUserPreferencesRepository
@@ -49,6 +50,7 @@ import org.junit.runner.RunWith
 class NoteScreenTest : BaseScreenTest() {
 
     private val noteRepository = FakeNoteRepository()
+    private val mediaUploadRepository = FakeMediaUploadRepository()
 
     private var navigatedBack = false
     private var navigatedToPhotoPreviewUri: String? = null
@@ -59,6 +61,7 @@ class NoteScreenTest : BaseScreenTest() {
     private fun launchNoteScreen() {
         viewModel = NoteViewModel(
             noteRepository = noteRepository,
+            mediaUploadRepository = mediaUploadRepository,
             userPreferencesRepository = FakeUserPreferencesRepository(
                 initial = UserPreferences(
                     isDarkTheme = false,
@@ -143,7 +146,7 @@ class NoteScreenTest : BaseScreenTest() {
 
     @Test
     fun mediaAttached_showsCarousel_andEnablesSaveWithoutText() {
-        noteRepository.buildLocalMediaDetailsResult = Result.success(
+        mediaUploadRepository.buildLocalMediaDetailsResult = Result.success(
             listOf(NoteMediaDetail(photoUri = MediaUri("test://photo-1")))
         )
         launchNoteScreen()
@@ -157,7 +160,7 @@ class NoteScreenTest : BaseScreenTest() {
 
     @Test
     fun photoMediaTap_navigatesToPhotoPreview() {
-        noteRepository.buildLocalMediaDetailsResult = Result.success(
+        mediaUploadRepository.buildLocalMediaDetailsResult = Result.success(
             listOf(NoteMediaDetail(photoUri = MediaUri("test://photo-1")))
         )
         launchNoteScreen()
@@ -173,7 +176,7 @@ class NoteScreenTest : BaseScreenTest() {
 
     @Test
     fun removeMediaButton_removesItemFromCarousel_andDisablesSave() {
-        noteRepository.buildLocalMediaDetailsResult = Result.success(
+        mediaUploadRepository.buildLocalMediaDetailsResult = Result.success(
             listOf(NoteMediaDetail(photoUri = MediaUri("test://photo-1")))
         )
         launchNoteScreen()

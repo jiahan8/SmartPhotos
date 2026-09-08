@@ -40,4 +40,10 @@ class FakeUserPreferencesRepository(
         )
         return Result.success(Unit)
     }
+
+    override suspend fun clearUserScopedPreferences(): Result<Unit> {
+        // Mirrors the real implementation: the user-scoped fields reset, the theme is left alone.
+        _preferences.value = _preferences.value.copy(username = "", profilePictureUrl = null)
+        return Result.success(Unit)
+    }
 }

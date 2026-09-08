@@ -7,7 +7,7 @@ import com.google.firebase.auth.AuthResult
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.functions.FirebaseFunctions
-import com.jiahan.smartcamera.database.dao.NoteDao
+import com.jiahan.smartcamera.data.LocalUserDataCleaner
 import com.jiahan.smartcamera.domain.AppError
 import com.jiahan.smartcamera.util.ErrorHandler
 import io.mockk.coEvery
@@ -50,14 +50,14 @@ class DefaultAuthRepositoryTest {
     private val auth: FirebaseAuth = mockk(relaxed = true)
     private val functions: FirebaseFunctions = mockk(relaxed = true)
     private val userRepository: UserRepository = mockk(relaxed = true)
-    private val noteDao: NoteDao = mockk(relaxed = true)
+    private val localUserDataCleaner: LocalUserDataCleaner = mockk(relaxed = true)
     private val errorHandler: ErrorHandler = mockk(relaxed = true)
 
     private val repository = DefaultAuthRepository(
         auth = auth,
         functions = functions,
         userRepository = userRepository,
-        noteDao = noteDao,
+        localUserDataCleaner = localUserDataCleaner,
         errorHandler = errorHandler,
     )
 
@@ -216,14 +216,14 @@ class DefaultAuthRepositoryTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `signOut clears the local note mirror`() = runTest {
+    fun `signOut clears local user data`() = runTest {
         coEvery { userRepository.unregisterFromPushNotifications() } returns Result.success(Unit)
 
         val result = repository.signOut()
 
         assertTrue(result.isSuccess)
         verify { auth.signOut() }
-        coVerify { noteDao.clearAllNotes() }
+        coVerify { localUserDataCleaner.clearLocalUserData() }
     }
 
     /**
@@ -239,7 +239,7 @@ class DefaultAuthRepositoryTest {
 
         assertTrue(result.isSuccess)
         verify { auth.signOut() }
-        coVerify { noteDao.clearAllNotes() }
+        coVerify { localUserDataCleaner.clearLocalUserData() }
         verify { errorHandler.logError(any(), any()) }
     }
 
@@ -248,8 +248,8 @@ class DefaultAuthRepositoryTest {
      * `?.sendEmailVerification()` no-opped when nobody was signed in and `safeCall` wrapped the
      * nothing that happened in `Result.success` -- so the UI navigated away reporting a deleted
      * account while the account, and its profile document, survived. deleteAccount also has to
-     * leave the mirror alone: wiping the cache for a deletion that did not happen loses notes for
-     * an account that still exists.
+     * leave the local data alone: wiping the cache for a deletion that did not happen loses notes
+     * for an account that still exists.
      */
 
     @Test
@@ -259,7 +259,7 @@ class DefaultAuthRepositoryTest {
         val result = repository.deleteAccount()
 
         assertTrue(result.exceptionOrNull() is AppError.NotAuthenticated)
-        coVerify(exactly = 0) { noteDao.clearAllNotes() }
+        coVerify(exactly = 0) { localUserDataCleaner.clearLocalUserData() }
     }
 
     @Test
@@ -270,14 +270,14 @@ class DefaultAuthRepositoryTest {
     }
 
     @Test
-    fun `deleteAccount clears the local note mirror`() = runTest {
+    fun `deleteAccount clears local user data`() = runTest {
         val user = signedInUser()
 
         val result = repository.deleteAccount()
 
         assertTrue(result.isSuccess)
         verify { user.delete() }
-        coVerify { noteDao.clearAllNotes() }
+        coVerify { localUserDataCleaner.clearLocalUserData() }
     }
 
     // -------------------------------------------------------------------------

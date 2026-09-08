@@ -151,9 +151,10 @@ offline writes, no reconciliation).
 
 This is the path that motivates having Cloud Functions at all:
 
-1. The app uploads media to Cloud Storage and writes a note document to Firestore under
-   `user/{userId}/note/{noteId}` (`DefaultNoteRepository`), then writes it through to Room. The
-   upload runs in `viewModelScope` (`uploadMediaToCache`), so it is cancelled if the
+1. The app uploads media to Cloud Storage (`DefaultMediaUploadRepository`) and writes a note
+   document to Firestore under `user/{userId}/note/{noteId}` (`DefaultNoteRepository`), then writes
+   it through to Room — two repositories, because uploading a file and persisting a note are two
+   jobs. The upload runs in `viewModelScope` (`uploadMediaToCache`), so it is cancelled if the
    ViewModel is cleared mid-upload — official guidance for work that should survive that
    ([Guide to background work](https://developer.android.com/guide/background)) is `WorkManager`,
    which this codebase does not use today.
@@ -199,8 +200,8 @@ server-stamped `created` exist only server-side.
 Room (`database/`) mirrors a subset of Firestore for the read path:
 
 - `NoteDao` / `DatabaseNote` (`@Entity(tableName = "notes")`) — the mirror the four note-rendering
-  screens observe.
-- `PhotoDao` / `DatabasePhoto` — cached photo metadata.
+  screens observe, and the only table in the database. (`PhotoDao` / `DatabasePhoto` used to sit
+  beside it and was dropped in the v1 -> v2 auto-migration; no production code ever read it.)
 
 **A note's media list persists into the `notes.media_list` column as `kotlinx.serialization` JSON
 keyed by `MediaDetail`'s property names.** That is an on-disk format, so renaming a property needs
@@ -209,6 +210,15 @@ preferences, not domain data.
 
 Room is written through by the repository after the Firestore write returns, never independently —
 see [Source of truth](AGENTS.md#source-of-truth).
+
+**Everything per-user on the device is erased in one place, `data/LocalUserDataCleaner.kt`**, called
+by `DefaultAuthRepository` on both sign-out and delete-account. It holds the whole list — the notes
+table, and the user-scoped DataStore keys via `clearUserScopedPreferences()` — so adding a store is
+a line here rather than a method on the auth repository somebody has to remember to edit. The auth
+repository injected `NoteDao` directly before that, and the DataStore had already been forgotten:
+the previous account's `username` and `profilePictureUrl` survived a sign-out, and the sign-in path
+only overwrites them when `getUser()` succeeds. The theme is deliberately not user data and
+survives.
 
 ## Dependency injection graph
 

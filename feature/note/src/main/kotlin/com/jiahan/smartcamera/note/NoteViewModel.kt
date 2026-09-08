@@ -7,6 +7,7 @@ import com.jiahan.smartcamera.data.datastore.UserPreferences
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
+import com.jiahan.smartcamera.data.repository.MediaUploadRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.Note
 import com.jiahan.smartcamera.domain.NoteMediaDetail
@@ -48,6 +49,7 @@ data class NoteUiState(
 @HiltViewModel
 class NoteViewModel @Inject constructor(
     private val noteRepository: NoteRepository,
+    private val mediaUploadRepository: MediaUploadRepository,
     userPreferencesRepository: UserPreferencesRepository,
     private val analyticsRepository: AnalyticsRepository,
     private val mediaFileRepository: MediaFileRepository,
@@ -108,7 +110,7 @@ class NoteViewModel @Inject constructor(
         val media = _uiState.value.mediaList
         viewModelScope.launch {
             _uiState.update { it.copy(uploadStatus = UploadStatus.Uploading) }
-            noteRepository.uploadMedia(media)
+            mediaUploadRepository.uploadMedia(media)
                 .onSuccess { mediaDetailList ->
                     noteRepository.addNote(
                         Note(
@@ -149,7 +151,7 @@ class NoteViewModel @Inject constructor(
 
     fun cancelPhotoCapture(uri: Uri) {
         viewModelScope.launch {
-            noteRepository.uploadMediaToCache(
+            mediaUploadRepository.uploadMediaToCache(
                 listOf(uri.toMediaUri()),
                 deleteAfterUpload = true
             )
@@ -159,7 +161,7 @@ class NoteViewModel @Inject constructor(
 
     fun cancelVideoCapture(uri: Uri) {
         viewModelScope.launch {
-            noteRepository.uploadMediaToCache(
+            mediaUploadRepository.uploadMediaToCache(
                 listOf(uri.toMediaUri()),
                 deleteAfterUpload = true
             )
@@ -184,10 +186,10 @@ class NoteViewModel @Inject constructor(
 
     fun addMedia(uriList: List<Uri>) {
         val mediaUriList = uriList.map { it.toMediaUri() }
-        viewModelScope.launch { noteRepository.uploadMediaToCache(mediaUriList) }
+        viewModelScope.launch { mediaUploadRepository.uploadMediaToCache(mediaUriList) }
 
         viewModelScope.launch {
-            noteRepository.buildLocalMediaDetails(mediaUriList)
+            mediaUploadRepository.buildLocalMediaDetails(mediaUriList)
                 .onSuccess { newMediaDetailList ->
                     // Combined inside `update` rather than from a `_uiState.value` read taken
                     // before it: this runs after a suspension, and each call to this function

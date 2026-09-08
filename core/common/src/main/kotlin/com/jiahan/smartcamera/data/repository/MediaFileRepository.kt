@@ -15,7 +15,8 @@ import android.net.Uri
  * go straight to activity-result contracts. Wrapping them in
  * [com.jiahan.smartcamera.domain.MediaUri] would add conversions at every call site while hiding
  * that this seam is Android-only and will never move to a shared source set. Contracts that carry
- * media *between* layers use `MediaUri` instead — see `NoteRepository` and `UserRepository`.
+ * media *between* layers use `MediaUri` instead — see `MediaUploadRepository` and
+ * `UserRepository`.
  *
  * Those Android types are also why this sits in :core:common rather than beside the other
  * contracts in :core:domain, which has no Android plugin. It lived in :core:data next to

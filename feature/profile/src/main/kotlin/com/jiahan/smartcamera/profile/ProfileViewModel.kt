@@ -7,7 +7,7 @@ import com.jiahan.smartcamera.core.common.R as CommonR
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
-import com.jiahan.smartcamera.data.repository.NoteRepository
+import com.jiahan.smartcamera.data.repository.MediaUploadRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.domain.AppError
@@ -64,7 +64,7 @@ class ProfileViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val mediaFileRepository: MediaFileRepository,
-    private val noteRepository: NoteRepository,
+    private val mediaUploadRepository: MediaUploadRepository,
     private val analyticsRepository: AnalyticsRepository,
     private val resourceProvider: ResourceProvider,
     private val errorHandler: ErrorHandler,
@@ -239,7 +239,7 @@ class ProfileViewModel @Inject constructor(
     fun uploadProfilePicture(profilePictureUri: Uri) {
         val mediaUri = profilePictureUri.toMediaUri()
         viewModelScope.launch {
-            noteRepository.uploadMediaToCache(listOf(mediaUri))
+            mediaUploadRepository.uploadMediaToCache(listOf(mediaUri))
         }
 
         viewModelScope.launch {
@@ -300,7 +300,7 @@ class ProfileViewModel @Inject constructor(
 
     fun cancelPhotoCapture(uri: Uri) {
         viewModelScope.launch {
-            noteRepository.uploadMediaToCache(
+            mediaUploadRepository.uploadMediaToCache(
                 listOf(uri.toMediaUri()),
                 deleteAfterUpload = true
             )

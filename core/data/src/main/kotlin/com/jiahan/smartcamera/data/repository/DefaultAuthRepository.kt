@@ -4,7 +4,7 @@ import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.functions.FirebaseFunctions
-import com.jiahan.smartcamera.database.dao.NoteDao
+import com.jiahan.smartcamera.data.LocalUserDataCleaner
 import com.jiahan.smartcamera.domain.AppError
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.safeCall
@@ -15,7 +15,7 @@ class DefaultAuthRepository @Inject constructor(
     private val auth: FirebaseAuth,
     private val functions: FirebaseFunctions,
     private val userRepository: UserRepository,
-    private val noteDao: NoteDao,
+    private val localUserDataCleaner: LocalUserDataCleaner,
     private val errorHandler: ErrorHandler,
 ) : AuthRepository {
 
@@ -65,7 +65,7 @@ class DefaultAuthRepository @Inject constructor(
         userRepository.unregisterFromPushNotifications()
             .onFailure(errorHandler::logError)
         auth.signOut()
-        noteDao.clearAllNotes()
+        localUserDataCleaner.clearLocalUserData()
     }
 
     override suspend fun resetPassword(email: String): Result<Unit> = safeCall {
@@ -94,10 +94,10 @@ class DefaultAuthRepository @Inject constructor(
     }
 
     /**
-     * Deletes the account, then the local mirror.
+     * Deletes the account, then the local user data.
      *
      * The guard is the whole point of the ordering. `auth.currentUser?.delete()` used to no-op when
-     * nobody was signed in and still fall through to `clearAllNotes()`, so an expired token turned
+     * nobody was signed in and still fall through to the clear, so an expired token turned
      * "delete my account" into a success the caller navigated on: the Firebase account and its
      * profile document survived, and every cached note was thrown away. Failing here leaves both
      * intact.
@@ -105,7 +105,7 @@ class DefaultAuthRepository @Inject constructor(
     override suspend fun deleteAccount(): Result<Unit> = safeCall {
         val user = auth.currentUser ?: throw AppError.NotAuthenticated()
         user.delete().await()
-        noteDao.clearAllNotes()
+        localUserDataCleaner.clearLocalUserData()
     }
 
     override suspend fun isUsernameAvailable(username: String): Result<Boolean> = safeCall {

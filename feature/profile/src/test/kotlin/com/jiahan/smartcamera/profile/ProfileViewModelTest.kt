@@ -7,7 +7,7 @@ import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
-import com.jiahan.smartcamera.data.repository.NoteRepository
+import com.jiahan.smartcamera.data.repository.MediaUploadRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.ProfilePictureUpdate
@@ -43,7 +43,7 @@ class ProfileViewModelTest {
     private val authRepository: AuthRepository = mockk()
     private val userPreferencesRepository: UserPreferencesRepository = mockk()
     private val mediaFileRepository: MediaFileRepository = mockk()
-    private val noteRepository: NoteRepository = mockk()
+    private val mediaUploadRepository: MediaUploadRepository = mockk()
     private val analyticsRepository: AnalyticsRepository = mockk()
     private val resourceProvider: ResourceProvider = mockk()
     private val errorHandler: ErrorHandler = mockk()
@@ -71,10 +71,10 @@ class ProfileViewModelTest {
         coEvery {
             userPreferencesRepository.updateLocalUserProfile(any(), any())
         } returns Result.success(Unit)
-        coEvery { noteRepository.uploadMediaToCache(any(), any()) } returns Unit
+        coEvery { mediaUploadRepository.uploadMediaToCache(any(), any()) } returns Unit
         viewModel = ProfileViewModel(
             userRepository, authRepository, userPreferencesRepository,
-            mediaFileRepository, noteRepository, analyticsRepository, resourceProvider,
+            mediaFileRepository, mediaUploadRepository, analyticsRepository, resourceProvider,
             errorHandler
         )
     }
@@ -101,7 +101,7 @@ class ProfileViewModelTest {
         every { errorHandler.getErrorMessage(exception) } returns "load failed"
         val vm = ProfileViewModel(
             userRepository, authRepository, userPreferencesRepository,
-            mediaFileRepository, noteRepository, analyticsRepository, resourceProvider,
+            mediaFileRepository, mediaUploadRepository, analyticsRepository, resourceProvider,
             errorHandler
         )
         assertEquals("load failed", vm.uiState.value.errorMessage)
@@ -295,7 +295,7 @@ class ProfileViewModelTest {
         viewModel.updatePhotoUri(uri)           // establish a non-null state first
         assertEquals(uri, viewModel.uiState.value.photoUri) // precondition
         viewModel.cancelPhotoCapture(uri)
-        coVerify { noteRepository.uploadMediaToCache(listOf(mediaUri), true) }
+        coVerify { mediaUploadRepository.uploadMediaToCache(listOf(mediaUri), true) }
         assertNull(viewModel.uiState.value.photoUri)
     }
 
@@ -309,7 +309,7 @@ class ProfileViewModelTest {
 
         viewModel.uploadProfilePicture(uri)
 
-        coVerify { noteRepository.uploadMediaToCache(listOf(mediaUri), false) }
+        coVerify { mediaUploadRepository.uploadMediaToCache(listOf(mediaUri), false) }
     }
 
     @Test

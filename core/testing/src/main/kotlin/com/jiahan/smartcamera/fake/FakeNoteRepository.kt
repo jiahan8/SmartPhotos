@@ -1,11 +1,8 @@
 package com.jiahan.smartcamera.fake
 
 import com.jiahan.smartcamera.data.repository.NoteRepository
-import com.jiahan.smartcamera.domain.MediaDetail
-import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.Note
 import com.jiahan.smartcamera.domain.NoteCursor
-import com.jiahan.smartcamera.domain.NoteMediaDetail
 import com.jiahan.smartcamera.domain.NotePage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -33,7 +30,6 @@ class FakeNoteRepository : NoteRepository {
     var addNoteResult: Result<Unit> = Result.success(Unit)
     var getNoteResult: Result<Note>? = null
     var syncResult: Result<Unit> = Result.success(Unit)
-    var buildLocalMediaDetailsResult: Result<List<NoteMediaDetail>> = Result.success(emptyList())
 
     /** The `notes` table. Shared with the mockk-based tests so the semantics are defined once. */
     val notes = NoteMirror()
@@ -139,19 +135,6 @@ class FakeNoteRepository : NoteRepository {
         result.getOrNull()?.let { notes.upsert(it) }
         return result
     }
-
-    override suspend fun uploadMediaToCache(
-        uriList: List<MediaUri>,
-        deleteAfterUpload: Boolean
-    ) = Unit
-
-    override suspend fun uploadMedia(
-        noteMediaDetailList: List<NoteMediaDetail>
-    ): Result<List<MediaDetail>> = Result.success(emptyList())
-
-    override suspend fun buildLocalMediaDetails(
-        uriList: List<MediaUri>
-    ): Result<List<NoteMediaDetail>> = buildLocalMediaDetailsResult
 
     override fun getNotesStream(limit: Int): Flow<List<Note>> = notes.stream(limit)
 

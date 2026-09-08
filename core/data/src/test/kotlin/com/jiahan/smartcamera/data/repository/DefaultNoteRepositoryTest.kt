@@ -1,7 +1,6 @@
 package com.jiahan.smartcamera.data.repository
 
 import android.app.Application
-import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.firestore.CollectionReference
@@ -17,9 +16,7 @@ import com.jiahan.smartcamera.database.dao.NoteDao
 import com.jiahan.smartcamera.database.data.DatabaseNote
 import com.jiahan.smartcamera.database.data.toDatabaseNote
 import com.jiahan.smartcamera.domain.AppError
-import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.Note
-import com.jiahan.smartcamera.domain.NoteMediaDetail
 import com.jiahan.smartcamera.util.ErrorHandler
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -27,9 +24,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -53,7 +48,9 @@ import org.robolectric.annotation.Config
  * through a real `DefaultErrorHandler` and assert the English text instead, which is what kept the
  * file in :app -- see the note on [DefaultUserRepositoryTest].
  *
- * Runs under Robolectric for [Tasks] and for the [android.content.Context] the repository takes.
+ * Runs under Robolectric for [Tasks]. The repository takes no [android.content.Context] since
+ * the media pipeline moved to [DefaultMediaUploadRepository], but Firebase's Task API still
+ * needs a looper.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(AndroidJUnit4::class)
@@ -76,14 +73,10 @@ class DefaultNoteRepositoryTest {
         const val FIELD_PROFILE_PICTURE = "profile_picture"
     }
 
-    private val context = ApplicationProvider.getApplicationContext<Application>()
-
     private val authRepository: AuthRepository = mockk()
     private val firestore: FirebaseFirestore = mockk()
-    private val remoteConfigRepository: RemoteConfigRepository = mockk(relaxed = true)
     private val functions: FirebaseFunctions = mockk(relaxed = true)
     private val noteDao: NoteDao = mockk(relaxed = true)
-    private val mediaFileRepository: MediaFileRepository = mockk(relaxed = true)
     private val errorHandler: ErrorHandler = mockk(relaxed = true)
 
     private val userCollection: CollectionReference = mockk()
@@ -100,19 +93,11 @@ class DefaultNoteRepositoryTest {
     private val dispatcher = UnconfinedTestDispatcher()
 
     private val repository = DefaultNoteRepository(
-        context = context,
-        remoteConfigRepository = remoteConfigRepository,
         authRepository = authRepository,
         firestore = firestore,
         functions = functions,
         noteDao = noteDao,
-        mediaFileRepository = mediaFileRepository,
         errorHandler = errorHandler,
-        // SupervisorJob mirrors di/AppModule's @ApplicationScope: without it a failing child of
-        // uploadMediaToCache would cancel its siblings and the scope, a failure mode
-        // production does not have.
-        applicationScope = CoroutineScope(SupervisorJob() + dispatcher),
-        ioDispatcher = dispatcher,
     )
 
     @Before
@@ -236,22 +221,6 @@ class DefaultNoteRepositoryTest {
         assertEquals("alice", note.username)
         assertNull(note.profilePictureUrl)
     }
-
-    // -------------------------------------------------------------------------
-    // uploadMedia
-    // -------------------------------------------------------------------------
-
-    @Test
-    fun `uploadMedia signed out fails as NotAuthenticated`() =
-        runTest(dispatcher) {
-            every { authRepository.currentUserId } returns null
-
-            val result = repository.uploadMedia(
-                listOf(NoteMediaDetail(photoUri = MediaUri("file:///tmp/photo.jpg")))
-            )
-
-            assertTrue(result.exceptionOrNull() is AppError.NotAuthenticated)
-        }
 
     // -------------------------------------------------------------------------
     // The local mirror
