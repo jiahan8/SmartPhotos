@@ -217,16 +217,29 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      # ~1.5GB, and it never changes unless the device definition does -- hence the key. A miss
+      # ~2GB, and it never changes unless the device definition does -- hence the key. A miss
       # costs the download, not the run.
-      - name: Cache the managed device's system image
+      #
+      # **Cache everything a setup installs, or cache none of it.** The runner image ships neither
+      # an emulator nor a system image, so a miss makes AGP install both -- that is what
+      # `Installing Android Emulator in .../sdk/emulator` in a green log is. This listed the system
+      # image alone, which meant a *hit* restored an SDK that was half of what the previous run
+      # built: AGP took the branch it takes when the image is already on disk, that branch resolves
+      # the emulator directory before it installs anything, and there was no emulator to resolve.
+      # All eleven `pixel6Api36Setup` tasks then died on `Cannot query the value of this property
+      # because it has no value available` -- before a single test ran, with nothing in the message
+      # about an emulator or a cache -- and the job stayed red for as long as that entry lived.
+      #
+      # No `restore-keys`, deliberately. Falling back to an older `gmd-` entry is how an incomplete
+      # cache gets restored on purpose; an exact-key miss is the case this is safe in.
+      - name: Cache the managed device's system image and emulator
         uses: actions/cache@v4
         with:
           path: |
             /usr/local/lib/android/sdk/system-images
+            /usr/local/lib/android/sdk/emulator
             ~/.android/avd
-          key: gmd-${{ hashFiles('build-logic/convention/src/main/kotlin/com/jiahan/smartcamera/buildlogic/ManagedDevices.kt') }}
-          restore-keys: gmd-
+          key: gmd-v2-${{ hashFiles('build-logic/convention/src/main/kotlin/com/jiahan/smartcamera/buildlogic/ManagedDevices.kt') }}
 
       # Same secret and same reason as the `android` job: the Google Services plugin fails the
       # build without it, and it is gitignored.
