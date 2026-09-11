@@ -1,8 +1,10 @@
+import com.android.build.api.dsl.LibraryExtension
 import com.jiahan.smartcamera.buildlogic.libs
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.dependencies
 
 /**
@@ -21,10 +23,6 @@ import org.gradle.kotlin.dsl.dependencies
  * - `coil-compose` and `activity-compose`. Explore loads remote images and handles a system back
  *   press in its search mode; settings does neither. A dependency one feature happens to need is
  *   not a convention.
- * - `kotlin-serialization`. Both features declare it for their `@Serializable` route, which makes
- *   it a genuine candidate, but a route is not required to be serializable-by-plugin (a feature
- *   with no destination of its own would not need it) and applying a compiler plugin no source
- *   needs is the sort of thing that is hard to notice later. Left to the modules.
  *
  * The icon packs *are* here, and were not in the first draft of this plugin -- settings was
  * expected not to want them and immediately failed to compile on `Icons.Rounded.Check` and
@@ -35,14 +33,14 @@ import org.gradle.kotlin.dsl.dependencies
  * stylistic. Hilt aggregates every `@InstallIn(SingletonComponent::class)` binding into one
  * component generated in `:app`, so `:app`'s annotation processor has to resolve a feature
  * ViewModel's `@Inject constructor` parameter types itself -- and those are `:core:domain`
- * repository interfaces in both features. Hiding them behind `implementation` fails with
+ * repository interfaces in every feature. Hiding them behind `implementation` fails with
  * `InjectProcessingStep was unable to process ... could not be resolved`, and it fails in
  * `compileDebugAndroidTestKotlin` rather than in `assembleDebug`.
  *
  * `:core:ui` is the mirror image: `implementation`, because a feature *consumes* Compose without
- * handing any of it back out. Neither `ExploreScreen` nor `SettingsScreen` has a Compose type in
- * its signature that a caller must resolve -- they take lambdas, a `SnackbarHostState` from
- * `:app`'s own Compose dependency, and their own ViewModel.
+ * handing any of it back out. No feature screen has a Compose type in its signature that a caller
+ * must resolve through this edge -- all nine take lambdas, plain values, their own ViewModel, and
+ * at most a `SnackbarHostState`, which `:app` resolves through its own Compose dependency.
  */
 class AndroidFeatureConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) = with(target) {
@@ -80,7 +78,7 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
          * nothing and three unused test artifacts; that is cheaper than seven copies, and cheaper
          * than the eighth feature discovering by hand that its screen test never ran.
          */
-        extensions.configure(com.android.build.api.dsl.LibraryExtension::class.java) {
+        extensions.configure<LibraryExtension> {
             sourceSets.getByName("test").java.srcDir("src/sharedTest/kotlin")
             sourceSets.getByName("androidTest").java.srcDir("src/sharedTest/kotlin")
             // Robolectric renders a real screen on the JVM and resolves this module's strings with
@@ -221,7 +219,7 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
  * android.*` fails to compile rather than failing review. The layering rules one level up were
  * prose, and prose is how the `:core:testing` -> `:core:data` edge survived: unused, invisible in
  * the imports, and quietly putting Firestore, Room and DataStore on all nine features' unit-test
- * classpath. A rule nothing checks is a rule that decays.
+ * classpaths. A rule nothing checks is a rule that decays.
  *
  * Every configuration is scanned, not just the compile ones, because that edge lived on a test
  * classpath. `:core:testing` is the deliberate exception in the other direction -- it is the

@@ -20,7 +20,7 @@ interface UserRepository {
     /** Saves the given FCM registration token to the caller's own user doc. No-ops if signed out. */
     suspend fun updateFcmToken(token: String): Result<Unit>
 
-    /** Fetches the current FCM token, saves it, and subscribes the device to the announcements' topic. */
+    /** Fetches the current FCM token, saves it, and subscribes the device to the announcements topic. */
     suspend fun registerForPushNotifications(): Result<Unit>
 
     /** Unsubscribes the device from the announcements topic and clears the stored FCM token. */

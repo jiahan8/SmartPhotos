@@ -65,7 +65,7 @@ class SafeCallTest {
                 resultLineReached = true // must NOT be reached
             }
         } catch (_: CancellationException) {
-            // expected — safeCall rethrow it
+            // expected — safeCall rethrows it
         }
         assertFalse(
             "safeCall must rethrow CancellationException rather than wrapping it in Result",

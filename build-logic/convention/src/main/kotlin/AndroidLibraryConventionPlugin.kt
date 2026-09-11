@@ -10,7 +10,9 @@ import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.getByType
 
 /**
- * `smartphotos.android.library` -- applied by `:core:data` and `:core:ui`.
+ * `smartphotos.android.library` -- applied by the six Android library modules: `:core:common`,
+ * `:core:data`, `:core:ui`, and the three fixtures/harness modules `:core:testing`,
+ * `:core:screenshot-testing` and `:core:ui-testing`.
  *
  * Note what it does not set: `namespace`. Every library needs its own, so leaving it out of the
  * convention forces each module to declare one rather than inherit a wrong default.

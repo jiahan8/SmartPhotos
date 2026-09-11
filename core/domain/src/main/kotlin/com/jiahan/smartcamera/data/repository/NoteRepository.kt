@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.Flow
  * single outcome to carry.
  *
  * Media preparation and upload are [MediaUploadRepository]'s, not this one's: a note carries the
- * [MediaDetail] list that produces, but nothing here reads a file or talks to Storage.
+ * [MediaDetail] list it produces, but nothing here reads a file or talks to Storage.
  */
 interface NoteRepository {
     /**

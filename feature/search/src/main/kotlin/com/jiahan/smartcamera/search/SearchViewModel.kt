@@ -100,9 +100,10 @@ class SearchViewModel @Inject constructor(
      * would briefly have paired the *new* query's empty result with the *previous* query's
      * `Settled`, rendering "no results found" for a search that had not run yet.
      *
-     * Shared, both consumers wake from a single emission in subscription order, and the `init`
-     * collector subscribes first -- at construction, before the UI can collect [content] -- so its
-     * synchronous `searchStatus = Searching` write always lands before [results] switches streams.
+     * Because it is shared, both consumers wake from a single emission in subscription order,
+     * and the `init` collector subscribes first -- at construction, before the UI can collect
+     * [content] -- so its synchronous `searchStatus = Searching` write always lands before
+     * [results] switches streams.
      *
      * `replay = 1` also drops a redundant delay: [content] is `WhileSubscribed`, so leaving the
      * screen for longer than the timeout used to re-run the debounce and stall the results for

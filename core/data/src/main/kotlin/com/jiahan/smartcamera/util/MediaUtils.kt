@@ -16,7 +16,7 @@ import com.jiahan.smartcamera.util.AppConstants.VIDEO_THUMBNAIL_TIME_MICROSECOND
  * longest edge equals [VIDEO_THUMBNAIL_DIMENSION], preserving aspect ratio.
  *
  * Any exception is propagated to the caller; wrap this call in [safeCall] when
- * using from a repository.
+ * calling it from a repository.
  */
 fun createVideoThumbnail(context: Context, videoUri: Uri): Bitmap? {
     val retriever = MediaMetadataRetriever()

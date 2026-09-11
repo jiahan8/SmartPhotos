@@ -36,7 +36,7 @@ import com.jiahan.smartcamera.domain.AppError
  * It takes [AppError] rather than [Throwable] and returns a non-null resource id, because every
  * case has a string by construction. That is what makes the `when`
  * exhaustive-checked: adding an [AppError] case without a string here is a compile error rather
- * than a silent fall through to the developer-facing message.
+ * than a silent fall-through to the developer-facing message.
  */
 fun appErrorMessageResId(error: AppError): Int = when (error) {
     is AppError.NotAuthenticated -> R.string.user_not_authenticated
