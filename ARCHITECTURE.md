@@ -299,6 +299,14 @@ follow and hard to re-derive.
   module**, because with one consumer there is no way to tell *the shape of a feature* from *the
   shape of Explore*. The second consumer answered it, and partly against expectation — the icon
   packs, assumed Explore-specific, turned out to be shared. One module is a sample size of one.
+- **Espresso's version decided whether any device suite ran, and nothing named it.** A Compose rule
+  syncs through `Espresso.onIdle()` on device, and `androidx.test.ext:junit` carries a transitive
+  espresso-core 3.5.0 that reaches for `InputManager.getInstance`, removed in API 36. Every feature
+  resolved that transitive version while `:app`, the one module declaring espresso for itself,
+  resolved the catalog's 3.7.0 — 51 failures across seven modules, all dying in `onIdle` before
+  their first assertion, with `:app` green beside them. `smartphotos.android.feature` declares it
+  now. When a device run fails identically in every suite, suspect the classpath before the
+  assertions.
 - **The first CI run that executed the instrumented tests went red in a module that has none.**
   A device-test task does not skip itself when a module has no tests: AGP decides by looking for
   class files in the androidTest output, and its own filter subtracts the R and BuildConfig *jars*

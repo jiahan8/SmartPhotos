@@ -80,9 +80,8 @@ Run from the repo root (Gradle wrapper):
   catching a dependency that reaches a module through `debugImplementation` alone). CI runs both.
 - **A wall of `InjectProcessingStep was unable to process 'X(…,Foo,…)' because 'Foo' could not be
   resolved` after moving a type between modules is stale KSP state, not a dependency bug.**
-  `./gradlew clean` fixes it. The tell is that the unresolved name is unqualified while its
-  neighbours from the same module are fully qualified; check this before assuming an
-  `api`/`implementation` misconfiguration (see [Conventions](#conventions)).
+  `./gradlew clean` fixes it — check that before rearranging `api`/`implementation` declarations
+  ([the tell](ARCHITECTURE.md#incidents-worth-not-repeating)).
 - Debug build via Firebase App Distribution: `firebase login` once, then `./gradlew assembleDebug
   appDistributionUploadDebug` (the `testers` group must exist in the Firebase console first).
   Cloud Functions: `npm --prefix functions run serve` / `deploy` (needs Firebase CLI auth).
@@ -134,18 +133,16 @@ app-wide and no feature-level test would localise it.
   declared by `:core:ui` for itself), without which `createComposeRule()` can't resolve an activity.
 - `testDebugUnitTest` *runs* these tests but does **not** diff them; only `verifyRoborazziDebug`
   does. Re-record only for an intended change, and inspect the new PNGs before committing.
-- **The unit-test JVM is pinned to UTC/en-US** (`configureTestJvm()` in `build-logic`), because a
-  screenshot rendering a timestamp goes through `Long.toFormattedDateTime()`, whose `zone`/`locale`
-  default to the system's. If you change the pin, re-record. **A golden diff appearing only on CI is
-  far more likely non-determinism in the test than a platform rendering difference** — check for a
-  clock, locale or random value in the fixture first.
+- **The unit-test JVM is pinned to UTC/en-US** (`configureTestJvm()` in `build-logic`) because
+  `Long.toFormattedDateTime()` defaults `zone`/`locale` to the system's. If you change the pin,
+  re-record. **A golden diff appearing only on CI is non-determinism in the test far more often than
+  a platform difference** — check the fixture for a clock, locale or random value first.
 - **A golden that renders a build-varying value is a hoisting problem, not a re-recording chore** —
   `SettingsScreen` takes `versionName` as a parameter and the test pins `"1.0.0"`.
 - **Wrap the capture in `Surface(color = MaterialTheme.colorScheme.background)`, inside the theme.**
   `SmartPhotosApp` wraps the whole nav host in one and no feature screen paints its own background,
   so without it a capture lands on the host's default light ground rather than the theme's. That
-  flatters a light golden — which is why nine of them were recorded that way and nobody noticed —
-  and makes a dark one plainly wrong: dark app bar, light body.
+  flatters a light golden and makes a dark one plainly wrong: dark app bar, light body.
 - **Capture every case in both themes.** Dark is the half where a hardcoded colour or a token read
   from the wrong scheme actually shows, and the light capture cannot see it. Every golden here is
   half of a pair.
@@ -153,13 +150,12 @@ app-wide and no feature-level test would localise it.
   no-ops, so reordering the parameters rebinds them silently — no compile error, and no golden diff
   either, because the pixels are identical.
 - **A text field inside a dialog cannot be captured, and the reason is upstream, not yours.** Under
-  Robolectric the pair never reports itself idle unless the field's width is fixed, so `capture`
-  spins ~600,000 recompositions and dies on `AppNotIdleException` after 60s. Neither half does it
-  alone. Pausing the test clock doesn't help — it's a recomposition loop, not an animation — and
-  every Roborazzi entry point syncs first, `captureScreenRoboImage` included. `SettingsScreen`'s
-  ChangePassword dialog is the one case; `SettingsScreenScreenshotTest` records the bisect. **Cover
-  the fields on their own** (`:core:ui`'s `PasswordField` goldens) rather than reconstructing the
-  dialog in the test — a golden of a rebuilt layout can't regress with the screen.
+  Robolectric the pair never reports itself idle unless the field's width is fixed, and `capture`
+  dies on `AppNotIdleException`; neither half does it alone, and neither pausing the test clock nor
+  a different Roborazzi entry point helps. `SettingsScreen`'s ChangePassword dialog is the one case
+  — `SettingsScreenScreenshotTest` records the bisect. **Cover the fields on their own**
+  (`:core:ui`'s `PasswordField` goldens) rather than reconstructing the dialog in the test — a
+  golden of a rebuilt layout can't regress with the screen.
 
 ### Instrumented tests
 
@@ -180,21 +176,18 @@ task name, so renaming it changes the CI workflow's command.
 
 **A module with neither `src/androidTest/` nor `src/sharedTest/` has its androidTest component
 switched off** by `disableAndroidTestWithoutSources` (`build-logic`), which is why only the eleven
-have a device-test task at all. **A device-test task in a module with nothing to run does not skip
-itself:** AGP looks for class files in the androidTest output and finds the generated `R` classes,
-so it installs an APK that carries no test runner and the instrumentation dies on
-`ClassNotFoundException: androidx.test.runner.AndroidJUnitRunner` after starting zero tests. That
-took the whole `instrumented` job red on `:core:common` the first time it ran, before the nine
-feature suites queued behind it had run once. Adding a `sharedTest/` file switches the component
-back on with no build-file edit.
+have a device-test task at all. **Don't switch it back on for a module with nothing to run** — a
+device-test task there does not skip itself, it installs a runner-less APK and the instrumentation
+dies on `ClassNotFoundException: androidx.test.runner.AndroidJUnitRunner` after starting zero tests
+([the incident](ARCHITECTURE.md#incidents-worth-not-repeating)). Adding a `sharedTest/` file
+switches the component back on with no build-file edit.
 
 **Espresso's version is load-bearing and nothing names it.** A Compose rule syncs through
 `Espresso.onIdle()` on device, so the version on the androidTest classpath decides whether a suite
-runs at all — and `androidx.test.ext:junit` carries a transitive espresso-core 3.5.0 that reaches
-for `InputManager.getInstance`, removed in API 36. Every feature resolved that while `:app`, the one
-module declaring espresso for itself, resolved the catalog's 3.7.0; the result was 51 failures
-across seven modules, all dying in `onIdle` before their first assertion, with `:app` green beside
-them. `smartphotos.android.feature` now declares it. **When a device run fails identically in every
+runs at all — and `androidx.test.ext:junit`'s transitive espresso-core 3.5.0 reaches for
+`InputManager.getInstance`, removed in API 36. `smartphotos.android.feature` declares the catalog's
+version for every feature ([what it cost before it
+did](ARCHITECTURE.md#incidents-worth-not-repeating)). **When a device run fails identically in every
 suite, suspect the classpath before the assertions.**
 
 **`sharedTest/` is where a screen test goes, and androidTest-only is the exception that has to
@@ -226,12 +219,11 @@ finds two nodes and throws.
 **Assert navigation against the back stack, not against the bottom bar.** `SmartPhotosApp` takes
 `navController: NavHostController = rememberNavController()` so `SmartPhotosNavigationTest` can hand
 it a `TestNavHostController` and read `currentDestination`/`toRoute()` — the officially documented
-shape, and the reason the parameter exists. It used to remember one internally, which left the tab's
-*selected* state as the only observable: derived from `currentDestination.hasRoute(...)`, so honest
-as far as it went, but defined for only five of the twelve destinations. Everywhere else the
-assertion collapsed to `assertDoesNotExist()` on a tab, which passes for a blank screen and a
-NavHost that never composed just as readily as for arriving somewhere. **Still assert the tab where
-the bar is the subject** — it is UI a user reads — but the route is what pins the test.
+shape, and the reason the parameter exists. A tab's *selected* state is derived from
+`currentDestination.hasRoute(...)` and so defined for only five of the twelve destinations, and
+`assertDoesNotExist()` on a tab passes for a blank screen or a NavHost that never composed just as
+readily as for arriving somewhere. **Still assert the tab where the bar is the subject** — it is
+UI a user reads — but the route is what pins the test.
 
 **A `TestNavHostController` needs `ComposeNavigator` *and* `DialogNavigator` added to it.** `NavHost`
 looks up both and `return`s early if either is missing, so a controller carrying one renders nothing
@@ -252,25 +244,18 @@ Drop it — a library module declares no custom `Application`, so Robolectric in
 anyway. `@RunWith(AndroidJUnit4::class)` is the annotation that works on both sides, resolving to
 Robolectric on the JVM and to the real runner on-device.
 
-**CI compiled androidTest and never ran it** (`compileDebugAndroidTestKotlin`, no emulator), and
-four assertions sat wrong for months because of it — `SearchScreenTest` asserting the empty-results
-copy against the Idle state, and all three of `FavoriteScreenTest`'s empty-state cases asserting
-`no_results_found` where a blank query renders `favorite_note_to_see_it_here`. None could ever have
-passed. The `instrumented` job closed that; `compileDebugAndroidTestKotlin` stays because it is the
-fast half and fails before an emulator finishes booting. **`sharedTest/` is still where a screen
-suite goes** — it is the source set that runs in both places, and the Robolectric half reports in
-seconds.
+**`compileDebugAndroidTestKotlin` proves a suite compiles, not that it passes.** CI ran only that
+for months, and four assertions that could never have passed sat green behind it. The `instrumented`
+job closed that; the compile step stays because it is the fast half and fails before an emulator
+finishes booting.
 
-**Four things stay androidTest-only.** `HiltGraphSmokeTest` and `SmartPhotosNavigationTest` both
-need a real Hilt component and `:app`'s `HiltTestRunner`. The other two are device-only because
-production code sleeps on `Dispatchers.Main`:
-`SettingsScreenNavigationTest` (the ViewModel waits `AUTH_ACTION_DELAY_MS` before emitting
-`NavigateToAuth`) and `ProfileScreenTest` (bottom-anchored save button and inline validation text
-need real viewport/scroll behaviour). A real `delay` on Main becomes a message on a paused
-Robolectric looper that no amount of `waitUntil` makes due — and
-`composeTestRule.mainClock.advanceTimeBy` drives the Compose frame clock, not the looper's, so it
-does not help. **That is the bar for staying in androidTest: state the reason in the class doc, as
-both of those do.**
+**Four things stay androidTest-only.** `HiltGraphSmokeTest` and `SmartPhotosNavigationTest` need a
+real Hilt component and `:app`'s `HiltTestRunner`. `SettingsScreenNavigationTest` and
+`ProfileScreenTest` are device-only because production code sleeps on `Dispatchers.Main`: a real
+`delay` there becomes a message on a paused Robolectric looper that no amount of `waitUntil` makes
+due, and `composeTestRule.mainClock.advanceTimeBy` drives the Compose frame clock, not the looper's.
+**That is the bar for staying in androidTest: state the reason in the class doc, as both of those
+do.**
 
 ### CI
 
@@ -668,16 +653,15 @@ reflectively or auto-initialising (`firebase-perf`, `firebase-inappmessaging-dis
 resolution (`kotlin-serialization` in `:core:data`).
 
 **That exception list is the dangerous half of this rule, and has been got wrong in both
-directions:**
+directions** ([how](ARCHITECTURE.md#incidents-worth-not-repeating)):
 
-- **Check for an injection *site* before treating a `@Provides` as load-bearing** — an unused Hilt
-  binding reads exactly like a live one, with no import to be missing and no compile error to raise.
+- **Check for an injection *site* before treating a `@Provides` as load-bearing.** An unused Hilt
+  binding reads exactly like a live one — no import to be missing, no compile error to raise.
 - **Before deleting a dependency nothing imports, look inside the artifact** (`unzip -p <aar>
   classes.jar | ...`, or its `META-INF/services`). A service file, a `ContentProvider` in its
-  manifest, or a Gradle plugin expecting the SDK all mean "used" in a way grep cannot see — under
-  Coil 3, classpath presence **is** the registration, so a *working* GIF setup is precisely one with
-  no `components { add(...) }` block to find. The debug APK is ground truth: `unzip -l app-debug.apk
-  | grep META-INF/services` (release renames them under R8, so compare counts there, not names).
+  manifest, or a Gradle plugin expecting the SDK all mean "used" in a way grep cannot see. The debug
+  APK is ground truth: `unzip -l app-debug.apk | grep META-INF/services` (release renames them under
+  R8, so compare counts there, not names).
 
 ### Tests and resources
 
