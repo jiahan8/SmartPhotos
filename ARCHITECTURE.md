@@ -10,11 +10,11 @@ are about to change something a rule protects.
 
 Two deployables share one Firebase project:
 
-- **Android app** — Kotlin + Jetpack Compose, MVVM, across sixteen Gradle modules: `:app`,
-  `:core:domain`, `:core:common`, `:core:data`, `:core:ui`, nine `:feature:*` libraries, and the two
-  test-only modules `:core:testing` / `:core:screenshot-testing`. Plus `build-logic/`, an included
-  build holding the six convention plugins. The per-module contents and the dependency rules are in
-  [AGENTS.md](AGENTS.md).
+- **Android app** — Kotlin + Jetpack Compose, MVVM, across seventeen Gradle modules: `:app`,
+  `:core:domain`, `:core:common`, `:core:data`, `:core:ui`, nine `:feature:*` libraries, and the
+  three test-only modules `:core:testing` / `:core:screenshot-testing` / `:core:ui-testing`. Plus
+  `build-logic/`, an included build holding the six convention plugins. The per-module contents and
+  the dependency rules are in [AGENTS.md](AGENTS.md).
 - **Cloud Functions** (`functions/`, Node 24) — triggered by Firestore writes and callable from the
   app, doing the work that shouldn't run on-device: calling Google Cloud Vision, enforcing limits
   the client can't be trusted to enforce, proxying secrets.
@@ -26,35 +26,52 @@ flowchart LR
         VM[ViewModels]
         Repo[Repositories]
         Room[(Room mirror)]
+        DS[(DataStore)]
     end
     subgraph Firebase
         FS[(Firestore)]
         Storage[(Cloud Storage)]
         Auth[Firebase Auth]
+        RC[Remote Config]
         FCM[Cloud Messaging]
     end
     subgraph Cloud Functions
         CF[functions/index.js]
-        Vision[Cloud Vision API]
+    end
+    subgraph External APIs
+        Vision[Cloud Vision]
+        Unsplash[Unsplash]
     end
 
     UI --> VM --> Repo
     Repo -- write-through --> Room
     Room -- live query --> VM
+    Repo --> DS
     Repo --> FS
     Repo --> Storage
     Repo --> Auth
+    Repo -- bucket URL --> RC
+    Repo -- nine callables --> CF
     FS -- onDocumentCreated/Deleted --> CF
     CF --> Vision
+    Vision -- reads by download URL --> Storage
+    CF -- secret-held key --> Unsplash
     CF --> FS
-    CF --> Storage
     CF -- data push --> FCM --> UI
 ```
 
-The two arrows between `Repo`, `Room` and `VM` are the shape worth noticing: a repository writes
-what it fetched into Room, and the ViewModel reads it back out of a live query rather than from the
-call's return value. That is the [Source of truth](AGENTS.md#source-of-truth) arrangement, and it is
-what replaced the cross-feature event bus described below.
+Two edges are worth reading twice. The pair between `Repo`, `Room` and `VM` is the
+[Source of truth](AGENTS.md#source-of-truth) arrangement: a repository writes what it fetched into
+Room, and the ViewModel reads it back out of a live query rather than from the call's return value —
+which is what replaced the cross-feature event bus described below.
+
+`Repo → CF` is the other. Cloud Functions are **not** reached only by Firestore triggers: nine of the
+eleven are callables a repository invokes directly through `FirebaseFunctions.getHttpsCallable`
+(`createNote`/`updateNote` from `DefaultNoteRepository`, the two username/email checks from
+`DefaultAuthRepository`, three profile callables from `DefaultUserRepository`, the two Unsplash ones
+from `DefaultPhotoRepository`). Only `processTextRecognition` and `archiveDeletedNote` fire from a
+Firestore write. Note also that nothing server-side touches Cloud Storage: `processTextRecognition`
+passes Vision the image's download URL, so **Vision** fetches the bytes.
 
 ## Why the module split is shaped this way
 
@@ -80,17 +97,30 @@ all, yet resolved the entire compose ui-test stack. The tell that nobody was rel
 every module wanting Robolectric for a *non*-screenshot suite (`:app`, `:core:data`,
 `:feature:auth`, `:feature:note`, `:feature:preview`) already declared it itself.
 
-**Neither is AGP's `testFixtures`.** That was tried first and doesn't work here: the Kotlin Android
-plugin generates no Kotlin compilation for the testFixtures variant, so the sources never build.
-Both are ordinary library modules, `api` throughout, because a fixtures module's API surface is
-*other* modules' types — `FakeNoteRepository` **is** a `NoteRepository`.
+`:core:ui-testing` is the same split a third time. `BaseScreenTest` is shared test code, which is
+what `:core:testing` is for — but `:app` and `:core:ui` take that module too, so its compose-ui-test
+artifacts would have landed on their classpaths exactly as Roborazzi once landed on nine features.
+It cleared the "one module is a sample size of one" bar well before it was written: eleven suites
+declared their own `string(resId)`, eight a byte-identical `waitForText`, and the 5s timeout
+appeared as a literal thirty-three times. And it costs no consumer a new artifact — the nine
+features already resolve compose-ui-test on both test source sets, since
+`smartphotos.android.feature` puts `androidx-ui-test-junit4` there for the screen suites themselves.
+**Fixtures in one module, a harness in another, each depended on only by what wants it.**
+
+**None of the three is AGP's `testFixtures`.** That was tried first and doesn't work here: the
+Kotlin Android plugin generates no Kotlin compilation for the testFixtures variant, so the sources
+never build. All three are ordinary library modules, `api` throughout, because a fixtures module's
+API surface is *other* modules' types — `FakeNoteRepository` **is** a `NoteRepository`.
 
 `FirebaseModule` moved from `:app` to `:core:data` under the same kind of reasoning. Hilt aggregates
 every `@InstallIn(SingletonComponent::class)` module into one component generated in `:app`, so a
 provider works from anywhere and nothing fails if it sits too high — which is exactly why it sat in
-the wrong place for so long. It provided seven Firebase SDK singletons whose only consumers were
-`:core:data` repositories, which put the whole Firebase surface in `:app`'s dependency block for
-code `:app` does not contain, and meant nothing below `:app` could assemble a repository on its own.
+the wrong place for so long. It provided six Firebase SDK singletons — Firestore, Auth, Functions,
+Remote Config, Analytics and Messaging — whose only consumers were `:core:data` repositories, which
+put the whole Firebase surface in `:app`'s dependency block for code `:app` does not contain, and
+meant nothing below `:app` could assemble a repository on its own. (A seventh,
+`provideFirebaseInAppMessaging`, did not come along: nothing injected it, which is the
+unused-binding incident recorded below.)
 **Ask where a binding is injected, not where it is convenient to declare.**
 
 ## Layers
@@ -151,17 +181,27 @@ offline writes, no reconciliation).
 
 This is the path that motivates having Cloud Functions at all:
 
-1. The app uploads media to Cloud Storage (`DefaultMediaUploadRepository`) and writes a note
-   document to Firestore under `user/{userId}/note/{noteId}` (`DefaultNoteRepository`), then writes
-   it through to Room — two repositories, because uploading a file and persisting a note are two
-   jobs. The upload runs in `viewModelScope` (`uploadMediaToCache`), so it is cancelled if the
-   ViewModel is cleared mid-upload — official guidance for work that should survive that
+1. The app uploads media to Cloud Storage (`DefaultMediaUploadRepository.uploadMedia`) and writes a
+   note document to Firestore under `user/{userId}/note/{noteId}` (`DefaultNoteRepository`), then
+   writes it through to Room — two repositories, because uploading a file and persisting a note are
+   two jobs. `uploadMedia` runs under its caller's job (`coroutineScope { async }` inside
+   `NoteViewModel.saveNote`'s `viewModelScope.launch`), so it is cancelled if the ViewModel is
+   cleared mid-upload — official guidance for work that should survive that
    ([Guide to background work](https://developer.android.com/guide/background)) is `WorkManager`,
-   which this codebase does not use today.
+   which this codebase does not use today. **`uploadMediaToCache` is not this path and behaves the
+   opposite way**: it is the fire-and-forget cache upload (a cancelled capture, a profile picture)
+   and hands each file to `@ApplicationScope`, so clearing the ViewModel cannot kill it.
 2. `processTextRecognition` (an `onDocumentCreated` trigger) fires server-side, calls Cloud Vision
    (text/label/object detection) on the uploaded image, and writes the results back onto the
    document.
-3. The app picks up the update and refreshes the note's tags client-side.
+3. The tags reach the app by two routes, and neither is a Firestore listener — there is no
+   `addSnapshotListener` anywhere in the build. `processTextRecognition` sends a **data-only** FCM
+   push carrying `noteId` (data-only so `SmartPhotosMessagingService.onMessageReceived` always runs
+   and the deep link survives a backgrounded app), but only for a note that actually carries media;
+   the tap deep-links into `MainActivity` with `EXTRA_NOTE_ID`. The tag *data* arrives separately,
+   whenever the next `getNote`/`getNotes` fetch writes the note into the Room mirror — so a Vision
+   run finishing after a screen has loaded shows up on that screen's next fetch, not the moment it
+   is written.
 4. On deletion, `archiveDeletedNote` (`onDocumentDeleted`) copies the note's Firestore data to
    `user/{userId}/archive/{noteId}` with a `deleted_at` timestamp, so it is recoverable rather than
    destroyed. The note's Storage files are left untouched.
@@ -355,6 +395,11 @@ This file is hand-written and enforced by no build check, unlike the layering ru
 `smartphotos.android.feature` fails the build over) and `:core:domain`'s purity (which the compiler
 rejects). **If something here disagrees with the code, trust the code** — and update this file.
 
-It has drifted before: it described three Gradle modules after the split to sixteen, and documented
-the `*Handler` event bus as current for some time after the Room mirror replaced it, which is worse
-than saying nothing — an agent reading it would have rebuilt a pattern AGENTS.md forbids.
+It has drifted before, three times. It described three Gradle modules long after the split that
+produced today's seventeen, and it documented the `*Handler` event bus as current for some time
+after the Room mirror replaced it — worse than saying nothing, since an agent reading it would have
+rebuilt a pattern AGENTS.md forbids. The third is the subtlest and the one to learn from: the upload
+step above named `uploadMediaToCache` and described `uploadMedia`'s cancellation behaviour, which
+read as plausible prose while being wrong about both methods. **A method name in this file is a
+claim about a specific function — check it against that function, not against the paragraph around
+it.**

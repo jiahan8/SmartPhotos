@@ -259,11 +259,12 @@ do.**
 
 ### CI
 
-`.github/workflows/ci.yml` runs on every push to `main`, every PR, and on demand, as **three
+`.github/workflows/ci.yml` runs on every push to `main`, every PR, and on demand, as **four
 parallel jobs** on JDK 21: `android` (debug APK, release APK, androidTest compile, unit tests,
 screenshot comparison, `lintDebug` — every step runs even if an earlier one failed, so one run
 reports every problem), `instrumented` (the device suites on a managed device the job boots itself,
-`--no-parallel --continue` for that same reason), and one that lints `functions/`.
+`--no-parallel --continue` for that same reason), `mentions` (the commit-message rules, described
+under [Commit messages](#commit-messages)), and one that lints `functions/`.
 
 **The workflow comments its own reasoning step by step — read those before changing one.** Three
 things worth knowing without opening it:
