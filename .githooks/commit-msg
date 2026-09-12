@@ -1,0 +1,78 @@
+#!/bin/sh
+#
+# Rejects two things a commit message must never carry: a bare @Name, and an
+# attribution trailer.
+#
+# --- @Name ---
+#
+# GitHub autolinks @Name in commit messages to a real account, and Kotlin
+# annotation names collide with live handles: @Keep and @Inject are both real
+# users, @Parcelize is a real organisation. Scoped npm packages hit the same
+# trap (@google-cloud/vision). This repo has already sent three, all of them now
+# on origin/main: 700b18d (@Parcelize), e9c474e (@ViewModelScoped) and
+# 870a6f5 (@google-cloud).
+#
+# Backticks do NOT help. GitHub renders no Markdown in a commit message; it
+# autolinks plain text, so `@Keep` shows the backticks AND still mentions.
+# Write the annotation without the sigil instead:
+#
+#   Add the Keep annotation to MediaSourceType so R8 doesn't rename it
+#
+# --- attribution trailers ---
+#
+# Claude Code and Copilot both append a Co-Authored-By line unless told not to,
+# and Claude Code a Claude-Session URL. Neither is wanted here: a session link
+# resolves for nobody but the author, and a bot co-author lands in git shortlog
+# and the repository's contributor list. AGENTS.md tells both agents not to
+# write them; this catches what is written anyway, including by an agent whose
+# own harness instructs it to add them.
+#
+# The @Name check deliberately does not match email addresses -- the @ in
+# noreply@anthropic.com is preceded by a letter -- so a trailer is caught by the
+# pattern below, by name, rather than incidentally as a stray mention.
+#
+# Both checks run on every message and report together, so one commit attempt
+# surfaces both problems instead of trading them one fix at a time.
+#
+# Enabled per clone with:  git config core.hooksPath .githooks
+# Bypass a false positive with:  git commit --no-verify
+#
+# core.hooksPath lives in .git/config, so enabling it covers this clone and its
+# worktrees and nothing else -- not a fresh clone, not a --no-verify, and not a
+# message composed in GitHub's web UI. The `mentions` job in .github/workflows/
+# ci.yml runs *this file* over every commit in a pull request and over the PR
+# title, so the rules hold for anything reaching main. Keep the two in step by
+# never copying these regexes: that job invokes the hook rather than restating
+# them.
+
+# `git commit -v` appends the staged diff below a scissors line, and those diff
+# lines are NOT comments -- a staged `@Inject` reads as a mention, which in a
+# Hilt/Compose codebase is most commits. Git cuts at the same place, so nothing
+# below it was ever part of the message. Line numbers survive: only the tail is
+# dropped.
+body=$(sed '/-- >8 --/,$d' "$1")
+
+# Git strips comment lines before using the message, so a match on one is noise.
+drop_comments() { grep -v '^[0-9]*:#'; }
+
+mentions=$(printf '%s\n' "$body" | grep -nE '(^|[^A-Za-z0-9_.+-])@[A-Za-z][A-Za-z0-9_-]*' | drop_comments)
+trailers=$(printf '%s\n' "$body" | grep -niE '^(co-authored-by|claude-session):|claude\.ai/code/session|claude\.com/claude-code|generated with \[?(claude code|copilot)' | drop_comments)
+
+# `rc`, not `status`: that name is read-only in zsh, and this file gets pasted
+# into a local shell to reproduce a red CI run.
+rc=0
+
+if [ -n "$mentions" ]; then
+  echo "commit-msg: '@Name' becomes a GitHub @mention. Write it without the @." >&2
+  echo "$mentions" | sed 's/^/  /' >&2
+  rc=1
+fi
+
+if [ -n "$trailers" ]; then
+  echo "commit-msg: this repo uses no attribution trailers. Delete the line." >&2
+  echo "$trailers" | sed 's/^/  /' >&2
+  rc=1
+fi
+
+[ "$rc" -eq 0 ] || echo "  (deliberate? re-run with --no-verify)" >&2
+exit $rc

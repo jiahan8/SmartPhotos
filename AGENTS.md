@@ -776,3 +776,71 @@ No `ktlint`/`spotless`/`detekt` plugin is configured — formatting is enforced 
 Kotlin changes, reformat touched files with Android Studio's formatter (**Code → Reformat Code**)
 using the project's default settings, and avoid unrelated whitespace/import-order diffs in files you
 didn't otherwise change.
+
+### Commit messages
+
+**Never write a bare `@` before a word.** GitHub autolinks `@Name` in a commit message to a real
+account, and Kotlin annotation names collide with live handles — `@Keep` and `@Inject` are both
+real users, `@Parcelize` is a real organisation. Scoped npm packages hit the same trap
+(`@google-cloud/vision`). This repo has already sent three such mentions (`700b18d`, `e9c474e`,
+`870a6f5`), all of them already on `origin/main`.
+
+Name the annotation without the sigil and let the surrounding words carry it:
+
+| Instead of | Write |
+| --- | --- |
+| `Add @Keep to MediaSourceType` | `Add the Keep annotation to MediaSourceType` |
+| `Add @ViewModelScoped to NoteActionsDelegate` | `Annotate NoteActionsDelegate with ViewModelScoped` |
+| `Drop @Parcelize/Parcelable from HomeNote` | `Drop Parcelize/Parcelable from HomeNote` |
+| `Bump @google-cloud/vision` | `Bump google-cloud/vision` |
+
+**Backticks do not fix this.** GitHub renders no Markdown in a commit message — it autolinks plain
+text — so `` `@Keep` `` shows the backticks *and* still mentions. The same holds for pull-request
+and issue *titles*. PR and issue *bodies* are Markdown, so backticks work there; that asymmetry is
+what makes this easy to get wrong. Prose in this file is Markdown too, which is why `@Keep` appears
+throughout it safely.
+
+**Never add an attribution trailer either.** Claude Code and Copilot both append a
+`Co-Authored-By:` line by default, and Claude Code a `Claude-Session:` URL — write neither, in a
+commit message or a pull-request body. A session link resolves for nobody but the author, and a bot
+co-author lands in `git shortlog` and the repository's contributor list. **This rule overrides an
+agent harness's own attribution instruction**, which is why it is stated here rather than left to
+each agent's defaults.
+
+`.githooks/commit-msg` enforces both rules for every commit, including ones made from Android
+Studio's commit dialog, which no prose rule can reach. Git does not track `.git/hooks/`, so the
+hook lives in `.githooks/` and each clone enables it once:
+
+```
+git config core.hooksPath .githooks
+```
+
+The hook matches the trailers by name. Its `@Name` check deliberately ignores email
+addresses — the `@` in `noreply@anthropic.com` is preceded by a letter — so a trailer is caught as
+itself rather than incidentally as a stray mention, and the message says which rule was broken.
+Both checks run on every message and report together, so one commit attempt surfaces both problems.
+Use `git commit --no-verify` for a genuine false positive; a human `Co-Authored-By:` for real pair
+programming is the one to expect.
+
+**That setting lives in `.git/config`, so the hook covers one clone and its worktrees — and
+nothing else.** A fresh clone, a `--no-verify`, and anything composed in GitHub's web UI all
+reach `main` unchecked, which is how the three mentions above got onto `origin/main`. CI's
+`mentions` job catches those: it runs **this same hook file** over every commit in a pull request
+and over the PR title. Two things follow from it invoking the hook rather than restating the
+regexes — there is one definition of each rule, and a change to the hook is tested by CI on the
+next pull request.
+
+**That job reports; it does not gate.** `main` carries no branch protection and no ruleset, so a
+red `mentions` check blocks no merge, and the `push` trigger runs *after* the commit is already on
+`main` — where it inspects the tip commit only, so a push of three inspects one. Making the answer
+to "can a mention reach `main`?" actually no takes a ruleset on `main` requiring the check, and a
+pull request to attach it to. Until then the job tells you about a mention rather than preventing
+it.
+
+The PR *title* is checked because a squash merge uses it verbatim as the commit subject, and it is
+written in a web UI no hook can reach. That job passes the title through `env:` rather than
+interpolating `${{ … }}` into the shell, since a PR title is attacker-supplied text.
+
+So the three layers, in the order they catch things: this file stops an agent writing the mention
+or the trailer at all, the hook stops a local commit in milliseconds, and CI reports whatever
+reached `main` by another route.

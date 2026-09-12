@@ -284,6 +284,66 @@ jobs:
             */*/build/outputs/androidTest-results/managedDevice/
           if-no-files-found: ignore
 
+  # Runs .githooks/commit-msg over what the local hook cannot see. That hook is enabled per clone
+  # (core.hooksPath in .git/config), so it covers one machine and its worktrees -- a fresh clone, a
+  # --no-verify, and anything composed in GitHub's web UI all reach main with nothing checking
+  # them, which is how all three of the mentions it names got onto origin/main in the first place.
+  #
+  # It invokes the hook rather than restating its regex, so there is exactly one definition of the
+  # rule to keep correct. Its own job because it needs no JDK, no Gradle and no secret: it finishes
+  # in seconds alongside the android job instead of queueing behind it.
+  mentions:
+    name: Check for GitHub mentions
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The commit walk below needs the base sha and every commit on the branch; the default
+          # shallow fetch has neither.
+          fetch-depth: 0
+
+      # The PR title, because a squash merge uses it verbatim as the commit subject -- and it is
+      # written in the web UI, where no local hook runs. Titles autolink exactly like commit
+      # messages, and backticks do not help there either (PR *bodies* are Markdown; titles are not).
+      #
+      # Passed through env rather than interpolated into the script. A PR title is attacker-supplied
+      # text, and `${{ }}` inside a run: block splices it into the shell before it ever becomes a
+      # string.
+      - name: PR title
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          printf '%s\n' "$PR_TITLE" > "$RUNNER_TEMP/title.txt"
+          sh .githooks/commit-msg "$RUNNER_TEMP/title.txt"
+
+      # `!cancelled()` like every check in the android job: report both halves in one run rather
+      # than surfacing them one fix-and-push at a time.
+      - name: Commit messages
+        if: ${{ !cancelled() }}
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ -n "$BASE_SHA" ]; then
+            commits=$(git rev-list "$BASE_SHA..$HEAD_SHA")
+          else
+            # push or workflow_dispatch: no range to walk, so check the tip only.
+            commits=$(git rev-list -1 "$HEAD_SHA")
+          fi
+          # `failed`, not `status`: that name is read-only in zsh, and this script is the kind of
+          # thing someone pastes into a local shell to reproduce a red run.
+          failed=0
+          for sha in $commits; do
+            git log -1 --format=%B "$sha" > "$RUNNER_TEMP/msg.txt"
+            if ! sh .githooks/commit-msg "$RUNNER_TEMP/msg.txt"; then
+              echo "::error::$(git log -1 --format='%h %s' "$sha")"
+              failed=1
+            fi
+          done
+          exit $failed
+
   functions:
     name: Lint Cloud Functions
     runs-on: ubuntu-latest
