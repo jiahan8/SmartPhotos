@@ -22,6 +22,9 @@
  * `preview/NotePreviewScreen.kt`. Those are a destination name and an action label that happen to
  * share a word -- the `explore` case, not the `profile` one -- so it stays in :app and becomes a
  * decision when preview moves.
+ *
+ * FavoriteViewModel has since moved again, to :feature:favorite-viewmodel's `commonMain`, the way
+ * ExploreViewModel did. HiltFavoriteViewModel is the subclass Hilt builds, and stays here.
  */
 plugins {
     id("smartphotos.android.feature")
@@ -40,6 +43,11 @@ dependencies {
      * kotlinx-coroutines-test, Turbine and the five on-device lines -- all arrive from
      * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
+
+    // FavoriteViewModel, in this feature's multiplatform half. api for the reason :feature:explore's
+    // build file gives for its own: it is FavoriteScreen's `viewModel` parameter type and
+    // HiltFavoriteViewModel's supertype, and :app has to resolve both.
+    api(project(":feature:favorite-viewmodel"))
 
     // NoteActionError.resolve and toPlatformUri() for FavoriteScreen, and NoteDelegateModule, which
     // provides the two note delegates FavoriteViewModel injects. The third module to declare

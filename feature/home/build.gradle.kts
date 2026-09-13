@@ -12,6 +12,9 @@
  *
  * `HomeScreenTest` came over from :app's `sharedTest`, and the arrangement came with it -- see the
  * note on the source sets below.
+ *
+ * HomeViewModel has since moved again, to :feature:home-viewmodel's `commonMain`, the way
+ * ExploreViewModel did. HiltHomeViewModel is the subclass Hilt builds, and stays here.
  */
 plugins {
     id("smartphotos.android.feature")
@@ -37,6 +40,11 @@ dependencies {
      * kotlinx-coroutines-test, Turbine and the five on-device lines -- all arrive from
      * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
+
+    // HomeViewModel, in this feature's multiplatform half. api for the reason :feature:explore's
+    // build file gives for its own: it is HomeScreen's `viewModel` parameter type and
+    // HiltHomeViewModel's supertype, and :app has to resolve both.
+    api(project(":feature:home-viewmodel"))
 
     // NoteActionError.resolve and toPlatformUri() for HomeScreen, and NoteDelegateModule, which
     // provides the two note delegates HomeViewModel injects. The delegates themselves are

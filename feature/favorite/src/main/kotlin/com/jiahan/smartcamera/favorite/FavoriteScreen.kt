@@ -49,7 +49,7 @@ fun FavoriteScreen(
     onScrollToTopConsumed: () -> Unit,
     snackbarHostState: SnackbarHostState,
     onScrollDirectionChanged: (isScrollingUp: Boolean) -> Unit = {},
-    viewModel: FavoriteViewModel = hiltViewModel()
+    viewModel: FavoriteViewModel = hiltViewModel<HiltFavoriteViewModel>()
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current

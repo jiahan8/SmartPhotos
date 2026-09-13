@@ -1,104 +1,109 @@
 package com.jiahan.smartcamera.search
 
 import app.cash.turbine.test
-import com.jiahan.smartcamera.MainDispatcherRule
-import com.jiahan.smartcamera.data.repository.AnalyticsRepository
-import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.Note
-import com.jiahan.smartcamera.fake.NoteMirror
+import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
+import com.jiahan.smartcamera.fake.FakeErrorHandler
+import com.jiahan.smartcamera.fake.FakeMediaCacheRepository
+import com.jiahan.smartcamera.fake.FakeNoteRepository
 import com.jiahan.smartcamera.note.NoteActionError
 import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.AppConstants.DEBOUNCE_MS
-import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorMessage
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.just
-import io.mockk.mockk
-import io.mockk.runs
-import io.mockk.unmockkAll
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Before
-import org.junit.Rule
-import org.junit.Test
+import kotlinx.coroutines.test.setMain
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 
+/**
+ * [SearchViewModel]'s suite, in `commonTest` beside its subject: :core:domain-testing's fakes where
+ * mockk was and [Dispatchers.setMain] where `MainDispatcherRule` was -- `ExploreViewModelTest`
+ * records why each of those.
+ *
+ * What it leaned on mockk for was a search stubbed per query, one held in flight, and the calls
+ * made. [FakeNoteRepository.searchAnswer] and [FakeNoteRepository.requestedSearches] cover those,
+ * and the results are read from the fake's own `notes` mirror, which it writes each search's
+ * results into the way `searchNotes` does. One behaviour needed a replacement rather than a
+ * translation: an unstubbed mock failed the test when called, and a fake just answers, so the
+ * rapid-typing case asserts the queries that were searched instead of relying on that.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SearchViewModelTest {
 
-    @get:Rule
-    val mainDispatcherRule = MainDispatcherRule(StandardTestDispatcher())
+    private val testDispatcher: TestDispatcher = StandardTestDispatcher()
 
-    private val noteRepository: NoteRepository = mockk()
-    private val analyticsRepository: AnalyticsRepository = mockk()
-    private val errorHandler: ErrorHandler = mockk()
-    private val noteErrorReporter by lazy { NoteErrorReporter(errorHandler) }
-    private val noteShare: NoteShareDelegate = mockk(relaxed = true)
+    private val noteRepository = FakeNoteRepository()
+    private val analyticsRepository = FakeAnalyticsRepository()
+    private val errorHandler = FakeErrorHandler()
+    private val noteErrorReporter = NoteErrorReporter(errorHandler)
+    private val noteShare = NoteShareDelegate(FakeMediaCacheRepository(), noteErrorReporter)
 
     /**
      * Stands in for the `notes` table. Results are a filtered read of this, not of what
      * `searchNotes` returns -- which is what lets a mutation made on another screen show up here
      * with no `NoteHandler` event in between.
      */
-    private val notesMirror = NoteMirror()
+    private val notesMirror = noteRepository.notes
 
-    @Before
+    /** `searchNotes` answers per query, falling back to [anySearch]. */
+    private val searchAnswers = mutableMapOf<String, suspend () -> Result<List<Note>>>()
+    private var anySearch: suspend () -> Result<List<Note>> = { Result.success(emptyList()) }
+
+    @BeforeTest
     fun setUp() {
-        every { analyticsRepository.logSearch(any()) } just runs
-        every { analyticsRepository.logNoteSearch(any()) } just runs
-        every { errorHandler.logError(any()) } just runs
-        every { noteRepository.searchNotesStream(any()) } answers {
-            val query = firstArg<String>()
-            notesMirror.stream().map { notes -> notes.filter { matchesQuery(it, query) } }
-        }
-        stubSearch(emptyList())
+        Dispatchers.setMain(testDispatcher)
+        noteRepository.searchAnswer = { query -> (searchAnswers[query] ?: anySearch)() }
     }
 
-    @After
-    fun tearDown() = unmockkAll()
+    @AfterTest
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
 
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
 
-    private fun matchesQuery(note: Note, query: String) =
-        query.isBlank() || note.text?.contains(query, ignoreCase = true) == true
-
     private fun makeNote(id: String, isFavorite: Boolean = false, text: String = "text $id") =
         Note(noteId = id, username = "user", isFavorite = isFavorite, text = text)
 
     /**
-     * Stubs the remote search and mirrors what it returns, the way the real `searchNotes` writes
-     * its results through. A stub that only returns is a stub that renders nothing.
+     * Answers the remote search for [query], or for every query when it is null -- which replaces
+     * the per-query answers, as a later `any()` stub would.
      */
-    private fun stubSearch(notes: List<Note>, query: String? = null) {
+    private fun answerSearch(query: String? = null, answer: suspend () -> Result<List<Note>>) {
         if (query == null) {
-            coEvery { noteRepository.searchNotes(any()) } coAnswers {
-                notesMirror.upsert(notes)
-                Result.success(notes)
-            }
+            searchAnswers.clear()
+            anySearch = answer
         } else {
-            coEvery { noteRepository.searchNotes(query) } coAnswers {
-                notesMirror.upsert(notes)
-                Result.success(notes)
-            }
+            searchAnswers[query] = answer
         }
     }
+
+    /**
+     * Stubs the remote search. The fake mirrors what it returns, the way the real `searchNotes`
+     * writes its results through; a stub that only returned would render nothing.
+     */
+    private fun stubSearch(notes: List<Note>, query: String? = null) =
+        answerSearch(query) { Result.success(notes) }
 
     /**
      * Builds the ViewModel and subscribes to [SearchViewModel.content], which is shared
@@ -126,14 +131,14 @@ class SearchViewModelTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `initial content is Idle`() = runTest(mainDispatcherRule.testDispatcher) {
+    fun `initial content is Idle`() = runTest(testDispatcher) {
         val viewModel = searchViewModel()
         advanceTimeBy((DEBOUNCE_MS + 1).milliseconds) // let debounce fire for empty query
         assertEquals(SearchContent.Idle, viewModel.content.value)
     }
 
     @Test
-    fun `initial searchQuery is empty`() = runTest(mainDispatcherRule.testDispatcher) {
+    fun `initial searchQuery is empty`() = runTest(testDispatcher) {
         assertEquals("", searchViewModel().searchQuery.value)
     }
 
@@ -142,17 +147,16 @@ class SearchViewModelTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `blank query sets state to Idle after debounce`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            val viewModel = searchViewModel()
-            viewModel.updateSearchQuery("  ")
-            advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
-            assertEquals(SearchContent.Idle, viewModel.content.value)
-        }
+    fun `blank query sets state to Idle after debounce`() = runTest(testDispatcher) {
+        val viewModel = searchViewModel()
+        viewModel.updateSearchQuery("  ")
+        advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
+        assertEquals(SearchContent.Idle, viewModel.content.value)
+    }
 
     @Test
     fun `non-blank query searches and renders the mirrored results after debounce`() =
-        runTest(mainDispatcherRule.testDispatcher) {
+        runTest(testDispatcher) {
             val notes = listOf(makeNote("a", text = "cat food"), makeNote("b", text = "cat toy"))
             stubSearch(notes, query = "cat")
             val viewModel = searchViewModel()
@@ -164,52 +168,45 @@ class SearchViewModelTest {
         }
 
     @Test
-    fun `search covers notes the feed never paged`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            // The mirror starts empty -- nothing has been paged. The remote search still finds the
-            // note and writes it through, so pointing Search at the table did not narrow it.
-            val note = makeNote("old", text = "cat from years ago")
-            stubSearch(listOf(note), query = "cat")
-            val viewModel = searchViewModel()
+    fun `search covers notes the feed never paged`() = runTest(testDispatcher) {
+        // The mirror starts empty -- nothing has been paged. The remote search still finds the
+        // note and writes it through, so pointing Search at the table did not narrow it.
+        val note = makeNote("old", text = "cat from years ago")
+        stubSearch(listOf(note), query = "cat")
+        val viewModel = searchViewModel()
 
-            viewModel.updateSearchQuery("cat")
-            advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
+        viewModel.updateSearchQuery("cat")
+        advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
 
-            assertEquals(listOf(note), viewModel.notes())
-        }
-
-    @Test
-    fun `search failure over an empty mirror sets Error state`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            val exception = RuntimeException("search failed")
-            coEvery { noteRepository.searchNotes(any()) } returns Result.failure(exception)
-            val viewModel = searchViewModel()
-
-            viewModel.updateSearchQuery("query")
-            advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
-
-            val state = viewModel.content.value
-            assertTrue(state is SearchContent.Error)
-            assertEquals(
-                ErrorMessage.Unlocalized("search failed"),
-                (state as SearchContent.Error).message
-            )
-        }
+        assertEquals(listOf(note), viewModel.notes())
+    }
 
     @Test
-    fun `search failure still shows matches already in the mirror`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            notesMirror.upsert(listOf(makeNote("a", text = "cat food")))
-            coEvery { noteRepository.searchNotes(any()) } returns
-                    Result.failure(RuntimeException("offline"))
-            val viewModel = searchViewModel()
+    fun `search failure over an empty mirror sets Error state`() = runTest(testDispatcher) {
+        answerSearch { Result.failure(RuntimeException("search failed")) }
+        val viewModel = searchViewModel()
 
-            viewModel.updateSearchQuery("cat")
-            advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
+        viewModel.updateSearchQuery("query")
+        advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
 
-            // Cached matches beat an error screen, as on Home.
-            assertEquals(1, viewModel.notes().size)
-        }
+        assertEquals(
+            SearchContent.Error(ErrorMessage.Unlocalized("search failed")),
+            viewModel.content.value
+        )
+    }
+
+    @Test
+    fun `search failure still shows matches already in the mirror`() = runTest(testDispatcher) {
+        notesMirror.upsert(listOf(makeNote("a", text = "cat food")))
+        answerSearch { Result.failure(RuntimeException("offline")) }
+        val viewModel = searchViewModel()
+
+        viewModel.updateSearchQuery("cat")
+        advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
+
+        // Cached matches beat an error screen, as on Home.
+        assertEquals(1, viewModel.notes().size)
+    }
 
     /**
      * The other half of the test above. `content` preferring cached matches is what keeps readable
@@ -218,10 +215,9 @@ class SearchViewModelTest {
      */
     @Test
     fun `search failure over a populated mirror reports through actionError`() =
-        runTest(mainDispatcherRule.testDispatcher) {
+        runTest(testDispatcher) {
             notesMirror.upsert(listOf(makeNote("a", text = "cat food")))
-            val exception = RuntimeException("offline")
-            coEvery { noteRepository.searchNotes(any()) } returns Result.failure(exception)
+            answerSearch { Result.failure(RuntimeException("offline")) }
             val viewModel = searchViewModel()
 
             viewModel.actionError.test {
@@ -253,7 +249,7 @@ class SearchViewModelTest {
      */
     @Test
     fun `switching query goes through Loading rather than a stale no-results`() =
-        runTest(mainDispatcherRule.testDispatcher) {
+        runTest(testDispatcher) {
             val cat = makeNote("a", text = "cat food")
             stubSearch(listOf(cat), query = "cat")
             val viewModel = searchViewModel()
@@ -265,7 +261,7 @@ class SearchViewModelTest {
             viewModel.content.test {
                 assertEquals(SearchContent.Success(listOf(cat)), awaitItem())
 
-                coEvery { noteRepository.searchNotes("zzz") } coAnswers {
+                answerSearch(query = "zzz") {
                     delay(50.milliseconds)
                     Result.success(emptyList())
                 }
@@ -282,9 +278,8 @@ class SearchViewModelTest {
 
     @Test
     fun `rapid query changes only trigger one search for the last value`() =
-        runTest(mainDispatcherRule.testDispatcher) {
+        runTest(testDispatcher) {
             val notes = listOf(makeNote("x", text = "final answer"))
-            // Only stub the expected final query; any other call will fail the test via MockK
             stubSearch(notes, query = "final")
             val viewModel = searchViewModel()
 
@@ -295,7 +290,7 @@ class SearchViewModelTest {
             viewModel.updateSearchQuery("final")
             advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
 
-            coVerify(exactly = 1) { noteRepository.searchNotes(any()) }
+            assertEquals(listOf("final"), noteRepository.requestedSearches)
             assertEquals(notes, viewModel.notes())
         }
 
@@ -308,7 +303,7 @@ class SearchViewModelTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `refresh re-runs the current query`() = runTest(mainDispatcherRule.testDispatcher) {
+    fun `refresh re-runs the current query`() = runTest(testDispatcher) {
         stubSearch(listOf(makeNote("r1", text = "cat")), query = "cat")
         val viewModel = searchViewModel()
         viewModel.updateSearchQuery("cat")
@@ -317,21 +312,20 @@ class SearchViewModelTest {
         viewModel.refresh()
         advanceTimeBy(1.milliseconds)
 
-        coVerify(atLeast = 2) { noteRepository.searchNotes("cat") }
+        assertEquals(listOf("cat", "cat"), noteRepository.requestedSearches)
     }
 
     @Test
-    fun `isRefreshing is false after refresh completes`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            val viewModel = searchViewModel()
-            viewModel.updateSearchQuery("cat")
-            advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
+    fun `isRefreshing is false after refresh completes`() = runTest(testDispatcher) {
+        val viewModel = searchViewModel()
+        viewModel.updateSearchQuery("cat")
+        advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
 
-            viewModel.refresh()
-            advanceTimeBy(1.milliseconds)
+        viewModel.refresh()
+        advanceTimeBy(1.milliseconds)
 
-            assertFalse(viewModel.uiState.value.isRefreshing)
-        }
+        assertFalse(viewModel.uiState.value.isRefreshing)
+    }
 
     /**
      * `refresh()` is reachable only from a non-empty `Success`, so a refresh failure always has
@@ -340,14 +334,13 @@ class SearchViewModelTest {
      */
     @Test
     fun `refresh failure over a populated mirror reports through actionError`() =
-        runTest(mainDispatcherRule.testDispatcher) {
+        runTest(testDispatcher) {
             stubSearch(listOf(makeNote("a", text = "cat food")), query = "cat")
             val viewModel = searchViewModel()
             viewModel.updateSearchQuery("cat")
             advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
 
-            val exception = RuntimeException("refresh failed")
-            coEvery { noteRepository.searchNotes(any()) } returns Result.failure(exception)
+            answerSearch { Result.failure(RuntimeException("refresh failed")) }
 
             viewModel.actionError.test {
                 viewModel.refresh()
@@ -368,31 +361,26 @@ class SearchViewModelTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `deleteNote removes the note from the results`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            stubSearch(
-                listOf(makeNote("doc1", text = "cat a"), makeNote("doc2", text = "cat b")),
-                query = "cat"
-            )
-            coEvery { noteRepository.deleteNote("doc1") } coAnswers {
-                notesMirror.update { notes -> notes.filterNot { it.noteId == "doc1" } }
-                Result.success(Unit)
-            }
-            val viewModel = searchViewModel()
-            viewModel.updateSearchQuery("cat")
-            advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
+    fun `deleteNote removes the note from the results`() = runTest(testDispatcher) {
+        stubSearch(
+            listOf(makeNote("doc1", text = "cat a"), makeNote("doc2", text = "cat b")),
+            query = "cat"
+        )
+        val viewModel = searchViewModel()
+        viewModel.updateSearchQuery("cat")
+        advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
 
-            viewModel.deleteNote("doc1")
-            advanceTimeBy(1.milliseconds)
+        viewModel.deleteNote("doc1")
+        advanceTimeBy(1.milliseconds)
 
-            // No list transform in the ViewModel: the row leaves the table and the query re-emits.
-            assertEquals(1, viewModel.notes().size)
-            assertEquals("doc2", viewModel.notes().first().noteId)
-        }
+        // No list transform in the ViewModel: the row leaves the table and the query re-emits.
+        assertEquals(1, viewModel.notes().size)
+        assertEquals("doc2", viewModel.notes().first().noteId)
+    }
 
     @Test
-    fun `deleteNote failure emits action error`() = runTest(mainDispatcherRule.testDispatcher) {
-        coEvery { noteRepository.deleteNote(any()) } returns Result.failure(RuntimeException())
+    fun `deleteNote failure emits action error`() = runTest(testDispatcher) {
+        noteRepository.deleteResult = Result.failure(RuntimeException())
         val viewModel = searchViewModel()
 
         viewModel.actionError.test {
@@ -408,29 +396,22 @@ class SearchViewModelTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `toggleFavorite reaches the results through the mirror`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            val note = makeNote("doc1", isFavorite = false, text = "cat a")
-            stubSearch(listOf(note), query = "cat")
-            coEvery { noteRepository.toggleFavorite(note) } coAnswers {
-                notesMirror.update { notes ->
-                    notes.map { if (it.noteId == "doc1") it.copy(isFavorite = true) else it }
-                }
-                Result.success(Unit)
-            }
-            val viewModel = searchViewModel()
-            viewModel.updateSearchQuery("cat")
-            advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
+    fun `toggleFavorite reaches the results through the mirror`() = runTest(testDispatcher) {
+        val note = makeNote("doc1", isFavorite = false, text = "cat a")
+        stubSearch(listOf(note), query = "cat")
+        val viewModel = searchViewModel()
+        viewModel.updateSearchQuery("cat")
+        advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
 
-            viewModel.toggleFavorite(note)
-            advanceTimeBy(1.milliseconds)
+        viewModel.toggleFavorite(note)
+        advanceTimeBy(1.milliseconds)
 
-            assertTrue(viewModel.notes().single().isFavorite) // false → true
-        }
+        assertTrue(viewModel.notes().single().isFavorite) // false → true
+    }
 
     @Test
-    fun `toggleFavorite failure emits action error`() = runTest(mainDispatcherRule.testDispatcher) {
-        coEvery { noteRepository.toggleFavorite(any()) } returns Result.failure(RuntimeException())
+    fun `toggleFavorite failure emits action error`() = runTest(testDispatcher) {
+        noteRepository.favoriteResult = Result.failure(RuntimeException())
         val viewModel = searchViewModel()
 
         viewModel.actionError.test {
@@ -446,7 +427,7 @@ class SearchViewModelTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `setNoteToDelete updates state`() = runTest(mainDispatcherRule.testDispatcher) {
+    fun `setNoteToDelete updates state`() = runTest(testDispatcher) {
         val viewModel = searchViewModel()
         val note = makeNote("doc1")
         viewModel.setNoteToDelete(note)
@@ -454,11 +435,11 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `setNoteToDelete null clears state`() = runTest(mainDispatcherRule.testDispatcher) {
+    fun `setNoteToDelete null clears state`() = runTest(testDispatcher) {
         val viewModel = searchViewModel()
         viewModel.setNoteToDelete(makeNote("doc1"))
         viewModel.setNoteToDelete(null)
-        assertEquals(null, viewModel.uiState.value.noteToDelete)
+        assertNull(viewModel.uiState.value.noteToDelete)
     }
 
     // -------------------------------------------------------------------------
@@ -469,42 +450,40 @@ class SearchViewModelTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `a note deleted on another screen leaves the results`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            stubSearch(
-                listOf(makeNote("doc1", text = "cat a"), makeNote("doc2", text = "cat b")),
-                query = "cat"
-            )
-            val viewModel = searchViewModel()
-            viewModel.updateSearchQuery("cat")
-            advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
+    fun `a note deleted on another screen leaves the results`() = runTest(testDispatcher) {
+        stubSearch(
+            listOf(makeNote("doc1", text = "cat a"), makeNote("doc2", text = "cat b")),
+            query = "cat"
+        )
+        val viewModel = searchViewModel()
+        viewModel.updateSearchQuery("cat")
+        advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
 
-            notesMirror.update { notes -> notes.filterNot { it.noteId == "doc1" } }
-            advanceTimeBy(1.milliseconds)
+        notesMirror.update { notes -> notes.filterNot { it.noteId == "doc1" } }
+        advanceTimeBy(1.milliseconds)
 
-            assertEquals(1, viewModel.notes().size)
-            assertFalse(viewModel.notes().any { it.noteId == "doc1" })
-        }
+        assertEquals(1, viewModel.notes().size)
+        assertFalse(viewModel.notes().any { it.noteId == "doc1" })
+    }
 
     @Test
-    fun `a favorite toggled on another screen reaches the results`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            stubSearch(
-                listOf(
-                    makeNote("doc1", isFavorite = false, text = "cat a"),
-                    makeNote("doc2", text = "cat b")
-                ),
-                query = "cat"
-            )
-            val viewModel = searchViewModel()
-            viewModel.updateSearchQuery("cat")
-            advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
+    fun `a favorite toggled on another screen reaches the results`() = runTest(testDispatcher) {
+        stubSearch(
+            listOf(
+                makeNote("doc1", isFavorite = false, text = "cat a"),
+                makeNote("doc2", text = "cat b")
+            ),
+            query = "cat"
+        )
+        val viewModel = searchViewModel()
+        viewModel.updateSearchQuery("cat")
+        advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
 
-            notesMirror.update { notes ->
-                notes.map { if (it.noteId == "doc1") it.copy(isFavorite = true) else it }
-            }
-            advanceTimeBy(1.milliseconds)
-
-            assertTrue(viewModel.notes().first { it.noteId == "doc1" }.isFavorite)
+        notesMirror.update { notes ->
+            notes.map { if (it.noteId == "doc1") it.copy(isFavorite = true) else it }
         }
+        advanceTimeBy(1.milliseconds)
+
+        assertTrue(viewModel.notes().first { it.noteId == "doc1" }.isFavorite)
+    }
 }

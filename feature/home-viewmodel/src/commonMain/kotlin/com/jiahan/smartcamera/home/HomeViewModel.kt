@@ -15,7 +15,6 @@ import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorMessage
 import com.jiahan.smartcamera.util.ErrorTag
 import com.jiahan.smartcamera.util.toErrorMessage
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
@@ -31,7 +30,6 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 sealed interface HomeContent {
     data object Loading : HomeContent
@@ -56,9 +54,16 @@ private sealed interface FetchStatus {
     data class Failed(val message: ErrorMessage) : FetchStatus
 }
 
+/**
+ * Backs the Home feed.
+ *
+ * Open and annotation-free so it can live in `commonMain`; `HiltHomeViewModel` in :feature:home is
+ * what Hilt builds, the arrangement `HiltExploreViewModel` records the reasons for. The two note
+ * delegates it receives are :core:domain's, provided once per ViewModel on Android by
+ * `NoteDelegateModule`.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
-@HiltViewModel
-class HomeViewModel @Inject constructor(
+open class HomeViewModel(
     private val noteRepository: NoteRepository,
     private val noteErrorReporter: NoteErrorReporter,
     private val noteShare: NoteShareDelegate,

@@ -10,10 +10,10 @@ are about to change something a rule protects.
 
 Two deployables share one Firebase project:
 
-- **Android app** — Kotlin + Jetpack Compose, MVVM, across twenty-two Gradle modules: `:app`,
+- **Android app** — Kotlin + Jetpack Compose, MVVM, across twenty-five Gradle modules: `:app`,
   `:core:domain`, `:core:common`, `:core:data`, `:core:ui`, nine `:feature:*` libraries plus the
-  multiplatform `:feature:auth-viewmodel`, `:feature:explore-viewmodel`,
-  `:feature:note-viewmodel` and `:feature:settings-viewmodel`, and the
+  multiplatform `:feature:<name>-viewmodel` modules (`auth`, `explore`, `favorite`, `home`, `note`,
+  `search`, `settings`), and the
   four test-only modules `:core:testing` / `:core:domain-testing` / `:core:screenshot-testing` /
   `:core:ui-testing`. Plus
   `build-logic/`, an included build holding the seven convention plugins. The per-module contents and
@@ -469,11 +469,20 @@ ViewModel module already looks, the reason `ErrorMessage` is there — and their
 suite followed into `commonTest` with plain values where mocked `Uri`s had been, and the reporter
 gained one of its own.
 
-Eight ViewModels remain in the Android feature modules, each for a reason that can be named. Four
+**`HomeViewModel`, `SearchViewModel` and `FavoriteViewModel` then moved together**, into their own
+`-viewmodel` modules, with nothing new to decide — the delegates had been the obstacle, not the
+ViewModels. Their suites were the largest yet to leave mockk, and what they used it for was a page
+stubbed per cursor or a search per query, a call held in flight, and a count of calls.
+`FakeNoteRepository` gained `notesAnswer`/`searchAnswer` hooks and request logs for exactly those,
+and mirrors an answer's result the way it already mirrored a fixed one, so the suites read the
+fake's own `NoteMirror` instead of wiring their own. The `NoteShareDelegate` in them is a real one
+over `FakeMediaCacheRepository`, where a relaxed mock stood in.
+
+Five ViewModels remain in the Android feature modules, each for a reason that can be named. Four
 hold `android.net.Uri` (Note, Profile and the two media previews, whose share download returns a
-`MediaUri` now but whose local sources are still `Uri`s). Home, Search and Favorite are held by
-Hilt's annotations alone, and NotePreview by those and a route that a Hilt subclass can decode as
-EditNote's does. `:app`'s `MainViewModel` is Android-bound through `AppUpdateRepository`.
+`MediaUri` now but whose local sources are still `Uri`s). NotePreview has only its route left, which
+a Hilt subclass can decode as EditNote's does. `:app`'s `MainViewModel` is Android-bound through
+`AppUpdateRepository`.
 
 ### What is left
 

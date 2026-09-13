@@ -1,26 +1,17 @@
 package com.jiahan.smartcamera.home
 
 import app.cash.turbine.test
-import com.jiahan.smartcamera.MainDispatcherRule
-import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.Note
 import com.jiahan.smartcamera.domain.NoteCursor
 import com.jiahan.smartcamera.domain.NotePage
+import com.jiahan.smartcamera.fake.FakeErrorHandler
+import com.jiahan.smartcamera.fake.FakeMediaCacheRepository
+import com.jiahan.smartcamera.fake.FakeNoteRepository
 import com.jiahan.smartcamera.fake.FakeRemoteConfigRepository
-import com.jiahan.smartcamera.fake.NoteMirror
 import com.jiahan.smartcamera.note.NoteActionError
 import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteShareDelegate
-import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorMessage
-import io.mockk.clearMocks
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.just
-import io.mockk.mockk
-import io.mockk.runs
-import io.mockk.unmockkAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -30,30 +21,39 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
-import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Before
-import org.junit.Rule
-import org.junit.Test
 
+/**
+ * [HomeViewModel]'s suite, in `commonTest` beside its subject: :core:domain-testing's fakes where
+ * mockk was and [Dispatchers.setMain] where `MainDispatcherRule` was -- `ExploreViewModelTest`
+ * records why each of those.
+ *
+ * What it leaned on mockk for was a page stubbed per cursor, a fetch held in flight, and a count
+ * of calls. [FakeNoteRepository.notesAnswer] and [FakeNoteRepository.requestedNotesCursors] cover
+ * all three, and the feed is read from the fake's own `notes` mirror, which it writes each fetched
+ * page into the way `getNotes` does -- so a stub no longer upserts by hand. The [NoteShareDelegate]
+ * is a real one over a [FakeMediaCacheRepository] where a relaxed mock stood in; nothing here
+ * shares.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
 
-    @get:Rule
-    val mainDispatcherRule = MainDispatcherRule()
-
-    private val noteRepository: NoteRepository = mockk()
-    private val errorHandler: ErrorHandler = mockk()
-    private val noteErrorReporter by lazy { NoteErrorReporter(errorHandler) }
-    private val noteShare: NoteShareDelegate = mockk(relaxed = true)
+    private val noteRepository = FakeNoteRepository()
+    private val errorHandler = FakeErrorHandler()
+    private val noteErrorReporter = NoteErrorReporter(errorHandler)
+    private val noteShare = NoteShareDelegate(FakeMediaCacheRepository(), noteErrorReporter)
     private val remoteConfigRepository = FakeRemoteConfigRepository()
 
     /**
@@ -61,23 +61,31 @@ class HomeViewModelTest {
      * so a test drives the UI by what lands here -- whether that is a mirrored page, a mutation
      * writing through, or another screen's write arriving underneath Home.
      */
-    private val notesMirror = NoteMirror()
+    private val notesMirror = noteRepository.notes
 
-    @Before
+    /**
+     * `getNotes` answers per cursor, falling back to [anyPage]. Keyed by [FirstPage] rather than a
+     * null cursor, so the lookup does not lean on how a platform's map treats a null key.
+     */
+    private val pageAnswers = mutableMapOf<NoteCursor, suspend () -> Result<NotePage>>()
+    private var anyPage: suspend () -> Result<NotePage> = { Result.success(NotePage(emptyList())) }
+
+    @BeforeTest
     fun setUp() {
-        every { errorHandler.logError(any()) } just runs
-        every { noteRepository.getNotesStream(any()) } answers {
-            notesMirror.stream(firstArg<Int>())
-        }
-        stubAnyPage(emptyList())
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+        noteRepository.notesAnswer = { cursor, _ -> (pageAnswers[cursor ?: FirstPage] ?: anyPage)() }
     }
 
-    @After
-    fun tearDown() = unmockkAll()
+    @AfterTest
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
 
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    private object FirstPage : NoteCursor
 
     private object TestCursor : NoteCursor
 
@@ -85,9 +93,8 @@ class HomeViewModelTest {
 
     /**
      * The trailing digits of [id] become an age: `note1` is newer than `note20`, and an id with no
-     * digits (`fresh`, `added`) is newest of all. That is what lets [NoteMirror.stream] order the
-     * way the table does, which matters once the feed reads a windowed `LIMIT` rather than
-     * everything.
+     * digits (`fresh`, `added`) is newest of all. That is what lets the mirror order the way the
+     * table does, which matters once the feed reads a windowed `LIMIT` rather than everything.
      */
     private fun makeNote(id: String, isFavorite: Boolean = false) = Note(
         noteId = id,
@@ -99,25 +106,23 @@ class HomeViewModelTest {
         )
     )
 
-    /** Stubs the page fetched at [cursor], mirroring it on the way out as the real fetch does. */
-    private fun stubPage(
-        cursor: NoteCursor?,
-        notes: List<Note>,
-        nextCursor: NoteCursor? = null
-    ) {
-        coEvery { noteRepository.getNotes(cursor, any()) } coAnswers {
-            notesMirror.upsert(notes)
-            Result.success(NotePage(notes, nextCursor))
-        }
+    /** Answers the page fetched at [cursor]. Like a later mockk stub, it replaces an earlier one. */
+    private fun answerPage(cursor: NoteCursor?, answer: suspend () -> Result<NotePage>) {
+        pageAnswers[cursor ?: FirstPage] = answer
     }
 
-    /** As [stubPage], for any cursor. */
-    private fun stubAnyPage(notes: List<Note>, nextCursor: NoteCursor? = null) {
-        coEvery { noteRepository.getNotes(any(), any()) } coAnswers {
-            notesMirror.upsert(notes)
-            Result.success(NotePage(notes, nextCursor))
-        }
+    /** Stubs the page fetched at [cursor]; the fake mirrors it on the way out, as the real fetch does. */
+    private fun stubPage(cursor: NoteCursor?, notes: List<Note>, nextCursor: NoteCursor? = null) =
+        answerPage(cursor) { Result.success(NotePage(notes, nextCursor)) }
+
+    /** Answers a fetch at any cursor, replacing every per-cursor answer, as a later `any()` stub would. */
+    private fun answerAnyPage(answer: suspend () -> Result<NotePage>) {
+        pageAnswers.clear()
+        anyPage = answer
     }
+
+    private fun stubAnyPage(notes: List<Note>, nextCursor: NoteCursor? = null) =
+        answerAnyPage { Result.success(NotePage(notes, nextCursor)) }
 
     /**
      * Builds the ViewModel and subscribes to [HomeViewModel.content], which is shared
@@ -152,9 +157,8 @@ class HomeViewModelTest {
     @Test
     fun `init emits Success with empty list when repository returns empty`() = runTest {
         val viewModel = homeViewModel()
-        val content = viewModel.content.value
-        assertTrue(content is HomeContent.Success)
-        assertTrue((content as HomeContent.Success).notes.isEmpty())
+
+        assertEquals(HomeContent.Success(emptyList()), viewModel.content.value)
     }
 
     @Test
@@ -172,7 +176,7 @@ class HomeViewModelTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val cached = listOf(makeNote("cached"))
         notesMirror.set(cached)
-        coEvery { noteRepository.getNotes(any(), any()) } coAnswers {
+        answerAnyPage {
             delay(1.seconds)
             Result.success(NotePage(emptyList()))
         }
@@ -189,9 +193,8 @@ class HomeViewModelTest {
         // so a fresh install must not be told to create its first note while its notes are still
         // downloading.
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
-        coEvery { noteRepository.getNotes(any(), any()) } coAnswers {
+        answerAnyPage {
             delay(1.seconds)
-            notesMirror.upsert(listOf(makeNote("a")))
             Result.success(NotePage(listOf(makeNote("a"))))
         }
 
@@ -206,15 +209,12 @@ class HomeViewModelTest {
 
     @Test
     fun `init emits Error state when the fetch fails over an empty mirror`() = runTest {
-        val exception = RuntimeException("network error")
-        coEvery { noteRepository.getNotes(any(), any()) } returns Result.failure(exception)
+        answerAnyPage { Result.failure(RuntimeException("network error")) }
         val viewModel = homeViewModel()
 
-        val content = viewModel.content.value
-        assertTrue(content is HomeContent.Error)
         assertEquals(
-            ErrorMessage.Unlocalized("network error"),
-            (content as HomeContent.Error).message
+            HomeContent.Error(ErrorMessage.Unlocalized("network error")),
+            viewModel.content.value
         )
     }
 
@@ -222,8 +222,7 @@ class HomeViewModelTest {
     fun `init keeps a populated mirror on screen when the fetch fails`() = runTest {
         val cached = listOf(makeNote("cached"))
         notesMirror.set(cached)
-        val exception = RuntimeException("offline")
-        coEvery { noteRepository.getNotes(any(), any()) } returns Result.failure(exception)
+        answerAnyPage { Result.failure(RuntimeException("offline")) }
 
         val viewModel = homeViewModel()
 
@@ -249,8 +248,11 @@ class HomeViewModelTest {
     @Test
     fun `refresh always requests page 0`() = runTest {
         val viewModel = homeViewModel()
+        noteRepository.requestedNotesCursors.clear() // the init load's request is not this test's
+
         viewModel.refresh()
-        coVerify { noteRepository.getNotes(null, any()) }
+
+        assertEquals(listOf<NoteCursor?>(null), noteRepository.requestedNotesCursors)
     }
 
     @Test
@@ -267,8 +269,7 @@ class HomeViewModelTest {
         val viewModel = homeViewModel()
         assertTrue(viewModel.content.value is HomeContent.Success)
 
-        val exception = RuntimeException("refresh failed")
-        coEvery { noteRepository.getNotes(null, any()) } returns Result.failure(exception)
+        answerPage(null) { Result.failure(RuntimeException("refresh failed")) }
 
         viewModel.refresh()
 
@@ -284,8 +285,7 @@ class HomeViewModelTest {
         stubPage(null, listOf(makeNote("a")))
         val viewModel = homeViewModel()
 
-        val exception = RuntimeException("refresh failed")
-        coEvery { noteRepository.getNotes(null, any()) } returns Result.failure(exception)
+        answerPage(null) { Result.failure(RuntimeException("refresh failed")) }
 
         viewModel.actionError.test {
             viewModel.refresh()
@@ -318,13 +318,11 @@ class HomeViewModelTest {
     fun `loadMoreNotes does nothing when the page reports no more data`() = runTest {
         stubAnyPage(listOf(makeNote("a"), makeNote("b")))
         val viewModel = homeViewModel() // triggers the init fetch
-
-        // Reset recorded calls (keep stubs) so we measure only what loadMoreNotes triggers
-        clearMocks(noteRepository, answers = false)
+        noteRepository.requestedNotesCursors.clear() // measure only what loadMoreNotes triggers
 
         viewModel.loadMoreNotes() // hasMore = false → should be a no-op
 
-        coVerify(exactly = 0) { noteRepository.getNotes(any(), any()) }
+        assertTrue(noteRepository.requestedNotesCursors.isEmpty())
     }
 
     @Test
@@ -357,8 +355,9 @@ class HomeViewModelTest {
     fun `isLoadingMore is true while loadMoreNotes is in progress`() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         stubPage(null, (1..10).map { makeNote("note$it") }, TestCursor)
-        coEvery { noteRepository.getNotes(TestCursor, any()) } coAnswers {
-            delay(1.seconds); Result.success(NotePage(emptyList()))
+        answerPage(TestCursor) {
+            delay(1.seconds)
+            Result.success(NotePage(emptyList()))
         }
         val viewModel = homeViewModel()
         advanceUntilIdle() // let init fetch complete
@@ -374,12 +373,7 @@ class HomeViewModelTest {
     @Test
     fun `loadMoreNotes failure leaves the feed and the cursor untouched`() = runTest {
         stubPage(null, (1..10).map { makeNote("note$it") }, TestCursor)
-        coEvery {
-            noteRepository.getNotes(
-                TestCursor,
-                any()
-            )
-        } returns Result.failure(RuntimeException("page fail"))
+        answerPage(TestCursor) { Result.failure(RuntimeException("page fail")) }
         val viewModel = homeViewModel()
 
         viewModel.loadMoreNotes()
@@ -392,8 +386,9 @@ class HomeViewModelTest {
     @Test
     fun `loadMoreNotes failure stays silent`() = runTest {
         stubPage(null, (1..10).map { makeNote("note$it") }, TestCursor)
-        coEvery { noteRepository.getNotes(TestCursor, any()) } coAnswers {
-            delay(1.milliseconds); Result.failure(RuntimeException("page fail"))
+        answerPage(TestCursor) {
+            delay(1.milliseconds)
+            Result.failure(RuntimeException("page fail"))
         }
         val viewModel = homeViewModel()
 
@@ -414,30 +409,31 @@ class HomeViewModelTest {
         val viewModel = homeViewModel()
         advanceUntilIdle()
 
-        coEvery { noteRepository.getNotes(null, any()) } coAnswers {
-            delay(1.seconds); Result.success(NotePage(page0, TestCursor))
+        answerPage(null) {
+            delay(1.seconds)
+            Result.success(NotePage(page0, TestCursor))
         }
         viewModel.refresh()
         advanceTimeBy(1.milliseconds) // refresh is suspended mid-fetch
-        clearMocks(noteRepository, answers = false)
+        noteRepository.requestedNotesCursors.clear()
 
         viewModel.loadMoreNotes()
         advanceUntilIdle()
 
         // refresh() has already reset the cursor, so an unguarded load-more would refetch the
         // first page against a position the refresh is about to overwrite.
-        coVerify(exactly = 0) { noteRepository.getNotes(any(), any()) }
+        assertTrue(noteRepository.requestedNotesCursors.isEmpty())
     }
 
     @Test
     fun `refresh cancels an in-flight load more so its page never reaches the mirror`() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val page0 = (1..10).map { makeNote("note$it") }
+        val pageTwo = (11..20).map { makeNote("note$it") }
         stubPage(null, page0, TestCursor)
-        coEvery { noteRepository.getNotes(TestCursor, any()) } coAnswers {
+        answerPage(TestCursor) {
             delay(1.seconds)
-            notesMirror.upsert((11..20).map { makeNote("note$it") })
-            Result.success(NotePage((11..20).map { makeNote("note$it") }, OtherCursor))
+            Result.success(NotePage(pageTwo, OtherCursor))
         }
         val viewModel = homeViewModel()
         advanceUntilIdle()
@@ -451,7 +447,7 @@ class HomeViewModelTest {
 
         // The cancelled page never landed, so it neither shows up in the feed nor advances the
         // cursor past a window nobody kept.
-        val pageTwoIds = (11..20).map { "note$it" }
+        val pageTwoIds = pageTwo.map { it.noteId }
         assertTrue(viewModel.notes().none { it.noteId in pageTwoIds })
         assertTrue(viewModel.notes().any { it.noteId == "fresh" })
         assertFalse(viewModel.uiState.value.isLoadingMore)
@@ -478,13 +474,10 @@ class HomeViewModelTest {
     @Test
     fun `deleteNote success removes the note from the feed`() = runTest {
         stubPage(null, listOf(makeNote("doc1"), makeNote("doc2")))
-        coEvery { noteRepository.deleteNote("doc1") } coAnswers {
-            // The repository drops the row; the feed re-emits without it, with no list patch here.
-            notesMirror.update { notes -> notes.filterNot { it.noteId == "doc1" } }
-            Result.success(Unit)
-        }
         val viewModel = homeViewModel()
 
+        // The fake drops the row as the repository does; the feed re-emits without it, with no
+        // list patch in the ViewModel.
         viewModel.deleteNote("doc1")
 
         assertEquals(1, viewModel.notes().size)
@@ -493,7 +486,7 @@ class HomeViewModelTest {
 
     @Test
     fun `deleteNote failure emits action error message`() = runTest {
-        coEvery { noteRepository.deleteNote(any()) } returns Result.failure(RuntimeException("fail"))
+        noteRepository.deleteResult = Result.failure(RuntimeException("fail"))
         val viewModel = homeViewModel()
 
         viewModel.actionError.test {
@@ -506,7 +499,7 @@ class HomeViewModelTest {
     @Test
     fun `deleteNote failure does not change the feed`() = runTest {
         stubPage(null, listOf(makeNote("doc1"), makeNote("doc2")))
-        coEvery { noteRepository.deleteNote(any()) } returns Result.failure(RuntimeException())
+        noteRepository.deleteResult = Result.failure(RuntimeException())
         val viewModel = homeViewModel()
 
         viewModel.deleteNote("doc1")
@@ -521,17 +514,10 @@ class HomeViewModelTest {
     @Test
     fun `toggleFavorite reaches the feed through the mirror`() = runTest {
         stubPage(null, listOf(makeNote("doc1", isFavorite = false)))
-        val note = makeNote("doc1", isFavorite = false)
-        coEvery { noteRepository.toggleFavorite(note) } coAnswers {
-            // The repository upserts the flipped row; nothing here patches the list.
-            notesMirror.update { notes ->
-                notes.map { if (it.noteId == "doc1") it.copy(isFavorite = true) else it }
-            }
-            Result.success(Unit)
-        }
         val viewModel = homeViewModel()
 
-        viewModel.toggleFavorite(note)
+        // The fake upserts the flipped row as the repository does; nothing here patches the list.
+        viewModel.toggleFavorite(makeNote("doc1", isFavorite = false))
 
         assertTrue(viewModel.notes().single().isFavorite) // false → true
     }
@@ -539,16 +525,9 @@ class HomeViewModelTest {
     @Test
     fun `toggleFavorite unfavoriting reaches the feed the same way`() = runTest {
         stubPage(null, listOf(makeNote("doc1", isFavorite = true)))
-        val note = makeNote("doc1", isFavorite = true)
-        coEvery { noteRepository.toggleFavorite(note) } coAnswers {
-            notesMirror.update { notes ->
-                notes.map { if (it.noteId == "doc1") it.copy(isFavorite = false) else it }
-            }
-            Result.success(Unit)
-        }
         val viewModel = homeViewModel()
 
-        viewModel.toggleFavorite(note)
+        viewModel.toggleFavorite(makeNote("doc1", isFavorite = true))
 
         // The row stays in the table either way -- that is the distinction the feed's query draws
         // and the favorites query does not.
@@ -557,7 +536,7 @@ class HomeViewModelTest {
 
     @Test
     fun `toggleFavorite failure emits action error`() = runTest {
-        coEvery { noteRepository.toggleFavorite(any()) } returns Result.failure(RuntimeException())
+        noteRepository.favoriteResult = Result.failure(RuntimeException())
         val viewModel = homeViewModel()
 
         viewModel.actionError.test {

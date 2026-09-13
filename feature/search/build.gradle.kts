@@ -17,6 +17,9 @@
  * a filtered read of the `notes` table, so a mutation on any screen arrives by re-emission. The
  * remote `searchNotes` still reads the whole collection from Firestore -- it just writes the
  * results through on the way out, which is what keeps this a live search rather than a narrower one.
+ *
+ * SearchViewModel has since moved again, to :feature:search-viewmodel's `commonMain`, the way
+ * ExploreViewModel did. HiltSearchViewModel is the subclass Hilt builds, and stays here.
  */
 plugins {
     id("smartphotos.android.feature")
@@ -37,6 +40,11 @@ dependencies {
      * kotlinx-coroutines-test, Turbine and the five on-device lines -- all arrive from
      * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
+
+    // SearchViewModel, in this feature's multiplatform half. api for the reason :feature:explore's
+    // build file gives for its own: it is SearchScreen's `viewModel` parameter type and
+    // HiltSearchViewModel's supertype, and :app has to resolve both.
+    api(project(":feature:search-viewmodel"))
 
     // NoteActionError.resolve and toPlatformUri() for SearchScreen, and NoteDelegateModule, which
     // provides the two note delegates SearchViewModel injects. The delegates themselves are

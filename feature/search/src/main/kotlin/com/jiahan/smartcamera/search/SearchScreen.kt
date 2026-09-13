@@ -55,7 +55,7 @@ fun SearchScreen(
     onScrollToTopConsumed: () -> Unit,
     snackbarHostState: SnackbarHostState,
     onScrollDirectionChanged: (isScrollingUp: Boolean) -> Unit = {},
-    viewModel: SearchViewModel = hiltViewModel()
+    viewModel: SearchViewModel = hiltViewModel<HiltSearchViewModel>()
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current

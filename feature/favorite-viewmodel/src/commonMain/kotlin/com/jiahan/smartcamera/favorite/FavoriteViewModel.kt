@@ -13,7 +13,6 @@ import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorMessage
 import com.jiahan.smartcamera.util.toErrorMessage
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +30,6 @@ import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 
 sealed interface FavoriteContent {
@@ -56,9 +54,15 @@ private sealed interface SyncStatus {
     data class Failed(val message: ErrorMessage) : SyncStatus
 }
 
+/**
+ * Backs the Favorite screen.
+ *
+ * Open and annotation-free so it can live in `commonMain`; `HiltFavoriteViewModel` in
+ * :feature:favorite is what Hilt builds, the arrangement `HiltExploreViewModel` records the reasons
+ * for.
+ */
 @OptIn(FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-@HiltViewModel
-class FavoriteViewModel @Inject constructor(
+open class FavoriteViewModel(
     private val noteRepository: NoteRepository,
     private val analyticsRepository: AnalyticsRepository,
     private val noteErrorReporter: NoteErrorReporter,

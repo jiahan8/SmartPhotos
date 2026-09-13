@@ -71,7 +71,7 @@ fun HomeScreen(
     onScrollToTopConsumed: () -> Unit,
     snackbarHostState: SnackbarHostState,
     onScrollDirectionChanged: (isScrollingUp: Boolean) -> Unit = {},
-    viewModel: HomeViewModel = hiltViewModel()
+    viewModel: HomeViewModel = hiltViewModel<HiltHomeViewModel>()
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current

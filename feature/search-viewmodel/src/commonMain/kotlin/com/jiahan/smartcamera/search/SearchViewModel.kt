@@ -14,7 +14,6 @@ import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorMessage
 import com.jiahan.smartcamera.util.ErrorTag
 import com.jiahan.smartcamera.util.toErrorMessage
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
@@ -35,7 +34,6 @@ import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 
 sealed interface SearchContent {
@@ -62,9 +60,15 @@ private sealed interface SearchStatus {
     data class Failed(val message: ErrorMessage) : SearchStatus
 }
 
+/**
+ * Backs the Search screen.
+ *
+ * Open and annotation-free so it can live in `commonMain`; `HiltSearchViewModel` in
+ * :feature:search is what Hilt builds, the arrangement `HiltExploreViewModel` records the reasons
+ * for.
+ */
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
-@HiltViewModel
-class SearchViewModel @Inject constructor(
+open class SearchViewModel(
     private val noteRepository: NoteRepository,
     private val analyticsRepository: AnalyticsRepository,
     private val noteErrorReporter: NoteErrorReporter,

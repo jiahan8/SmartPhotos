@@ -34,6 +34,12 @@ class FakeNoteRepository : NoteRepository {
     var getNoteAnswer: (suspend (noteId: String) -> Result<Note>)? = null
     var syncResult: Result<Unit> = Result.success(Unit)
 
+    /** Answers [getNotes] in place of [notesResult] when set -- per cursor, or held in flight. */
+    var notesAnswer: (suspend (cursor: NoteCursor?, pageSize: Int) -> Result<NotePage>)? = null
+
+    /** Answers [searchNotes] in place of [searchResult] when set -- per query, or held in flight. */
+    var searchAnswer: (suspend (query: String) -> Result<List<Note>>)? = null
+
     /** The `notes` table. Shared with the mockk-based tests so the semantics are defined once. */
     val notes = NoteMirror()
     private val favorites = NoteMirror()
@@ -44,6 +50,11 @@ class FakeNoteRepository : NoteRepository {
     var favoriteCallCount = 0
     var updateCallCount = 0
     var addNoteCallCount = 0
+    var syncCallCount = 0
+
+    /** Every cursor [getNotes] was asked for, and every query [searchNotes] was, in order. */
+    val requestedNotesCursors = mutableListOf<NoteCursor?>()
+    val requestedSearches = mutableListOf<String>()
     var lastDeletedNoteId: String? = null
     var lastFavoritedNote: Note? = null
     var lastUpdatedNote: Note? = null
@@ -66,11 +77,14 @@ class FakeNoteRepository : NoteRepository {
     override suspend fun getNotes(cursor: NoteCursor?, pageSize: Int): Result<NotePage> {
         lastNotesCursor = cursor
         notesCallCount++
+        requestedNotesCursors += cursor
+        val result = notesAnswer?.invoke(cursor, pageSize) ?: notesResult
         // Mirrors `cacheNotes`: the real repository writes every page it fetches into Room on its
         // way through, which is what makes getNotesStream the feed's read path rather than the
-        // returned page.
-        notesResult.getOrNull()?.let { notes.upsert(it.notes) }
-        return notesResult
+        // returned page. An answer's page is mirrored the same way, once it returns -- so a fetch
+        // cancelled while held in flight never reaches the table, as with the real one.
+        result.getOrNull()?.let { notes.upsert(it.notes) }
+        return result
     }
 
     private fun matchesQuery(note: Note, query: String): Boolean =
@@ -97,10 +111,12 @@ class FakeNoteRepository : NoteRepository {
     }
 
     override suspend fun searchNotes(query: String): Result<List<Note>> {
+        requestedSearches += query
+        val result = searchAnswer?.invoke(query) ?: searchResult
         // Mirrors the real repository writing its results through, so searchNotesStream can cover
         // notes the feed never paged.
-        searchResult.getOrNull()?.let { notes.upsert(it) }
-        return searchResult
+        result.getOrNull()?.let { notes.upsert(it) }
+        return result
     }
 
     override suspend fun deleteNote(noteId: String): Result<Unit> {
@@ -164,5 +180,8 @@ class FakeNoteRepository : NoteRepository {
             }
         }
 
-    override suspend fun syncFavoriteNotes(): Result<Unit> = syncResult
+    override suspend fun syncFavoriteNotes(): Result<Unit> {
+        syncCallCount++
+        return syncResult
+    }
 }
