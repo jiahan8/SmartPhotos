@@ -3,7 +3,8 @@ package com.jiahan.smartcamera.fake
 import com.jiahan.smartcamera.util.ErrorHandler
 
 /**
- * [ErrorHandler] test double. Records logged throwables so a test can assert what was logged.
+ * [ErrorHandler] test double. Records what was logged and under which tag, so a test can assert
+ * both.
  *
  * It used to resolve messages as well, with an `appErrorMessage` lambda standing in for :app's
  * string mapper so a test would not certify a developer-facing message the app never shows. A
@@ -14,7 +15,11 @@ class FakeErrorHandler : ErrorHandler {
 
     val loggedErrors = mutableListOf<Throwable>()
 
+    /** The tag each [loggedErrors] entry was logged under, at the same index. */
+    val loggedTags = mutableListOf<String>()
+
     override fun logError(throwable: Throwable, tag: String) {
         loggedErrors += throwable
+        loggedTags += tag
     }
 }

@@ -1,7 +1,7 @@
 # SmartPhotos
 
 Android app (Kotlin) for organizing photos/notes with ML-based tagging. Firebase backend + a
-Node.js Cloud Functions project in `functions/`. Eighteen Gradle modules, plus `build-logic/` — an
+Node.js Cloud Functions project in `functions/`. Nineteen Gradle modules, plus `build-logic/` — an
 included build holding the six convention plugins.
 
 **This file is loaded into every agent conversation, so it states rules, not reasoning. When a rule
@@ -17,13 +17,14 @@ that story is in [ARCHITECTURE.md](ARCHITECTURE.md).**
 | `:core:ui` | Android library, shared Compose vocabulary: `common/`, `ui/theme/`, `util/DateTimeUtils.kt`/`FlowUtils.kt`. |
 | `:feature:*` | One Android library per screen — `home`, `search`, `note`, `preview`, `favorite`, `profile`, `settings`, `auth`, `explore` — holding its Compose screen(s), ViewModel(s), route and tests. |
 | `:feature:explore-viewmodel` | Kotlin Multiplatform, same convention as `:core:domain`: `ExploreViewModel`, the one ViewModel in `commonMain`. `:feature:explore` keeps the screen, route, tests and `HiltExploreViewModel`, the subclass Hilt builds — the shape for the next ViewModel to move. |
-| `:core:testing` | Shared test fixtures: the `fake/` doubles + `MainDispatcherRule`. `testImplementation` only (plus `androidTestImplementation` wherever a `sharedTest/` runs in both). |
+| `:core:testing` | Shared Android test fixtures: `MainDispatcherRule`, `FakeMediaFileRepository`, and — re-exported via `api` — `:core:domain-testing`'s fakes. `testImplementation` only (plus `androidTestImplementation` wherever a `sharedTest/` runs in both). |
+| `:core:domain-testing` | Kotlin Multiplatform fixtures: the fakes for `:core:domain`'s contracts and `NoteMirror`, usable from a shared module's `commonTest` (`:feature:explore-viewmodel`'s) and, through `:core:testing`, from every Android test. |
 | `:core:screenshot-testing` | `BaseScreenshotTest` + the four artifacts it names (Robolectric, Roborazzi ×2, compose `ui-test-junit4`). No build file declares it — `smartphotos.android.screenshot` pulls it in. |
 | `:core:ui-testing` | `BaseScreenTest`: the activity-backed Compose rule, `string(resId)` and the four `waitFor*` helpers the eleven screen suites share. `testImplementation` + `androidTestImplementation`, both added by `smartphotos.android.feature`. |
 
 Sources sit at `<module>/src/main/kotlin/com/jiahan/smartcamera/` (`:app` uses `java/`).
-**The multiplatform modules are the exception** — `:core:domain` and `:feature:explore-viewmodel`
-use `src/commonMain/kotlin/`, with `:core:domain`'s `src/jvmMain/kotlin/` holding the one file that
+**The multiplatform modules are the exception** — `:core:domain`, `:core:domain-testing` and
+`:feature:explore-viewmodel` use `src/commonMain/kotlin/`, with `:core:domain`'s `src/jvmMain/kotlin/` holding the one file that
 cannot be common (`di/Qualifiers.kt`) and `src/commonTest/kotlin/` its tests.
 
 ### Module rules
@@ -31,11 +32,13 @@ cannot be common (`di/Qualifiers.kt`) and `src/commonTest/kotlin/` its tests.
 - **An Android-typed *contract* goes in `:core:common`; its implementation stays in `:core:data`.**
   `:core:common` is the module closest to needing a split — if an unrelated fifth tenant lands,
   split it before it needs a name like `:core:misc`.
-- **Neither fixtures module may depend on `:core:data`**, and both are `api` throughout. Every fake
+- **No fixtures module may depend on `:core:data`**, and all are `api` throughout. Every fake
   implements an interface from `:core:domain`/`:core:common`, so a test never resolves a `Default*`.
   **A fixtures module is a supplier to the data layer or a consumer of it, never both.**
-- **Keep the two apart:** `:core:testing` is fixtures every test module wants,
-  `:core:screenshot-testing` a harness only the four capturing modules want. Both are **regular
+- **Keep them apart:** `:core:domain-testing` is the fakes a multiplatform `commonTest` can use,
+  `:core:testing` fixtures every Android test module wants (those fakes re-exported, plus the
+  platform-bound rest),
+  `:core:screenshot-testing` a harness only the four capturing modules want. All are **regular
   library modules, not AGP's `testFixtures`**, which was tried and does not work here.
 
 ### Dependency rules
@@ -69,8 +72,8 @@ Run from the repo root (Gradle wrapper):
 | Task | Command |
 | --- | --- |
 | Debug APK | `./gradlew assembleDebug` |
-| Unit tests (648 across 14 modules) | `./gradlew testDebugUnitTest :core:domain:jvmTest` |
-| `:core:domain` on an iOS target (Mac only) | `./gradlew :core:domain:iosSimulatorArm64Test` |
+| Unit tests (648 across 14 modules) | `./gradlew testDebugUnitTest jvmTest` |
+| Multiplatform tests on an iOS simulator (Mac only) | `./gradlew iosSimulatorArm64Test` |
 | Prove every `commonMain` is still common | `./gradlew compileCommonMainKotlinMetadata` |
 | Hilt graph + androidTest sources | `./gradlew compileDebugAndroidTestKotlin` |
 | Release variant | `./gradlew assembleRelease` |
@@ -95,11 +98,11 @@ Run from the repo root (Gradle wrapper):
 
 ### Unit tests
 
-`:core:domain` is a Kotlin Multiplatform module, so its tests run under `jvmTest`, not the
+`:core:domain` and `:feature:explore-viewmodel` are Kotlin Multiplatform, so their tests run under `jvmTest`, not the
 Android-variant `testDebugUnitTest` every other module uses (as do `lintDebug` and
 `connectedDebugAndroidTest`) — hence both tasks above. **Not `allTests`**, which would pull in the
 Apple targets: those build only on a Mac, and CI is Linux. `:core:testing` and
-`:core:screenshot-testing` have no tests of their own.
+`:core:screenshot-testing` have no tests of their own, and neither does `:core:domain-testing`.
 
 - **Its tests live in `commonTest` and so must compile for every target**, which rules out
   `org.junit` (use `kotlin.test`), `java.*`, and `kotlinx.coroutines.runBlocking` — the last is
@@ -112,7 +115,9 @@ Apple targets: those build only on a Mac, and CI is Linux. `:core:testing` and
 - **ViewModel tests replace `Dispatchers.Main` with `MainDispatcherRule`** (`:core:testing`) —
   `@get:Rule val mainDispatcherRule = MainDispatcherRule()`, since `viewModelScope` dispatches to
   Main. Defaults to `UnconfinedTestDispatcher`; pass `StandardTestDispatcher` when a test needs
-  virtual-time control (e.g. a debounce).
+  virtual-time control (e.g. a debounce). **A ViewModel test in `commonTest` has no JUnit rule to
+  use**, so it calls `Dispatchers.setMain`/`resetMain` itself in `@BeforeTest`/`@AfterTest` —
+  `ExploreViewModelTest` is the example.
 
 ### Database migrations
 
@@ -301,7 +306,7 @@ same settings:
 | `smartphotos.android.compose` | `:app`, `:core:ui`, `:core:screenshot-testing` | Compose compiler | `buildFeatures.compose = true` |
 | `smartphotos.android.feature` | all nine `:feature:*` | the library + compose conventions, KSP, Hilt, kotlin-serialization | the `:core:domain`/`:core:ui` edges, the Compose set, icons, lifecycle, `ui-test-manifest`, the test baseline (`:core:testing`, junit, mockk, coroutines-test, Turbine) and the androidTest baseline; **enforces the feature layering** |
 | `smartphotos.android.screenshot` | `:core:ui`, `:feature:home`, `:feature:search`, `:feature:settings` | Roborazzi | `outputDir` → `src/test/screenshots`, `unitTests.isIncludeAndroidResources`, `testImplementation(:core:screenshot-testing)`; **refuses to apply to the harness module** |
-| `smartphotos.kmp.library` | `:core:domain`, `:feature:explore-viewmodel` | Kotlin Multiplatform — **nothing Android** | `jvm()` + `iosArm64`/`iosSimulatorArm64` (no `iosX64`: `lifecycle-viewmodel` publishes none), Java 11, JVM target 11, test-JVM pin |
+| `smartphotos.kmp.library` | `:core:domain`, `:core:domain-testing`, `:feature:explore-viewmodel` | Kotlin Multiplatform — **nothing Android** | `jvm()` + `iosArm64`/`iosSimulatorArm64` (no `iosX64`: `lifecycle-viewmodel` publishes none), Java 11, JVM target 11, test-JVM pin |
 
 - **A feature's build file contains only what that feature alone needs beyond the convention** —
   explore keeps `coil-compose`/`activity-compose`; settings keeps `androidx-core-ktx`/Roborazzi.
@@ -487,8 +492,8 @@ to add tooling now, but between otherwise-equivalent approaches prefer the cheap
 - **A ViewModel moves to `commonMain` the way `ExploreViewModel` did** — into its feature's own
   `<feature>-viewmodel` module on `smartphotos.kmp.library`, the class `open` and annotation-free,
   with a `Hilt<Name>ViewModel` subclass left in the feature carrying `@HiltViewModel`/`@Inject`
-  and the screen defaulting to `hiltViewModel<Hilt<Name>ViewModel>()`. Its tests stay in the
-  feature until `:core:testing` has a half a JVM or Apple target can consume.
+  and the screen defaulting to `hiltViewModel<Hilt<Name>ViewModel>()`. Its tests move with it,
+  into that module's `commonTest`, on `:core:domain-testing`'s fakes instead of mockk.
 
 **`:core:domain` is multiplatform as of this change, and that turns three of the rules above from
 advice into compiler errors** — `commonMain` compiles against the intersection of `jvm`,

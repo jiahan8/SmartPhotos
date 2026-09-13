@@ -99,16 +99,15 @@ jobs:
         if: ${{ !cancelled() }}
         run: ./gradlew compileDebugAndroidTestKotlin
 
-      # :core:domain is named explicitly because it is the one Kotlin Multiplatform module with tests:
-      # they run under `jvmTest`, not the Android `testDebugUnitTest` variant task, so a bare
-      # testDebugUnitTest would skip them silently rather than fail. It was `test` while the module
-      # was plain Kotlin JVM -- the task no longer exists, and a stale name here fails loudly, which
-      # is the one good thing about naming it. Not `allTests`: that would pull in the Apple targets,
-      # which cannot be built on this runner. :feature:explore-viewmodel is multiplatform too but
-      # has no tests of its own -- its ViewModel's suite runs in :feature:explore, for the fixtures
-      # reason that module's build file gives. Every other module is an Android library, so the
-      # unqualified testDebugUnitTest reaches it, as does lintDebug below and verifyRoborazziDebug
-      # in the four modules that apply the roborazzi plugin.
+      # `jvmTest` is the multiplatform modules' unit-test task -- :core:domain's suite and
+      # :feature:explore-viewmodel's, both in commonTest -- and the Android `testDebugUnitTest`
+      # variant task does not reach it, so leaving it off would skip them silently rather than fail.
+      # Unqualified for the reason the common-sources step below gives: the next multiplatform
+      # module's tests run here with no edit. (It named :core:domain while that was the only one.)
+      # Not `allTests`: that would pull in the Apple targets, which cannot be built on this runner.
+      # Every other module is an Android library, so the unqualified testDebugUnitTest reaches it,
+      # as does lintDebug below and verifyRoborazziDebug in the four modules that apply the
+      # roborazzi plugin.
       #
       # `!cancelled()` like every other check in this job. Without it this was the one step a
       # failure above could skip, and the two steps immediately before it are the two most likely
@@ -116,7 +115,7 @@ jobs:
       # cost a whole extra fix-and-push cycle just to find out whether the tests also failed.
       - name: Unit tests
         if: ${{ !cancelled() }}
-        run: ./gradlew testDebugUnitTest :core:domain:jvmTest
+        run: ./gradlew testDebugUnitTest jvmTest
 
       # What stops a multiplatform module's commonMain quietly stopping being common. It compiles
       # against the intersection of every target the module declares, so a `java.*` or JVM-only API

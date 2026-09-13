@@ -1,5 +1,6 @@
 /*
- * Test fixtures shared across modules: the nine repository/handler fakes and MainDispatcherRule.
+ * Test fixtures shared across the Android modules: MainDispatcherRule, FakeMediaFileRepository and --
+ * re-exported from :core:domain-testing -- the repository and handler fakes.
  *
  * This is the module the plan deliberately kept until last, on the rule that every `:core:` module
  * needs a forcing function -- something that will not compile without it. Three arrived on their
@@ -20,6 +21,12 @@
  * Kotlin 2.4.10 / AGP 9.3.1. Consumers take this with `testImplementation` (and
  * `androidTestImplementation` where they run on device), so nothing here reaches a production
  * classpath.
+ *
+ * The fakes for :core:domain's contracts, and NoteMirror, have since moved again, to
+ * :core:domain-testing: a multiplatform module, so a shared ViewModel's commonTest can use them.
+ * What stayed is what a platform binds -- FakeMediaFileRepository (Android's Uri and Bitmap) and
+ * MainDispatcherRule (a JUnit rule) -- and the moved fakes come back through an `api` edge, so no
+ * consumer of this module changed an import.
  */
 plugins {
     id("smartphotos.android.library")
@@ -40,7 +47,10 @@ dependencies {
      * ViewModel parameter has to resolve that interface. The usual "prefer implementation" advice
      * inverts for a fixtures module -- its whole API surface is other modules' types.
      */
-    api(project(":core:domain"))
+    // The fakes for :core:domain's contracts and NoteMirror, re-exported from their multiplatform
+    // module. This replaced a direct :core:domain edge: nothing left in this module names a
+    // :core:domain type itself, and that module still reaches every consumer through this one.
+    api(project(":core:domain-testing"))
     // FakeMediaFileRepository implements MediaFileRepository, which is Android-bound (Uri, Bitmap)
     // and so lives in :core:common rather than :core:domain. Its own API surface: the fake *is*
     // that interface.

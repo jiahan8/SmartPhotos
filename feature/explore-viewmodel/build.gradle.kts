@@ -15,8 +15,10 @@
  * were built around it. The `explore-` prefix is load-bearing: it is how the feature convention's
  * layering check tells a feature's own half from a lateral edge.
  *
- * No tests of its own, for a reason ExploreViewModelTest records: the suite runs in :feature:explore
- * because :core:testing is an Android library no target here can consume.
+ * ExploreViewModelTest is in this module's `commonTest`, so it runs on the JVM in CI and on an iOS
+ * simulator on a Mac. It came with its subject once the fakes it needed moved to
+ * :core:domain-testing -- they had sat in :core:testing, an Android library no target here can
+ * consume.
  */
 plugins {
     // Nothing Android, and the same target set as :core:domain -- which is also why that set lost
@@ -38,6 +40,14 @@ kotlin {
             // api: `uiState` is a StateFlow. Declared rather than inherited through :core:domain's
             // own api edge, because this module names coroutines itself.
             api(libs.kotlinx.coroutines.core)
+        }
+
+        commonTest.dependencies {
+            // kotlin-test rather than junit, and no mockk: the suite compiles for the Apple targets
+            // too, where neither exists. :core:domain-testing's fakes stand in where mockk was.
+            implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(project(":core:domain-testing"))
         }
     }
 }

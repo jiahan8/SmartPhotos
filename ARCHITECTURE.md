@@ -10,10 +10,11 @@ are about to change something a rule protects.
 
 Two deployables share one Firebase project:
 
-- **Android app** — Kotlin + Jetpack Compose, MVVM, across eighteen Gradle modules: `:app`,
+- **Android app** — Kotlin + Jetpack Compose, MVVM, across nineteen Gradle modules: `:app`,
   `:core:domain`, `:core:common`, `:core:data`, `:core:ui`, nine `:feature:*` libraries plus the
   multiplatform `:feature:explore-viewmodel`, and the
-  three test-only modules `:core:testing` / `:core:screenshot-testing` / `:core:ui-testing`. Plus
+  four test-only modules `:core:testing` / `:core:domain-testing` / `:core:screenshot-testing` /
+  `:core:ui-testing`. Plus
   `build-logic/`, an included build holding the six convention plugins. The per-module contents and
   the dependency rules are in [AGENTS.md](AGENTS.md).
 - **Cloud Functions** (`functions/`, Node 24) — triggered by Firestore writes and callable from the
@@ -423,10 +424,13 @@ things came out of it:
   `viewModel { }` initializer fed from a Hilt entry point would have to share by hand.
   `SmartPhotosNavigationTest.explore_composesWithItsHiltBuiltViewModel` resolves the subclass
   against a real component.
-- **Tests: the suite cannot follow its subject yet.** `ExploreViewModelTest` stays in
-  `:feature:explore` because `MainDispatcherRule` and the fakes live in `:core:testing`, an Android
-  library no JVM or Apple target can consume. Moving a shared ViewModel's tests to `commonTest` needs
-  a multiplatform half of the fixtures first.
+- **Tests: they follow the subject, once the fakes did.** `ExploreViewModelTest` first had to stay
+  in `:feature:explore`, because `MainDispatcherRule` and the fakes lived in `:core:testing`, an
+  Android library no JVM or Apple target can consume. Nine fakes and `NoteMirror` were already plain
+  Kotlin, so they moved to the multiplatform `:core:domain-testing` (re-exported by
+  `:core:testing`), and the suite now lives in `:feature:explore-viewmodel`'s `commonTest`: fakes
+  where mockk was, `Dispatchers.setMain` where the rule was, running on the JVM in CI and on an iOS
+  simulator on a Mac.
 
 ### What is left
 

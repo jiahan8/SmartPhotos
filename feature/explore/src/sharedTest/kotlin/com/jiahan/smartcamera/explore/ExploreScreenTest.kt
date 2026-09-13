@@ -82,8 +82,8 @@ class ExploreScreenTest : BaseScreenTest() {
     }
 
     /**
-     * The failure arm renders the mapped message, not the raw exception -- [FakeErrorHandler]
-     * stands in for the mapper, so this pins that the screen shows what the handler returned.
+     * The failure arm renders the failure's message. An exception with text of its own reaches the
+     * screen as `ErrorMessage.Unlocalized`, which the screen shows verbatim.
      */
     @Test
     fun repositoryFailure_showsErrorMessage() {

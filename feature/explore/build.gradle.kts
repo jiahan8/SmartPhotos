@@ -17,8 +17,8 @@
  *
  * It was the first feature again when ViewModels started moving to shared code, for the same
  * reason: smallest slice. ExploreViewModel is in :feature:explore-viewmodel's `commonMain` now, and
- * what stays here is the screen, the route, the tests and HiltExploreViewModel, the subclass Hilt
- * instantiates. ARCHITECTURE.md's Kotlin Multiplatform section records what the move found.
+ * what stays here is the screen, its route, ExploreScreenTest and HiltExploreViewModel, the
+ * subclass Hilt instantiates. The ViewModel's own suite went with it. ARCHITECTURE.md's Kotlin Multiplatform section records what the move found.
  */
 plugins {
     id("smartphotos.android.feature")

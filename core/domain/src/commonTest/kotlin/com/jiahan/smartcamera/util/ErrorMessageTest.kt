@@ -14,7 +14,9 @@ import kotlin.test.assertSame
 class ErrorMessageTest {
 
     @Test
-    fun `an AppError is named by its identity, not by its developer message`() {
+    // No comma in the name: Kotlin/Native rejects one, and this file compiles for the Apple
+    // targets too -- which only a Mac's iosSimulatorArm64Test notices, not CI's jvmTest.
+    fun `an AppError is named by its identity rather than its developer message`() {
         val error = AppError.NoteUnavailable()
 
         val message = assertIs<ErrorMessage.Known>(error.toErrorMessage())

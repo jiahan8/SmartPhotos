@@ -7,8 +7,8 @@ import org.gradle.kotlin.dsl.configure
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 
 /**
- * `smartphotos.kmp.library` -- applied by `:core:domain` and `:feature:explore-viewmodel`, the two
- * modules with no Android plugin.
+ * `smartphotos.kmp.library` -- applied by `:core:domain`, `:core:domain-testing` and
+ * `:feature:explore-viewmodel`, the three modules with no Android plugin.
  *
  * It replaces `smartphotos.jvm.library`, and the module's charter survives the swap intact: the
  * point was never the Kotlin JVM plugin specifically, it was that `import android.*` must not
