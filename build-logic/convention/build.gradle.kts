@@ -69,5 +69,9 @@ gradlePlugin {
             id = "smartphotos.kmp.viewmodel"
             implementationClass = "KmpViewModelConventionPlugin"
         }
+        register("kmpAndroidLibrary") {
+            id = "smartphotos.kmp.android.library"
+            implementationClass = "KmpAndroidLibraryConventionPlugin"
+        }
     }
 }

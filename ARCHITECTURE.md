@@ -10,13 +10,14 @@ are about to change something a rule protects.
 
 Two deployables share one Firebase project:
 
-- **Android app** — Kotlin + Jetpack Compose, MVVM, across twenty-seven Gradle modules: `:app`,
-  `:core:domain`, `:core:common`, `:core:data`, the multiplatform `:core:datastore`, `:core:ui`,
+- **Android app** — Kotlin + Jetpack Compose, MVVM, across twenty-eight Gradle modules: `:app`,
+  `:core:domain`, `:core:common`, `:core:data`, the multiplatform `:core:datastore` and
+  `:core:database`, `:core:ui`,
   nine `:feature:*` libraries plus the multiplatform `:feature:<name>-viewmodel` modules (`auth`,
   `explore`, `favorite`, `home`, `note`, `preview`, `profile`, `search`, `settings`), and the
   four test-only modules `:core:testing` / `:core:domain-testing` / `:core:screenshot-testing` /
   `:core:ui-testing`. Plus
-  `build-logic/`, an included build holding the seven convention plugins. The per-module contents and
+  `build-logic/`, an included build holding the eight convention plugins. The per-module contents and
   the dependency rules are in [AGENTS.md](AGENTS.md).
 - **Cloud Functions** (`functions/`, Node 24) — triggered by Firestore writes and callable from the
   app, doing the work that shouldn't run on-device: calling Google Cloud Vision, enforcing limits
@@ -134,7 +135,7 @@ unused-binding incident recorded below.)
 | ViewModel | `<feature>/*ViewModel.kt` (`:feature:<name>-viewmodel`, `commonMain`) | Open and annotation-free; Hilt builds its `Hilt<Name>ViewModel` subclass in `:feature:<name>`. Exposes a `*UiState` via `StateFlow` wrapping a nested sealed loading/loaded/error content type. Depends on repository *interfaces* only. |
 | Repository | interfaces in `:core:domain` (plus two in `:core:common`/`:core:data`), `Default*` implementations in `:core:data` (one in `:core:datastore`) | Coordinates remote (Firestore/Storage/Functions) and local (Room/DataStore). Exposes domain models only. Every fallible operation returns `Result<T>` via `safeCall`. |
 | Domain | `domain/` (`:core:domain`) | Plain data classes (`Note`, `MediaDetail`, `User`, …). A multiplatform module, so `commonMain` compiles against the intersection of `jvm` and two iOS targets and neither `import android.*` nor `import java.*` resolves. |
-| Local | `database/` (`:core:data`), `data/datastore/` (the repository in `:core:datastore`, the DataStore it wraps built in `:core:data`) | The Room mirror and preferences. Schemas exported to `core/data/schemas/`. |
+| Local | `database/` (`:core:database`, opened by `DatabaseModule` in `:core:data`), `data/datastore/` (the repository in `:core:datastore`, the DataStore it wraps built in `:core:data`) | The Room mirror and preferences. Schemas exported to `core/database/schemas/`. |
 | Remote | Firebase SDKs + `functions/index.js` | Auth, Firestore, Storage, Remote Config, Analytics, Crashlytics, FCM; Cloud Functions for anything needing a trusted server. |
 
 Two repository interfaces cannot live in `:core:domain`, because their signatures carry Android
@@ -246,7 +247,8 @@ server-stamped `created` exist only server-side.
 
 ## Local persistence
 
-Room (`database/`) mirrors a subset of Firestore for the read path:
+Room (`database/`, in `:core:database`'s `commonMain`) mirrors a subset of Firestore for the read
+path:
 
 - `NoteDao` / `DatabaseNote` (`@Entity(tableName = "notes")`) — the mirror the four note-rendering
   screens observe, and the only table in the database. (`PhotoDao` / `DatabasePhoto` used to sit
@@ -282,7 +284,7 @@ the component is assembled in `:app` — which is why `:core:data` can inject `@
 | `data/di/DataModule.kt` | `:core:data` | Binds each repository interface to its `Default*`, and constructs `DefaultUserPreferencesRepository`, which has no injected constructor to bind |
 | `data/di/FirebaseModule.kt` | `:core:data` | The Firebase SDK singletons |
 | `data/datastore/DataStoreModule.kt` | `:core:data` | DataStore, and the one deliberate place a `CoroutineScope` is built at module level rather than injected |
-| `database/di/DatabaseModule.kt` | `:core:data` | `AppDatabase` and its DAOs |
+| `database/di/DatabaseModule.kt` | `:core:data` | `AppDatabase` (declared in `:core:database`) and its DAOs |
 | `note/di/NoteDelegateModule.kt` | `:core:common` | `NoteErrorReporter` and `NoteShareDelegate`, `@ViewModelScoped` — the one module installed in `ViewModelComponent` |
 
 `di/Qualifiers.kt` (`:core:domain`) holds the `@IoDispatcher`, `@ApplicationScope` and `@DebugBuild`
@@ -531,6 +533,23 @@ had been, so it no longer runs on a device — it runs on the JVM and on an iOS 
 The feature layering check names `:core:datastore` beside `:core:data`, since it holds an
 implementation a feature must not reach either.
 
+**The Room database followed, into `:core:database`**, and settled the question DataStore had not
+raised. `AppDatabase`, `NoteDao`, `DatabaseNote` and `DatabaseConverters` are in `commonMain`,
+schemas and all. Room's compiler generates `AppDatabase_Impl` per target and ships a separate
+Android runtime, so Android takes an Android build of the module rather than its `jvm` variant:
+AGP's `com.android.kotlin.multiplatform.library` target, added by a new
+`smartphotos.kmp.android.library` convention so the SDK levels still come from `ProjectConfig`. The
+risk going in was this build's `android.newDsl=false` and `builtInKotlin=false`; the target works
+under both. The code needed one addition, the `expect` `AppDatabaseConstructor` that Room's compiler
+fills in per target, since `NoteDao` was already all `suspend`/`Flow`. `DatabaseModule` stays in
+`:core:data` and opens the file through Android's framework SQLite exactly as before.
+`NoteDaoTest` and `DatabaseConvertersTest` moved to `commonTest` on Room's bundled SQLite, running
+on the JVM and an iOS simulator; the one raw-cursor row count became `getNotes()`, which reads the
+whole table. **`AppDatabaseMigrationTest` deliberately did not move**: it pins the upgrade Android's
+own SQLite performs, the one users run, so it stays in `:core:data`'s `sharedTest` and reads
+`:core:database`'s schemas as test assets. The serialization plugin went with the converter, and the
+layering check names the new module too.
+
 ### What is left
 
 **The ceiling to know about before planning further: Hilt has no KMP support, and it is load-bearing
@@ -551,15 +570,11 @@ repository *contracts* are already clean, so the choice is entirely about the im
 constructs a shared class as readily as a subclass does, so Hilt only has to be replaced once a
 second platform needs a container; Firebase is what actually gates the `Default*`s that remain.
 
-Local persistence is not blocked by either, and DataStore has moved (above). **Room is what is
-left of it**: KMP-capable from 2.7 (a swap from `room-ktx` to `room-runtime` plus
-`@ConstructedBy`), and `NoteDao` is already all `suspend`/`Flow`, which a common DAO requires. It
-brings the one decision DataStore did not. `smartphotos.kmp.library` has no Android target, and
-Android consumes each shared module's `jvm` variant; Room publishes distinct Android and JVM
-artifacts and generates code per target, so a common database module most likely needs AGP's
-`com.android.kotlin.multiplatform.library` target — the first shared module to carry an Android
-plugin. Settle that before moving `AppDatabase`, and keep `AppDatabaseMigrationTest` passing
-through it.
+**Local persistence is shared now** — DataStore and Room both, above — so what is left of the data
+layer is what Firebase gates: every remaining `Default*` but `DefaultMediaFileRepository`, which is
+Android file and bitmap work, and `DefaultAppUpdateRepository`, which is Play Core. The wiring that
+opens each store (`DatabaseModule`, `DataStoreModule`) stays at the Android edge by nature, since
+both begin from a `Context`.
 
 **And the number that bounds all of it: without Compose Multiplatform, roughly 22% of the app's
 ~12,100 lines can ever be shared.** The UI is 8,000 of them. That is a product decision about what

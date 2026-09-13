@@ -1,8 +1,8 @@
 # SmartPhotos
 
 Android app (Kotlin) for organizing photos/notes with ML-based tagging. Firebase backend + a
-Node.js Cloud Functions project in `functions/`. Twenty-seven Gradle modules, plus `build-logic/` — an
-included build holding the seven convention plugins.
+Node.js Cloud Functions project in `functions/`. Twenty-eight Gradle modules, plus `build-logic/` — an
+included build holding the eight convention plugins.
 
 **This file is loaded into every agent conversation, so it states rules, not reasoning. When a rule
 here has a longer story behind it — the incident that produced it, the alternative that was tried —
@@ -13,8 +13,9 @@ that story is in [ARCHITECTURE.md](ARCHITECTURE.md).**
 | `:app` | `MainActivity`, `MyApp`, `MainViewModel`, `SmartPhotosApp`, `navigation/`, the messaging service, `di/AppModule.kt`, `util/`. Hosts the NavHost, supplies each screen's navigation lambdas, installs the Hilt bindings — **no feature screen renders here**. |
 | `:core:domain` | Kotlin Multiplatform, `jvm` + two iOS targets (no AGP, no Hilt/KSP): domain models, repository *interfaces*, `safeCall`, the `ErrorHandler` interface, DI qualifiers, and the three field validators (`util/ValidationUtils.kt`) with `ValidationResult`/`ValidationError`. Also `note/`: `NoteErrorReporter` and `NoteShareDelegate`, the two delegates four note screens' ViewModels share — plain classes, scoped per ViewModel by `:core:common`'s Hilt module. |
 | `:core:common` | Android library, deliberately not Compose: the validation and failure strings + the mappers screens resolve them with (`validationErrorMessageResId`, `ErrorMessage.resolve`/`appErrorMessageResId`), the `MediaFileRepository` contract, `util/MediaUriExt.kt`, `NoteActionError.resolve`, and `note/di/NoteDelegateModule.kt`, which provides `:core:domain`'s two note delegates once per ViewModel (why it has Hilt/KSP). |
-| `:core:data` | Android library holding every implementation of a `:core:domain`/`:core:common` contract but one: the `Default*`/`Firebase*` repositories, Room, the DataStore wiring, `FirebaseModule`, `DataModule`. |
+| `:core:data` | Android library holding every implementation of a `:core:domain`/`:core:common` contract but one: the `Default*`/`Firebase*` repositories, the Room and DataStore wiring (`DatabaseModule`, `DataStoreModule`), `FirebaseModule`, `DataModule`. |
 | `:core:datastore` | Kotlin Multiplatform, on `smartphotos.kmp.library`: `DefaultUserPreferencesRepository` in `commonMain` and its suite in `commonTest`. `:core:data` builds the DataStore and constructs the repository from it in `DataModule`. |
+| `:core:database` | Kotlin Multiplatform with an Android target, on `smartphotos.kmp.android.library`: Room's `AppDatabase`, `NoteDao`, `DatabaseNote` and `DatabaseConverters` in `commonMain`, the exported `schemas/`, and `NoteDaoTest`/`DatabaseConvertersTest` in `commonTest`. `:core:data`'s `DatabaseModule` opens it. |
 | `:core:ui` | Android library, shared Compose vocabulary: `common/`, `ui/theme/`, `util/DateTimeUtils.kt`/`FlowUtils.kt`. |
 | `:feature:*` | One Android library per screen — `home`, `search`, `note`, `preview`, `favorite`, `profile`, `settings`, `auth`, `explore` — holding its Compose screen(s), ViewModel(s), route and tests. |
 | `:feature:<name>-viewmodel` | Kotlin Multiplatform half of a feature, on `smartphotos.kmp.viewmodel`: its ViewModel in `commonMain` and that ViewModel's suite in `commonTest` — one per feature, all nine: `auth`, `explore`, `favorite`, `home`, `note`, `preview`, `profile`, `search` and `settings`. The feature module keeps the screen, route, screen tests and `Hilt<Name>ViewModel`, the subclass Hilt builds — and which decodes the route, if there is one, passing the shared class plain arguments. |
@@ -25,7 +26,7 @@ that story is in [ARCHITECTURE.md](ARCHITECTURE.md).**
 
 Sources sit at `<module>/src/main/kotlin/com/jiahan/smartcamera/` (`:app` uses `java/`).
 **The multiplatform modules are the exception** — `:core:domain`, `:core:domain-testing`,
-`:core:datastore` and each `:feature:<name>-viewmodel` use `src/commonMain/kotlin/`, with `:core:domain`'s `src/jvmMain/kotlin/` holding the one file that
+`:core:datastore`, `:core:database` and each `:feature:<name>-viewmodel` use `src/commonMain/kotlin/`, with `:core:domain`'s `src/jvmMain/kotlin/` holding the one file that
 cannot be common (`di/Qualifiers.kt`) and `src/commonTest/kotlin/` its tests.
 
 ### Module rules
@@ -45,14 +46,14 @@ cannot be common (`di/Qualifiers.kt`) and `src/commonTest/kotlin/` its tests.
 ### Dependency rules
 
 Arrows run one way: `:app` → `:core:data` → `:core:common` → `:core:domain`; `:core:data` →
-`:core:datastore` → `:core:domain`; `:app` → `:core:ui` →
+`:core:datastore`/`:core:database` → `:core:domain`; `:app` → `:core:ui` →
 `:core:domain`; `:app` → each `:feature:*` → the `:core` libraries it needs. `:core:ui` and
 `:core:data` are siblings. Nothing depends on `:app`, so a repository implementation can never reach
 a ViewModel, an `:app` `R` string, or `BuildConfig`. The fixtures modules hang off test classpaths
 only. Inspect a graph with `./gradlew :feature:profile:dependencies --configuration
 debugCompileClasspath`.
 
-**No feature depends on another feature, `:core:data` or `:core:datastore` — enforced at configuration time**, not
+**No feature depends on another feature, `:core:data`, `:core:datastore` or `:core:database` — enforced at configuration time**, not
 just documented: `smartphotos.android.feature` fails with a named error, scanning every declaration
 bucket rather than only the compile ones. The one `:feature:` edge it allows is a feature's own
 shared half, recognised by name (`:feature:explore` → `:feature:explore-viewmodel`). Three feature edges are worth knowing: `:feature:preview`
@@ -74,7 +75,7 @@ Run from the repo root (Gradle wrapper):
 | Task | Command |
 | --- | --- |
 | Debug APK | `./gradlew assembleDebug` |
-| Unit tests (668 across 23 modules) | `./gradlew testDebugUnitTest jvmTest` |
+| Unit tests (668 across 24 modules) | `./gradlew testDebugUnitTest jvmTest` |
 | Multiplatform tests on an iOS simulator (Mac only) | `./gradlew iosSimulatorArm64Test` |
 | Prove every `commonMain` is still common | `./gradlew compileCommonMainKotlinMetadata` |
 | Hilt graph + androidTest sources | `./gradlew compileDebugAndroidTestKotlin` |
@@ -100,7 +101,7 @@ Run from the repo root (Gradle wrapper):
 
 ### Unit tests
 
-`:core:domain`, `:core:datastore` and the `:feature:<name>-viewmodel` modules are Kotlin Multiplatform, so their tests run under `jvmTest`, not the
+`:core:domain`, `:core:datastore`, `:core:database` and the `:feature:<name>-viewmodel` modules are Kotlin Multiplatform, so their tests run under `jvmTest`, not the
 Android-variant `testDebugUnitTest` every other module uses (as do `lintDebug` and
 `connectedDebugAndroidTest`) — hence both tasks above. **Not `allTests`**, which would pull in the
 Apple targets: those build only on a Mac, and CI is Linux. `:core:testing` and
@@ -142,9 +143,13 @@ throws on open, on the launch after the update, for every installed user, with t
   `validateDroppedTables = true` also asserts a removed table is really gone. What it cannot check
   is *data*, so assert the rows too — a migration that recreated a table empty passes validation and
   loses every cached note.
-- **`MigrationTestHelper` reads `schemas/` through the instrumentation context's assets**, wired up
-  in `core/data/build.gradle.kts` where the comment explains it. The failure mode when it isn't is
-  "Cannot find the schema file in the assets folder" — nothing about migrations.
+- **`MigrationTestHelper` reads `schemas/` through the instrumentation context's assets** —
+  `:core:database`'s `schemas/`, wired up in `core/data/build.gradle.kts` where the comment explains
+  it. The failure mode when it isn't is "Cannot find the schema file in the assets folder" — nothing
+  about migrations.
+- **It stays in `:core:data` although `AppDatabase` is in `:core:database`, and should.** It pins
+  the upgrade Android's framework SQLite performs, which is the one users run; the database
+  module's `commonTest` runs Room's bundled SQLite instead. Its class doc gives the whole argument.
 
 ### Screenshot tests
 
@@ -186,7 +191,7 @@ app-wide and no feature-level test would localise it.
 
 ### Instrumented tests
 
-Eleven modules — `app/`, `core/data/`, and every `:feature:*`. 96 tests, and **CI runs all of
+Eleven modules — `app/`, `core/data/`, and every `:feature:*`. 83 tests, and **CI runs all of
 them** — see [CI](#ci). Against an attached emulator it is `./gradlew connectedDebugAndroidTest`,
 **module by module and `--no-parallel`** — all eleven at once exhausts the 4GB daemon heap and dies
 mid-run in a UTP worker. `:app` uses a custom `HiltTestRunner`, the AndroidX Test Orchestrator and
@@ -222,12 +227,13 @@ argue for itself.** A Compose behaviour suite placed there compiles into *both* 
 androidTest source sets, so it runs under Robolectric in CI and on-device, written once. **A
 feature needs no build-file change to use it** — `smartphotos.android.feature` already gives all
 nine the source-set lines and the test artifacts, so a new suite is one file in
-`src/sharedTest/kotlin`. Every feature's screen suite lives there, plus two in `:core:data`;
+`src/sharedTest/kotlin`. Every feature's screen suite lives there, plus one in `:core:data`;
 `:feature:auth` is the one to copy. **It is not only for Compose** —
-`:core:data`'s `NoteDaoTest` and `AppDatabaseMigrationTest` live there too, because Robolectric
-supplies a real SQLite, which is all they ever needed a device for.
-(`DefaultUserPreferencesRepositoryTest` was the third, and left for `:core:datastore`'s `commonTest`
-with its subject, trading a Robolectric temp file for okio's in-memory `FakeFileSystem`.)
+`:core:data`'s `AppDatabaseMigrationTest` lives there too, because Robolectric supplies Android's
+own SQLite, which is all it ever needed a device for. (`NoteDaoTest` and
+`DefaultUserPreferencesRepositoryTest` were there as well, and left with their subjects for
+`:core:database`'s and `:core:datastore`'s `commonTest` — on Room's bundled SQLite and on okio's
+in-memory `FakeFileSystem`.)
 
 **`:app`'s nav graph is tested by `SmartPhotosNavigationTest`, and it is the one suite that needs
 Hilt.** The nine feature suites hand their screen a ViewModel built from fakes; there the subject
@@ -307,7 +313,7 @@ things worth knowing without opening it:
 ### Convention plugins
 
 `build-logic/` is an included build (`includeBuild("build-logic")` from `pluginManagement` in
-`settings.gradle.kts`), holding seven plugins that every module applies by id instead of restating the
+`settings.gradle.kts`), holding eight plugins that every module applies by id instead of restating the
 same settings:
 
 | Plugin | Applied by | Applies | Sets |
@@ -317,8 +323,9 @@ same settings:
 | `smartphotos.android.compose` | `:app`, `:core:ui`, `:core:screenshot-testing` | Compose compiler | `buildFeatures.compose = true` |
 | `smartphotos.android.feature` | all nine `:feature:*` | the library + compose conventions, KSP, Hilt, kotlin-serialization | the `:core:domain`/`:core:ui` edges, the Compose set, icons, lifecycle, `ui-test-manifest`, the test baseline (`:core:testing`, junit, mockk, coroutines-test, Turbine) and the androidTest baseline; **enforces the feature layering** |
 | `smartphotos.android.screenshot` | `:core:ui`, `:feature:home`, `:feature:search`, `:feature:settings` | Roborazzi | `outputDir` → `src/test/screenshots`, `unitTests.isIncludeAndroidResources`, `testImplementation(:core:screenshot-testing)`; **refuses to apply to the harness module** |
-| `smartphotos.kmp.library` | `:core:domain`, `:core:domain-testing`, `:core:datastore`, and every `:feature:<name>-viewmodel` through `smartphotos.kmp.viewmodel` | Kotlin Multiplatform — **nothing Android** | `jvm()` + `iosArm64`/`iosSimulatorArm64` (no `iosX64`: `lifecycle-viewmodel` publishes none), Java 11, JVM target 11, test-JVM pin |
+| `smartphotos.kmp.library` | `:core:domain`, `:core:domain-testing`, `:core:datastore`, `:core:database` through `smartphotos.kmp.android.library`, and every `:feature:<name>-viewmodel` through `smartphotos.kmp.viewmodel` | Kotlin Multiplatform — **nothing Android** | `jvm()` + `iosArm64`/`iosSimulatorArm64` (no `iosX64`: `lifecycle-viewmodel` publishes none), Java 11, JVM target 11, test-JVM pin |
 | `smartphotos.kmp.viewmodel` | every `:feature:<name>-viewmodel` — `auth`, `explore`, `favorite`, `home`, `note`, `preview`, `profile`, `search`, `settings` | `smartphotos.kmp.library` | `api` edges to `:core:domain`, `lifecycle-viewmodel` and coroutines; `commonTest` on kotlin-test, coroutines-test, Turbine and `:core:domain-testing` |
+| `smartphotos.kmp.android.library` | `:core:database` | `smartphotos.kmp.library`, AGP's `com.android.kotlin.multiplatform.library` | the Android target's `compileSdk`, `minSdk` and JVM target from `ProjectConfig` — for a shared module Android must consume as an Android build (Room's per-target codegen), not through its `jvm` variant |
 
 - **A feature's build file contains only what that feature alone needs beyond the convention** —
   explore keeps `coil-compose`/`activity-compose`; settings keeps `androidx-core-ktx`/Roborazzi.
@@ -359,7 +366,8 @@ the Firestore collections, and the Cloud Functions' division of labour.
   where and why is in [ARCHITECTURE.md](ARCHITECTURE.md#layers). Move the next one down only when a
   feature needs it.
 - **Domain** (`domain/`, `:core:domain`) — plain data classes shared across features.
-- **Local** — Room in `database/` (schemas exported to `core/data/schemas/`), DataStore in
+- **Local** — Room in `database/` (`:core:database`'s `commonMain`, schemas exported to
+  `core/database/schemas/`, opened by `:core:data`'s `DatabaseModule`), DataStore in
   `data/datastore/` (contract + model in `:core:domain`, implementation in `:core:datastore`, wiring
   in `:core:data`). **A note's media
   list persists into `notes.media_list` as `kotlinx.serialization` JSON keyed by `MediaDetail`'s
@@ -718,7 +726,7 @@ accessors** — never an inline `implementation("group:artifact:1.2.3")`.
 left.** Two exceptions, both flagged in place where they're declared: an artifact loaded
 reflectively or auto-initialising (`firebase-perf`, `firebase-inappmessaging-display`,
 `coil-network-okhttp`, `coil-gif`), and a compiler plugin whose absence changes codegen rather than
-resolution (`kotlin-serialization` in `:core:data`).
+resolution (`kotlin-serialization` in `:core:database`).
 
 **That exception list is the dangerous half of this rule, and has been got wrong in both
 directions** ([how](ARCHITECTURE.md#incidents-worth-not-repeating)):

@@ -211,9 +211,10 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
 
 /**
  * Fails configuration if this feature module declares a dependency on another `:feature:*` module
- * or on a module holding repository implementations -- `:core:data`, and `:core:datastore` since
- * `DefaultUserPreferencesRepository` moved there. Matched by exact path, so the next such module
- * has to be added to [DATA_IMPLEMENTATION_MODULES] or a feature could reach it unnoticed.
+ * or on a module holding the data layer's implementation -- `:core:data`, and the two its local
+ * persistence moved into: `:core:datastore` (`DefaultUserPreferencesRepository`) and `:core:database`
+ * (Room, whose entity and DAO types a ViewModel must never see). Matched by exact path, so the next
+ * such module has to be added to [DATA_IMPLEMENTATION_MODULES] or a feature could reach it unnoticed.
  *
  * AGENTS.md states both rules -- "No feature module depends on another, and none reaches
  * `:core:data`" -- and until now nothing held them. That asymmetry is what this build usually
@@ -236,7 +237,7 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
  * cache it re-runs whenever configuration does, which is exactly when a dependency could have
  * changed.
  */
-private val DATA_IMPLEMENTATION_MODULES = setOf(":core:data", ":core:datastore")
+private val DATA_IMPLEMENTATION_MODULES = setOf(":core:data", ":core:datastore", ":core:database")
 
 private fun Project.verifyNoLateralDependencies() = afterEvaluate {
     val forbidden = configurations.filter {
@@ -272,7 +273,7 @@ private fun Project.verifyNoLateralDependencies() = afterEvaluate {
             |
             |A :feature:* module depends on :core:* only. It must not depend on another feature --
             |two screens that need the same thing means that thing belongs in a :core: module -- and
-            |it must not reach :core:data or :core:datastore, because the repositories a ViewModel injects are
+            |it must not reach :core:data, :core:datastore or :core:database, because the repositories a ViewModel injects are
             |interfaces in :core:domain, bound in :app. Its own shared half, named
             |`$path-<suffix>` (as :feature:explore-viewmodel is), is the one :feature: edge allowed.
             |

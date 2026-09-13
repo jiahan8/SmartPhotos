@@ -1,55 +1,51 @@
 package com.jiahan.smartcamera.database.dao
 
 import androidx.room.Room
-import androidx.test.core.app.ApplicationProvider
-import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.sqlite.driver.bundled.BundledSQLiteDriver
+import app.cash.turbine.test
 import com.jiahan.smartcamera.database.AppDatabase
 import com.jiahan.smartcamera.database.data.DatabaseNote
 import com.jiahan.smartcamera.domain.DetectedLabel
 import com.jiahan.smartcamera.domain.MediaDetail
-import app.cash.turbine.test
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
-import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Before
-import org.junit.Test
-import org.junit.runner.RunWith
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
  * Tests for [NoteDao] against a real in-memory Room database, following the official Room testing
  * guidance: https://developer.android.com/training/data-storage/room/testing-db
  *
- * Lives in `sharedTest`, so the same suite runs on the JVM under Robolectric (which supplies a real
- * SQLite) in CI and on-device under the instrumentation runner. It was androidTest-only, which
- * meant CI compiled these and never ran them -- and this file pins the `notes` mirror that every
- * note-rendering screen reads through, so it is the last one that should go unexecuted.
+ * In `commonTest`, so the suite runs on the JVM in CI and on an iOS simulator on a Mac, against
+ * Room's bundled SQLite. It used to be a `sharedTest` suite in :core:data, running under
+ * Robolectric and on a device against Android's framework SQLite; it followed [AppDatabase] down
+ * when the database moved to this module. The queries are plain SQL that both engines answer
+ * alike. What stays pinned to Android's own SQLite is the upgrade path, which is why
+ * `AppDatabaseMigrationTest` did not come along.
  *
- * No `@Config` here, unlike this module's `src/test` Robolectric suites: the annotation is
- * Robolectric's and would not resolve on the androidTest half of a `sharedTest` source set. It is
- * not needed either -- a library module declares no custom `Application`, so Robolectric already
- * instantiates a plain one.
+ * `Room.inMemoryDatabaseBuilder` without a `Context` exists on the JVM and Apple targets but not on
+ * Android, which is why the Android target declares no host tests: this source set would not
+ * compile for one.
  */
-@RunWith(AndroidJUnit4::class)
 class NoteDaoTest {
 
     private lateinit var database: AppDatabase
     private lateinit var noteDao: NoteDao
 
-    @Before
+    @BeforeTest
     fun createDb() {
-        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        // In-memory DB is cleared from RAM after the process is killed — perfect test isolation.
-        database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
-            .allowMainThreadQueries()
+        // In-memory: each test gets a fresh database that is gone once closed.
+        database = Room.inMemoryDatabaseBuilder<AppDatabase>()
+            .setDriver(BundledSQLiteDriver())
             .build()
         noteDao = database.noteDao()
     }
 
-    @After
+    @AfterTest
     fun closeDb() {
         database.close()
     }
@@ -76,7 +72,7 @@ class NoteDaoTest {
      */
 
     @Test
-    fun getNotes_returnsEveryNoteRegardlessOfFavoriteFlag() = runBlocking {
+    fun getNotes_returnsEveryNoteRegardlessOfFavoriteFlag() = runTest {
         noteDao.upsertNotes(
             listOf(
                 note("fav", isFavorite = true),
@@ -91,7 +87,7 @@ class NoteDaoTest {
     }
 
     @Test
-    fun getNotes_areOrderedByCreatedDateDescending() = runBlocking {
+    fun getNotes_areOrderedByCreatedDateDescending() = runTest {
         noteDao.upsertNotes(
             listOf(
                 note("old", isFavorite = false, createdDate = 100L),
@@ -146,7 +142,7 @@ class NoteDaoTest {
     }
 
     @Test
-    fun upsertNotes_thenGetFavoriteNotes_returnsOnlyFavorites() = runBlocking {
+    fun upsertNotes_thenGetFavoriteNotes_returnsOnlyFavorites() = runTest {
         noteDao.upsertNotes(
             listOf(
                 note("fav1", isFavorite = true),
@@ -163,7 +159,7 @@ class NoteDaoTest {
     }
 
     @Test
-    fun getFavoriteNotes_areOrderedByCreatedDateDescending() = runBlocking {
+    fun getFavoriteNotes_areOrderedByCreatedDateDescending() = runTest {
         noteDao.upsertNotes(
             listOf(
                 note("old", createdDate = 100L),
@@ -181,7 +177,7 @@ class NoteDaoTest {
     }
 
     @Test
-    fun upsertNotes_replacesOnConflictByPrimaryKey() = runBlocking {
+    fun upsertNotes_replacesOnConflictByPrimaryKey() = runTest {
         noteDao.upsertNotes(listOf(note("doc", isFavorite = true).copy(text = "original")))
         noteDao.upsertNotes(listOf(note("doc", isFavorite = true).copy(text = "updated")))
 
@@ -192,7 +188,7 @@ class NoteDaoTest {
     }
 
     @Test
-    fun deleteNote_removesMatchingNoteId() = runBlocking {
+    fun deleteNote_removesMatchingNoteId() = runTest {
         noteDao.upsertNotes(listOf(note("keep"), note("remove")))
 
         noteDao.deleteNote("remove")
@@ -203,7 +199,7 @@ class NoteDaoTest {
     }
 
     @Test
-    fun updateFavorite_toFalse_removesNoteFromFavorites() = runBlocking {
+    fun updateFavorite_toFalse_removesNoteFromFavorites() = runTest {
         noteDao.upsertNotes(listOf(note("doc", isFavorite = true)))
 
         noteDao.updateFavorite("doc", isFavorite = false)
@@ -212,7 +208,7 @@ class NoteDaoTest {
     }
 
     @Test
-    fun clearFavorites_removesAllFavoriteNotes() = runBlocking {
+    fun clearFavorites_removesAllFavoriteNotes() = runTest {
         noteDao.upsertNotes(listOf(note("a"), note("b"), note("c")))
 
         noteDao.clearFavorites()
@@ -221,21 +217,19 @@ class NoteDaoTest {
     }
 
     @Test
-    fun clearAllNotes_removesEveryNoteRegardlessOfFavoriteFlag() = runBlocking {
+    fun clearAllNotes_removesEveryNoteRegardlessOfFavoriteFlag() = runTest {
         noteDao.upsertNotes(listOf(note("fav", isFavorite = true), note("notFav", isFavorite = false)))
 
         noteDao.clearAllNotes()
 
         // getFavoriteNotes() alone can't distinguish this from clearFavorites(), since both leave
-        // it empty — query the raw row count to confirm the non-favorite row is gone too.
-        database.query("SELECT COUNT(*) FROM notes", null).use { cursor ->
-            cursor.moveToFirst()
-            assertEquals(0, cursor.getInt(0))
-        }
+        // it empty -- getNotes() reads the whole table, so it confirms the non-favorite row is gone
+        // too. (This counted rows through a SupportSQLite cursor, which exists only on Android.)
+        assertTrue(noteDao.getNotes().first().isEmpty())
     }
 
     @Test
-    fun syncFavoriteNotes_replacesExistingFavorites() = runBlocking {
+    fun syncFavoriteNotes_replacesExistingFavorites() = runTest {
         noteDao.upsertNotes(listOf(note("old1"), note("old2")))
 
         noteDao.syncFavoriteNotes(listOf(note("new1"), note("new2"), note("new3")))
@@ -245,7 +239,7 @@ class NoteDaoTest {
     }
 
     @Test
-    fun mediaList_isPersistedAndRestoredViaTypeConverter() = runBlocking {
+    fun mediaList_isPersistedAndRestoredViaTypeConverter() = runTest {
         val media = listOf(
             MediaDetail(
                 photoUrl = "https://example.com/photo.jpg",

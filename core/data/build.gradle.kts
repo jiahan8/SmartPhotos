@@ -3,8 +3,9 @@
  * `DefaultUserPreferencesRepository`, which needed nothing Android and is in :core:datastore's
  * commonMain. It is still bound here, by `DataModule`, from the DataStore `DataStoreModule` builds.
  *
- * This is the Firebase/Room/DataStore/Play-Core half of the data layer -- the part that is
- * Android-bound by definition. The split with :core:domain is the dependency inversion the
+ * This is the Firebase/Play-Core half of the data layer, plus the Context-bound wiring that opens
+ * the Room database (declared in :core:database) and the DataStore -- the part that is Android-bound
+ * by definition. The split with :core:domain is the dependency inversion the
  * Separation of concerns section of AGENTS.md describes, now expressed as a module boundary:
  * the interfaces sit above in a module with no Android plugin and the `Default*` classes sit here.
  *
@@ -23,14 +24,6 @@ plugins {
     // the Java 11 pair and the Kotlin JVM target. It deliberately does not set `namespace` --
     // every library needs its own, so the convention leaves it to be declared below.
     id("smartphotos.android.library")
-    // No @Serializable is declared in this module -- the annotated models are in :core:domain --
-    // and removing this plugin still compiles and still passes DatabaseConvertersTest (verified).
-    // It stays because DatabaseConverters calls Json.encodeToString/decodeFromString at reified
-    // call sites here: with the plugin those resolve to the generated serializer at compile time,
-    // without it they fall back to runtime reflection over Kotlin metadata -- the kind of thing
-    // release R8 (minify + shrink + strictFullModeForKeepRules) can break while every unit test
-    // stays green. Don't drop it as an unused plugin.
-    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
 }
@@ -58,9 +51,11 @@ android {
         getByName("androidTest").java.srcDir("src/sharedTest/kotlin")
 
         // MigrationTestHelper reads the exported schema JSON at runtime, so `schemas/` has to ship
-        // as a test asset. Both source sets, because the migration suite is in `sharedTest`.
-        getByName("test").assets.srcDir("$projectDir/schemas")
-        getByName("androidTest").assets.srcDir("$projectDir/schemas")
+        // as a test asset. Both source sets, because the migration suite is in `sharedTest`. The
+        // directory is :core:database's, which exports it; the migration suite stays here because
+        // what it pins is the upgrade Android's own SQLite performs -- see its class doc.
+        getByName("test").assets.srcDir("$rootDir/core/database/schemas")
+        getByName("androidTest").assets.srcDir("$rootDir/core/database/schemas")
     }
 
     testOptions {
@@ -74,21 +69,6 @@ android {
             isIncludeAndroidResources = true
         }
     }
-}
-
-ksp {
-    // Room schema JSON per version, moved here with the database it describes. Used as the source
-    // of truth for writing and testing future migrations.
-    //
-    // This block, not defaultConfig.javaCompileOptions.annotationProcessorOptions -- those feed
-    // javac/kapt, and there is no kapt in this project. :app carried a vestigial
-    // `arguments += "room.incremental" to "true"` there until the extraction; it had reached
-    // nothing since Room moved to KSP (and `room.incremental` has been Room's default since 2.3.0
-    // regardless). Verified by passing room.schemaLocation that way instead: Room answers
-    // "Schema export directory was not provided". Note it answers with a *warning*, so getting
-    // this wrong stops schema export without failing the build -- if you change it, confirm
-    // schemas/ still regenerates after deleting it.
-    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {
@@ -109,6 +89,11 @@ dependencies {
     // that module reaches a signature :app's annotation processor has to resolve.
     implementation(project(":core:datastore"))
 
+    // api: NoteDao is an Inject-constructor parameter of DefaultNoteRepository and
+    // LocalUserDataCleaner, and AppDatabase the return type of a DatabaseModule provider, so :app's
+    // annotation processor resolves both -- the rule in the block below, for a project edge.
+    api(project(":core:database"))
+
     implementation(libs.androidx.core.ktx)
     // ActivityResultLauncher / IntentSenderRequest, for the in-app update flow.
     implementation(libs.androidx.activity)
@@ -118,7 +103,6 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     // `kotlinx.coroutines.tasks.await`, called on every Firebase Task in this module.
     implementation(libs.kotlinx.coroutines.play.services)
-    implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.datetime)
 
     /*
@@ -147,7 +131,6 @@ dependencies {
     api(libs.firebase.functions)
     api(libs.firebase.messaging)
     api(libs.play.app.update)
-    api(libs.room.ktx)
     api(libs.datastore.preferences)
     api(libs.datastore.preferences.core)
 
@@ -156,8 +139,9 @@ dependencies {
     // only inside DefaultAppUpdateRepository's own function bodies.
     implementation(libs.firebase.storage)
     implementation(libs.play.app.update.ktx)
-
-    ksp(libs.room.compiler)
+    // `Room.databaseBuilder`, in DatabaseModule's body only -- the database it builds, and the
+    // Room compiler that generates it, are :core:database's.
+    implementation(libs.room.runtime)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
@@ -167,8 +151,7 @@ dependencies {
      * The three repository suites that came down from :app run under Robolectric, and both reasons
      * are this module's own: DefaultNoteRepository takes a Context, and every Firebase call here is
      * stubbed with `Tasks.forResult`/`forException`, which needs a real Android runtime rather than
-     * the JVM stub jar. DatabaseConvertersTest, the suite that was already here, needs neither and
-     * stays a plain JVM test.
+     * the JVM stub jar.
      *
      * Declared directly rather than taken from :core:testing, which is where the rest of the build
      * gets Robolectric. That used to be forced: :core:testing carried an `api` edge on this module,
@@ -187,13 +170,6 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestUtil(libs.androidx.test.orchestrator)
-
-    // NoteDaoTest asserts that a write reaches a subscriber that was already collecting. Proving
-    // that needs one collection held across the write, which is what Turbine is for -- two
-    // `.first()` calls are two collections and would pass against a Flow that is not reactive at
-    // all. On both classpaths because the suite is in `sharedTest` and compiles into both.
-    testImplementation(libs.turbine)
-    androidTestImplementation(libs.turbine)
 
     // MigrationTestHelper, for the v1 -> v2 auto-migration. Nothing else opens an *existing*
     // database file: every other suite here builds one fresh with `inMemoryDatabaseBuilder`, which

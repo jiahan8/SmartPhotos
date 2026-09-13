@@ -29,6 +29,14 @@ import org.junit.runner.RunWith
  * unused. What it cannot check is the *data*, so that is what the assertions below are for -- a
  * migration that satisfied the schema by recreating `notes` empty would pass validation and lose
  * every cached note.
+ *
+ * **Why this suite is in :core:data while [AppDatabase] is in :core:database.** Every other test of
+ * the database followed it into that module's `commonTest`, on Room's bundled SQLite. This one pins
+ * the upgrade a user's device actually performs: `DatabaseModule` opens the file through Android's
+ * framework SQLite, and that is the engine this suite migrates with -- on the JVM under Robolectric
+ * and on a device. Moving it would test the migration against a different SQLite from the one users
+ * upgrade with. The schema JSON it reads is :core:database's, added as a test asset in this
+ * module's build file.
  */
 @RunWith(AndroidJUnit4::class)
 class AppDatabaseMigrationTest {
