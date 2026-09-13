@@ -16,6 +16,10 @@
  * with them and is read downward by :app's `AppModule` and `MainViewModel`, which is the same shape
  * as :feature:search's deep-link constant: the handler belongs to the screen that consumes the
  * share, and :app is the one that receives the intent.
+ *
+ * EditNoteViewModel has since moved again, to :feature:note-viewmodel's `commonMain`, the way
+ * ExploreViewModel did. HiltEditNoteViewModel is the subclass Hilt builds, and stays here.
+ * NoteViewModel stays too, for the `android.net.Uri` it holds.
  */
 plugins {
     id("smartphotos.android.feature")
@@ -35,6 +39,11 @@ dependencies {
      * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
 
+    // EditNoteViewModel, in this feature's multiplatform half. api for the reason :feature:explore's
+    // build file gives for its own: it is EditNoteScreen's `viewModel` parameter type and
+    // HiltEditNoteViewModel's supertype, and :app has to resolve both.
+    api(project(":feature:note-viewmodel"))
+
     // MediaFileRepository and toMediaUri() for the picked media, plus the three note-validation
     // strings that appErrorMessageResId also reads.
     implementation(project(":core:common"))
@@ -44,12 +53,14 @@ dependencies {
     // ContextCompat.checkSelfPermission, for the camera permission check.
     implementation(libs.androidx.core.ktx)
 
-    // toRoute<EditNoteRoute>() in EditNoteViewModel.
+    // toRoute<EditNoteRoute>() in HiltEditNoteViewModel, which decodes the route so the shared
+    // EditNoteViewModel can take a plain noteId.
     implementation(libs.androidx.navigation.compose)
 
     // AsyncImage, for the picked-media thumbnails.
     implementation(libs.coil.compose)
 
-    // EditNoteViewModelTest and the two screen suites are Robolectric-backed; the artifacts for
-    // that arrive from `smartphotos.android.feature`.
+    // The two screen suites are Robolectric-backed; the artifacts for that arrive from
+    // `smartphotos.android.feature`. EditNoteViewModelTest no longer needs it, having followed its
+    // subject into :feature:note-viewmodel's commonTest.
 }

@@ -17,7 +17,6 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
-import androidx.lifecycle.SavedStateHandle
 import com.jiahan.smartcamera.feature.note.R
 import com.jiahan.smartcamera.core.common.R as CommonR
 import com.jiahan.smartcamera.core.ui.R as UiR
@@ -38,8 +37,8 @@ import org.junit.runner.RunWith
 /**
  * Compose UI tests for [EditNoteScreen].
  *
- * A real [EditNoteViewModel] is built from in-memory fakes and a manually-constructed
- * [SavedStateHandle] (standing in for the `EditNoteRoute` nav route), so the screen renders
+ * A real [EditNoteViewModel] is built from in-memory fakes and the `noteId` the `EditNoteRoute` nav
+ * route would carry, so the screen renders
  * end-to-end with no Firebase, no network, and no real navigation graph. Media picking/upload is
  * out of scope here by design — per [EditNoteScreen]'s own doc comment, media is fixed at note
  * creation time and shown read-only on this screen (that's [NoteScreen]'s job).
@@ -71,7 +70,7 @@ class EditNoteScreenTest : BaseScreenTest() {
     private fun launchEditNoteScreen(noteId: String = "note1") {
         val errorHandler = FakeErrorHandler()
         val viewModel = EditNoteViewModel(
-            savedStateHandle = SavedStateHandle(mapOf("noteId" to noteId)),
+            noteId = noteId,
             noteRepository = noteRepository,
             analyticsRepository = FakeAnalyticsRepository(),
             errorHandler = errorHandler,

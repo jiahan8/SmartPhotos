@@ -91,7 +91,7 @@ class ExploreViewModelTest {
     fun `init emits Success with empty list when repository returns empty`() = runTest {
         val content = viewModel.uiState.value.content
         assertTrue(content is ExploreContent.Success)
-        assertTrue((content as ExploreContent.Success).photos.isEmpty())
+        assertTrue(content.photos.isEmpty())
     }
 
     @Test
@@ -111,7 +111,7 @@ class ExploreViewModelTest {
         assertTrue(content is ExploreContent.Error)
         assertEquals(
             ErrorMessage.Unlocalized("network error"),
-            (content as ExploreContent.Error).message
+            content.message
         )
     }
 
@@ -158,7 +158,7 @@ class ExploreViewModelTest {
         assertTrue(content is ExploreContent.Error)
         assertEquals(
             ErrorMessage.Unlocalized("refresh failed"),
-            (content as ExploreContent.Error).message
+            content.message
         )
         assertFalse(vm.uiState.value.isRefreshing)
     }
@@ -468,7 +468,7 @@ class ExploreViewModelTest {
         assertTrue(content is ExploreContent.Error)
         assertEquals(
             ErrorMessage.Unlocalized("search failed"),
-            (content as ExploreContent.Error).message
+            content.message
         )
     }
 

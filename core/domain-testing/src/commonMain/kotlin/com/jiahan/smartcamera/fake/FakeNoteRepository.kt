@@ -29,6 +29,9 @@ class FakeNoteRepository : NoteRepository {
     var updateResult: Result<Unit> = Result.success(Unit)
     var addNoteResult: Result<Unit> = Result.success(Unit)
     var getNoteResult: Result<Note>? = null
+
+    /** Answers [getNote] in place of [getNoteResult] when set -- e.g. to hold the load in flight. */
+    var getNoteAnswer: (suspend (noteId: String) -> Result<Note>)? = null
     var syncResult: Result<Unit> = Result.success(Unit)
 
     /** The `notes` table. Shared with the mockk-based tests so the semantics are defined once. */
@@ -130,8 +133,14 @@ class FakeNoteRepository : NoteRepository {
         return favoriteResult
     }
 
+    /** Every id [getNote] was asked for, in order. */
+    val requestedNoteIds = mutableListOf<String>()
+
     override suspend fun getNote(noteId: String): Result<Note> {
-        val result = getNoteResult ?: Result.failure(NoSuchElementException("No note for $noteId"))
+        requestedNoteIds += noteId
+        val result = getNoteAnswer?.invoke(noteId)
+            ?: getNoteResult
+            ?: Result.failure(NoSuchElementException("No note for $noteId"))
         result.getOrNull()?.let { notes.upsert(it) }
         return result
     }

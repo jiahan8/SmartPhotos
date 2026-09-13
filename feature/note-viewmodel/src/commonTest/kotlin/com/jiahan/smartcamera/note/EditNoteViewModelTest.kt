@@ -1,56 +1,43 @@
 package com.jiahan.smartcamera.note
 
-import android.app.Application
-import androidx.lifecycle.SavedStateHandle
-import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.jiahan.smartcamera.MainDispatcherRule
-import com.jiahan.smartcamera.data.repository.AnalyticsRepository
-import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.domain.Note
+import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
+import com.jiahan.smartcamera.fake.FakeErrorHandler
+import com.jiahan.smartcamera.fake.FakeNoteRepository
 import com.jiahan.smartcamera.util.AppConstants.MAX_NOTE_TEXT_LENGTH
-import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorMessage
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.just
-import io.mockk.mockk
-import io.mockk.runs
-import io.mockk.slot
-import io.mockk.unmockkAll
-import io.mockk.verify
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Before
-import org.junit.Rule
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.annotation.Config
+import kotlinx.coroutines.test.setMain
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
- * [EditNoteViewModel] parses its typed nav route via [androidx.navigation.toRoute], whose internal
- * `RouteDecoder` constructs a real [android.os.Bundle] — that needs Robolectric's shadow to work
- * outside a real Android runtime, hence Robolectric here.
+ * [EditNoteViewModel]'s suite, in `commonTest` beside its subject, on :core:domain-testing's fakes
+ * with [Dispatchers.setMain] called directly -- `ExploreViewModelTest` records why each of those.
  *
- * A plain [Application] stands in for `MyApp` (as in `BaseScreenshotTest`): the real one installs
- * the Firebase App Check provider in `onCreate()`, which throws under Robolectric because no
- * default `FirebaseApp` is initialized there.
+ * It used to run under Robolectric, and not for anything it asserted: the ViewModel decoded its
+ * route with `toRoute`, whose `RouteDecoder` builds a real `android.os.Bundle`. The decode is
+ * `HiltEditNoteViewModel`'s now, so the ViewModel takes a `noteId` and this suite passes one.
+ * What the decode used to prove here, `SmartPhotosNavigationTest` proves on a device.
  */
-@RunWith(AndroidJUnit4::class)
-@Config(application = Application::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 class EditNoteViewModelTest {
 
-    @get:Rule
-    val mainDispatcherRule = MainDispatcherRule()
-
-    private val noteRepository: NoteRepository = mockk()
-    private val analyticsRepository: AnalyticsRepository = mockk()
-    private val errorHandler: ErrorHandler = mockk()
+    private val noteRepository = FakeNoteRepository()
+    private val analyticsRepository = FakeAnalyticsRepository()
+    private val errorHandler = FakeErrorHandler()
 
     private val noteId = "note1"
 
@@ -63,50 +50,54 @@ class EditNoteViewModelTest {
     )
 
     private fun createViewModel() = EditNoteViewModel(
-        savedStateHandle = SavedStateHandle(mapOf("noteId" to noteId)),
+        noteId = noteId,
         noteRepository = noteRepository,
         analyticsRepository = analyticsRepository,
         errorHandler = errorHandler
     )
 
-    @Before
+    @BeforeTest
     fun setUp() {
-        every { errorHandler.logError(any()) } just runs
-        every { analyticsRepository.logNoteEdit(any()) } just runs
-        coEvery { noteRepository.getNote(noteId) } returns Result.success(testNote)
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+        noteRepository.getNoteResult = Result.success(testNote)
     }
 
-    @After
-    fun tearDown() = unmockkAll()
+    @AfterTest
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
 
     // -------------------------------------------------------------------------
     // Loading the note
     // -------------------------------------------------------------------------
 
     @Test
+    fun `init asks the repository for the note it was given`() = runTest {
+        createViewModel()
+
+        assertEquals(listOf(noteId), noteRepository.requestedNoteIds)
+    }
+
+    @Test
     fun `init loads the note and prefills its text`() = runTest {
         val vm = createViewModel()
 
-        val content = vm.uiState.value.content
-        assertTrue(content is EditNoteContent.Success)
-        assertEquals(testNote, (content as EditNoteContent.Success).note)
+        assertEquals(EditNoteContent.Success(testNote), vm.uiState.value.content)
         assertEquals("Original text", vm.uiState.value.noteText)
     }
 
     @Test
     fun `init failure sets Error content`() = runTest {
         val exception = RuntimeException("note gone")
-        coEvery { noteRepository.getNote(noteId) } returns Result.failure(exception)
+        noteRepository.getNoteResult = Result.failure(exception)
 
         val vm = createViewModel()
 
-        val content = vm.uiState.value.content
-        assertTrue(content is EditNoteContent.Error)
         assertEquals(
-            ErrorMessage.Unlocalized("note gone"),
-            (content as EditNoteContent.Error).message
+            EditNoteContent.Error(ErrorMessage.Unlocalized("note gone")),
+            vm.uiState.value.content
         )
-        verify { errorHandler.logError(exception) }
+        assertEquals(listOf<Throwable>(exception), errorHandler.loggedErrors)
     }
 
     // -------------------------------------------------------------------------
@@ -140,7 +131,7 @@ class EditNoteViewModelTest {
 
     @Test
     fun `saveButtonEnabled stays false until the note loads`() = runTest {
-        coEvery { noteRepository.getNote(noteId) } coAnswers { awaitCancellation() }
+        noteRepository.getNoteAnswer = { awaitCancellation() }
         val vm = createViewModel()
 
         vm.updateNoteText("Some text")
@@ -165,8 +156,10 @@ class EditNoteViewModelTest {
         assertFalse(vm.saveButtonEnabled.value)
     }
 
+    // No comma in the name: Kotlin/Native rejects one in a test name, and only the iOS test task
+    // would find out.
     @Test
-    fun `saveButtonEnabled turns true once the text actually changes, and false again on undo`() =
+    fun `saveButtonEnabled turns true once the text actually changes and false again on undo`() =
         runTest {
             val vm = createViewModel()
 
@@ -180,8 +173,7 @@ class EditNoteViewModelTest {
     @Test
     fun `saveButtonEnabled is false for a blank text note whose text was already blank`() =
         runTest {
-            coEvery { noteRepository.getNote(noteId) } returns
-                    Result.success(testNote.copy(text = null))
+            noteRepository.getNoteResult = Result.success(testNote.copy(text = null))
             val vm = createViewModel()
 
             assertFalse(vm.saveButtonEnabled.value)
@@ -199,8 +191,7 @@ class EditNoteViewModelTest {
 
     @Test
     fun `saveButtonEnabled is false for blank text when the note has no media`() = runTest {
-        coEvery { noteRepository.getNote(noteId) } returns
-                Result.success(testNote.copy(mediaList = null))
+        noteRepository.getNoteResult = Result.success(testNote.copy(mediaList = null))
         val vm = createViewModel()
 
         vm.updateNoteText("")
@@ -262,67 +253,66 @@ class EditNoteViewModelTest {
     fun `saveNote sends the edited note through the repository`() = runTest {
         val vm = createViewModel()
         vm.updateNoteText("  Updated text  ")
-        val saved = slot<Note>()
-        coEvery { noteRepository.updateNote(capture(saved)) } returns Result.success(Unit)
 
         vm.saveNote()
 
         // This used to assert a noteUpdatedEvent. updateNote writes the edit through to the
         // `notes` table, so the note handed to the repository *is* what other screens will read --
         // which makes these the same assertions, one layer down.
-        assertEquals(noteId, saved.captured.noteId)
-        assertEquals("Updated text", saved.captured.text) // trimmed
+        val saved = assertNotNull(noteRepository.lastUpdatedNote)
+        assertEquals(noteId, saved.noteId)
+        assertEquals("Updated text", saved.text) // trimmed
         // Untouched by an edit -- only the text is editable.
-        assertEquals(testNote.mediaList, saved.captured.mediaList)
-        assertTrue(saved.captured.isFavorite) // preserved from the loaded note, not reset
-        assertEquals(testNote.username, saved.captured.username)
-        assertTrue(vm.uiState.value.saveStatus is SaveStatus.Success)
-        coVerify(exactly = 1) { noteRepository.updateNote(any()) }
+        assertEquals(testNote.mediaList, saved.mediaList)
+        assertTrue(saved.isFavorite) // preserved from the loaded note, not reset
+        assertEquals(testNote.username, saved.username)
+        assertEquals(SaveStatus.Success, vm.uiState.value.saveStatus)
+        assertEquals(1, noteRepository.updateCallCount)
     }
 
     @Test
     fun `saveNote sends null text when the field is blank`() = runTest {
         val vm = createViewModel()
         vm.updateNoteText("   ")
-        coEvery { noteRepository.updateNote(any()) } returns Result.success(Unit)
 
         vm.saveNote()
 
-        coVerify { noteRepository.updateNote(match { it.text == null }) }
+        val saved = assertNotNull(noteRepository.lastUpdatedNote)
+        assertNull(saved.text)
     }
 
     @Test
     fun `saveNote failure sets an Error status`() = runTest {
         val vm = createViewModel()
-        coEvery { noteRepository.updateNote(any()) } returns
-                Result.failure(RuntimeException("save fail"))
+        vm.updateNoteText("Updated text")
+        noteRepository.updateResult = Result.failure(RuntimeException("save fail"))
 
         vm.saveNote()
 
-        val status = vm.uiState.value.saveStatus
-        assertTrue(status is SaveStatus.Error)
-        assertEquals(ErrorMessage.Unlocalized("save fail"), (status as SaveStatus.Error).message)
+        assertEquals(
+            SaveStatus.Error(ErrorMessage.Unlocalized("save fail")),
+            vm.uiState.value.saveStatus
+        )
     }
 
     @Test
     fun `saveNote does nothing before the note loads`() = runTest {
-        coEvery { noteRepository.getNote(noteId) } coAnswers { awaitCancellation() }
+        noteRepository.getNoteAnswer = { awaitCancellation() }
         val vm = createViewModel()
 
         vm.saveNote()
 
-        assertTrue(vm.uiState.value.saveStatus is SaveStatus.Idle)
-        coVerify(exactly = 0) { noteRepository.updateNote(any()) }
+        assertEquals(SaveStatus.Idle, vm.uiState.value.saveStatus)
+        assertEquals(0, noteRepository.updateCallCount)
     }
 
     @Test
     fun `resetSaveStatus resets to Idle`() = runTest {
         val vm = createViewModel()
-        coEvery { noteRepository.updateNote(any()) } returns Result.success(Unit)
         vm.saveNote()
 
         vm.resetSaveStatus()
 
-        assertTrue(vm.uiState.value.saveStatus is SaveStatus.Idle)
+        assertEquals(SaveStatus.Idle, vm.uiState.value.saveStatus)
     }
 }

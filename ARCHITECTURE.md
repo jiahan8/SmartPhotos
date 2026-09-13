@@ -10,10 +10,10 @@ are about to change something a rule protects.
 
 Two deployables share one Firebase project:
 
-- **Android app** — Kotlin + Jetpack Compose, MVVM, across twenty-one Gradle modules: `:app`,
+- **Android app** — Kotlin + Jetpack Compose, MVVM, across twenty-two Gradle modules: `:app`,
   `:core:domain`, `:core:common`, `:core:data`, `:core:ui`, nine `:feature:*` libraries plus the
-  multiplatform `:feature:auth-viewmodel`, `:feature:explore-viewmodel` and
-  `:feature:settings-viewmodel`, and the
+  multiplatform `:feature:auth-viewmodel`, `:feature:explore-viewmodel`,
+  `:feature:note-viewmodel` and `:feature:settings-viewmodel`, and the
   four test-only modules `:core:testing` / `:core:domain-testing` / `:core:screenshot-testing` /
   `:core:ui-testing`. Plus
   `build-logic/`, an included build holding the seven convention plugins. The per-module contents and
@@ -436,16 +436,24 @@ things came out of it:
 **`AuthViewModel` and `SettingsViewModel` followed**, into `:feature:auth-viewmodel` and
 `:feature:settings-viewmodel`, suites and all — the pattern applied rather than re-derived. A second
 module wanting the same build lines is build-logic's threshold, and this step brought two, so those
-lines became the
-`smartphotos.kmp.viewmodel` convention, and a new ViewModel module's build file is its plugin id.
-`FakeAuthRepository` gained answer hooks for the calls those suites hold in flight.
+lines became the `smartphotos.kmp.viewmodel` convention, and a new ViewModel module's build file is
+its plugin id. `FakeAuthRepository` gained answer hooks for the calls those suites hold in flight.
 
-Nine ViewModels remain in the Android feature modules, each for a reason that can be named. Four
+**`EditNoteViewModel` came next**, into `:feature:note-viewmodel`, and brought the one new decision:
+where a route argument is decoded. `SavedStateHandle.toRoute` is in `navigation-common`'s
+`commonMain` as of 2.10, so the shared class could have kept it — at the price of moving
+`EditNoteRoute` away from its screen and putting Navigation and the serialization plugin on the
+shared module, for one `String`. Instead `HiltEditNoteViewModel` decodes the route and passes a
+plain `noteId`, which is also the constructor a non-Hilt container would call. With no `Bundle`
+left to build, the suite dropped Robolectric along with mockk, and
+`SmartPhotosNavigationTest.editNote_composesWithItsHiltBuiltViewModel` became the one place the
+decode runs. A future `commonMain` ViewModel reading a route should follow suit unless it needs the
+`SavedStateHandle` for state of its own.
+
+Eight ViewModels remain in the Android feature modules, each for a reason that can be named. Four
 hold `android.net.Uri` (Note, Profile and the two media previews), and four inject the
 `NoteErrorReporter`/`NoteShareDelegate` pair from `:core:common` (Home, Search, Favorite,
-NotePreview). EditNote's only tie is `SavedStateHandle.toRoute`, and `navigation-common` 2.10
-publishes Apple variants, so that one is likely the next to move. `:app`'s `MainViewModel` is
-Android-bound through `AppUpdateRepository`.
+NotePreview). `:app`'s `MainViewModel` is Android-bound through `AppUpdateRepository`.
 
 ### What is left
 

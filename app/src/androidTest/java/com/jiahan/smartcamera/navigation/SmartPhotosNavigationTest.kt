@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.core.net.toUri
@@ -33,6 +34,7 @@ import com.jiahan.smartcamera.data.repository.PhotoRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
+import com.jiahan.smartcamera.domain.Note
 import com.jiahan.smartcamera.explore.ExploreRoute
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeAuthRepository
@@ -47,6 +49,7 @@ import com.jiahan.smartcamera.feature.explore.R as ExploreR
 import com.jiahan.smartcamera.feature.profile.R as ProfileR
 import com.jiahan.smartcamera.feature.settings.R as SettingsR
 import com.jiahan.smartcamera.home.HomeRoute
+import com.jiahan.smartcamera.note.EditNoteRoute
 import com.jiahan.smartcamera.note.NoteRoute
 import com.jiahan.smartcamera.preview.NotePreviewRoute
 import com.jiahan.smartcamera.search.SearchRoute
@@ -461,5 +464,30 @@ class SmartPhotosNavigationTest {
 
         assertOnRoute(SettingsRoute::class)
         composeTestRule.onNodeWithText(string(SettingsR.string.settings)).assertExists()
+    }
+
+    /**
+     * EditNote's ViewModel is built through `HiltEditNoteViewModel`, which does one job the other
+     * subclasses do not: it decodes [EditNoteRoute] from its `SavedStateHandle` and passes the
+     * `noteId` down. This is the only place that decode runs -- the ViewModel suite in `commonTest`
+     * passes a `noteId` directly -- so the case asserts the id arrived, not just that the screen
+     * composed.
+     */
+    @Test
+    fun editNote_composesWithItsHiltBuiltViewModel() {
+        val fakeNoteRepository = noteRepository as FakeNoteRepository
+        fakeNoteRepository.getNoteResult = Result.success(
+            Note(noteId = "note-to-edit", text = "Text to edit", username = "tester")
+        )
+        launchApp()
+
+        composeTestRule.runOnIdle { navController.navigate(EditNoteRoute("note-to-edit")) }
+        waitUntilOnRoute(EditNoteRoute::class)
+
+        assertOnRoute(EditNoteRoute::class)
+        composeTestRule.waitUntil(NAVIGATION_TIMEOUT_MS) {
+            composeTestRule.onAllNodesWithText("Text to edit").fetchSemanticsNodes().isNotEmpty()
+        }
+        assertTrue("note-to-edit" in fakeNoteRepository.requestedNoteIds)
     }
 }

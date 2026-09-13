@@ -81,7 +81,7 @@ fun EditNoteScreen(
     onNavigateToPhotoPreview: (url: String) -> Unit,
     onNavigateToVideoPreview: (url: String) -> Unit,
     snackbarHostState: SnackbarHostState,
-    viewModel: EditNoteViewModel = hiltViewModel()
+    viewModel: EditNoteViewModel = hiltViewModel<HiltEditNoteViewModel>()
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val resources = LocalResources.current

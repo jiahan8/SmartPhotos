@@ -12,9 +12,11 @@ data object NoteRoute
 /**
  * Navigation route for [EditNoteScreen].
  *
- * [EditNoteViewModel] reads it back with `savedStateHandle.toRoute<EditNoteRoute>()`, so [noteId]
- * is the argument name Navigation serializes -- renaming it changes the generated route pattern
- * and the key `EditNoteViewModelTest` builds its `SavedStateHandle` with.
+ * [HiltEditNoteViewModel] reads it back with `savedStateHandle.toRoute<EditNoteRoute>()` and hands
+ * [noteId] to the shared `EditNoteViewModel`. [noteId] is the argument name Navigation serializes,
+ * so renaming it changes the generated route pattern; nothing on the JVM decodes this route any
+ * more, and `SmartPhotosNavigationTest.editNote_composesWithItsHiltBuiltViewModel` is what would
+ * catch it.
  */
 @Serializable
 data class EditNoteRoute(val noteId: String)

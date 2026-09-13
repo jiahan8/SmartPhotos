@@ -1,9 +1,7 @@
 package com.jiahan.smartcamera.note
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.navigation.toRoute
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.Note
@@ -12,7 +10,6 @@ import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorMessage
 import com.jiahan.smartcamera.util.ErrorTag
 import com.jiahan.smartcamera.util.toErrorMessage
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,7 +18,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 sealed interface EditNoteContent {
     data object Loading : EditNoteContent
@@ -60,18 +56,20 @@ private val EditNoteUiState.isTextChanged: Boolean
 
 /**
  * Backs the edit-note screen, which changes a note's text and nothing else -- its media is fixed
- * at creation time and shown read-only, so unlike [NoteViewModel] there is no media picking,
+ * at creation time and shown read-only, so unlike `NoteViewModel` there is no media picking,
  * capture or upload here, and saving is a single updateNote call.
+ *
+ * Open and annotation-free so it can live in `commonMain`; `HiltEditNoteViewModel` in
+ * :feature:note is what Hilt builds. It takes [noteId] as a plain argument rather than a
+ * `SavedStateHandle`, because that subclass decodes `EditNoteRoute` -- the route stays beside its
+ * screen, and this module needs neither Navigation nor the serialization plugin for one String.
  */
-@HiltViewModel
-class EditNoteViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
+open class EditNoteViewModel(
+    private val noteId: String,
     private val noteRepository: NoteRepository,
     private val analyticsRepository: AnalyticsRepository,
     private val errorHandler: ErrorHandler,
 ) : ViewModel() {
-
-    private val noteId: String = savedStateHandle.toRoute<EditNoteRoute>().noteId
 
     private val _uiState = MutableStateFlow(EditNoteUiState())
     val uiState = _uiState.asStateFlow()

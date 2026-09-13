@@ -42,6 +42,7 @@
             <option value="$PROJECT_DIR$/feature/favorite" />
             <option value="$PROJECT_DIR$/feature/home" />
             <option value="$PROJECT_DIR$/feature/note" />
+            <option value="$PROJECT_DIR$/feature/note-viewmodel" />
             <option value="$PROJECT_DIR$/feature/preview" />
             <option value="$PROJECT_DIR$/feature/profile" />
             <option value="$PROJECT_DIR$/feature/search" />
