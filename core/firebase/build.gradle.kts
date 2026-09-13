@@ -46,8 +46,17 @@ kotlin {
         commonMain.dependencies {
             // api: DefaultPhotoRepository implements a :core:domain interface and returns its models.
             api(project(":core:domain"))
-            // api: its public constructor takes GitLive's FirebaseFunctions.
+            // api: the public constructors take GitLive's FirebaseFunctions and FirebaseRemoteConfig.
             api(libs.gitlive.firebase.functions)
+            api(libs.gitlive.firebase.config)
+        }
+
+        androidMain.dependencies {
+            // Remote Config's real-time update listener, which GitLive 2.7.0 does not wrap in common
+            // code. `configUpdates`' Android actual reaches the SDK instance through GitLive's own
+            // `android` accessor, so it names the SDK's listener types itself.
+            implementation(project.dependencies.platform(libs.firebase.bom))
+            implementation(libs.firebase.config)
         }
 
         commonTest.dependencies {

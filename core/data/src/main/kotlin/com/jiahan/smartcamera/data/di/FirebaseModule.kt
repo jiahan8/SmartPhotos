@@ -10,8 +10,6 @@ import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.functions
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.messaging
-import com.google.firebase.remoteconfig.FirebaseRemoteConfig
-import com.google.firebase.remoteconfig.remoteConfig
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -19,6 +17,8 @@ import dagger.hilt.components.SingletonComponent
 import dev.gitlive.firebase.Firebase as GitLiveFirebase
 import dev.gitlive.firebase.functions.FirebaseFunctions as GitLiveFirebaseFunctions
 import dev.gitlive.firebase.functions.functions as gitLiveFunctions
+import dev.gitlive.firebase.remoteconfig.FirebaseRemoteConfig
+import dev.gitlive.firebase.remoteconfig.remoteConfig
 import javax.inject.Singleton
 
 /**
@@ -33,6 +33,10 @@ import javax.inject.Singleton
  *
  * It also closes the graph: with these providers up in the application module, nothing below :app
  * could assemble a repository, so :core:data's own Hilt-shaped tests had to restate them.
+ *
+ * GitLive's multiplatform instances, for the repositories that have moved to :core:firebase, are
+ * provided here too -- beside the Android SDK's while both kinds of repository exist, and in place
+ * of one once nothing injects the Android type.
  *
  * What stays in :app is what :app itself names: AppCheck (installed in `MyApp`), Crashlytics
  * (`DefaultErrorHandler`), firebase-messaging (its `FirebaseMessagingService` subclass -- so both
@@ -49,9 +53,11 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object FirebaseModule {
 
+    // GitLive's multiplatform Remote Config, for FirebaseRemoteConfigRepository in :core:firebase.
+    // The Android SDK's provider went when that class moved: nothing injects that type any more.
     @Provides
     @Singleton
-    fun provideFirebaseRemoteConfig(): FirebaseRemoteConfig = Firebase.remoteConfig
+    fun provideFirebaseRemoteConfig(): FirebaseRemoteConfig = GitLiveFirebase.remoteConfig
 
     @Provides
     @Singleton

@@ -24,23 +24,22 @@ import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.data.datastore.DefaultUserPreferencesRepository
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
+import com.jiahan.smartcamera.di.ApplicationScope
+import com.jiahan.smartcamera.di.DebugBuild
+import com.jiahan.smartcamera.util.ErrorHandler
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dev.gitlive.firebase.functions.FirebaseFunctions
+import dev.gitlive.firebase.remoteconfig.FirebaseRemoteConfig
+import kotlinx.coroutines.CoroutineScope
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class DataModule {
-
-    @Binds
-    @Singleton
-    abstract fun bindRemoteConfigRepository(
-        firebaseRemoteConfigRepository: FirebaseRemoteConfigRepository
-    ): RemoteConfigRepository
 
     @Binds
     @Singleton
@@ -118,5 +117,17 @@ abstract class DataModule {
         fun providePhotoRepository(
             functions: FirebaseFunctions
         ): PhotoRepository = DefaultPhotoRepository(functions)
+
+        // Also in :core:firebase. The application scope runs the settings and defaults the Android
+        // SDK used to apply asynchronously from the class's init block.
+        @Provides
+        @Singleton
+        fun provideRemoteConfigRepository(
+            remoteConfig: FirebaseRemoteConfig,
+            errorHandler: ErrorHandler,
+            @DebugBuild isDebugBuild: Boolean,
+            @ApplicationScope scope: CoroutineScope,
+        ): RemoteConfigRepository =
+            FirebaseRemoteConfigRepository(remoteConfig, errorHandler, isDebugBuild, scope)
     }
 }

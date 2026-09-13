@@ -133,7 +133,7 @@ unused-binding incident recorded below.)
 | --- | --- | --- |
 | UI | `<feature>/*Screen.kt` (`:feature:*`), `navigation/` (`:app`) | Render `UiState`, forward user intents. No Firebase/Room/DataStore calls, no business logic beyond UI-only state. |
 | ViewModel | `<feature>/*ViewModel.kt` (`:feature:<name>-viewmodel`, `commonMain`) | Open and annotation-free; Hilt builds its `Hilt<Name>ViewModel` subclass in `:feature:<name>`. Exposes a `*UiState` via `StateFlow` wrapping a nested sealed loading/loaded/error content type. Depends on repository *interfaces* only. |
-| Repository | interfaces in `:core:domain` (plus two in `:core:common`/`:core:data`), `Default*` implementations in `:core:data` (one each already in `:core:datastore` and `:core:firebase`) | Coordinates remote (Firestore/Storage/Functions) and local (Room/DataStore). Exposes domain models only. Every fallible operation returns `Result<T>` via `safeCall`. |
+| Repository | interfaces in `:core:domain` (plus two in `:core:common`/`:core:data`), `Default*` implementations in `:core:data` (some already in `:core:datastore` and `:core:firebase`) | Coordinates remote (Firestore/Storage/Functions) and local (Room/DataStore). Exposes domain models only. Every fallible operation returns `Result<T>` via `safeCall`. |
 | Domain | `domain/` (`:core:domain`) | Plain data classes (`Note`, `MediaDetail`, `User`, …). A multiplatform module, so `commonMain` compiles against the intersection of `jvm` and two iOS targets and neither `import android.*` nor `import java.*` resolves. |
 | Local | `database/` (`:core:database`, opened by `DatabaseModule` in `:core:data`), `data/datastore/` (the repository in `:core:datastore`, the DataStore it wraps built in `:core:data`) | The Room mirror and preferences. Schemas exported to `core/database/schemas/`. |
 | Remote | Firebase SDKs + `functions/index.js` | Auth, Firestore, Storage, Remote Config, Analytics, Crashlytics, FCM; Cloud Functions for anything needing a trusted server. |
@@ -281,8 +281,8 @@ the component is assembled in `:app` — which is why `:core:data` can inject `@
 | --- | --- | --- |
 | `di/AppModule.kt` | `:app` | `CoroutineDispatcher`s via `@IoDispatcher`/`@ApplicationScope`, the `@DebugBuild` flag, app-wide bindings |
 | `util/di/UtilModule.kt` | `:app` | `ErrorHandler` (logging only; screens resolve their own text) |
-| `data/di/DataModule.kt` | `:core:data` | Binds each repository interface to its `Default*`, and constructs `DefaultUserPreferencesRepository` and `DefaultPhotoRepository`, which have no injected constructor to bind |
-| `data/di/FirebaseModule.kt` | `:core:data` | The Firebase SDK singletons, plus GitLive's `FirebaseFunctions` for `:core:firebase` |
+| `data/di/DataModule.kt` | `:core:data` | Binds each repository interface to its `Default*`, and constructs the shared ones (`DefaultUserPreferencesRepository`, `DefaultPhotoRepository`, `FirebaseRemoteConfigRepository`), which have no injected constructor to bind |
+| `data/di/FirebaseModule.kt` | `:core:data` | The Firebase SDK singletons, plus GitLive's `FirebaseFunctions` and `FirebaseRemoteConfig` for `:core:firebase` |
 | `data/datastore/DataStoreModule.kt` | `:core:data` | DataStore, and the one deliberate place a `CoroutineScope` is built at module level rather than injected |
 | `database/di/DatabaseModule.kt` | `:core:data` | `AppDatabase` (declared in `:core:database`) and its DAOs |
 | `note/di/NoteDelegateModule.kt` | `:core:common` | `NoteErrorReporter` and `NoteShareDelegate`, `@ViewModelScoped` — the one module installed in `ViewModelComponent` |
@@ -575,6 +575,18 @@ What the spike measured, all of it now in the build:
 - On Android, GitLive's `FirebaseFunctions` wraps the same default instance, provided beside the
   Android SDK's in `FirebaseModule`; `HiltGraphSmokeTest` resolves it on a device.
 
+**`FirebaseRemoteConfigRepository` followed, and found GitLive's first gap.** GitLive 2.7.0's
+common Remote Config has no real-time update listener, and `observeExploreIconVisible` depends on
+one. Rather than lose live updates, `configUpdates` is an `expect`/`actual`: the Android actual
+registers the SDK's own listener through GitLive's public `android` accessor -- the same default
+instance GitLive fetches with -- and the JVM and iOS actuals are an empty flow, documented as such.
+GitLive's `settings` and `setDefaults` are `suspend`, so the setup the old `init` block fired
+asynchronously now launches in the injected `@ApplicationScope`, and `fetchAndActivateConfig` waits
+for it; a new test pins that ordering, which the old class left to timing. The Android SDK's
+`FirebaseRemoteConfig` provider went with it, since nothing injects that type any more. **That is
+the shape for the next gap:** call GitLive in common code where it has the API, and reach the SDK
+through its `android` accessor in an `actual` where it does not.
+
 ### What is left
 
 **The ceiling to know about before planning further: Hilt has no KMP support, and it is load-bearing
@@ -595,8 +607,8 @@ constructs a shared class as readily as a subclass does, so Hilt only has to be 
 second platform needs a container; Firebase is what actually gates the `Default*`s that remain.
 
 **Local persistence is shared now** — DataStore and Room both, above — so what is left of the data
-layer is the Firebase repositories still on the Android SDK — Auth, Note, User, MediaUpload,
-RemoteConfig and Analytics — plus `DefaultMediaFileRepository`, which is Android file and bitmap
+layer is the Firebase repositories still on the Android SDK — Auth, Note, User, MediaUpload
+and Analytics — plus `DefaultMediaFileRepository`, which is Android file and bitmap
 work, and `DefaultAppUpdateRepository`, which is Play Core; those two stay Android by nature. The wiring that
 opens each store (`DatabaseModule`, `DataStoreModule`) stays at the Android edge by nature, since
 both begin from a `Context`.

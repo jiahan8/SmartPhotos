@@ -130,12 +130,14 @@ dependencies {
     api(platform(libs.firebase.bom))
     api(libs.firebase.analytics)
     api(libs.firebase.auth)
-    api(libs.firebase.config)
     api(libs.firebase.firestore)
     api(libs.firebase.functions)
     api(libs.firebase.messaging)
-    // GitLive's FirebaseFunctions is a provider's return type and another's parameter.
+    // GitLive's FirebaseFunctions and FirebaseRemoteConfig are providers' return types and
+    // parameters. firebase-config itself is gone from this list: no source here names the Android
+    // SDK's Remote Config since its repository moved to :core:firebase.
     api(libs.gitlive.firebase.functions)
+    api(libs.gitlive.firebase.config)
     api(libs.play.app.update)
     api(libs.datastore.preferences)
     api(libs.datastore.preferences.core)
