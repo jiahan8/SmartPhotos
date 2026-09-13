@@ -1,6 +1,7 @@
 package com.jiahan.smartcamera.data.datastore
 
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.IOException
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -10,8 +11,6 @@ import com.jiahan.smartcamera.util.safeCall
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
-import java.io.IOException
-import javax.inject.Inject
 
 private object PreferencesKeys {
     val IS_DARK_THEME = booleanPreferencesKey(name = "is_dark_theme")
@@ -22,10 +21,12 @@ private object PreferencesKeys {
 /**
  * DataStore-backed [UserPreferencesRepository].
  *
- * The [DataStore] is injected (provided by [DataStoreModule]) rather than created from a hard-coded
- * `Context` delegate, so instrumented tests can supply a temp-file DataStore for full isolation.
+ * The [DataStore] is passed in -- built by :core:data's `DataStoreModule`, and this class
+ * constructed from it by `DataModule` -- rather than created here from a `Context`. That is what
+ * lets the class sit in `commonMain`: where the file lives is the platform's to decide, and a test
+ * can hand it a DataStore over an in-memory file system instead.
  */
-class DefaultUserPreferencesRepository @Inject constructor(
+class DefaultUserPreferencesRepository(
     private val dataStore: DataStore<Preferences>,
 ) : UserPreferencesRepository {
     override val userPreferences: Flow<UserPreferences> = dataStore.data

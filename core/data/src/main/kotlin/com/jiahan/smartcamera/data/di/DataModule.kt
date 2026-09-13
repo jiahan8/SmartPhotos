@@ -1,5 +1,7 @@
 package com.jiahan.smartcamera.data.di
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AppUpdateRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
@@ -24,6 +26,7 @@ import com.jiahan.smartcamera.data.datastore.DefaultUserPreferencesRepository
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import dagger.Binds
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
@@ -64,12 +67,6 @@ abstract class DataModule {
 
     @Binds
     @Singleton
-    abstract fun bindUserPreferencesRepository(
-        defaultUserPreferencesRepository: DefaultUserPreferencesRepository
-    ): UserPreferencesRepository
-
-    @Binds
-    @Singleton
     abstract fun bindMediaFileRepository(
         defaultMediaFileRepository: DefaultMediaFileRepository
     ): MediaFileRepository
@@ -106,4 +103,17 @@ abstract class DataModule {
     abstract fun bindAppUpdateRepository(
         defaultAppUpdateRepository: DefaultAppUpdateRepository
     ): AppUpdateRepository
+
+    companion object {
+        // Provided rather than bound: DefaultUserPreferencesRepository is in :core:datastore's
+        // commonMain, where no Inject annotation resolves, so Hilt cannot build it from its
+        // constructor. Declared here rather than beside the DataStore in DataStoreModule so that
+        // SmartPhotosNavigationTest's UninstallModules(DataModule::class) still removes it with
+        // every other repository binding it replaces with a fake.
+        @Provides
+        @Singleton
+        fun provideUserPreferencesRepository(
+            dataStore: DataStore<Preferences>
+        ): UserPreferencesRepository = DefaultUserPreferencesRepository(dataStore)
+    }
 }

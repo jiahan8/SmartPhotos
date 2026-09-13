@@ -1,5 +1,7 @@
 /*
- * Android library: every implementation that satisfies a contract in :core:domain.
+ * Android library: every implementation that satisfies a contract in :core:domain but one --
+ * `DefaultUserPreferencesRepository`, which needed nothing Android and is in :core:datastore's
+ * commonMain. It is still bound here, by `DataModule`, from the DataStore `DataStoreModule` builds.
  *
  * This is the Firebase/Room/DataStore/Play-Core half of the data layer -- the part that is
  * Android-bound by definition. The split with :core:domain is the dependency inversion the
@@ -40,10 +42,10 @@ android {
     namespace = "com.jiahan.smartcamera.core.data"
 
     defaultConfig {
-        // The Room DAO and DataStore tests here use neither Hilt nor Compose, so the plain
+        // The Room DAO and migration tests here use neither Hilt nor Compose, so the plain
         // AndroidX runner is enough -- :app's HiltTestRunner stays in :app with the tests that
         // need a Hilt component. Orchestrator + clearPackageData for the same reason as :app:
-        // Room and DataStore both write to disk, so tests must not inherit each other's state.
+        // Room writes to disk, so tests must not inherit each other's state.
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments["clearPackageData"] = "true"
     }
@@ -101,6 +103,11 @@ dependencies {
     // and `toPlatformUri()` is called in three files here. Both came down to :core:common when
     // :feature:profile was extracted, because a feature module must not depend on this one.
     api(project(":core:common"))
+
+    // implementation, not api: DataModule constructs DefaultUserPreferencesRepository in a provider
+    // that returns the :core:domain interface and takes a DataStore<Preferences>, so no type from
+    // that module reaches a signature :app's annotation processor has to resolve.
+    implementation(project(":core:datastore"))
 
     implementation(libs.androidx.core.ktx)
     // ActivityResultLauncher / IntentSenderRequest, for the in-app update flow.

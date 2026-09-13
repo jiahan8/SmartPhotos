@@ -211,7 +211,9 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
 
 /**
  * Fails configuration if this feature module declares a dependency on another `:feature:*` module
- * or on `:core:data`.
+ * or on a module holding repository implementations -- `:core:data`, and `:core:datastore` since
+ * `DefaultUserPreferencesRepository` moved there. Matched by exact path, so the next such module
+ * has to be added to [DATA_IMPLEMENTATION_MODULES] or a feature could reach it unnoticed.
  *
  * AGENTS.md states both rules -- "No feature module depends on another, and none reaches
  * `:core:data`" -- and until now nothing held them. That asymmetry is what this build usually
@@ -234,6 +236,8 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
  * cache it re-runs whenever configuration does, which is exactly when a dependency could have
  * changed.
  */
+private val DATA_IMPLEMENTATION_MODULES = setOf(":core:data", ":core:datastore")
+
 private fun Project.verifyNoLateralDependencies() = afterEvaluate {
     val forbidden = configurations.filter {
         // The declaration buckets (`implementation`, `testImplementation`, ...) rather than the
@@ -254,7 +258,7 @@ private fun Project.verifyNoLateralDependencies() = afterEvaluate {
             // which bucket AGP chose.
             .filter { it != path }
             .filterNot { it.startsWith("$path-") }
-            .filter { it.startsWith(":feature:") || it == ":core:data" }
+            .filter { it.startsWith(":feature:") || it in DATA_IMPLEMENTATION_MODULES }
             .map { "$it (via ${configuration.name})" }
             .toList()
     }.distinct().sorted()
@@ -268,7 +272,7 @@ private fun Project.verifyNoLateralDependencies() = afterEvaluate {
             |
             |A :feature:* module depends on :core:* only. It must not depend on another feature --
             |two screens that need the same thing means that thing belongs in a :core: module -- and
-            |it must not reach :core:data, because the repositories a ViewModel injects are
+            |it must not reach :core:data or :core:datastore, because the repositories a ViewModel injects are
             |interfaces in :core:domain, bound in :app. Its own shared half, named
             |`$path-<suffix>` (as :feature:explore-viewmodel is), is the one :feature: edge allowed.
             |
