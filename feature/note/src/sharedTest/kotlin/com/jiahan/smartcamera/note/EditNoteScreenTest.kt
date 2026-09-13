@@ -25,7 +25,6 @@ import com.jiahan.smartcamera.domain.Note
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
 import com.jiahan.smartcamera.fake.FakeNoteRepository
-import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.ui.theme.SmartPhotosTheme
 import com.jiahan.smartcamera.uitest.BaseScreenTest
 import com.jiahan.smartcamera.uitest.UI_TEST_TIMEOUT_MS
@@ -75,7 +74,6 @@ class EditNoteScreenTest : BaseScreenTest() {
             savedStateHandle = SavedStateHandle(mapOf("noteId" to noteId)),
             noteRepository = noteRepository,
             analyticsRepository = FakeAnalyticsRepository(),
-            resourceProvider = FakeResourceProvider(composeTestRule.activity),
             errorHandler = errorHandler,
         )
         composeTestRule.setContent {

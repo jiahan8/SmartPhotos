@@ -4,10 +4,9 @@ package com.jiahan.smartcamera.domain
  * A failure the data layer raises itself, as opposed to one it surfaces from Firebase.
  *
  * Repositories must not build user-facing text — resolving a string resource is presentation, and
- * belongs to the ViewModel layer — so these carry an identity rather than a message.
- * `util/ErrorMessageMappers.kt` maps each to its string resource and `DefaultErrorHandler`
- * applies that mapping, so a ViewModel that already routes failures through `ErrorHandler` needs
- * no change to render them.
+ * belongs to the screen — so these carry an identity rather than a message. A ViewModel carries
+ * one up as `ErrorMessage.Known` via `toErrorMessage`, and `appErrorMessageResId`
+ * (`util/ErrorMessages.kt`, :core:common) maps it to its string where the screen draws it.
  *
  * Free of Android types, so it travels with the repository interfaces rather than staying behind
  * with the Android implementations.

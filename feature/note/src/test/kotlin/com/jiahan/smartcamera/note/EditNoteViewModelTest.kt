@@ -10,7 +10,7 @@ import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.domain.Note
 import com.jiahan.smartcamera.util.AppConstants.MAX_NOTE_TEXT_LENGTH
 import com.jiahan.smartcamera.util.ErrorHandler
-import com.jiahan.smartcamera.util.ResourceProvider
+import com.jiahan.smartcamera.util.ErrorMessage
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -25,7 +25,6 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -51,7 +50,6 @@ class EditNoteViewModelTest {
 
     private val noteRepository: NoteRepository = mockk()
     private val analyticsRepository: AnalyticsRepository = mockk()
-    private val resourceProvider: ResourceProvider = mockk()
     private val errorHandler: ErrorHandler = mockk()
 
     private val noteId = "note1"
@@ -68,15 +66,12 @@ class EditNoteViewModelTest {
         savedStateHandle = SavedStateHandle(mapOf("noteId" to noteId)),
         noteRepository = noteRepository,
         analyticsRepository = analyticsRepository,
-        resourceProvider = resourceProvider,
         errorHandler = errorHandler
     )
 
     @Before
     fun setUp() {
         every { errorHandler.logError(any()) } just runs
-        every { errorHandler.getErrorMessage(any()) } returns "Error"
-        every { resourceProvider.getString(any()) } returns "Text too long"
         every { analyticsRepository.logNoteEdit(any()) } just runs
         coEvery { noteRepository.getNote(noteId) } returns Result.success(testNote)
     }
@@ -102,13 +97,15 @@ class EditNoteViewModelTest {
     fun `init failure sets Error content`() = runTest {
         val exception = RuntimeException("note gone")
         coEvery { noteRepository.getNote(noteId) } returns Result.failure(exception)
-        every { errorHandler.getErrorMessage(exception) } returns "note gone"
 
         val vm = createViewModel()
 
         val content = vm.uiState.value.content
         assertTrue(content is EditNoteContent.Error)
-        assertEquals("note gone", (content as EditNoteContent.Error).message)
+        assertEquals(
+            ErrorMessage.Unlocalized("note gone"),
+            (content as EditNoteContent.Error).message
+        )
         verify { errorHandler.logError(exception) }
     }
 
@@ -122,7 +119,7 @@ class EditNoteViewModelTest {
 
         vm.updateNoteText("a".repeat(MAX_NOTE_TEXT_LENGTH + 1))
 
-        assertEquals("Text too long", vm.uiState.value.noteTextError)
+        assertTrue(vm.uiState.value.isNoteTextTooLong)
         assertFalse(vm.saveButtonEnabled.value)
     }
 
@@ -133,7 +130,7 @@ class EditNoteViewModelTest {
 
         vm.updateNoteText("Back within the limit")
 
-        assertNull(vm.uiState.value.noteTextError)
+        assertFalse(vm.uiState.value.isNoteTextTooLong)
         assertTrue(vm.saveButtonEnabled.value)
     }
 
@@ -299,13 +296,12 @@ class EditNoteViewModelTest {
         val vm = createViewModel()
         coEvery { noteRepository.updateNote(any()) } returns
                 Result.failure(RuntimeException("save fail"))
-        every { errorHandler.getErrorMessage(any()) } returns "save fail"
 
         vm.saveNote()
 
         val status = vm.uiState.value.saveStatus
         assertTrue(status is SaveStatus.Error)
-        assertEquals("save fail", (status as SaveStatus.Error).message)
+        assertEquals(ErrorMessage.Unlocalized("save fail"), (status as SaveStatus.Error).message)
     }
 
     @Test

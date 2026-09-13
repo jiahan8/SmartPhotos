@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ShareCompat
@@ -47,7 +48,9 @@ import com.jiahan.smartcamera.common.ScrollDirectionEffect
 import com.jiahan.smartcamera.common.ScrollToTopEffect
 import com.jiahan.smartcamera.common.rememberShouldLoadMore
 import com.jiahan.smartcamera.common.showAppSnackbar
+import com.jiahan.smartcamera.note.resolve
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
+import com.jiahan.smartcamera.util.resolve
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,6 +73,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val hapticFeedback = LocalHapticFeedback.current
     val pullToRefreshState = rememberPullToRefreshState()
     val listState = rememberLazyListState()
@@ -87,8 +91,8 @@ fun HomeScreen(
     )
 
     LaunchedEffect(Unit) {
-        viewModel.actionError.collect { message ->
-            snackbarHostState.showAppSnackbar(message, isError = true)
+        viewModel.actionError.collect { error ->
+            snackbarHostState.showAppSnackbar(error.resolve(resources), isError = true)
         }
     }
 
@@ -166,7 +170,7 @@ fun HomeScreen(
                     when (state) {
                         is HomeContent.Loading -> NoteListSkeleton()
 
-                        is HomeContent.Error -> FullScreenMessage(state.message)
+                        is HomeContent.Error -> FullScreenMessage(state.message.resolve(resources))
 
                         is HomeContent.Success ->
                             if (state.notes.isEmpty()) {

@@ -1,5 +1,6 @@
 package com.jiahan.smartcamera.auth
 
+import android.content.res.Resources
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -50,6 +52,8 @@ import com.jiahan.smartcamera.common.bounceScale
 import com.jiahan.smartcamera.core.common.R as CommonR
 import com.jiahan.smartcamera.feature.auth.R
 import com.jiahan.smartcamera.ui.theme.SmartPhotosTheme
+import com.jiahan.smartcamera.util.resolve
+import com.jiahan.smartcamera.util.validationErrorMessageResId
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +66,7 @@ fun AuthScreen(
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val scrollState = rememberScrollState()
+    val resources = LocalResources.current
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val email = uiState.email
@@ -155,7 +160,7 @@ fun AuthScreen(
 
             when (authStatus) {
                 is AuthStatus.Error -> Text(
-                    text = authStatus.message,
+                    text = authStatus.error.resolve(resources),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
@@ -163,7 +168,7 @@ fun AuthScreen(
                 )
 
                 is AuthStatus.Info -> Text(
-                    text = authStatus.message,
+                    text = stringResource(authStatus.notice.messageResId()),
                     color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
@@ -225,6 +230,24 @@ fun AuthScreen(
             }
         }
     }
+}
+
+/** The text an [AuthError] shows. */
+private fun AuthError.resolve(resources: Resources): String = when (this) {
+    is AuthError.Failed -> message.resolve(resources)
+    is AuthError.Invalid -> resources.getString(validationErrorMessageResId(reason))
+    AuthError.EmailPasswordEmpty -> resources.getString(R.string.email_password_empty)
+    AuthError.AllFieldsRequired -> resources.getString(R.string.all_fields_required)
+    AuthError.EmailNotVerified -> resources.getString(R.string.email_not_verified)
+    AuthError.UsernameNotAvailable -> resources.getString(CommonR.string.username_not_available)
+    AuthError.EmailEmpty -> resources.getString(R.string.enter_email)
+    AuthError.EmailNotRegistered -> resources.getString(R.string.email_not_registered)
+}
+
+private fun AuthNotice.messageResId(): Int = when (this) {
+    AuthNotice.VERIFICATION_EMAIL_SENT -> R.string.verification_email_sent
+    AuthNotice.VERIFICATION_EMAIL_RESENT -> R.string.verification_email_resent
+    AuthNotice.PASSWORD_RESET_EMAIL_SENT -> R.string.password_reset_email_sent
 }
 
 @Preview(showBackground = true, name = "Auth – Login mode")

@@ -11,7 +11,6 @@ import com.jiahan.smartcamera.fake.FakeErrorHandler
 import com.jiahan.smartcamera.fake.FakeMediaFileRepository
 import com.jiahan.smartcamera.fake.FakeNoteRepository
 import com.jiahan.smartcamera.fake.FakeRemoteConfigRepository
-import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.home.HomeScreen
 import com.jiahan.smartcamera.home.HomeViewModel
 import com.jiahan.smartcamera.note.NoteErrorReporter
@@ -93,7 +92,6 @@ class HomeScreenScreenshotTest : BaseScreenshotTest() {
             NoteShareDelegate(
                 FakeMediaFileRepository(),
                 noteErrorReporter,
-                FakeResourceProvider(RuntimeEnvironment.getApplication())
             ),
             errorHandler,
             FakeRemoteConfigRepository(),

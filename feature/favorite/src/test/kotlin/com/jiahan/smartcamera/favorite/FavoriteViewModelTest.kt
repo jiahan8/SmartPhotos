@@ -5,10 +5,12 @@ import com.jiahan.smartcamera.MainDispatcherRule
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.Note
+import com.jiahan.smartcamera.note.NoteActionError
 import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.AppConstants
 import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.ErrorMessage
 import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -49,7 +51,6 @@ class FavoriteViewModelTest {
     fun setUp() {
         every { analyticsRepository.logFavoriteSearch(any()) } just runs
         every { errorHandler.logError(any()) } just runs
-        every { errorHandler.getErrorMessage(any()) } returns "Error"
         coEvery { noteRepository.syncFavoriteNotes() } returns Result.success(Unit)
         every { noteRepository.getFavoriteNotesStream(any()) } returns flowOf(emptyList())
         viewModel = buildViewModel()
@@ -98,7 +99,6 @@ class FavoriteViewModelTest {
         runTest(mainDispatcherRule.testDispatcher) {
             coEvery { noteRepository.syncFavoriteNotes() } returns
                     Result.failure(RuntimeException("sync"))
-            every { errorHandler.getErrorMessage(any()) } returns "sync error"
             val viewModel = buildViewModel()
 
             viewModel.actionError.test {
@@ -146,12 +146,14 @@ class FavoriteViewModelTest {
         runTest(mainDispatcherRule.testDispatcher) {
             val exception = RuntimeException("offline")
             coEvery { noteRepository.syncFavoriteNotes() } returns Result.failure(exception)
-            every { errorHandler.getErrorMessage(exception) } returns "offline"
             val viewModel = buildViewModel()
 
             viewModel.content.test {
                 advanceUntilIdle()
-                assertEquals(FavoriteContent.Error("offline"), expectMostRecentItem())
+                assertEquals(
+                    FavoriteContent.Error(ErrorMessage.Unlocalized("offline")),
+                    expectMostRecentItem()
+                )
                 cancelAndIgnoreRemainingEvents()
             }
         }
@@ -163,7 +165,6 @@ class FavoriteViewModelTest {
             every { noteRepository.getFavoriteNotesStream(any()) } returns flowOf(cached)
             val exception = RuntimeException("offline")
             coEvery { noteRepository.syncFavoriteNotes() } returns Result.failure(exception)
-            every { errorHandler.getErrorMessage(exception) } returns "offline"
             val viewModel = buildViewModel()
 
             viewModel.content.test {
@@ -181,12 +182,14 @@ class FavoriteViewModelTest {
                     flowOf(listOf(makeNote("doc1")))
             val exception = RuntimeException("offline")
             coEvery { noteRepository.syncFavoriteNotes() } returns Result.failure(exception)
-            every { errorHandler.getErrorMessage(exception) } returns "offline"
             val viewModel = buildViewModel()
 
             viewModel.actionError.test {
                 advanceUntilIdle()
-                assertEquals("offline", awaitItem())
+                assertEquals(
+                    NoteActionError.Failed(ErrorMessage.Unlocalized("offline")),
+                    awaitItem()
+                )
                 cancelAndIgnoreRemainingEvents()
             }
         }
@@ -240,12 +243,11 @@ class FavoriteViewModelTest {
     @Test
     fun `deleteNote failure emits action error`() = runTest(mainDispatcherRule.testDispatcher) {
         coEvery { noteRepository.deleteNote(any()) } returns Result.failure(RuntimeException())
-        every { errorHandler.getErrorMessage(any()) } returns "delete error"
 
         viewModel.actionError.test {
             viewModel.deleteNote("doc1")
             advanceUntilIdle()
-            assertEquals("delete error", awaitItem())
+            assertEquals(NoteActionError.Failed(ErrorMessage.Generic), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -271,12 +273,11 @@ class FavoriteViewModelTest {
     @Test
     fun `toggleFavorite failure emits action error`() = runTest(mainDispatcherRule.testDispatcher) {
         coEvery { noteRepository.toggleFavorite(any()) } returns Result.failure(RuntimeException())
-        every { errorHandler.getErrorMessage(any()) } returns "fav error"
 
         viewModel.actionError.test {
             viewModel.toggleFavorite(makeNote("doc1"))
             advanceUntilIdle()
-            assertEquals("fav error", awaitItem())
+            assertEquals(NoteActionError.Failed(ErrorMessage.Generic), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }

@@ -12,7 +12,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeAuthRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
-import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.fake.FakeUserPreferencesRepository
 import com.jiahan.smartcamera.feature.settings.R
 import com.jiahan.smartcamera.ui.theme.SmartPhotosTheme
@@ -48,7 +47,6 @@ class SettingsScreenNavigationTest : BaseScreenTest() {
             authRepository = authRepository,
             analyticsRepository = FakeAnalyticsRepository(),
             userPreferencesRepository = preferencesRepository,
-            resourceProvider = FakeResourceProvider(composeTestRule.activity),
             errorHandler = FakeErrorHandler(),
         )
         composeTestRule.setContent {

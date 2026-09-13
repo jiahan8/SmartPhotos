@@ -7,9 +7,11 @@ import app.cash.turbine.test
 import com.jiahan.smartcamera.MainDispatcherRule
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.Note
+import com.jiahan.smartcamera.note.NoteActionError
 import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.ErrorMessage
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -90,7 +92,6 @@ class NotePreviewViewModelTest {
     @Before
     fun setUp() {
         every { errorHandler.logError(any()) } just runs
-        every { errorHandler.getErrorMessage(any()) } returns "Error"
         every { noteRepository.getNoteStream(noteId) } returns noteMirror
         // getNote writes the note through on its way out, the way the real repository does.
         coEvery { noteRepository.getNote(noteId) } coAnswers {
@@ -145,13 +146,15 @@ class NotePreviewViewModelTest {
     fun `init failure sets Error state`() = runTest {
         val exception = RuntimeException("not found")
         coEvery { noteRepository.getNote(noteId) } returns Result.failure(exception)
-        every { errorHandler.getErrorMessage(exception) } returns "not found"
 
         val viewModel = createViewModel()
 
         val state = viewModel.content.value
         assertTrue(state is NotePreviewContent.Error)
-        assertEquals("not found", (state as NotePreviewContent.Error).message)
+        assertEquals(
+            ErrorMessage.Unlocalized("not found"),
+            (state as NotePreviewContent.Error).message
+        )
     }
 
     @Test
@@ -198,11 +201,10 @@ class NotePreviewViewModelTest {
     fun `deleteNote failure emits action error`() = runTest {
         val viewModel = createViewModel()
         coEvery { noteRepository.deleteNote(any()) } returns Result.failure(RuntimeException())
-        every { errorHandler.getErrorMessage(any()) } returns "delete failed"
 
         viewModel.actionError.test {
             viewModel.deleteNote(noteId)
-            assertEquals("delete failed", awaitItem())
+            assertEquals(NoteActionError.Failed(ErrorMessage.Generic), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -231,11 +233,10 @@ class NotePreviewViewModelTest {
     fun `toggleFavorite failure leaves the note as it was`() = runTest {
         val viewModel = createViewModel()
         coEvery { noteRepository.toggleFavorite(any()) } returns Result.failure(RuntimeException())
-        every { errorHandler.getErrorMessage(any()) } returns "fav failed"
 
         viewModel.actionError.test {
             viewModel.toggleFavorite(testNote)
-            assertEquals("fav failed", awaitItem())
+            assertEquals(NoteActionError.Failed(ErrorMessage.Generic), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
         assertFalse((viewModel.content.value as NotePreviewContent.Success).note.isFavorite)
@@ -282,8 +283,8 @@ class NotePreviewViewModelTest {
         val viewModel = createViewModel()
 
         viewModel.actionError.test {
-            noteErrorReporter.reportError("share failed")
-            assertEquals("share failed", awaitItem())
+            noteErrorReporter.reportShareFailure()
+            assertEquals(NoteActionError.ShareFailed, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }

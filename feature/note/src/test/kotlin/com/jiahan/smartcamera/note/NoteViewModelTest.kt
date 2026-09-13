@@ -11,9 +11,10 @@ import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.NoteMediaDetail
+import com.jiahan.smartcamera.util.AppConstants.MAX_NOTE_MEDIA_ITEMS
 import com.jiahan.smartcamera.util.AppConstants.MAX_NOTE_TEXT_LENGTH
 import com.jiahan.smartcamera.util.ErrorHandler
-import com.jiahan.smartcamera.util.ResourceProvider
+import com.jiahan.smartcamera.util.ErrorMessage
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -44,7 +45,6 @@ class NoteViewModelTest {
     private val analyticsRepository: AnalyticsRepository = mockk()
     private val mediaFileRepository: MediaFileRepository = mockk()
     private val incomingShareHandler: IncomingShareHandler = mockk()
-    private val resourceProvider: ResourceProvider = mockk()
     private val errorHandler: ErrorHandler = mockk()
 
     private lateinit var viewModel: NoteViewModel
@@ -53,8 +53,6 @@ class NoteViewModelTest {
     fun setUp() {
         every { analyticsRepository.logNoteCreate(any()) } just runs
         every { errorHandler.logError(any()) } just runs
-        every { errorHandler.getErrorMessage(any()) } returns "Error"
-        every { resourceProvider.getString(any()) } returns "Text too long"
         every { incomingShareHandler.consume() } returns null
         every { userPreferencesRepository.userPreferences } returns
                 flowOf(
@@ -71,7 +69,6 @@ class NoteViewModelTest {
             analyticsRepository,
             mediaFileRepository,
             incomingShareHandler,
-            resourceProvider,
             errorHandler
         )
     }
@@ -122,17 +119,17 @@ class NoteViewModelTest {
     }
 
     @Test
-    fun `updateNoteText exceeding max length sets noteTextError`() {
+    fun `updateNoteText exceeding max length sets isNoteTextTooLong`() {
         val longText = "a".repeat(MAX_NOTE_TEXT_LENGTH + 1)
         viewModel.updateNoteText(longText)
-        assertEquals("Text too long", viewModel.uiState.value.noteTextError)
+        assertTrue(viewModel.uiState.value.isNoteTextTooLong)
     }
 
     @Test
-    fun `updateNoteText within max length clears noteTextError`() {
+    fun `updateNoteText within max length clears isNoteTextTooLong`() {
         viewModel.updateNoteText("a".repeat(MAX_NOTE_TEXT_LENGTH + 1)) // set error
         viewModel.updateNoteText("short text")                           // clear error
-        assertNull(viewModel.uiState.value.noteTextError)
+        assertFalse(viewModel.uiState.value.isNoteTextTooLong)
     }
 
     @Test
@@ -190,6 +187,32 @@ class NoteViewModelTest {
         viewModel.removeMediaAt(-1)
         assertEquals(0, viewModel.uiState.value.mediaList.size)
     }
+
+    /**
+     * The one upload status that is not an upload outcome. It used to be an `Error` carrying the
+     * resolved `note_media_limit` string, which this suite could only match against a stubbed
+     * `ResourceProvider`; as its own case it is asserted as itself.
+     */
+    @Test
+    fun `addMedia past the per-note limit keeps the first items and reports MediaLimitReached`() =
+        runTest {
+            val tooMany = (0..MAX_NOTE_MEDIA_ITEMS).map {
+                NoteMediaDetail(
+                    photoUri = MediaUri("content://media/$it"),
+                    videoUri = null,
+                    thumbnailUri = null,
+                    isVideo = false
+                )
+            }
+            coEvery { mediaUploadRepository.buildLocalMediaDetails(any()) } returns
+                    Result.success(tooMany)
+            coEvery { mediaUploadRepository.uploadMediaToCache(any(), any()) } returns Unit
+
+            viewModel.addMedia(listOf(mockk()))
+
+            assertEquals(tooMany.take(MAX_NOTE_MEDIA_ITEMS), viewModel.uiState.value.mediaList)
+            assertEquals(UploadStatus.MediaLimitReached, viewModel.uiState.value.uploadStatus)
+        }
 
     // -------------------------------------------------------------------------
     // resetUploadStatus
@@ -268,12 +291,14 @@ class NoteViewModelTest {
         viewModel.updateNoteText("My note")
         coEvery { mediaUploadRepository.uploadMedia(any()) } returns
                 Result.failure(RuntimeException("upload fail"))
-        every { errorHandler.getErrorMessage(any()) } returns "upload fail"
 
         viewModel.saveNote()
 
         val state = viewModel.uiState.value.uploadStatus
         assertTrue(state is UploadStatus.Error)
-        assertEquals("upload fail", (state as UploadStatus.Error).message)
+        assertEquals(
+            ErrorMessage.Unlocalized("upload fail"),
+            (state as UploadStatus.Error).message
+        )
     }
 }

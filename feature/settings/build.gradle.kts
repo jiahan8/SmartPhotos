@@ -55,7 +55,8 @@ dependencies {
     // This module's first :core:common edge, and it arrived rather than left: `validateNewPassword`
     // went down to :core:domain once ValidationResult.Error carried an identity instead of an
     // R.string, and `password_empty` went up to :core:common to sit with the mapper that renders
-    // every validation failure. SettingsViewModel reads both across this edge -- the function from
-    // :core:domain, the mapper and the string from here.
+    // every validation failure. SettingsViewModel calls the function from :core:domain and hands
+    // its verdict up as an identity; SettingsScreen renders it with the mapper and the strings from
+    // here.
     implementation(project(":core:common"))
 }

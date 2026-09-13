@@ -6,6 +6,7 @@ import com.jiahan.smartcamera.data.repository.PhotoRepository
 import com.jiahan.smartcamera.domain.Photo
 import com.jiahan.smartcamera.domain.PhotoPage
 import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.ErrorMessage
 import com.jiahan.smartcamera.util.ErrorTag
 import io.mockk.clearMocks
 import io.mockk.coEvery
@@ -50,7 +51,6 @@ class ExploreViewModelTest {
     @Before
     fun setUp() {
         every { errorHandler.logError(any(), any()) } just runs
-        every { errorHandler.getErrorMessage(any()) } returns "An error occurred"
         every { analyticsRepository.logExploreSearch(any()) } just runs
         coEvery { photoRepository.listPhotos(any(), any()) } returns
                 Result.success(PhotoPage(emptyList(), hasMore = false))
@@ -100,12 +100,14 @@ class ExploreViewModelTest {
     fun `init emits Error state when repository fails`() = runTest {
         val exception = RuntimeException("network error")
         coEvery { photoRepository.listPhotos(any(), any()) } returns Result.failure(exception)
-        every { errorHandler.getErrorMessage(exception) } returns "network error"
         val vm = createViewModel()
 
         val content = vm.uiState.value.content
         assertTrue(content is ExploreContent.Error)
-        assertEquals("network error", (content as ExploreContent.Error).message)
+        assertEquals(
+            ErrorMessage.Unlocalized("network error"),
+            (content as ExploreContent.Error).message
+        )
     }
 
     // -------------------------------------------------------------------------
@@ -145,13 +147,15 @@ class ExploreViewModelTest {
 
         val exception = RuntimeException("refresh failed")
         coEvery { photoRepository.listPhotos(1, any()) } returns Result.failure(exception)
-        every { errorHandler.getErrorMessage(exception) } returns "refresh failed"
 
         vm.refresh()
 
         val content = vm.uiState.value.content
         assertTrue(content is ExploreContent.Error)
-        assertEquals("refresh failed", (content as ExploreContent.Error).message)
+        assertEquals(
+            ErrorMessage.Unlocalized("refresh failed"),
+            (content as ExploreContent.Error).message
+        )
         assertFalse(vm.uiState.value.isRefreshing)
     }
 
@@ -434,14 +438,16 @@ class ExploreViewModelTest {
         coEvery {
             photoRepository.searchPhotos("cats", 1, any())
         } returns Result.failure(exception)
-        every { errorHandler.getErrorMessage(exception) } returns "search failed"
 
         viewModel.updateSearchQuery("cats")
         viewModel.submitSearch()
 
         val content = viewModel.uiState.value.searchContent
         assertTrue(content is ExploreContent.Error)
-        assertEquals("search failed", (content as ExploreContent.Error).message)
+        assertEquals(
+            ErrorMessage.Unlocalized("search failed"),
+            (content as ExploreContent.Error).message
+        )
     }
 
     // -------------------------------------------------------------------------

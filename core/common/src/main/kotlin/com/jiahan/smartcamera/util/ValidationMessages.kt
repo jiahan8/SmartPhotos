@@ -6,20 +6,18 @@ import com.jiahan.smartcamera.core.common.R
  * ValidationError -> string resource mapping.
  *
  * The presentation half of the split ValidationError describes: the validators in :core:domain
- * name the rule that failed, this resolves the copy, and a ViewModel renders it as
- * `resourceProvider.getString(validationErrorMessageResId(result.reason))`.
+ * name the rule that failed, a ViewModel puts that identity on its UiState, and the screen renders
+ * it as `stringResource(validationErrorMessageResId(reason))`.
  *
- * **It lives here rather than in :app's ErrorMessageMappers.kt, which is where AGENTS.md sends a
- * new mapper, and the exception is worth understanding.** An AppError reaches a feature as a
- * Throwable it already routes through the ErrorHandler interface, so `appErrorMessageResId` can
- * sit in :app and be applied for the feature inside `getErrorMessage`. A ValidationResult has no
- * such seam: the ViewModel called the validator itself and holds the result. Mapping it from :app
- * would mean inventing a seam -- another :core:domain interface, an implementation, a Hilt binding
- * and a test double -- to reach a `when` over an enum.
+ * It sits beside `ErrorMessages.kt`, and was for a while the exception to where mappers went:
+ * `appErrorMessageResId` lived in :app, applied for the features inside `getErrorMessage`, and
+ * this could not follow it there -- a ValidationResult reaches a ViewModel from a function it
+ * called itself, with no seam in between to apply a mapper on the feature's behalf. Moving string
+ * resolution from the ViewModels to the screens ended the difference: both mappers are called from
+ * feature screens only, and this module is where every one of those can see them.
  *
- * The strings settle it independently. :feature:profile's ProfileScreenTest asserts `name_empty`
- * and `username_invalid_characters` through `CommonR`, so they cannot move up to :app, and a
- * mapper cannot resolve an `R` it cannot see.
+ * :feature:profile's ProfileScreenTest asserts `name_empty` and `username_invalid_characters`
+ * through `CommonR`, so the strings stay here regardless.
  */
 fun validationErrorMessageResId(error: ValidationError): Int = when (error) {
     ValidationError.NAME_EMPTY -> R.string.name_empty

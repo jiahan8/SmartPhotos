@@ -7,7 +7,6 @@ import androidx.compose.runtime.remember
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeAuthRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
-import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.fake.FakeUserPreferencesRepository
 import com.jiahan.smartcamera.settings.SettingsScreen
 import com.jiahan.smartcamera.settings.SettingsViewModel
@@ -42,7 +41,6 @@ class SettingsScreenScreenshotTest : BaseScreenshotTest() {
             authRepository = FakeAuthRepository(),
             analyticsRepository = FakeAnalyticsRepository(),
             userPreferencesRepository = FakeUserPreferencesRepository(),
-            resourceProvider = FakeResourceProvider(RuntimeEnvironment.getApplication()),
             errorHandler = FakeErrorHandler(),
         ).apply(prepare)
         capture {

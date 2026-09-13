@@ -47,9 +47,10 @@ android {
         // Each test runs in its own instrumentation process, so a crash or leaked state in one
         // test cannot affect another. Combined with clearPackageData above for hermetic runs.
         execution = "ANDROIDX_TEST_ORCHESTRATOR"
-        // DefaultErrorHandlerTest resolves real strings under Robolectric. This used to be here
-        // for the Compose screenshot tests as well; they have gone to the feature modules, but the
-        // remaining reason is enough on its own.
+        // SearchDeepLinkManifestTest resolves an intent against the merged manifest under
+        // Robolectric, which it sees only with this on. The Compose screenshot tests and
+        // DefaultErrorHandlerTest's real strings were reasons too; the first went to the feature
+        // modules and the second went when screens took over resolving their own text.
         unitTests {
             isIncludeAndroidResources = true
         }
@@ -97,11 +98,12 @@ dependencies {
     // module with no Android plugin, so it is the compiler's copy of the purity rule.
     implementation(project(":core:domain"))
 
-    // The Android-bound half of the shared vocabulary: the username/name/email strings that
-    // AuthScreen, ProfileScreen, `validationErrorMessageResId` and `appErrorMessageResId` resolve
-    // between them, plus the media seam and the note delegates the features use. What :app itself
-    // reaches for is the R, as `CommonR` in ErrorMessageMappers -- five strings with a second
-    // reader below.
+    // The Android-bound half of the shared vocabulary: the strings and mappers the feature screens
+    // resolve, plus the media seam and the note delegates the features use. No :app main source
+    // names it any more -- `CommonR` in ErrorMessageMappers was the last, and that mapper came down
+    // here once screens resolved their own text. The androidTest suites still name
+    // MediaFileRepository; whether this edge can narrow to androidTestImplementation, with the Hilt
+    // component assembled here still resolving the note delegates, has not been tried.
     implementation(project(":core:common"))
 
     // Every Default* repository, the Room database, the DataStore wiring and -- since the
@@ -170,17 +172,19 @@ dependencies {
      * What :app's own tests still need, which is much less than it was. Three suites left with
      * their subjects -- the two repository tests and FirebaseRemoteConfigRepositoryTest to
      * :core:data, ScreenScreenshotTest split between :feature:home and :feature:search -- and what
-     * remains is MainViewModelTest, AppModuleTest, DefaultErrorHandlerTest and
-     * ErrorMessageMappersTest. None of them renders a composable, so the Compose test artifacts and
-     * all three Roborazzi artifacts went with the suites that did.
+     * remains is MainViewModelTest, AppModuleTest, TopLevelDestinationTest and
+     * SearchDeepLinkManifestTest. (DefaultErrorHandlerTest and ErrorMessageMappersTest left later,
+     * as ErrorMessageTest in :core:domain and ErrorMessagesTest in :core:common.) None of them
+     * renders a composable, so the Compose test artifacts and all three Roborazzi artifacts went
+     * with the suites that did.
      *
      * :core:testing stays, for one type: MainViewModelTest's `MainDispatcherRule`. It uses none of
      * the fakes, which is the trap in reading this edge from the imports -- the rule is in
      * package `com.jiahan.smartcamera`, the same package as the test, so it is used without an
      * import line to find it.
      *
-     * Robolectric stays too: DefaultErrorHandlerTest resolves real strings, and androidx-junit is
-     * what supplies the AndroidJUnit4 runner both it and MainViewModelTest name.
+     * Robolectric stays too, for SearchDeepLinkManifestTest's merged-manifest lookup, and
+     * androidx-junit is what supplies the AndroidJUnit4 runner it names.
      */
     testImplementation(project(":core:testing"))
     testImplementation(libs.junit)

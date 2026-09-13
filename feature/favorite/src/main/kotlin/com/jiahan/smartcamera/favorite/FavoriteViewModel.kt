@@ -5,11 +5,14 @@ import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.Note
+import com.jiahan.smartcamera.note.NoteActionError
 import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.AppConstants.DEBOUNCE_MS
 import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.ErrorMessage
+import com.jiahan.smartcamera.util.toErrorMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -34,7 +37,7 @@ import kotlin.time.Duration.Companion.milliseconds
 sealed interface FavoriteContent {
     data object Loading : FavoriteContent
     data class Success(val notes: List<Note>) : FavoriteContent
-    data class Error(val message: String) : FavoriteContent
+    data class Error(val message: ErrorMessage) : FavoriteContent
 }
 
 data class FavoriteUiState(
@@ -50,7 +53,7 @@ data class FavoriteUiState(
 private sealed interface SyncStatus {
     data object Pending : SyncStatus
     data object Settled : SyncStatus
-    data class Failed(val message: String) : SyncStatus
+    data class Failed(val message: ErrorMessage) : SyncStatus
 }
 
 @OptIn(FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -65,7 +68,7 @@ class FavoriteViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(FavoriteUiState())
     val uiState = _uiState.asStateFlow()
-    private val _syncError = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    private val _syncError = MutableSharedFlow<NoteActionError>(extraBufferCapacity = 1)
     val actionError = merge(noteErrorReporter.actionError, _syncError)
     val shareEvent = noteShare.shareEvent
 
@@ -144,7 +147,7 @@ class FavoriteViewModel @Inject constructor(
             .onSuccess { syncStatus.value = SyncStatus.Settled }
             .onFailure { e ->
                 errorHandler.logError(e)
-                val message = errorHandler.getErrorMessage(e)
+                val message = e.toErrorMessage()
                 // Only an empty list earns the full-screen error. With favorites already cached,
                 // `content` keeps rendering them -- `notes.isNotEmpty()` wins in the combine above,
                 // so a Failed status would never be seen -- and the failure surfaces transiently
@@ -157,7 +160,7 @@ class FavoriteViewModel @Inject constructor(
                 ) {
                     syncStatus.value = SyncStatus.Failed(message)
                 } else {
-                    _syncError.tryEmit(message)
+                    _syncError.tryEmit(NoteActionError.Failed(message))
                 }
             }
     }

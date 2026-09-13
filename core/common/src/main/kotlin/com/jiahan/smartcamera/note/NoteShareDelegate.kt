@@ -1,10 +1,8 @@
 package com.jiahan.smartcamera.note
 
 import android.net.Uri
-import com.jiahan.smartcamera.core.common.R
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.domain.Note
-import com.jiahan.smartcamera.util.ResourceProvider
 import dagger.hilt.android.scopes.ViewModelScoped
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -32,8 +30,7 @@ data class OutgoingShare(val text: String?, val uris: List<Uri>)
 @ViewModelScoped
 class NoteShareDelegate @Inject constructor(
     private val mediaFileRepository: MediaFileRepository,
-    private val noteErrorReporter: NoteErrorReporter,
-    private val resourceProvider: ResourceProvider
+    private val noteErrorReporter: NoteErrorReporter
 ) {
     private val _shareEvent = MutableSharedFlow<OutgoingShare>(extraBufferCapacity = 1)
     val shareEvent = _shareEvent.asSharedFlow()
@@ -53,7 +50,7 @@ class NoteShareDelegate @Inject constructor(
         }
 
         if (mediaList.isNotEmpty() && uris.isEmpty()) {
-            noteErrorReporter.reportError(resourceProvider.getString(R.string.share_note_failure))
+            noteErrorReporter.reportShareFailure()
             return
         }
 

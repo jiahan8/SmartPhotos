@@ -15,7 +15,6 @@ import com.jiahan.smartcamera.fake.FakeAuthRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
 import com.jiahan.smartcamera.fake.FakeMediaFileRepository
 import com.jiahan.smartcamera.fake.FakeMediaUploadRepository
-import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.fake.FakeUserPreferencesRepository
 import com.jiahan.smartcamera.fake.FakeUserRepository
 import com.jiahan.smartcamera.feature.profile.R
@@ -54,7 +53,6 @@ class ProfileScreenTest : BaseScreenTest() {
             mediaFileRepository = FakeMediaFileRepository(),
             mediaUploadRepository = FakeMediaUploadRepository(),
             analyticsRepository = FakeAnalyticsRepository(),
-            resourceProvider = FakeResourceProvider(activity),
             errorHandler = FakeErrorHandler(),
         )
         composeTestRule.setContent {

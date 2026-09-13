@@ -6,11 +6,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
-import com.jiahan.smartcamera.feature.preview.R
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorTag
-import com.jiahan.smartcamera.util.ResourceProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,8 +21,7 @@ import javax.inject.Inject
 class VideoPreviewViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val errorHandler: ErrorHandler,
-    private val mediaFileRepository: MediaFileRepository,
-    private val resourceProvider: ResourceProvider
+    private val mediaFileRepository: MediaFileRepository
 ) : ViewModel() {
 
     val videoSource: VideoSource = run {
@@ -38,7 +35,7 @@ class VideoPreviewViewModel @Inject constructor(
     private val _shareEvent = MutableSharedFlow<Uri>(extraBufferCapacity = 1)
     val shareEvent = _shareEvent.asSharedFlow()
 
-    private val _actionError = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    private val _actionError = MutableSharedFlow<MediaPreviewError>(extraBufferCapacity = 1)
     val actionError = _actionError.asSharedFlow()
 
     private val _isSharing = MutableStateFlow(false)
@@ -61,7 +58,7 @@ class VideoPreviewViewModel @Inject constructor(
                 if (uri != null) {
                     _shareEvent.emit(uri)
                 } else {
-                    _actionError.emit(resourceProvider.getString(R.string.share_video_failure))
+                    _actionError.emit(MediaPreviewError.SHARE_FAILED)
                 }
             } finally {
                 _isSharing.value = false

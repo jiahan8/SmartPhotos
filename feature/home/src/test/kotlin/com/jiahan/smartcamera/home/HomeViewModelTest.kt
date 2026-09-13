@@ -8,9 +8,11 @@ import com.jiahan.smartcamera.domain.NoteCursor
 import com.jiahan.smartcamera.domain.NotePage
 import com.jiahan.smartcamera.fake.FakeRemoteConfigRepository
 import com.jiahan.smartcamera.fake.NoteMirror
+import com.jiahan.smartcamera.note.NoteActionError
 import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.ErrorMessage
 import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -64,7 +66,6 @@ class HomeViewModelTest {
     @Before
     fun setUp() {
         every { errorHandler.logError(any()) } just runs
-        every { errorHandler.getErrorMessage(any()) } returns "An error occurred"
         every { noteRepository.getNotesStream(any()) } answers {
             notesMirror.stream(firstArg<Int>())
         }
@@ -207,12 +208,14 @@ class HomeViewModelTest {
     fun `init emits Error state when the fetch fails over an empty mirror`() = runTest {
         val exception = RuntimeException("network error")
         coEvery { noteRepository.getNotes(any(), any()) } returns Result.failure(exception)
-        every { errorHandler.getErrorMessage(exception) } returns "network error"
         val viewModel = homeViewModel()
 
         val content = viewModel.content.value
         assertTrue(content is HomeContent.Error)
-        assertEquals("network error", (content as HomeContent.Error).message)
+        assertEquals(
+            ErrorMessage.Unlocalized("network error"),
+            (content as HomeContent.Error).message
+        )
     }
 
     @Test
@@ -221,7 +224,6 @@ class HomeViewModelTest {
         notesMirror.set(cached)
         val exception = RuntimeException("offline")
         coEvery { noteRepository.getNotes(any(), any()) } returns Result.failure(exception)
-        every { errorHandler.getErrorMessage(exception) } returns "offline"
 
         val viewModel = homeViewModel()
 
@@ -267,7 +269,6 @@ class HomeViewModelTest {
 
         val exception = RuntimeException("refresh failed")
         coEvery { noteRepository.getNotes(null, any()) } returns Result.failure(exception)
-        every { errorHandler.getErrorMessage(exception) } returns "refresh failed"
 
         viewModel.refresh()
 
@@ -285,11 +286,13 @@ class HomeViewModelTest {
 
         val exception = RuntimeException("refresh failed")
         coEvery { noteRepository.getNotes(null, any()) } returns Result.failure(exception)
-        every { errorHandler.getErrorMessage(exception) } returns "refresh failed"
 
         viewModel.actionError.test {
             viewModel.refresh()
-            assertEquals("refresh failed", awaitItem())
+            assertEquals(
+                NoteActionError.Failed(ErrorMessage.Unlocalized("refresh failed")),
+                awaitItem()
+            )
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -491,12 +494,11 @@ class HomeViewModelTest {
     @Test
     fun `deleteNote failure emits action error message`() = runTest {
         coEvery { noteRepository.deleteNote(any()) } returns Result.failure(RuntimeException("fail"))
-        every { errorHandler.getErrorMessage(any()) } returns "delete failed"
         val viewModel = homeViewModel()
 
         viewModel.actionError.test {
             viewModel.deleteNote("doc1")
-            assertEquals("delete failed", awaitItem())
+            assertEquals(NoteActionError.Failed(ErrorMessage.Unlocalized("fail")), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -556,12 +558,11 @@ class HomeViewModelTest {
     @Test
     fun `toggleFavorite failure emits action error`() = runTest {
         coEvery { noteRepository.toggleFavorite(any()) } returns Result.failure(RuntimeException())
-        every { errorHandler.getErrorMessage(any()) } returns "fav error"
         val viewModel = homeViewModel()
 
         viewModel.actionError.test {
             viewModel.toggleFavorite(makeNote("doc1"))
-            assertEquals("fav error", awaitItem())
+            assertEquals(NoteActionError.Failed(ErrorMessage.Generic), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }

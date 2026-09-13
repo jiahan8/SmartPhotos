@@ -17,4 +17,10 @@
     <string name="note_validation">メモは500文字以内で入力してください</string>
     <string name="note_media_limit">メモには最大20枚の写真または動画を添付できます</string>
     <string name="note_empty">保存する前にテキストかメディアを追加してください</string>
+
+    <!-- The rest of what an ErrorMessage resolves to -->
+    <string name="no_media_available">アップロードするメディアがありません</string>
+    <string name="note_unavailable">このメモは利用できなくなりました</string>
+    <string name="user_not_authenticated">この操作を行うにはログインが必要です</string>
+    <string name="error_occurred">エラーが発生しました</string>
 </resources>

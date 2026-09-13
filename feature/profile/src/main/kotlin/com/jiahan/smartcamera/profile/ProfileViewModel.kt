@@ -3,7 +3,6 @@ package com.jiahan.smartcamera.profile
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jiahan.smartcamera.core.common.R as CommonR
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
@@ -14,13 +13,14 @@ import com.jiahan.smartcamera.domain.AppError
 import com.jiahan.smartcamera.domain.ProfilePictureUpdate
 import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.ErrorMessage
 import com.jiahan.smartcamera.util.ErrorTag
-import com.jiahan.smartcamera.util.ResourceProvider
+import com.jiahan.smartcamera.util.ValidationError
 import com.jiahan.smartcamera.util.ValidationResult
+import com.jiahan.smartcamera.util.toErrorMessage
 import com.jiahan.smartcamera.util.toMediaUri
 import com.jiahan.smartcamera.util.validateDisplayName
 import com.jiahan.smartcamera.util.validateUsername
-import com.jiahan.smartcamera.util.validationErrorMessageResId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,12 +33,23 @@ import javax.inject.Inject
 sealed interface ProfileEvent {
     data object UpdateSuccess : ProfileEvent
     data object PictureChanged : ProfileEvent
-    data class UpdateError(val message: String? = null) : ProfileEvent
+    data class UpdateError(val message: ErrorMessage? = null) : ProfileEvent
 }
 
 sealed interface ProfileDialogState {
     data object None : ProfileDialogState
     data object DeletePicture : ProfileDialogState
+}
+
+/**
+ * Why the username field is rejected, for ProfileScreen to render under it.
+ *
+ * [Taken] covers both ways of finding out -- this screen's availability pre-check and the server's
+ * `AppError.UsernameTaken` -- because they are one failure with one string.
+ */
+sealed interface UsernameError {
+    data class Invalid(val reason: ValidationError) : UsernameError
+    data object Taken : UsernameError
 }
 
 data class ProfileUiState(
@@ -47,9 +58,9 @@ data class ProfileUiState(
     val username: String = "",
     val profilePictureUrl: String? = null,
     val photoUri: Uri? = null,
-    val displayNameErrorMessage: String? = null,
-    val usernameErrorMessage: String? = null,
-    val errorMessage: String? = null,
+    val displayNameError: ValidationError? = null,
+    val usernameError: UsernameError? = null,
+    val errorMessage: ErrorMessage? = null,
     val isErrorFree: Boolean = true,
     val isFormChanged: Boolean = false,
     val isLoading: Boolean = false,
@@ -66,7 +77,6 @@ class ProfileViewModel @Inject constructor(
     private val mediaFileRepository: MediaFileRepository,
     private val mediaUploadRepository: MediaUploadRepository,
     private val analyticsRepository: AnalyticsRepository,
-    private val resourceProvider: ResourceProvider,
     private val errorHandler: ErrorHandler,
 ) : ViewModel() {
 
@@ -105,23 +115,21 @@ class ProfileViewModel @Inject constructor(
                 }
                 .onFailure { e ->
                     errorHandler.logError(e)
-                    _uiState.update { it.copy(errorMessage = errorHandler.getErrorMessage(e)) }
+                    _uiState.update { it.copy(errorMessage = e.toErrorMessage()) }
                 }
         }
     }
 
     fun updateDisplayName(text: String) {
-        val displayNameErrorMessage =
+        val displayNameError =
             when (val validationResult = validateDisplayName(text.trim(), requireNonBlank = true)) {
-                is ValidationResult.Error ->
-                    resourceProvider.getString(validationErrorMessageResId(validationResult.reason))
-
+                is ValidationResult.Error -> validationResult.reason
                 else -> null
             }
         _uiState.update {
             it.copy(
                 displayName = text,
-                displayNameErrorMessage = displayNameErrorMessage
+                displayNameError = displayNameError
             )
         }
         recomputeFormState()
@@ -129,14 +137,12 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun updateUsername(text: String) {
-        val usernameErrorMessage =
+        val usernameError =
             when (val validationResult = validateUsername(text.trim(), requireNonBlank = true)) {
-                is ValidationResult.Error ->
-                    resourceProvider.getString(validationErrorMessageResId(validationResult.reason))
-
+                is ValidationResult.Error -> UsernameError.Invalid(validationResult.reason)
                 else -> null
             }
-        _uiState.update { it.copy(username = text, usernameErrorMessage = usernameErrorMessage) }
+        _uiState.update { it.copy(username = text, usernameError = usernameError) }
         recomputeFormState()
         analyticsRepository.logUsername(text)
     }
@@ -146,7 +152,7 @@ class ProfileViewModel @Inject constructor(
             val isFormChanged = it.displayName.trim() != user?.displayName ||
                     it.username.trim() != user?.username
             val isErrorFree =
-                it.usernameErrorMessage == null && it.displayNameErrorMessage == null &&
+                it.usernameError == null && it.displayNameError == null &&
                         it.errorMessage == null
             it.copy(isFormChanged = isFormChanged, isErrorFree = isErrorFree, errorMessage = null)
         }
@@ -158,8 +164,8 @@ class ProfileViewModel @Inject constructor(
 
         _uiState.update {
             it.copy(
-                displayNameErrorMessage = null,
-                usernameErrorMessage = null,
+                displayNameError = null,
+                usernameError = null,
                 errorMessage = null
             )
         }
@@ -178,7 +184,7 @@ class ProfileViewModel @Inject constructor(
                         errorHandler.logError(e)
                         _uiState.update {
                             it.copy(
-                                errorMessage = errorHandler.getErrorMessage(e),
+                                errorMessage = e.toErrorMessage(),
                                 isLoading = false
                             )
                         }
@@ -188,7 +194,7 @@ class ProfileViewModel @Inject constructor(
                 if (!available) {
                     _uiState.update {
                         it.copy(
-                            usernameErrorMessage = resourceProvider.getString(CommonR.string.username_not_available),
+                            usernameError = UsernameError.Taken,
                             isErrorFree = false,
                             isLoading = false
                         )
@@ -215,19 +221,19 @@ class ProfileViewModel @Inject constructor(
                 // A username conflict belongs inline under the username field, anything else in
                 // the general error slot. The failure's identity is what separates them now; this
                 // used to ask whether usernameErrorMessageResId returned non-null for it.
-                val usernameErrorMessage = when (e) {
-                    is AppError.UsernameTaken, is AppError.UsernameReserved ->
-                        errorHandler.getErrorMessage(e)
+                val usernameError = when (e) {
+                    is AppError.UsernameTaken -> UsernameError.Taken
+                    // The server's half of the reserved-name rule validateUsername also checks,
+                    // so it renders as that rule does.
+                    is AppError.UsernameReserved ->
+                        UsernameError.Invalid(ValidationError.USERNAME_RESERVED)
 
                     else -> null
                 }
                 _uiState.update {
                     it.copy(
-                        usernameErrorMessage = usernameErrorMessage,
-                        errorMessage =
-                            if (usernameErrorMessage == null)
-                                errorHandler.getErrorMessage(e)
-                            else null
+                        usernameError = usernameError,
+                        errorMessage = if (usernameError == null) e.toErrorMessage() else null
                     )
                 }
                 _profileEvent.tryEmit(ProfileEvent.UpdateError())
@@ -263,12 +269,12 @@ class ProfileViewModel @Inject constructor(
                         _profileEvent.tryEmit(ProfileEvent.PictureChanged)
                     }.onFailure { e ->
                         errorHandler.logError(e)
-                        _profileEvent.tryEmit(ProfileEvent.UpdateError(errorHandler.getErrorMessage(e)))
+                        _profileEvent.tryEmit(ProfileEvent.UpdateError(e.toErrorMessage()))
                     }
                 }
                 .onFailure { e ->
                     errorHandler.logError(e)
-                    _profileEvent.tryEmit(ProfileEvent.UpdateError(errorHandler.getErrorMessage(e)))
+                    _profileEvent.tryEmit(ProfileEvent.UpdateError(e.toErrorMessage()))
                 }
             _uiState.update { it.copy(isUploading = false) }
         }
@@ -286,7 +292,7 @@ class ProfileViewModel @Inject constructor(
                 _profileEvent.tryEmit(ProfileEvent.PictureChanged)
             }.onFailure { e ->
                 errorHandler.logError(e)
-                _profileEvent.tryEmit(ProfileEvent.UpdateError(errorHandler.getErrorMessage(e)))
+                _profileEvent.tryEmit(ProfileEvent.UpdateError(e.toErrorMessage()))
             }
             _uiState.update { it.copy(isUploading = false) }
         }

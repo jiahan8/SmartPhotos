@@ -1,14 +1,10 @@
 package com.jiahan.smartcamera.util.di
 
-import android.content.Context
 import com.jiahan.smartcamera.util.DefaultErrorHandler
 import com.jiahan.smartcamera.util.ErrorHandler
-import com.jiahan.smartcamera.util.ResourceProvider
-import com.jiahan.smartcamera.util.ResourceProviderImpl
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
@@ -18,13 +14,7 @@ object UtilModule {
 
     @Provides
     @Singleton
-    fun provideResourceProvider(@ApplicationContext context: Context): ResourceProvider {
-        return ResourceProviderImpl(context)
-    }
-
-    @Provides
-    @Singleton
-    fun provideErrorHandler(resourceProvider: ResourceProvider): ErrorHandler {
-        return DefaultErrorHandler(resourceProvider)
+    fun provideErrorHandler(): ErrorHandler {
+        return DefaultErrorHandler()
     }
 }

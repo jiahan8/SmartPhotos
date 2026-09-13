@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -39,6 +40,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.jiahan.smartcamera.common.showAppSnackbar
+import com.jiahan.smartcamera.feature.preview.R
 import com.jiahan.smartcamera.util.FileConstants.MIME_TYPE_VIDEO
 import com.jiahan.smartcamera.core.ui.R as UiR
 
@@ -52,6 +54,7 @@ fun VideoPreviewScreen(
 ) {
     val videoSource = viewModel.videoSource
     val context = LocalContext.current
+    val resources = LocalResources.current
     val isSharing by viewModel.isSharing.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
@@ -64,7 +67,10 @@ fun VideoPreviewScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.actionError.collect { message ->
+        viewModel.actionError.collect { error ->
+            val message = when (error) {
+                MediaPreviewError.SHARE_FAILED -> resources.getString(R.string.share_video_failure)
+            }
             snackbarHostState.showAppSnackbar(message, isError = true)
         }
     }

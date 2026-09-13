@@ -19,7 +19,6 @@ import com.jiahan.smartcamera.di.IoDispatcher
 import com.jiahan.smartcamera.database.AppDatabase
 import com.jiahan.smartcamera.database.dao.NoteDao
 import com.jiahan.smartcamera.util.ErrorHandler
-import com.jiahan.smartcamera.util.ResourceProvider
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Assert.assertNotNull
@@ -81,9 +80,6 @@ class HiltGraphSmokeTest {
     lateinit var errorHandler: ErrorHandler
 
     @Inject
-    lateinit var resourceProvider: ResourceProvider
-
-    @Inject
     lateinit var appDatabase: AppDatabase
 
     @Inject
@@ -134,7 +130,6 @@ class HiltGraphSmokeTest {
         assertNotNull(remoteConfigRepository)
         assertNotNull(userPreferencesRepository)
         assertNotNull(errorHandler)
-        assertNotNull(resourceProvider)
         assertNotNull(appDatabase)
         assertNotNull(noteDao)
         assertNotNull(dataStore)

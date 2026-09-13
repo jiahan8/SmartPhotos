@@ -48,10 +48,10 @@ dependencies {
      * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
 
-    // MediaFileRepository and toMediaUri(), plus the email/name/username labels and the username
-    // validators shared with :feature:auth. Still declared per-module rather than in the feature
-    // convention, for the reason spelled out in :feature:auth's build file: seven features take
-    // this edge, but for three unrelated tenants, and two features take it for none.
+    // MediaFileRepository and toMediaUri(), plus the email/name/username labels and the validation
+    // and failure mappers ProfileScreen shares with :feature:auth. Still declared per-module rather
+    // than in the feature convention; :feature:auth's build file says why, and why that is now
+    // open.
     implementation(project(":core:common"))
 
     // The photo-picker, camera and permission launchers ProfileScreen holds.

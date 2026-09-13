@@ -5,7 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Pins each [ValidationError] to its string, the way `ErrorMessageMappersTest` pins `AppError`'s
+ * Pins each [ValidationError] to its string, the way `ErrorMessagesTest` pins `AppError`'s
  * -- and for the same reason: this is the half of a validator's behaviour its own test cannot see,
  * since :core:domain has no `R`.
  *

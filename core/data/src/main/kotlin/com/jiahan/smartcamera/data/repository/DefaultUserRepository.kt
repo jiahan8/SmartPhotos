@@ -124,8 +124,8 @@ class DefaultUserRepository @Inject constructor(
      * Reading a Firebase error code is data-layer knowledge, and leaving it in the ViewModel layer
      * would have put `firebase-functions` on a feature module's classpath when auth was extracted.
      * Raising the app's own identity instead is the rule the rest of the data layer already
-     * follows, and `appErrorMessageResId` -- applied inside `getErrorMessage` -- renders it with no
-     * code at the call site.
+     * follows, and the screen renders it through `appErrorMessageResId` (:core:common) with no code
+     * at the call site.
      *
      * `INVALID_ARGUMENT` is told apart by the structured `details.reason` payload, the way
      * `foldNoteValidationError` reads createNote's. It used to map to [AppError.UsernameReserved]

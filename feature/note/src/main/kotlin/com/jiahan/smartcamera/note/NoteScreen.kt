@@ -51,6 +51,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -66,8 +67,10 @@ import com.jiahan.smartcamera.common.ProfileAvatar
 import com.jiahan.smartcamera.common.bounceClick
 import com.jiahan.smartcamera.common.rememberCyclingPlaceholder
 import com.jiahan.smartcamera.common.showAppSnackbar
+import com.jiahan.smartcamera.core.common.R as CommonR
 import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.domain.NoteMediaDetail
+import com.jiahan.smartcamera.util.resolve
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,6 +82,7 @@ fun NoteScreen(
     viewModel: NoteViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val scrollState = rememberScrollState()
@@ -92,7 +96,7 @@ fun NoteScreen(
     val mediaList = uiState.mediaList
     val uploadStatus = uiState.uploadStatus
     val isUploading = uploadStatus is UploadStatus.Uploading
-    val noteTextError = uiState.noteTextError
+    val isNoteTextTooLong = uiState.isNoteTextTooLong
     val saveButtonEnabled by viewModel.saveButtonEnabled.collectAsStateWithLifecycle()
 
     val (placeholder, placeholderAlpha) = rememberCyclingPlaceholder(
@@ -172,7 +176,19 @@ fun NoteScreen(
 
             is UploadStatus.Error -> {
                 keyboardController?.hide()
-                snackbarHostState.showAppSnackbar(uploadStatus.message, isError = true)
+                snackbarHostState.showAppSnackbar(
+                    uploadStatus.message.resolve(resources),
+                    isError = true
+                )
+                viewModel.resetUploadStatus()
+            }
+
+            is UploadStatus.MediaLimitReached -> {
+                keyboardController?.hide()
+                snackbarHostState.showAppSnackbar(
+                    resources.getString(CommonR.string.note_media_limit),
+                    isError = true
+                )
                 viewModel.resetUploadStatus()
             }
 
@@ -278,9 +294,9 @@ fun NoteScreen(
                                 onImageLoadError = viewModel::logImageLoadError
                             )
 
-                            noteTextError?.let { error ->
+                            if (isNoteTextTooLong) {
                                 Text(
-                                    text = error,
+                                    text = stringResource(CommonR.string.note_validation),
                                     color = MaterialTheme.colorScheme.error,
                                     style = MaterialTheme.typography.bodySmall
                                 )

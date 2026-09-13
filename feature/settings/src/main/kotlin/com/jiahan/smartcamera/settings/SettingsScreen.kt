@@ -41,6 +41,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -52,8 +53,11 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jiahan.smartcamera.common.PasswordField
 import com.jiahan.smartcamera.common.showAppSnackbar
+import com.jiahan.smartcamera.core.common.R as CommonR
 import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.feature.settings.R
+import com.jiahan.smartcamera.util.resolve
+import com.jiahan.smartcamera.util.validationErrorMessageResId
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,6 +69,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val configuration = LocalConfiguration.current
     val hapticFeedback = LocalHapticFeedback.current
     val packageName = remember { context.packageName }
@@ -96,7 +101,7 @@ fun SettingsScreen(
     LaunchedEffect(uiState.status) {
         val status = uiState.status
         if (status is SettingsStatus.Error) {
-            snackbarHostState.showAppSnackbar(status.message, isError = true)
+            snackbarHostState.showAppSnackbar(status.message.resolve(resources), isError = true)
             viewModel.dismissError()
         }
     }
@@ -104,8 +109,9 @@ fun SettingsScreen(
     LaunchedEffect(Unit) {
         viewModel.changePasswordEvent.collect { event ->
             when (event) {
-                is SettingsChangePasswordEvent.Success ->
-                    snackbarHostState.showAppSnackbar(event.message)
+                SettingsChangePasswordEvent.Success -> snackbarHostState.showAppSnackbar(
+                    resources.getString(R.string.change_password_success)
+                )
             }
         }
     }
@@ -155,7 +161,8 @@ fun SettingsScreen(
                             visible = dialogState.isNewPasswordVisible,
                             onVisibilityChange = viewModel::updateNewPasswordVisibility,
                             modifier = Modifier.fillMaxWidth(),
-                            errorMessage = dialogState.newPasswordErrorMessage,
+                            errorMessage = dialogState.newPasswordError
+                                ?.let { stringResource(validationErrorMessageResId(it)) },
                         )
                         PasswordField(
                             value = dialogState.confirmNewPassword,
@@ -164,7 +171,8 @@ fun SettingsScreen(
                             visible = dialogState.isConfirmNewPasswordVisible,
                             onVisibilityChange = viewModel::updateConfirmNewPasswordVisibility,
                             modifier = Modifier.fillMaxWidth(),
-                            errorMessage = dialogState.confirmNewPasswordErrorMessage,
+                            errorMessage = dialogState.confirmNewPasswordError
+                                ?.let { stringResource(it.messageResId()) },
                             imeAction = ImeAction.Done,
                             keyboardActions = KeyboardActions(
                                 onDone = { viewModel.changePassword() }
@@ -385,4 +393,10 @@ fun SettingsScreen(
             }
         }
     }
+}
+
+/** The copy under the confirm-password field for each way it can be rejected. */
+private fun ConfirmPasswordError.messageResId(): Int = when (this) {
+    ConfirmPasswordError.EMPTY -> CommonR.string.password_empty
+    ConfirmPasswordError.MISMATCH -> R.string.passwords_do_not_match
 }

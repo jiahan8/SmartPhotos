@@ -9,11 +9,13 @@ import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.data.repository.MediaUploadRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
+import com.jiahan.smartcamera.domain.AppError
 import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.ProfilePictureUpdate
 import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.ErrorHandler
-import com.jiahan.smartcamera.util.ResourceProvider
+import com.jiahan.smartcamera.util.ErrorMessage
+import com.jiahan.smartcamera.util.ValidationError
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -26,7 +28,6 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -45,7 +46,6 @@ class ProfileViewModelTest {
     private val mediaFileRepository: MediaFileRepository = mockk()
     private val mediaUploadRepository: MediaUploadRepository = mockk()
     private val analyticsRepository: AnalyticsRepository = mockk()
-    private val resourceProvider: ResourceProvider = mockk()
     private val errorHandler: ErrorHandler = mockk()
 
     private val testUser = User(
@@ -63,8 +63,6 @@ class ProfileViewModelTest {
     @Before
     fun setUp() {
         every { errorHandler.logError(any()) } just runs
-        every { errorHandler.getErrorMessage(any()) } returns "Error"
-        every { resourceProvider.getString(any()) } returns "Validation error"
         every { analyticsRepository.logDisplayName(any()) } just runs
         every { analyticsRepository.logUsername(any()) } just runs
         coEvery { userRepository.getUser() } returns Result.success(testUser)
@@ -74,7 +72,7 @@ class ProfileViewModelTest {
         coEvery { mediaUploadRepository.uploadMediaToCache(any(), any()) } returns Unit
         viewModel = ProfileViewModel(
             userRepository, authRepository, userPreferencesRepository,
-            mediaFileRepository, mediaUploadRepository, analyticsRepository, resourceProvider,
+            mediaFileRepository, mediaUploadRepository, analyticsRepository,
             errorHandler
         )
     }
@@ -98,13 +96,12 @@ class ProfileViewModelTest {
     fun `init load failure sets errorMessage`() = runTest {
         val exception = RuntimeException("load failed")
         coEvery { userRepository.getUser() } returns Result.failure(exception)
-        every { errorHandler.getErrorMessage(exception) } returns "load failed"
         val vm = ProfileViewModel(
             userRepository, authRepository, userPreferencesRepository,
-            mediaFileRepository, mediaUploadRepository, analyticsRepository, resourceProvider,
+            mediaFileRepository, mediaUploadRepository, analyticsRepository,
             errorHandler
         )
-        assertEquals("load failed", vm.uiState.value.errorMessage)
+        assertEquals(ErrorMessage.Unlocalized("load failed"), vm.uiState.value.errorMessage)
     }
 
     // -------------------------------------------------------------------------
@@ -116,7 +113,7 @@ class ProfileViewModelTest {
         viewModel.updateDisplayName("New Name")
 
         assertEquals("New Name", viewModel.uiState.value.displayName)
-        assertNull(viewModel.uiState.value.displayNameErrorMessage)
+        assertNull(viewModel.uiState.value.displayNameError)
         assertTrue(viewModel.uiState.value.isFormChanged)
     }
 
@@ -124,7 +121,7 @@ class ProfileViewModelTest {
     fun `updateDisplayName blank value sets displayNameError`() = runTest {
         viewModel.updateDisplayName("  ")
 
-        assertNotNull(viewModel.uiState.value.displayNameErrorMessage)
+        assertEquals(ValidationError.NAME_EMPTY, viewModel.uiState.value.displayNameError)
     }
 
     @Test
@@ -132,14 +129,17 @@ class ProfileViewModelTest {
         viewModel.updateUsername("newuser")
 
         assertEquals("newuser", viewModel.uiState.value.username)
-        assertNull(viewModel.uiState.value.usernameErrorMessage)
+        assertNull(viewModel.uiState.value.usernameError)
     }
 
     @Test
     fun `updateUsername with invalid characters sets usernameError`() = runTest {
         viewModel.updateUsername("bad user!")
 
-        assertNotNull(viewModel.uiState.value.usernameErrorMessage)
+        assertEquals(
+            UsernameError.Invalid(ValidationError.USERNAME_INVALID_CHARACTERS),
+            viewModel.uiState.value.usernameError
+        )
     }
 
     @Test
@@ -203,7 +203,7 @@ class ProfileViewModelTest {
         coEvery { authRepository.isUsernameAvailable("taken") } returns Result.success(false)
 
         viewModel.updateUserProfile()
-        assertNotNull(viewModel.uiState.value.usernameErrorMessage)
+        assertEquals(UsernameError.Taken, viewModel.uiState.value.usernameError)
         assertFalse(viewModel.uiState.value.isErrorFree)
     }
 
@@ -214,14 +214,16 @@ class ProfileViewModelTest {
             val exception = RuntimeException("network down")
             coEvery { authRepository.isUsernameAvailable("newname") } returns
                     Result.failure(exception)
-            every { errorHandler.getErrorMessage(exception) } returns "network down"
 
             viewModel.profileEvent.test {
                 viewModel.updateUserProfile()
                 assertEquals(ProfileEvent.UpdateError(), awaitItem())
                 cancelAndIgnoreRemainingEvents()
             }
-            assertEquals("network down", viewModel.uiState.value.errorMessage)
+            assertEquals(
+                ErrorMessage.Unlocalized("network down"),
+                viewModel.uiState.value.errorMessage
+            )
             assertFalse(viewModel.uiState.value.isLoading)
             coVerify(exactly = 0) { userRepository.updateUserProfile(any(), any(), any()) }
         }
@@ -233,16 +235,50 @@ class ProfileViewModelTest {
             val exception = RuntimeException("boom")
             coEvery { userRepository.updateUserProfile(any(), any(), any()) } returns
                     Result.failure(exception)
-            every { errorHandler.getErrorMessage(exception) } returns "boom"
 
             viewModel.profileEvent.test {
                 viewModel.updateUserProfile()
                 assertEquals(ProfileEvent.UpdateError(), awaitItem())
                 cancelAndIgnoreRemainingEvents()
             }
-            assertEquals("boom", viewModel.uiState.value.errorMessage)
-            assertNull(viewModel.uiState.value.usernameErrorMessage)
+            assertEquals(ErrorMessage.Unlocalized("boom"), viewModel.uiState.value.errorMessage)
+            assertNull(viewModel.uiState.value.usernameError)
             assertFalse(viewModel.uiState.value.isLoading)
+        }
+
+    /**
+     * A server-side username conflict goes under the username field rather than the general error
+     * slot. These pin which field and which identity; the copy each renders is ProfileScreen's.
+     */
+    @Test
+    fun `updateUserProfile UsernameTaken from the server shows under the username field`() =
+        runTest {
+            viewModel.updateUsername("brandnew")
+            coEvery { authRepository.isUsernameAvailable("brandnew") } returns Result.success(true)
+            coEvery { userRepository.updateUserProfile(any(), any(), any()) } returns
+                    Result.failure(AppError.UsernameTaken())
+
+            viewModel.updateUserProfile()
+
+            assertEquals(UsernameError.Taken, viewModel.uiState.value.usernameError)
+            assertNull(viewModel.uiState.value.errorMessage)
+        }
+
+    @Test
+    fun `updateUserProfile UsernameReserved from the server renders as the reserved-name rule`() =
+        runTest {
+            viewModel.updateUsername("brandnew")
+            coEvery { authRepository.isUsernameAvailable("brandnew") } returns Result.success(true)
+            coEvery { userRepository.updateUserProfile(any(), any(), any()) } returns
+                    Result.failure(AppError.UsernameReserved())
+
+            viewModel.updateUserProfile()
+
+            assertEquals(
+                UsernameError.Invalid(ValidationError.USERNAME_RESERVED),
+                viewModel.uiState.value.usernameError
+            )
+            assertNull(viewModel.uiState.value.errorMessage)
         }
 
     // -------------------------------------------------------------------------
@@ -359,11 +395,13 @@ class ProfileViewModelTest {
         val (uri, mediaUri) = fakeUri("content://media/profile")
         val exception = RuntimeException("upload failed")
         coEvery { userRepository.uploadProfilePicture(mediaUri) } returns Result.failure(exception)
-        every { errorHandler.getErrorMessage(exception) } returns "upload failed"
 
         viewModel.profileEvent.test {
             viewModel.uploadProfilePicture(uri)
-            assertEquals(ProfileEvent.UpdateError("upload failed"), awaitItem())
+            assertEquals(
+                ProfileEvent.UpdateError(ErrorMessage.Unlocalized("upload failed")),
+                awaitItem()
+            )
             cancelAndIgnoreRemainingEvents()
         }
         assertFalse(viewModel.uiState.value.isUploading)
@@ -378,11 +416,13 @@ class ProfileViewModelTest {
                     Result.success("https://example.com/pic.jpg")
             coEvery { userRepository.updateUserProfile(any(), any(), any()) } returns
                     Result.failure(exception)
-            every { errorHandler.getErrorMessage(exception) } returns "save failed"
 
             viewModel.profileEvent.test {
                 viewModel.uploadProfilePicture(uri)
-                assertEquals(ProfileEvent.UpdateError("save failed"), awaitItem())
+                assertEquals(
+                    ProfileEvent.UpdateError(ErrorMessage.Unlocalized("save failed")),
+                    awaitItem()
+                )
                 cancelAndIgnoreRemainingEvents()
             }
             assertFalse(viewModel.uiState.value.isUploading)
@@ -418,11 +458,13 @@ class ProfileViewModelTest {
         val exception = RuntimeException("delete failed")
         coEvery { userRepository.updateUserProfile(any(), any(), any()) } returns
                 Result.failure(exception)
-        every { errorHandler.getErrorMessage(exception) } returns "delete failed"
 
         viewModel.profileEvent.test {
             viewModel.deleteProfilePicture()
-            assertEquals(ProfileEvent.UpdateError("delete failed"), awaitItem())
+            assertEquals(
+                ProfileEvent.UpdateError(ErrorMessage.Unlocalized("delete failed")),
+                awaitItem()
+            )
             cancelAndIgnoreRemainingEvents()
         }
         assertFalse(viewModel.uiState.value.isUploading)

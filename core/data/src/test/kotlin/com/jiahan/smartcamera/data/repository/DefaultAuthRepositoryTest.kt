@@ -287,7 +287,7 @@ class DefaultAuthRepositoryTest {
     /*
      * Both arms assert the identity rather than just `isFailure`, because the identity is the whole
      * point: `appErrorMessageResId` renders [AppError.NotAuthenticated] as "not signed in", while
-     * anything else falls through `DefaultErrorHandler`'s blank-message guard to a generic "an
+     * anything else falls through `toErrorMessage`'s blank-message guard to a generic "an
      * error occurred". A bare `isFailure` passes either way -- which is how these two lines spent
      * their life throwing `IllegalArgumentException("")` from a `requireNotNull` instead.
      */

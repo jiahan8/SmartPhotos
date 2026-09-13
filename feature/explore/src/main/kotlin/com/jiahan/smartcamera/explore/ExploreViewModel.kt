@@ -8,7 +8,9 @@ import com.jiahan.smartcamera.domain.Photo
 import com.jiahan.smartcamera.util.AppConstants.UNSPLASH_FIRST_PAGE
 import com.jiahan.smartcamera.util.AppConstants.UNSPLASH_MAX_PAGE_SIZE
 import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.ErrorMessage
 import com.jiahan.smartcamera.util.ErrorTag
+import com.jiahan.smartcamera.util.toErrorMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
@@ -21,7 +23,7 @@ import javax.inject.Inject
 sealed interface ExploreContent {
     data object Loading : ExploreContent
     data class Success(val photos: List<Photo>) : ExploreContent
-    data class Error(val message: String) : ExploreContent
+    data class Error(val message: ErrorMessage) : ExploreContent
 }
 
 data class ExploreUiState(
@@ -215,7 +217,7 @@ class ExploreViewModel @Inject constructor(
                 errorHandler.logError(e)
                 if (initialLoading) {
                     _uiState.update {
-                        it.copy(content = ExploreContent.Error(errorHandler.getErrorMessage(e)))
+                        it.copy(content = ExploreContent.Error(e.toErrorMessage()))
                     }
                 }
             }
@@ -244,9 +246,7 @@ class ExploreViewModel @Inject constructor(
                 errorHandler.logError(e)
                 if (initialLoading) {
                     _uiState.update {
-                        it.copy(
-                            searchContent = ExploreContent.Error(errorHandler.getErrorMessage(e))
-                        )
+                        it.copy(searchContent = ExploreContent.Error(e.toErrorMessage()))
                     }
                 }
             }

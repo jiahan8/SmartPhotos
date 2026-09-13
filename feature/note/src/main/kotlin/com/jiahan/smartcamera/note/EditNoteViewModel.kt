@@ -9,8 +9,9 @@ import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.Note
 import com.jiahan.smartcamera.util.AppConstants.MAX_NOTE_TEXT_LENGTH
 import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.ErrorMessage
 import com.jiahan.smartcamera.util.ErrorTag
-import com.jiahan.smartcamera.util.ResourceProvider
+import com.jiahan.smartcamera.util.toErrorMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -21,25 +22,24 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import com.jiahan.smartcamera.core.common.R as CommonR
 
 sealed interface EditNoteContent {
     data object Loading : EditNoteContent
     data class Success(val note: Note) : EditNoteContent
-    data class Error(val message: String) : EditNoteContent
+    data class Error(val message: ErrorMessage) : EditNoteContent
 }
 
 sealed interface SaveStatus {
     data object Idle : SaveStatus
     data object Saving : SaveStatus
     data object Success : SaveStatus
-    data class Error(val message: String) : SaveStatus
+    data class Error(val message: ErrorMessage) : SaveStatus
 }
 
 data class EditNoteUiState(
     val content: EditNoteContent = EditNoteContent.Loading,
     val noteText: String = "",
-    val noteTextError: String? = null,
+    val isNoteTextTooLong: Boolean = false,
     val isDiscardDialogVisible: Boolean = false,
     val saveStatus: SaveStatus = SaveStatus.Idle
 )
@@ -68,7 +68,6 @@ class EditNoteViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val noteRepository: NoteRepository,
     private val analyticsRepository: AnalyticsRepository,
-    private val resourceProvider: ResourceProvider,
     private val errorHandler: ErrorHandler,
 ) : ViewModel() {
 
@@ -91,7 +90,7 @@ class EditNoteViewModel @Inject constructor(
                 .onFailure { e ->
                     errorHandler.logError(e)
                     _uiState.update {
-                        it.copy(content = EditNoteContent.Error(errorHandler.getErrorMessage(e)))
+                        it.copy(content = EditNoteContent.Error(e.toErrorMessage()))
                     }
                 }
         }
@@ -106,7 +105,7 @@ class EditNoteViewModel @Inject constructor(
             // and an unchanged text has nothing to write.
             note != null &&
                     state.saveStatus !is SaveStatus.Saving &&
-                    state.noteTextError == null &&
+                    !state.isNoteTextTooLong &&
                     (editedText != null || !note.mediaList.isNullOrEmpty()) &&
                     state.isTextChanged
         }
@@ -132,15 +131,7 @@ class EditNoteViewModel @Inject constructor(
     fun updateNoteText(text: String) {
         analyticsRepository.logNoteEdit(text)
         _uiState.update {
-            it.copy(
-                noteText = text,
-                noteTextError = when {
-                    text.length > MAX_NOTE_TEXT_LENGTH ->
-                        resourceProvider.getString(CommonR.string.note_validation)
-
-                    else -> null
-                }
-            )
+            it.copy(noteText = text, isNoteTextTooLong = text.length > MAX_NOTE_TEXT_LENGTH)
         }
     }
 
@@ -158,11 +149,10 @@ class EditNoteViewModel @Inject constructor(
                 }
                 .onFailure { e ->
                     errorHandler.logError(e)
-                    // updateNote folds its validation reasons into AppError, and getErrorMessage
-                    // renders those -- same message, with the Firebase type left in the data layer.
-                    _uiState.update {
-                        it.copy(saveStatus = SaveStatus.Error(errorHandler.getErrorMessage(e)))
-                    }
+                    // updateNote folds its validation reasons into AppError, and toErrorMessage
+                    // carries those up as ErrorMessage.Known -- the Firebase type stays in the data
+                    // layer.
+                    _uiState.update { it.copy(saveStatus = SaveStatus.Error(e.toErrorMessage())) }
                 }
         }
     }

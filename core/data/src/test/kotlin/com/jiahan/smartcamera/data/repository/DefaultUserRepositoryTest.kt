@@ -23,8 +23,8 @@ import org.robolectric.annotation.Config
  * Covers the [DefaultUserRepository] branches that raise an error of their own.
  *
  * Asserts the [AppError] identity, which is this layer's whole contract for a failure it raises
- * itself: the repository names the failure and the string lookup happens in :app's
- * `appErrorMessageResId`, pinned there by `ErrorMessageMappersTest`. These used to resolve the
+ * itself: the repository names the failure and the string lookup happens in :core:common's
+ * `appErrorMessageResId`, pinned there by `ErrorMessagesTest`. These used to resolve the
  * message through a real `DefaultErrorHandler` and assert the English text, which is what kept the
  * file in :app -- a data-layer test reaching up into a ViewModel-layer mapper for its assertion.
  * **Splitting it at the identity is what let the test follow its subject down here.**

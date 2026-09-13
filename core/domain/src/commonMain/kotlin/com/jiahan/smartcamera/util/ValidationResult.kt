@@ -5,7 +5,7 @@ package com.jiahan.smartcamera.util
  *
  * Each case names one rule the validators in `ValidationUtils.kt` enforce, and
  * `validationErrorMessageResId` (`util/ValidationMessages.kt`, :core:common) maps it to the string
- * a ViewModel renders. That is the split `AppError`/`appErrorMessageResId` already models one layer
+ * a screen renders. That is the split `AppError`/`appErrorMessageResId` already models one layer
  * down, and adopting it here is what let the validators come to this module: [ValidationResult.Error]
  * used to carry an `R.string` id, which was the only reason three pure Kotlin functions -- a blank
  * check, a length check, a regex and a reserved-name set -- needed an Android module to live in.

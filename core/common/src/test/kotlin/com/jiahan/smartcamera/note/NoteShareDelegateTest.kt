@@ -6,12 +6,8 @@ import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.domain.Note
 import com.jiahan.smartcamera.util.ErrorHandler
-import com.jiahan.smartcamera.util.ResourceProvider
 import io.mockk.coEvery
-import io.mockk.every
-import io.mockk.just
 import io.mockk.mockk
-import io.mockk.runs
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -29,11 +25,9 @@ class NoteShareDelegateTest {
 
     private val mediaFileRepository: MediaFileRepository = mockk()
     private val errorHandler: ErrorHandler = mockk(relaxed = true)
-    private val resourceProvider: ResourceProvider = mockk()
     private val noteErrorReporter = NoteErrorReporter(errorHandler)
 
-    private val delegate =
-        NoteShareDelegate(mediaFileRepository, noteErrorReporter, resourceProvider)
+    private val delegate = NoteShareDelegate(mediaFileRepository, noteErrorReporter)
 
     private fun note(text: String? = "a note", media: List<MediaDetail>? = null) =
         Note(noteId = "n1", text = text, username = "tester", mediaList = media)
@@ -99,12 +93,10 @@ class NoteShareDelegateTest {
     @Test
     fun `a note whose media all fail reports instead of sharing`() = runTest {
         coEvery { mediaFileRepository.downloadToCacheFile(any(), any()) } returns null
-        every { resourceProvider.getString(any()) } returns "Couldn't share this note."
-        every { errorHandler.logError(any(), any()) } just runs
 
         noteErrorReporter.actionError.test {
             delegate.shareNote(note(media = listOf(photo("a"), photo("b"))))
-            assertEquals("Couldn't share this note.", awaitItem())
+            assertEquals(NoteActionError.ShareFailed, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -112,7 +104,6 @@ class NoteShareDelegateTest {
     @Test
     fun `a note whose media all fail emits no share event`() = runTest {
         coEvery { mediaFileRepository.downloadToCacheFile(any(), any()) } returns null
-        every { resourceProvider.getString(any()) } returns "failed"
 
         delegate.shareEvent.test {
             delegate.shareNote(note(media = listOf(photo("a"))))

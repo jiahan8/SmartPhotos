@@ -5,12 +5,15 @@ import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.Note
+import com.jiahan.smartcamera.note.NoteActionError
 import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.AppConstants.DEBOUNCE_MS
 import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.ErrorMessage
 import com.jiahan.smartcamera.util.ErrorTag
+import com.jiahan.smartcamera.util.toErrorMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -39,7 +42,7 @@ sealed interface SearchContent {
     data object Idle : SearchContent
     data object Loading : SearchContent
     data class Success(val notes: List<Note>) : SearchContent
-    data class Error(val message: String) : SearchContent
+    data class Error(val message: ErrorMessage) : SearchContent
 }
 
 data class SearchUiState(
@@ -56,7 +59,7 @@ private sealed interface SearchStatus {
     data object Idle : SearchStatus
     data object Searching : SearchStatus
     data object Settled : SearchStatus
-    data class Failed(val message: String) : SearchStatus
+    data class Failed(val message: ErrorMessage) : SearchStatus
 }
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
@@ -72,7 +75,7 @@ class SearchViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(SearchUiState())
     val uiState = _uiState.asStateFlow()
 
-    private val _fetchError = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    private val _fetchError = MutableSharedFlow<NoteActionError>(extraBufferCapacity = 1)
 
     /**
      * Note-action failures (delete, favorite) merged with search failures the results survive.
@@ -179,7 +182,7 @@ class SearchViewModel @Inject constructor(
             .onSuccess { searchStatus.value = SearchStatus.Settled }
             .onFailure { e ->
                 errorHandler.logError(e)
-                val message = errorHandler.getErrorMessage(e)
+                val message = e.toErrorMessage()
                 // Only an empty mirror earns the full-screen error. With matches already cached,
                 // blanking them over a failed search would throw away readable notes, so `content`
                 // keeps them -- `notes.isNotEmpty()` wins in the combine above -- and the failure
@@ -189,7 +192,7 @@ class SearchViewModel @Inject constructor(
                 if (noteRepository.searchNotesStream(query).first().isEmpty()) {
                     searchStatus.value = SearchStatus.Failed(message)
                 } else {
-                    _fetchError.tryEmit(message)
+                    _fetchError.tryEmit(NoteActionError.Failed(message))
                 }
             }
     }

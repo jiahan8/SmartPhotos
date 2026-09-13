@@ -11,7 +11,6 @@ import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
 import com.jiahan.smartcamera.fake.FakeMediaFileRepository
 import com.jiahan.smartcamera.fake.FakeNoteRepository
-import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.ui.theme.SmartPhotosTheme
@@ -55,7 +54,6 @@ class SearchScreenTest : BaseScreenTest() {
             noteShare = NoteShareDelegate(
                 FakeMediaFileRepository(),
                 noteErrorReporter,
-                FakeResourceProvider(composeTestRule.activity)
             ),
             errorHandler = errorHandler,
         )

@@ -269,7 +269,7 @@ component is assembled in `:app` — which is why `:core:data` can inject `@IoDi
 | Module | Lives in | Provides |
 | --- | --- | --- |
 | `di/AppModule.kt` | `:app` | `CoroutineDispatcher`s via `@IoDispatcher`/`@ApplicationScope`, the `@DebugBuild` flag, app-wide bindings |
-| `util/di/UtilModule.kt` | `:app` | `ErrorHandler`, `ResourceProvider` |
+| `util/di/UtilModule.kt` | `:app` | `ErrorHandler` (logging only; screens resolve their own text) |
 | `data/di/DataModule.kt` | `:core:data` | Binds each repository interface to its `Default*` |
 | `data/di/FirebaseModule.kt` | `:core:data` | The Firebase SDK singletons |
 | `data/datastore/DataStoreModule.kt` | `:core:data` | DataStore, and the one deliberate place a `CoroutineScope` is built at module level rather than injected |
@@ -332,8 +332,8 @@ follow and hard to re-derive.
   its test classpath could still see everything. When a test *cannot* follow its subject down, that
   is a finding: those two suites were asserting the rendered error *message* through `:app`'s
   `DefaultErrorHandler`, a layer above their subject. Splitting the assertion at the `AppError`
-  identity — the message half was already pinned by `ErrorMessageMappersTest`, where it belongs —
-  is what let them move.
+  identity — the message half was already pinned by what is now `ErrorMessagesTest` in
+  `:core:common`, where it belongs — is what let them move.
 - **`ProfileScreenTest` is device-only on purpose.** Promoting it to `sharedTest/` was tried and
   three of five tests passed under Robolectric; its bottom-anchored save button and inline
   validation text depend on real viewport and scroll behaviour. Check an existing androidTest-only
@@ -391,6 +391,15 @@ compatibility rule — the same way every module in this build already consumes
 `:core:domain:compileCommonMainKotlinMetadata`, which compiles `commonMain` against the
 *intersection* of all four targets, so a `java.*` import added there fails the build on a Linux
 runner with no Xcode. `jvmTest` alone would compile and pass it.
+
+**No feature ViewModel resolves a string resource.** Each exposes an identity — `ErrorMessage`
+(`:core:domain`) for a caught failure, or a feature's own sealed type or enum for its pre-checks and
+notices — and its screen resolves the text against `LocalResources.current`. `ResourceProvider` and
+`ErrorHandler.getErrorMessage` went with it, and the mappers they fed came down from `:app` to
+`:core:common`. It was the piece of the ViewModel layer independent of both ceilings below: however
+DI and Firebase are settled, a shared ViewModel cannot name `R`. What still binds a ViewModel to
+Android is `@HiltViewModel` (the DI decision), `SavedStateHandle.toRoute` in four of them, and
+`android.net.Uri` in four.
 
 ### What is left
 

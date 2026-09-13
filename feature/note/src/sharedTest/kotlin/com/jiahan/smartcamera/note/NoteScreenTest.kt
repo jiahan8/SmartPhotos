@@ -22,7 +22,6 @@ import com.jiahan.smartcamera.fake.FakeErrorHandler
 import com.jiahan.smartcamera.fake.FakeMediaFileRepository
 import com.jiahan.smartcamera.fake.FakeMediaUploadRepository
 import com.jiahan.smartcamera.fake.FakeNoteRepository
-import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.fake.FakeUserPreferencesRepository
 import com.jiahan.smartcamera.ui.theme.SmartPhotosTheme
 import com.jiahan.smartcamera.uitest.BaseScreenTest
@@ -72,7 +71,6 @@ class NoteScreenTest : BaseScreenTest() {
             analyticsRepository = FakeAnalyticsRepository(),
             mediaFileRepository = FakeMediaFileRepository(),
             incomingShareHandler = IncomingShareHandler(),
-            resourceProvider = FakeResourceProvider(composeTestRule.activity),
             errorHandler = FakeErrorHandler(),
         )
         composeTestRule.setContent {

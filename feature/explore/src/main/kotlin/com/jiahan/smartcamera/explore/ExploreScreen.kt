@@ -50,6 +50,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
@@ -69,6 +70,7 @@ import com.jiahan.smartcamera.common.shimmer
 import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.domain.Photo
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
+import com.jiahan.smartcamera.util.resolve
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,6 +80,7 @@ fun ExploreScreen(
     viewModel: ExploreViewModel = hiltViewModel(),
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
+    val resources = LocalResources.current
     val pullToRefreshState = rememberPullToRefreshState()
     val browseListState = rememberLazyListState()
     val searchListState = rememberLazyListState()
@@ -226,7 +229,8 @@ fun ExploreScreen(
                     when (state) {
                         is ExploreContent.Loading -> ExploreListSkeleton()
 
-                        is ExploreContent.Error -> FullScreenMessage(state.message)
+                        is ExploreContent.Error ->
+                            FullScreenMessage(state.message.resolve(resources))
 
                         is ExploreContent.Success ->
                             when {

@@ -10,15 +10,16 @@
  * started carrying a `ValidationError` identity rather than an `R.string` id -- there was never
  * anything Android about a blank check and a regex except the resource they filled in. What stayed
  * is the half that is genuinely Android: the strings, and `validationErrorMessageResId`, which
- * resolves them for the three ViewModels that call a validator.
+ * resolves them for the screens whose ViewModels call a validator.
  *
  * So this is the third destination the extractions kept implying and did not have. The rule it
  * follows is the `cd_back` one from :feature:explore: a resource -- or a function -- with consumers
  * in two different future modules goes *down* rather than sideways. What made a new module the
  * answer rather than a corner of :core:ui is that the family is not UI-only. The strings here are
  * the username/name/email/password vocabulary, and they are read from three places at once:
- * `validationErrorMessageResId` below, AuthScreen and ProfileScreen's field labels, and
- * `appErrorMessageResId` in :app, which renders `AppError.UsernameTaken`/`UsernameReserved`.
+ * `validationErrorMessageResId`, AuthScreen and ProfileScreen's field labels, and
+ * `appErrorMessageResId`, which renders `AppError.UsernameTaken`/`UsernameReserved` and came down
+ * from :app once screens rather than ViewModels resolved failure text.
  * Splitting the family so the labels sat in :core:ui and the messages here would make one screen
  * import two aliased `R`s to say one thing.
  *

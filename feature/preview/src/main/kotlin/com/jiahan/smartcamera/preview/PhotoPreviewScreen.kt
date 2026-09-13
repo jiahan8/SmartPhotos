@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -59,6 +60,7 @@ fun PhotoPreviewScreen(
 ) {
     val photoSource = viewModel.photoSource
     val context = LocalContext.current
+    val resources = LocalResources.current
     val isSharing by viewModel.isSharing.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
@@ -71,7 +73,10 @@ fun PhotoPreviewScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.actionError.collect { message ->
+        viewModel.actionError.collect { error ->
+            val message = when (error) {
+                MediaPreviewError.SHARE_FAILED -> resources.getString(R.string.share_photo_failure)
+            }
             snackbarHostState.showAppSnackbar(message, isError = true)
         }
     }

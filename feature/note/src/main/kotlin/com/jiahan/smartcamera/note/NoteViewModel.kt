@@ -15,8 +15,9 @@ import com.jiahan.smartcamera.util.AppConstants.MAX_NOTE_MEDIA_ITEMS
 import com.jiahan.smartcamera.util.AppConstants.MAX_NOTE_TEXT_LENGTH
 import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.ErrorMessage
 import com.jiahan.smartcamera.util.ErrorTag
-import com.jiahan.smartcamera.util.ResourceProvider
+import com.jiahan.smartcamera.util.toErrorMessage
 import com.jiahan.smartcamera.util.toMediaUri
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,18 +29,20 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import com.jiahan.smartcamera.core.common.R as CommonR
 
 sealed interface UploadStatus {
     data object Idle : UploadStatus
     data object Uploading : UploadStatus
     data object Success : UploadStatus
-    data class Error(val message: String) : UploadStatus
+    data class Error(val message: ErrorMessage) : UploadStatus
+
+    /** More media was picked than a note holds, and the extra was dropped. Nothing was uploaded. */
+    data object MediaLimitReached : UploadStatus
 }
 
 data class NoteUiState(
     val noteText: String = "",
-    val noteTextError: String? = null,
+    val isNoteTextTooLong: Boolean = false,
     val photoUri: Uri? = null,
     val videoUri: Uri? = null,
     val mediaList: List<NoteMediaDetail> = emptyList(),
@@ -54,7 +57,6 @@ class NoteViewModel @Inject constructor(
     private val analyticsRepository: AnalyticsRepository,
     private val mediaFileRepository: MediaFileRepository,
     incomingShareHandler: IncomingShareHandler,
-    private val resourceProvider: ResourceProvider,
     private val errorHandler: ErrorHandler,
 ) : ViewModel() {
 
@@ -76,7 +78,7 @@ class NoteViewModel @Inject constructor(
         .map { state ->
             state.uploadStatus !is UploadStatus.Uploading &&
                     (state.noteText.isNotBlank() || state.mediaList.isNotEmpty()) &&
-                    state.noteTextError == null
+                    !state.isNoteTextTooLong
         }
         .distinctUntilChanged()
         .stateIn(
@@ -132,13 +134,11 @@ class NoteViewModel @Inject constructor(
     }
 
     // No mapper here any more: addNote folds createNote's validation reasons into AppError, and
-    // getErrorMessage renders those, so this is the same message with the Firebase type left in
-    // the data layer where it belongs.
+    // toErrorMessage carries those up as ErrorMessage.Known, with the Firebase type left in the
+    // data layer where it belongs.
     private fun handleUploadFailure(e: Throwable) {
         errorHandler.logError(e)
-        _uiState.update {
-            it.copy(uploadStatus = UploadStatus.Error(errorHandler.getErrorMessage(e)))
-        }
+        _uiState.update { it.copy(uploadStatus = UploadStatus.Error(e.toErrorMessage())) }
     }
 
     fun resetUploadStatus() {
@@ -172,15 +172,7 @@ class NoteViewModel @Inject constructor(
     fun updateNoteText(text: String) {
         analyticsRepository.logNoteCreate(text)
         _uiState.update {
-            it.copy(
-                noteText = text,
-                noteTextError = when {
-                    text.length > MAX_NOTE_TEXT_LENGTH ->
-                        resourceProvider.getString(CommonR.string.note_validation)
-
-                    else -> null
-                }
-            )
+            it.copy(noteText = text, isNoteTextTooLong = text.length > MAX_NOTE_TEXT_LENGTH)
         }
     }
 
@@ -201,9 +193,7 @@ class NoteViewModel @Inject constructor(
                         if (combinedMediaList.size > MAX_NOTE_MEDIA_ITEMS) {
                             state.copy(
                                 mediaList = combinedMediaList.take(MAX_NOTE_MEDIA_ITEMS),
-                                uploadStatus = UploadStatus.Error(
-                                    resourceProvider.getString(CommonR.string.note_media_limit)
-                                )
+                                uploadStatus = UploadStatus.MediaLimitReached
                             )
                         } else {
                             state.copy(mediaList = combinedMediaList)

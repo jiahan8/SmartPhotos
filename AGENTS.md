@@ -12,7 +12,7 @@ that story is in [ARCHITECTURE.md](ARCHITECTURE.md).**
 | --- | --- |
 | `:app` | `MainActivity`, `MyApp`, `MainViewModel`, `SmartPhotosApp`, `navigation/`, the messaging service, `di/AppModule.kt`, `util/`. Hosts the NavHost, supplies each screen's navigation lambdas, installs the Hilt bindings — **no feature screen renders here**. |
 | `:core:domain` | Kotlin Multiplatform, `jvm` + three iOS targets (no AGP, no Hilt/KSP): domain models, repository *interfaces*, `safeCall`, the `ErrorHandler` interface, DI qualifiers, and the three field validators (`util/ValidationUtils.kt`) with `ValidationResult`/`ValidationError`. |
-| `:core:common` | Android library, deliberately not Compose: the validation strings + `validationErrorMessageResId` that resolves them, the `MediaFileRepository` contract, `util/MediaUriExt.kt`, and the two `@ViewModelScoped` classes every feature shares (`NoteShareDelegate`, `NoteErrorReporter` — why it has Hilt/KSP). |
+| `:core:common` | Android library, deliberately not Compose: the validation and failure strings + the mappers screens resolve them with (`validationErrorMessageResId`, `ErrorMessage.resolve`/`appErrorMessageResId`), the `MediaFileRepository` contract, `util/MediaUriExt.kt`, and the two `@ViewModelScoped` classes every feature shares (`NoteShareDelegate`, `NoteErrorReporter` — why it has Hilt/KSP). |
 | `:core:data` | Android library holding every implementation of a `:core:domain`/`:core:common` contract: the `Default*`/`Firebase*` repositories, Room, DataStore, `FirebaseModule`, `DataModule`. |
 | `:core:ui` | Android library, shared Compose vocabulary: `common/`, `ui/theme/`, `util/DateTimeUtils.kt`/`FlowUtils.kt`. |
 | `:feature:*` | One Android library per screen — `home`, `search`, `note`, `preview`, `favorite`, `profile`, `settings`, `auth`, `explore` — holding its Compose screen(s), ViewModel(s), route and tests. |
@@ -413,42 +413,54 @@ which a subscriber that isn't collecting yet misses.
 
 ### Error handling
 
-Route thrown errors through `util/ErrorHandler`, never `Throwable.localizedMessage`. Its two methods
-belong to different layers:
+Route thrown errors through `util/ErrorHandler`, never `Throwable.localizedMessage`. Logging and
+naming a failure are two different calls, for two different layers:
 
-- **`logError(throwable, tag)` — any layer, repositories included.** Only touches `Log` (debug) and
-  Crashlytics (release), so a repository logging a failure it swallows is correct.
-- **`getErrorMessage(throwable)` — ViewModel layer only.** It resolves a string resource, making its
-  result presentation, not data. Repositories log and then propagate or fold into a `Result`/null;
-  the ViewModel converts that into a `*UiState` error field.
+- **`ErrorHandler.logError(throwable, tag)` — any layer, repositories included.** Only touches `Log`
+  (debug) and Crashlytics (release), so a repository logging a failure it swallows is correct.
+- **`Throwable.toErrorMessage()` — ViewModel layer.** A plain `:core:domain` function returning an
+  `ErrorMessage` identity (`Known(AppError)`, `Unlocalized(text)`, `Generic`) for the ViewModel to
+  put on its `*UiState`. Repositories log and then propagate or fold into a `Result`/null.
+
+**A ViewModel never resolves a string resource — its screen does.** The ViewModel exposes *what*
+happened: an `ErrorMessage`, a `ValidationError`, or a small identity of the feature's own
+(`AuthError`, `ConfirmPasswordError`, `UsernameError`, `MediaPreviewError`). The screen turns it
+into text with `resolve(LocalResources.current)` or `stringResource(...)`. This used to be
+`ErrorHandler.getErrorMessage` over an injected `ResourceProvider`, which put `R` in every ViewModel
+and froze the text at the moment of failure — switch the app's language with an error on screen
+and it stayed in the old one. It is also the one ViewModel dependency on Android that no DI or
+Firebase decision can remove for you. **Don't reintroduce a string-returning seam below the
+screen.**
 
 **A repository that raises its own failure throws a `domain/AppError`, never a message** —
-`IllegalStateException(context.getString(...))` puts ViewModel-layer work in the data layer and
-forces a `Context` into a class that needs none. `AppError` is a sealed type carrying an identity
+`IllegalStateException(context.getString(...))` puts presentation in the data layer and forces a
+`Context` into a class that needs none. `AppError` is a sealed type carrying an identity
 (`NotAuthenticated`, `NoteUnavailable`, `UsernameTaken`, …); `appErrorMessageResId` maps each to a
-string *inside* `getErrorMessage`. **Add a case to the sealed type and the mapper together.**
+string when the screen resolves its `ErrorMessage.Known`. **Add a case to the sealed type and the
+mapper together.**
 
-**This splits the test as well as the code.** A repository test asserts the `AppError` raised; the
-string it resolves to is `ErrorMessageMappersTest`'s. A data-layer test asserting user-facing
-English is reaching a layer up — the tell is mechanical: it can't move into `:core:data` with its
-subject, because `DefaultErrorHandler` and `:app`'s `R` don't exist there.
+**This splits the test as well as the code, three ways.** A repository test asserts the `AppError`
+raised; a ViewModel test asserts the identity on its state (`ErrorMessage.Unlocalized("boom")`,
+`UsernameError.Taken`) and stubs no resources; the string each resolves to is `ErrorMessagesTest`'s
+or `ValidationMessagesTest`'s, in `:core:common`. Only a screen test asserts copy. A repository or
+ViewModel test asserting user-facing English is reaching a layer up.
 
 **Fold a Firebase type into an `AppError` below the repository boundary**, inside the `Default*`
 (see `DefaultNoteRepository.foldNoteValidationError`) — never in a ViewModel-layer mapper, which
 would put `firebase-functions` on a feature module's classpath.
 
-The three pieces live in three files, by layer: `util/ErrorHandler.kt` (interface + `ErrorTag`,
-`:core:domain`), `util/DefaultErrorHandler.kt` (implementation, `:app`), `util/ErrorMessageMappers.kt`
-(the `R`-resolving mapper, `:app`). Keep a new mapper in the third rather than reuniting them.
+The pieces live by layer: `util/ErrorHandler.kt` and `util/ErrorMessage.kt` (the interface,
+`ErrorTag`, the identity and `toErrorMessage`; `:core:domain`), `util/DefaultErrorHandler.kt`
+(logging only, `:app`), and `util/ErrorMessages.kt` beside `util/ValidationMessages.kt` (the
+`R`-resolving mappers, `:core:common`). A feature's own identity is mapped in its screen file, next
+to the only code that renders it.
 
-**`ValidationError` follows the same identity/mapper split but its mapper lives in `:core:common`,
-and the difference is the seam, not taste.** An `AppError` reaches a feature as a `Throwable` it
-already routes through `ErrorHandler`, so `appErrorMessageResId` can sit in `:app` and be applied
-*for* the feature inside `getErrorMessage`. A `ValidationResult` is returned to a ViewModel by a
-function it called itself, with nothing in between — mapping it from `:app` would mean inventing a
-seam (another `:core:domain` interface, an implementation, a binding and a fake) to reach a `when`
-over an enum. **Put a mapper where its callers can already see it; add a seam only when one exists
-for another reason.**
+**Both shared mappers live in `:core:common` because every caller can see it** — every feature
+screen, and nothing above them. `appErrorMessageResId` used to sit in `:app`, applied *for* the
+features inside `getErrorMessage`, while `validationErrorMessageResId` could not follow it there:
+a `ValidationResult` reaches a ViewModel from a function it called itself, with no seam to apply a
+mapper through. Resolving at the screen ended that asymmetry. **Put a mapper where its callers can
+already see it; add a seam only when one exists for another reason.**
 
 ### Kotlin Multiplatform readiness
 
@@ -467,9 +479,9 @@ to add tooling now, but between otherwise-equivalent approaches prefer the cheap
   worked example: three validators sat in two Android modules for one reason, that
   `ValidationResult.Error` carried an `R.string` id. Giving it a `ValidationError` identity and a
   mapper moved them to `:core:domain` unchanged — a blank check, a length check, a regex and a
-  reserved-name set that a `commonMain` source set could take today. **`ValidationResult` is a
-  template, not a finished job: `ResourceProvider.getString(Int)` is the same res-id-as-`Int` seam
-  one layer over.**
+  reserved-name set that a `commonMain` source set could take today. **The same move one layer up
+  retired `ResourceProvider`:** no feature ViewModel names an `R` now, so what still ties one to
+  Android is `@HiltViewModel`, `SavedStateHandle.toRoute` and `android.net.Uri` — not its copy.
 
 **`:core:domain` is multiplatform as of this change, and that turns three of the rules above from
 advice into compiler errors** — `commonMain` compiles against the intersection of `jvm`,
@@ -575,14 +587,15 @@ Snackbars and other fire-and-forget signals travel from ViewModel to screen on a
 `MutableSharedFlow(extraBufferCapacity = 1)` exposed as a read-only `SharedFlow`, collected in the
 screen's `LaunchedEffect` and shown through `SnackbarHostState`. `actionError` (via `:core:common`'s
 `NoteErrorReporter`) and `ProfileViewModel.profileEvent` are the existing instances — **follow their shape
-rather than inventing a third.**
+rather than inventing a third.** The payload is an identity the screen resolves (`NoteActionError`,
+`ProfileEvent.UpdateError`), never a string, for the reason under [Error handling](#error-handling).
 
 This deviates from the [official guidance](https://developer.android.com/topic/architecture/ui-layer/events)
 and stands because these signals have no state to restore — a snackbar already shown must not
 reappear. Two limits come with it:
 
-- **Anything that must survive configuration change or process death is not one of these** — error
-  text a screen keeps displaying belongs in `UiState` (e.g. `HomeContent.Error`).
+- **Anything that must survive configuration change or process death is not one of these** — an
+  error a screen keeps displaying belongs in `UiState` (e.g. `HomeContent.Error`).
 - **`tryEmit` into a one-slot buffer drops silently** when events land back-to-back with no
   collector ready, and a `LaunchedEffect` collector only exists while the composition does. Don't
   put anything the user must not miss on this flow.
@@ -768,8 +781,9 @@ more words for one thing, and the drift was invisible until every call site was 
   `observe<X>()`; a Flow property takes no suffix** — `getNoteStream(noteId)`,
   `observeExploreIconVisible()`, `userPreferences`. Never a `Flow` suffix.
 - **A one-off event stream is `<subject>Event`, singular** — `shareEvent`, `navigationEvent`,
-  `changePasswordEvent`, `profileEvent`. `actionError` is the deliberate exception: its payload is a
-  message rather than an event type, and it is shared through `NoteErrorReporter`.
+  `changePasswordEvent`, `profileEvent`. `actionError` is the deliberate exception: its payload is an
+  error to report (`NoteActionError`) rather than an event type, and it is shared through
+  `NoteErrorReporter`.
 - **A dialog or sheet is toggled by `show<X>()`/`dismiss<X>()`, never a `Boolean` setter**, and the
   field it writes is `is<X>Visible`.
 - **A setter is named for the field it writes**, which is what settles whether a `Text` suffix is

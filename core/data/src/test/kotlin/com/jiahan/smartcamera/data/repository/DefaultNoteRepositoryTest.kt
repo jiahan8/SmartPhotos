@@ -43,8 +43,8 @@ import org.robolectric.annotation.Config
  * than surfacing one from Firestore.
  *
  * These assert the [AppError] identity, which is the whole of this layer's contract for a failure
- * it raises itself: the repository names the failure and :app's `appErrorMessageResId` turns it
- * into a string, pinned there by `ErrorMessageMappersTest`. They used to resolve the message
+ * it raises itself: the repository names the failure and :core:common's `appErrorMessageResId`
+ * turns it into a string, pinned there by `ErrorMessagesTest`. They used to resolve the message
  * through a real `DefaultErrorHandler` and assert the English text instead, which is what kept the
  * file in :app -- see the note on [DefaultUserRepositoryTest].
  *

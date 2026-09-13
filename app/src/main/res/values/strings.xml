@@ -11,8 +11,6 @@
 
     <!-- Note -->
     <string name="note">Note</string>
-    <string name="no_media_available">No media URI available for upload</string>
-    <string name="note_unavailable">This note is no longer available</string>
 
     <!-- Favorite -->
     <string name="favorite">Favorite</string>
@@ -39,10 +37,6 @@
     <string name="password_reset_failure">Couldn\'t reset your password. Please try again.</string>
     <string name="login_failure">Couldn\'t login. Please check your email and password.</string>
     <string name="sign_up_failure">Couldn\'t create your account. Please try again.</string>
-
-    <!-- General errors -->
-    <string name="error_occurred">An error occurred</string>
-    <string name="user_not_authenticated">You need to be signed in to do that</string>
 
     <!-- Notifications -->
     <string name="default_notification_channel_id" translatable="false">general</string>

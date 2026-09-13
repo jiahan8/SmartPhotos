@@ -2,6 +2,7 @@ package com.jiahan.smartcamera.profile
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.content.res.Resources
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -53,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -67,6 +69,8 @@ import com.jiahan.smartcamera.common.showAppSnackbar
 import com.jiahan.smartcamera.core.common.R as CommonR
 import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.feature.profile.R
+import com.jiahan.smartcamera.util.resolve
+import com.jiahan.smartcamera.util.validationErrorMessageResId
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,6 +81,7 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val bottomSheetState = rememberModalBottomSheetState()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isBottomSheetVisible = uiState.isBottomSheetVisible
@@ -86,8 +91,8 @@ fun ProfileScreen(
     val displayName = uiState.displayName
     val username = uiState.username
     val profilePictureUrl = uiState.profilePictureUrl
-    val displayNameErrorMessage = uiState.displayNameErrorMessage
-    val usernameErrorMessage = uiState.usernameErrorMessage
+    val displayNameError = uiState.displayNameError
+    val usernameError = uiState.usernameError
     val errorMessage = uiState.errorMessage
     val isErrorFree = uiState.isErrorFree
     val isFormChanged = uiState.isFormChanged
@@ -146,7 +151,7 @@ fun ProfileScreen(
 
                 is ProfileEvent.UpdateError -> {
                     snackbarHostState.showAppSnackbar(
-                        event.message ?: updateFailureMessage,
+                        event.message?.resolve(resources) ?: updateFailureMessage,
                         isError = true
                     )
                 }
@@ -311,9 +316,9 @@ fun ProfileScreen(
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                         )
 
-                        displayNameErrorMessage?.let {
+                        displayNameError?.let {
                             Text(
-                                text = it,
+                                text = stringResource(validationErrorMessageResId(it)),
                                 color = MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -344,9 +349,9 @@ fun ProfileScreen(
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
                         )
 
-                        usernameErrorMessage?.let {
+                        usernameError?.let {
                             Text(
-                                text = it,
+                                text = it.resolve(resources),
                                 color = MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -354,7 +359,7 @@ fun ProfileScreen(
 
                         errorMessage?.let {
                             Text(
-                                text = it,
+                                text = it.resolve(resources),
                                 color = MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -405,4 +410,10 @@ fun ProfileScreen(
             }
         }
     }
+}
+
+/** The text under the username field for each way it can be rejected. */
+private fun UsernameError.resolve(resources: Resources): String = when (this) {
+    is UsernameError.Invalid -> resources.getString(validationErrorMessageResId(reason))
+    UsernameError.Taken -> resources.getString(CommonR.string.username_not_available)
 }

@@ -6,12 +6,15 @@ import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.domain.Note
 import com.jiahan.smartcamera.domain.NoteCursor
+import com.jiahan.smartcamera.note.NoteActionError
 import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.AppConstants.DEFAULT_PAGE_SIZE
 import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.ErrorMessage
 import com.jiahan.smartcamera.util.ErrorTag
+import com.jiahan.smartcamera.util.toErrorMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -33,7 +36,7 @@ import javax.inject.Inject
 sealed interface HomeContent {
     data object Loading : HomeContent
     data class Success(val notes: List<Note>) : HomeContent
-    data class Error(val message: String) : HomeContent
+    data class Error(val message: ErrorMessage) : HomeContent
 }
 
 data class HomeUiState(
@@ -50,7 +53,7 @@ data class HomeUiState(
 private sealed interface FetchStatus {
     data object Pending : FetchStatus
     data object Settled : FetchStatus
-    data class Failed(val message: String) : FetchStatus
+    data class Failed(val message: ErrorMessage) : FetchStatus
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -66,7 +69,7 @@ class HomeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState = _uiState.asStateFlow()
 
-    private val _fetchError = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    private val _fetchError = MutableSharedFlow<NoteActionError>(extraBufferCapacity = 1)
     val actionError = merge(noteErrorReporter.actionError, _fetchError)
     val shareEvent = noteShare.shareEvent
 
@@ -184,14 +187,14 @@ class HomeViewModel @Inject constructor(
                 // so there is nothing to tell the user about -- same as before Room.
                 if (!initialLoading) return@onFailure
 
-                val message = errorHandler.getErrorMessage(e)
+                val message = e.toErrorMessage()
                 // Only an empty cache earns the full-screen error. With rows to show, blanking
                 // them would throw away readable notes over a failed refresh, so the feed stays
                 // and the failure surfaces transiently instead of vanishing.
                 if (noteRepository.getNotesStream(notesLimit.value).first().isEmpty()) {
                     fetchStatus.value = FetchStatus.Failed(message)
                 } else {
-                    _fetchError.tryEmit(message)
+                    _fetchError.tryEmit(NoteActionError.Failed(message))
                 }
             }
     }

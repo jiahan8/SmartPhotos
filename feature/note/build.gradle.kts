@@ -7,10 +7,10 @@
  * payload off a `FirebaseFunctionsException` in the ViewModel layer, so moving it here would have
  * put `firebase-functions` on a feature module's classpath. It was **deleted rather than moved** --
  * `DefaultNoteRepository` folds those reasons into `AppError.NoteTextTooLong`,
- * `NoteMediaLimitExceeded` and `NoteEmpty`, and `getErrorMessage` renders them. Two ViewModel call
- * sites shrank to a plain `getErrorMessage`, and the three strings went *down* to :core:common,
- * where `appErrorMessageResId` in :app and this module's own client-side length checks can both
- * see them -- exactly why `username_not_available` is already there.
+ * `NoteMediaLimitExceeded` and `NoteEmpty`, which the screens render like any other `AppError`. Two
+ * ViewModel call sites shrank to a plain `toErrorMessage`, and the three strings went *down* to
+ * :core:common, where `appErrorMessageResId` and this module's screens can both see them -- exactly
+ * why `username_not_available` is already there.
  *
  * All fourteen of its remaining strings were exclusive and travelled. `IncomingShareHandler` came
  * with them and is read downward by :app's `AppModule` and `MainViewModel`, which is the same shape

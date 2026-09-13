@@ -6,9 +6,9 @@ import com.jiahan.smartcamera.data.datastore.UserPreferences
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
-import com.jiahan.smartcamera.feature.settings.R
 import com.jiahan.smartcamera.util.ErrorHandler
-import com.jiahan.smartcamera.util.ResourceProvider
+import com.jiahan.smartcamera.util.ErrorMessage
+import com.jiahan.smartcamera.util.ValidationError
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.verify
@@ -29,7 +29,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import com.jiahan.smartcamera.core.common.R as CommonR
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class SettingsViewModelTest {
@@ -40,7 +39,6 @@ class SettingsViewModelTest {
     private val authRepository: AuthRepository = mockk()
     private val analyticsRepository: AnalyticsRepository = mockk()
     private val userPreferencesRepository: UserPreferencesRepository = mockk()
-    private val resourceProvider: ResourceProvider = mockk()
     private val errorHandler: ErrorHandler = mockk()
 
     private lateinit var viewModel: SettingsViewModel
@@ -50,19 +48,12 @@ class SettingsViewModelTest {
         every { analyticsRepository.setUserId(any()) } just runs
         every { analyticsRepository.logText(any()) } just runs
         every { errorHandler.logError(any()) } just runs
-        every { errorHandler.getErrorMessage(any()) } returns "An error occurred"
         every { userPreferencesRepository.userPreferences } returns
                 flowOf(UserPreferences(isDarkTheme = false, username = "", profilePictureUrl = null))
-        every {
-            resourceProvider.getString(CommonR.string.password_empty)
-        } returns "Password cannot be empty"
-        every { resourceProvider.getString(R.string.passwords_do_not_match) } returns "Passwords do not match"
-        every { resourceProvider.getString(R.string.change_password_success) } returns "Password changed successfully"
         viewModel = SettingsViewModel(
             authRepository,
             analyticsRepository,
             userPreferencesRepository,
-            resourceProvider,
             errorHandler
         )
     }
@@ -113,14 +104,16 @@ class SettingsViewModelTest {
     fun `signOut failure sets Error uiState`() = runTest(mainDispatcherRule.testDispatcher) {
         val exception = RuntimeException("sign out failed")
         coEvery { authRepository.signOut() } returns Result.failure(exception)
-        every { errorHandler.getErrorMessage(exception) } returns "sign out failed"
 
         viewModel.signOut()
         advanceUntilIdle()
 
         val state = viewModel.uiState.value.status
         assertTrue(state is SettingsStatus.Error)
-        assertEquals("sign out failed", (state as SettingsStatus.Error).message)
+        assertEquals(
+            ErrorMessage.Unlocalized("sign out failed"),
+            (state as SettingsStatus.Error).message
+        )
     }
 
     // -------------------------------------------------------------------------
@@ -153,7 +146,6 @@ class SettingsViewModelTest {
     fun `deleteAccount failure sets Error uiState`() = runTest(mainDispatcherRule.testDispatcher) {
         val exception = RuntimeException("delete failed")
         coEvery { authRepository.deleteAccount() } returns Result.failure(exception)
-        every { errorHandler.getErrorMessage(exception) } returns "delete failed"
 
         viewModel.deleteAccount()
         advanceUntilIdle()
@@ -215,16 +207,16 @@ class SettingsViewModelTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `updateNewPassword clears any existing newPasswordErrorMessage`() =
+    fun `updateNewPassword clears any existing newPasswordError`() =
         runTest(mainDispatcherRule.testDispatcher) {
             viewModel.showChangePasswordDialog()
             viewModel.updateCurrentPassword("current")
             viewModel.changePassword()
             advanceUntilIdle()
             assertEquals(
-                "Password cannot be empty",
+                ValidationError.PASSWORD_EMPTY,
                 (viewModel.uiState.value.dialogState as SettingsDialogState.ChangePassword)
-                    .newPasswordErrorMessage
+                    .newPasswordError
             )
 
             viewModel.updateNewPassword("newPass1")
@@ -232,31 +224,31 @@ class SettingsViewModelTest {
             assertEquals(
                 null,
                 (viewModel.uiState.value.dialogState as SettingsDialogState.ChangePassword)
-                    .newPasswordErrorMessage
+                    .newPasswordError
             )
         }
 
     @Test
-    fun `updateConfirmNewPassword mismatch sets confirmNewPasswordErrorMessage`() {
+    fun `updateConfirmNewPassword mismatch sets confirmNewPasswordError`() {
         viewModel.showChangePasswordDialog()
         viewModel.updateNewPassword("newPass1")
         viewModel.updateConfirmNewPassword("different")
         assertEquals(
-            "Passwords do not match",
+            ConfirmPasswordError.MISMATCH,
             (viewModel.uiState.value.dialogState as SettingsDialogState.ChangePassword)
-                .confirmNewPasswordErrorMessage
+                .confirmNewPasswordError
         )
     }
 
     @Test
-    fun `updateConfirmNewPassword match clears confirmNewPasswordErrorMessage`() {
+    fun `updateConfirmNewPassword match clears confirmNewPasswordError`() {
         viewModel.showChangePasswordDialog()
         viewModel.updateNewPassword("newPass1")
         viewModel.updateConfirmNewPassword("newPass1")
         assertEquals(
             null,
             (viewModel.uiState.value.dialogState as SettingsDialogState.ChangePassword)
-                .confirmNewPasswordErrorMessage
+                .confirmNewPasswordError
         )
     }
 
@@ -270,9 +262,9 @@ class SettingsViewModelTest {
 
             coVerify(exactly = 0) { authRepository.changePassword(any(), any()) }
             assertEquals(
-                "Password cannot be empty",
+                ValidationError.PASSWORD_EMPTY,
                 (viewModel.uiState.value.dialogState as SettingsDialogState.ChangePassword)
-                    .newPasswordErrorMessage
+                    .newPasswordError
             )
         }
 
@@ -288,9 +280,9 @@ class SettingsViewModelTest {
 
             coVerify(exactly = 0) { authRepository.changePassword(any(), any()) }
             assertEquals(
-                "Passwords do not match",
+                ConfirmPasswordError.MISMATCH,
                 (viewModel.uiState.value.dialogState as SettingsDialogState.ChangePassword)
-                    .confirmNewPasswordErrorMessage
+                    .confirmNewPasswordError
             )
         }
 
@@ -309,7 +301,7 @@ class SettingsViewModelTest {
                 viewModel.changePassword()
                 advanceUntilIdle()
                 assertEquals(
-                    SettingsChangePasswordEvent.Success("Password changed successfully"),
+                    SettingsChangePasswordEvent.Success,
                     awaitItem()
                 )
                 cancelAndIgnoreRemainingEvents()
@@ -350,7 +342,6 @@ class SettingsViewModelTest {
             val exception = RuntimeException("wrong password")
             coEvery { authRepository.changePassword(any(), any()) } returns
                     Result.failure(exception)
-            every { errorHandler.getErrorMessage(exception) } returns "wrong password"
 
             viewModel.showChangePasswordDialog()
             viewModel.updateCurrentPassword("wrong")
@@ -361,7 +352,10 @@ class SettingsViewModelTest {
 
             val state = viewModel.uiState.value
             assertTrue(state.status is SettingsStatus.Error)
-            assertEquals("wrong password", (state.status as SettingsStatus.Error).message)
+            assertEquals(
+                ErrorMessage.Unlocalized("wrong password"),
+                (state.status as SettingsStatus.Error).message
+            )
             assertTrue(state.dialogState is SettingsDialogState.ChangePassword)
         }
 

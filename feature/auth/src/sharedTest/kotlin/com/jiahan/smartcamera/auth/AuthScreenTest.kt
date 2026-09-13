@@ -9,7 +9,6 @@ import com.jiahan.smartcamera.core.common.R as CommonR
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeAuthRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
-import com.jiahan.smartcamera.fake.FakeResourceProvider
 import com.jiahan.smartcamera.fake.FakeUserPreferencesRepository
 import com.jiahan.smartcamera.fake.FakeUserRepository
 import com.jiahan.smartcamera.feature.auth.R
@@ -50,7 +49,6 @@ class AuthScreenTest : BaseScreenTest() {
             userRepository = FakeUserRepository(),
             userPreferencesRepository = FakeUserPreferencesRepository(),
             analyticsRepository = FakeAnalyticsRepository(),
-            resourceProvider = FakeResourceProvider(activity),
             errorHandler = FakeErrorHandler(),
         )
         composeTestRule.setContent {

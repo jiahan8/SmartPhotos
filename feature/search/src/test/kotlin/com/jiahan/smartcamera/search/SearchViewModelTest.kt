@@ -6,10 +6,12 @@ import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.Note
 import com.jiahan.smartcamera.fake.NoteMirror
+import com.jiahan.smartcamera.note.NoteActionError
 import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.AppConstants.DEBOUNCE_MS
 import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.ErrorMessage
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -60,7 +62,6 @@ class SearchViewModelTest {
         every { analyticsRepository.logSearch(any()) } just runs
         every { analyticsRepository.logNoteSearch(any()) } just runs
         every { errorHandler.logError(any()) } just runs
-        every { errorHandler.getErrorMessage(any()) } returns "Error"
         every { noteRepository.searchNotesStream(any()) } answers {
             val query = firstArg<String>()
             notesMirror.stream().map { notes -> notes.filter { matchesQuery(it, query) } }
@@ -182,7 +183,6 @@ class SearchViewModelTest {
         runTest(mainDispatcherRule.testDispatcher) {
             val exception = RuntimeException("search failed")
             coEvery { noteRepository.searchNotes(any()) } returns Result.failure(exception)
-            every { errorHandler.getErrorMessage(exception) } returns "search failed"
             val viewModel = searchViewModel()
 
             viewModel.updateSearchQuery("query")
@@ -190,7 +190,10 @@ class SearchViewModelTest {
 
             val state = viewModel.content.value
             assertTrue(state is SearchContent.Error)
-            assertEquals("search failed", (state as SearchContent.Error).message)
+            assertEquals(
+                ErrorMessage.Unlocalized("search failed"),
+                (state as SearchContent.Error).message
+            )
         }
 
     @Test
@@ -219,7 +222,6 @@ class SearchViewModelTest {
             notesMirror.upsert(listOf(makeNote("a", text = "cat food")))
             val exception = RuntimeException("offline")
             coEvery { noteRepository.searchNotes(any()) } returns Result.failure(exception)
-            every { errorHandler.getErrorMessage(exception) } returns "offline"
             val viewModel = searchViewModel()
 
             viewModel.actionError.test {
@@ -227,7 +229,10 @@ class SearchViewModelTest {
                 advanceTimeBy((DEBOUNCE_MS + 1).milliseconds)
                 advanceUntilIdle()
 
-                assertEquals("offline", awaitItem())
+                assertEquals(
+                    NoteActionError.Failed(ErrorMessage.Unlocalized("offline")),
+                    awaitItem()
+                )
                 cancelAndIgnoreRemainingEvents()
             }
         }
@@ -343,13 +348,15 @@ class SearchViewModelTest {
 
             val exception = RuntimeException("refresh failed")
             coEvery { noteRepository.searchNotes(any()) } returns Result.failure(exception)
-            every { errorHandler.getErrorMessage(exception) } returns "refresh failed"
 
             viewModel.actionError.test {
                 viewModel.refresh()
                 advanceUntilIdle()
 
-                assertEquals("refresh failed", awaitItem())
+                assertEquals(
+                    NoteActionError.Failed(ErrorMessage.Unlocalized("refresh failed")),
+                    awaitItem()
+                )
                 cancelAndIgnoreRemainingEvents()
             }
             // The failure did not blank the matches it reported over.
@@ -386,13 +393,12 @@ class SearchViewModelTest {
     @Test
     fun `deleteNote failure emits action error`() = runTest(mainDispatcherRule.testDispatcher) {
         coEvery { noteRepository.deleteNote(any()) } returns Result.failure(RuntimeException())
-        every { errorHandler.getErrorMessage(any()) } returns "delete error"
         val viewModel = searchViewModel()
 
         viewModel.actionError.test {
             viewModel.deleteNote("doc1")
             advanceTimeBy(1.milliseconds)
-            assertEquals("delete error", awaitItem())
+            assertEquals(NoteActionError.Failed(ErrorMessage.Generic), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -425,13 +431,12 @@ class SearchViewModelTest {
     @Test
     fun `toggleFavorite failure emits action error`() = runTest(mainDispatcherRule.testDispatcher) {
         coEvery { noteRepository.toggleFavorite(any()) } returns Result.failure(RuntimeException())
-        every { errorHandler.getErrorMessage(any()) } returns "fav error"
         val viewModel = searchViewModel()
 
         viewModel.actionError.test {
             viewModel.toggleFavorite(makeNote("doc1"))
             advanceTimeBy(1.milliseconds)
-            assertEquals("fav error", awaitItem())
+            assertEquals(NoteActionError.Failed(ErrorMessage.Generic), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }

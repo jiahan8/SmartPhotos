@@ -7,12 +7,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.cash.turbine.test
 import com.jiahan.smartcamera.MainDispatcherRule
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
-import com.jiahan.smartcamera.feature.preview.R
 import com.jiahan.smartcamera.util.ErrorHandler
-import com.jiahan.smartcamera.util.ResourceProvider
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
 import kotlinx.coroutines.Dispatchers
@@ -27,7 +24,6 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -58,18 +54,6 @@ class PhotoPreviewViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val mediaFileRepository = mockk<MediaFileRepository>()
-    private val resourceProvider = mockk<ResourceProvider>()
-
-    /**
-     * Stubbed rather than relaxed: a relaxed [ResourceProvider] answers every id with `""`, which
-     * would let the failure assertions below pass against any message at all -- including the one
-     * from the other preview screen.
-     */
-    @Before
-    fun setUp() {
-        every { resourceProvider.getString(R.string.share_photo_failure) } returns
-                SHARE_FAILURE_MESSAGE
-    }
 
     @After
     fun tearDown() = unmockkAll()
@@ -80,8 +64,7 @@ class PhotoPreviewViewModelTest {
         return PhotoPreviewViewModel(
             savedStateHandle,
             mockk<ErrorHandler>(relaxed = true),
-            mediaFileRepository,
-            resourceProvider
+            mediaFileRepository
         )
     }
 
@@ -94,7 +77,6 @@ class PhotoPreviewViewModelTest {
     }
 
     private companion object {
-        const val SHARE_FAILURE_MESSAGE = "Couldn't share this photo. Please try again."
         const val CACHE_URI = "file:///data/user/0/com.jiahan.smartcamera/cache/photo.jpg"
     }
 
@@ -173,7 +155,7 @@ class PhotoPreviewViewModelTest {
     }
 
     @Test
-    fun `sharePhoto emits the share-failure message when the download fails`() = runTest {
+    fun `sharePhoto reports SHARE_FAILED when the download fails`() = runTest {
         val url = "https://example.com/photo.jpg"
         coEvery { mediaFileRepository.downloadToCacheFile(url, isVideo = false) } returns null
 
@@ -181,7 +163,7 @@ class PhotoPreviewViewModelTest {
 
         vm.actionError.test {
             vm.sharePhoto()
-            assertEquals(SHARE_FAILURE_MESSAGE, awaitItem())
+            assertEquals(MediaPreviewError.SHARE_FAILED, awaitItem())
         }
     }
 

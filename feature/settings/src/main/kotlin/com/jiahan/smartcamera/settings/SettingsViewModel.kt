@@ -2,17 +2,17 @@ package com.jiahan.smartcamera.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jiahan.smartcamera.feature.settings.R
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.util.AppConstants.AUTH_ACTION_DELAY_MS
 import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
-import com.jiahan.smartcamera.util.ResourceProvider
+import com.jiahan.smartcamera.util.ErrorMessage
+import com.jiahan.smartcamera.util.ValidationError
 import com.jiahan.smartcamera.util.ValidationResult
+import com.jiahan.smartcamera.util.toErrorMessage
 import com.jiahan.smartcamera.util.validateNewPassword
-import com.jiahan.smartcamera.util.validationErrorMessageResId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -28,12 +28,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
-import com.jiahan.smartcamera.core.common.R as CommonR
 
 sealed interface SettingsStatus {
     data object Idle : SettingsStatus
     data object Loading : SettingsStatus
-    data class Error(val message: String) : SettingsStatus
+    data class Error(val message: ErrorMessage) : SettingsStatus
 }
 
 sealed interface SettingsDialogState {
@@ -47,10 +46,13 @@ sealed interface SettingsDialogState {
         val isCurrentPasswordVisible: Boolean = false,
         val isNewPasswordVisible: Boolean = false,
         val isConfirmNewPasswordVisible: Boolean = false,
-        val newPasswordErrorMessage: String? = null,
-        val confirmNewPasswordErrorMessage: String? = null,
+        val newPasswordError: ValidationError? = null,
+        val confirmNewPasswordError: ConfirmPasswordError? = null,
     ) : SettingsDialogState
 }
+
+/** Why the confirm-password field is rejected, for SettingsScreen to render under it. */
+enum class ConfirmPasswordError { EMPTY, MISMATCH }
 
 sealed interface SettingsNavigationEvent {
     data object NavigateToAuth : SettingsNavigationEvent
@@ -58,7 +60,7 @@ sealed interface SettingsNavigationEvent {
 }
 
 sealed interface SettingsChangePasswordEvent {
-    data class Success(val message: String) : SettingsChangePasswordEvent
+    data object Success : SettingsChangePasswordEvent
 }
 
 data class SettingsUiState(
@@ -71,7 +73,6 @@ class SettingsViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val analyticsRepository: AnalyticsRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
-    private val resourceProvider: ResourceProvider,
     private val errorHandler: ErrorHandler
 ) : ViewModel() {
 
@@ -106,7 +107,7 @@ class SettingsViewModel @Inject constructor(
                 errorHandler.logError(e)
                 _uiState.update {
                     it.copy(
-                        status = SettingsStatus.Error(errorHandler.getErrorMessage(e))
+                        status = SettingsStatus.Error(e.toErrorMessage())
                     )
                 }
             }
@@ -127,7 +128,7 @@ class SettingsViewModel @Inject constructor(
                 errorHandler.logError(e)
                 _uiState.update {
                     it.copy(
-                        status = SettingsStatus.Error(errorHandler.getErrorMessage(e))
+                        status = SettingsStatus.Error(e.toErrorMessage())
                     )
                 }
             }
@@ -165,8 +166,8 @@ class SettingsViewModel @Inject constructor(
         updateChangePasswordDialog {
             it.copy(
                 newPassword = text,
-                newPasswordErrorMessage = null,
-                confirmNewPasswordErrorMessage = mismatchError(text, it.confirmNewPassword)
+                newPasswordError = null,
+                confirmNewPasswordError = mismatchError(text, it.confirmNewPassword)
             )
         }
         analyticsRepository.logText(text)
@@ -176,15 +177,18 @@ class SettingsViewModel @Inject constructor(
         updateChangePasswordDialog {
             it.copy(
                 confirmNewPassword = text,
-                confirmNewPasswordErrorMessage = mismatchError(it.newPassword, text)
+                confirmNewPasswordError = mismatchError(it.newPassword, text)
             )
         }
         analyticsRepository.logText(text)
     }
 
-    private fun mismatchError(newPassword: String, confirmNewPassword: String): String? =
+    private fun mismatchError(
+        newPassword: String,
+        confirmNewPassword: String
+    ): ConfirmPasswordError? =
         if (confirmNewPassword.isNotEmpty() && confirmNewPassword != newPassword)
-            resourceProvider.getString(R.string.passwords_do_not_match)
+            ConfirmPasswordError.MISMATCH
         else null
 
     fun updateCurrentPasswordVisibility(visible: Boolean) {
@@ -215,22 +219,17 @@ class SettingsViewModel @Inject constructor(
             (validateNewPassword(
                 dialog.newPassword,
                 requireNonBlank = true
-            ) as? ValidationResult.Error)
-                ?.let { resourceProvider.getString(validationErrorMessageResId(it.reason)) }
+            ) as? ValidationResult.Error)?.reason
         val confirmError = when {
-            dialog.confirmNewPassword.isBlank() ->
-                resourceProvider.getString(CommonR.string.password_empty)
-
-            dialog.confirmNewPassword != dialog.newPassword ->
-                resourceProvider.getString(R.string.passwords_do_not_match)
-
+            dialog.confirmNewPassword.isBlank() -> ConfirmPasswordError.EMPTY
+            dialog.confirmNewPassword != dialog.newPassword -> ConfirmPasswordError.MISMATCH
             else -> null
         }
         if (newPasswordError != null || confirmError != null) {
             updateChangePasswordDialog {
                 it.copy(
-                    newPasswordErrorMessage = newPasswordError,
-                    confirmNewPasswordErrorMessage = confirmError
+                    newPasswordError = newPasswordError,
+                    confirmNewPasswordError = confirmError
                 )
             }
             return
@@ -245,7 +244,7 @@ class SettingsViewModel @Inject constructor(
             result.onFailure { e ->
                 errorHandler.logError(e)
                 _uiState.update {
-                    it.copy(status = SettingsStatus.Error(errorHandler.getErrorMessage(e)))
+                    it.copy(status = SettingsStatus.Error(e.toErrorMessage()))
                 }
             }
             if (result.isSuccess) {
@@ -255,11 +254,7 @@ class SettingsViewModel @Inject constructor(
                         dialogState = SettingsDialogState.None,
                     )
                 }
-                _changePasswordEvent.tryEmit(
-                    SettingsChangePasswordEvent.Success(
-                        resourceProvider.getString(R.string.change_password_success)
-                    )
-                )
+                _changePasswordEvent.tryEmit(SettingsChangePasswordEvent.Success)
             }
         }
     }

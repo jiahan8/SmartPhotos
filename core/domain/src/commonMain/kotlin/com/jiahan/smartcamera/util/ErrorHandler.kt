@@ -1,13 +1,14 @@
 package com.jiahan.smartcamera.util
 
 /**
- * Central error handler that:
- *  1. Records errors for observability.
- *  2. Converts a [Throwable] into a user-visible error message string.
+ * Records errors for observability.
  *
  * Deliberately free of Android and Firebase types, so injecting it into a repository imports no
- * platform dependency. How errors are actually recorded, and where the fallback string comes
- * from, is `DefaultErrorHandler`'s business.
+ * platform dependency. How errors are actually recorded is `DefaultErrorHandler`'s business.
+ *
+ * It used to turn a [Throwable] into user-visible text as well, through `getErrorMessage`. That
+ * half is [toErrorMessage] now: a plain function returning an identity the screen resolves, which
+ * needs no platform and no fake, so it has no reason to sit behind an interface.
  */
 interface ErrorHandler {
 
@@ -16,16 +17,6 @@ interface ErrorHandler {
      * Always call this before displaying any error to the user.
      */
     fun logError(throwable: Throwable, tag: String = ErrorTag.DEFAULT)
-
-    /**
-     * Returns a user-friendly string for the given [throwable].
-     * Prefer this over accessing [Throwable.localizedMessage] directly.
-     *
-     * ViewModel layer only — the result is user-facing presentation, not data. Repositories log
-     * and then either propagate or fold the failure into a `Result`, and the ViewModel turns that
-     * into an error field on its `UiState`.
-     */
-    fun getErrorMessage(throwable: Throwable): String
 }
 
 /**

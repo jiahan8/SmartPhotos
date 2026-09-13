@@ -2,18 +2,17 @@ package com.jiahan.smartcamera.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jiahan.smartcamera.core.common.R as CommonR
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
-import com.jiahan.smartcamera.feature.auth.R
 import com.jiahan.smartcamera.util.ErrorHandler
-import com.jiahan.smartcamera.util.ResourceProvider
+import com.jiahan.smartcamera.util.ErrorMessage
+import com.jiahan.smartcamera.util.ValidationError
 import com.jiahan.smartcamera.util.ValidationResult
+import com.jiahan.smartcamera.util.toErrorMessage
 import com.jiahan.smartcamera.util.validateDisplayName
 import com.jiahan.smartcamera.util.validateUsername
-import com.jiahan.smartcamera.util.validationErrorMessageResId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,8 +25,32 @@ import javax.inject.Inject
 sealed interface AuthStatus {
     data object Idle : AuthStatus
     data object Loading : AuthStatus
-    data class Error(val message: String) : AuthStatus
-    data class Info(val message: String) : AuthStatus
+    data class Error(val error: AuthError) : AuthStatus
+    data class Info(val notice: AuthNotice) : AuthStatus
+}
+
+/**
+ * Why the last auth action was refused, for AuthScreen to render.
+ *
+ * [Failed] is a repository failure and [Invalid] a validator's verdict. The objects are this
+ * screen's own pre-checks, each named for the one string it shows.
+ */
+sealed interface AuthError {
+    data class Failed(val message: ErrorMessage) : AuthError
+    data class Invalid(val reason: ValidationError) : AuthError
+    data object EmailPasswordEmpty : AuthError
+    data object AllFieldsRequired : AuthError
+    data object EmailNotVerified : AuthError
+    data object UsernameNotAvailable : AuthError
+    data object EmailEmpty : AuthError
+    data object EmailNotRegistered : AuthError
+}
+
+/** What a successful auth action tells the user to do next. */
+enum class AuthNotice {
+    VERIFICATION_EMAIL_SENT,
+    VERIFICATION_EMAIL_RESENT,
+    PASSWORD_RESET_EMAIL_SENT,
 }
 
 data class AuthUiState(
@@ -51,7 +74,6 @@ class AuthViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val analyticsRepository: AnalyticsRepository,
-    private val resourceProvider: ResourceProvider,
     private val errorHandler: ErrorHandler
 ) : ViewModel() {
 
@@ -65,22 +87,22 @@ class AuthViewModel @Inject constructor(
         _uiState.update { it.copy(status = AuthStatus.Loading, isResendButtonVisible = false) }
     }
 
-    private fun showError(message: String, canResend: Boolean = false) {
+    private fun showError(error: AuthError, canResend: Boolean = false) {
         _uiState.update {
-            it.copy(status = AuthStatus.Error(message), isResendButtonVisible = canResend)
+            it.copy(status = AuthStatus.Error(error), isResendButtonVisible = canResend)
         }
     }
 
-    private fun showInfo(message: String, canResend: Boolean = false) {
+    private fun showInfo(notice: AuthNotice, canResend: Boolean = false) {
         _uiState.update {
-            it.copy(status = AuthStatus.Info(message), isResendButtonVisible = canResend)
+            it.copy(status = AuthStatus.Info(notice), isResendButtonVisible = canResend)
         }
     }
 
-    /** Logs a failure and shows the message [ErrorHandler] resolves for it. */
+    /** Logs a failure and shows the message it names. */
     private fun fail(e: Throwable) {
         errorHandler.logError(e)
-        showError(errorHandler.getErrorMessage(e))
+        showError(AuthError.Failed(e.toErrorMessage()))
     }
 
     /**
@@ -93,7 +115,7 @@ class AuthViewModel @Inject constructor(
     private fun showFirstValidationError(vararg results: ValidationResult): Boolean {
         val failure =
             results.filterIsInstance<ValidationResult.Error>().firstOrNull() ?: return false
-        showError(resourceProvider.getString(validationErrorMessageResId(failure.reason)))
+        showError(AuthError.Invalid(failure.reason))
         return true
     }
 
@@ -143,7 +165,7 @@ class AuthViewModel @Inject constructor(
         val trimmedEmail = _uiState.value.email.trim()
         val password = _uiState.value.password
         if (trimmedEmail.isBlank() || password.isBlank()) {
-            showError(resourceProvider.getString(R.string.email_password_empty))
+            showError(AuthError.EmailPasswordEmpty)
             return
         }
 
@@ -153,10 +175,7 @@ class AuthViewModel @Inject constructor(
             authRepository.signIn(trimmedEmail, password).getOrElse { return@launch fail(it) }
             val verified = authRepository.checkEmailVerified().getOrElse { return@launch fail(it) }
             if (!verified) {
-                showError(
-                    resourceProvider.getString(R.string.email_not_verified),
-                    canResend = true
-                )
+                showError(AuthError.EmailNotVerified, canResend = true)
                 return@launch
             }
 
@@ -182,11 +201,11 @@ class AuthViewModel @Inject constructor(
         val trimmedUsername = _uiState.value.username.trim()
 
         if (trimmedEmail.isBlank() || password.isBlank()) {
-            showError(resourceProvider.getString(R.string.email_password_empty))
+            showError(AuthError.EmailPasswordEmpty)
             return
         }
         if (trimmedDisplayName.isBlank() || trimmedUsername.isBlank()) {
-            showError(resourceProvider.getString(R.string.all_fields_required))
+            showError(AuthError.AllFieldsRequired)
             return
         }
         if (
@@ -202,7 +221,7 @@ class AuthViewModel @Inject constructor(
             val available = authRepository.isUsernameAvailable(trimmedUsername)
                 .getOrElse { return@launch fail(it) }
             if (!available) {
-                showError(resourceProvider.getString(CommonR.string.username_not_available))
+                showError(AuthError.UsernameNotAvailable)
                 return@launch
             }
 
@@ -212,13 +231,10 @@ class AuthViewModel @Inject constructor(
                 displayName = trimmedDisplayName,
                 username = trimmedUsername
             ).onSuccess {
-                showInfo(
-                    resourceProvider.getString(R.string.verification_email_sent),
-                    canResend = true
-                )
+                showInfo(AuthNotice.VERIFICATION_EMAIL_SENT, canResend = true)
             }
                 // A username conflict arrives as AppError.UsernameTaken/UsernameReserved,
-                // which getErrorMessage already resolves -- this used to try
+                // which toErrorMessage names like any other failure -- this used to try
                 // usernameErrorMessageResId first and fall back.
                 .onFailure(::fail)
         }
@@ -227,7 +243,7 @@ class AuthViewModel @Inject constructor(
     fun resetPassword() {
         val trimmedEmail = _uiState.value.email.trim()
         if (trimmedEmail.isBlank()) {
-            showError(resourceProvider.getString(R.string.enter_email))
+            showError(AuthError.EmailEmpty)
             return
         }
 
@@ -237,14 +253,12 @@ class AuthViewModel @Inject constructor(
             val registered = authRepository.isEmailRegistered(trimmedEmail)
                 .getOrElse { return@launch fail(it) }
             if (!registered) {
-                showError(resourceProvider.getString(R.string.email_not_registered))
+                showError(AuthError.EmailNotRegistered)
                 return@launch
             }
 
             authRepository.resetPassword(trimmedEmail)
-                .onSuccess {
-                    showInfo(resourceProvider.getString(R.string.password_reset_email_sent))
-                }
+                .onSuccess { showInfo(AuthNotice.PASSWORD_RESET_EMAIL_SENT) }
                 .onFailure(::fail)
         }
     }
@@ -253,12 +267,7 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             startLoading()
             authRepository.sendEmailVerification()
-                .onSuccess {
-                    showInfo(
-                        resourceProvider.getString(R.string.verification_email_resent),
-                        canResend = true
-                    )
-                }
+                .onSuccess { showInfo(AuthNotice.VERIFICATION_EMAIL_RESENT, canResend = true) }
                 .onFailure(::fail)
         }
     }

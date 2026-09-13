@@ -55,6 +55,7 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -72,7 +73,9 @@ import com.jiahan.smartcamera.common.NoteItemSkeleton
 import com.jiahan.smartcamera.common.ProfileAvatar
 import com.jiahan.smartcamera.common.showAppSnackbar
 import com.jiahan.smartcamera.core.ui.R as UiR
+import com.jiahan.smartcamera.note.resolve
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
+import com.jiahan.smartcamera.util.resolve
 import com.jiahan.smartcamera.util.toFormattedDateTime
 import kotlinx.coroutines.launch
 
@@ -87,6 +90,7 @@ fun NotePreviewScreen(
     viewModel: NotePreviewViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val hapticFeedback = LocalHapticFeedback.current
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
@@ -109,8 +113,8 @@ fun NotePreviewScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.actionError.collect { message ->
-            snackbarHostState.showAppSnackbar(message, isError = true)
+        viewModel.actionError.collect { error ->
+            snackbarHostState.showAppSnackbar(error.resolve(resources), isError = true)
         }
     }
 
@@ -171,7 +175,8 @@ fun NotePreviewScreen(
                     when (state) {
                         is NotePreviewContent.Loading -> NoteItemSkeleton()
 
-                        is NotePreviewContent.Error -> FullScreenMessage(state.message)
+                        is NotePreviewContent.Error ->
+                            FullScreenMessage(state.message.resolve(resources))
 
                         is NotePreviewContent.Success -> {
                             val note = state.note

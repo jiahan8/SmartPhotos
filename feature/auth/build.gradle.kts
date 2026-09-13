@@ -20,8 +20,8 @@
  * - `usernameErrorMessageResId` was deleted rather than moved. It read an ALREADY_EXISTS /
  *   INVALID_ARGUMENT code off a `FirebaseFunctionsException` in the ViewModel layer, so relocating
  *   it would have put firebase-functions on this module's classpath. DefaultUserRepository now
- *   raises `AppError.UsernameTaken`/`UsernameReserved` and `getErrorMessage` renders them -- the
- *   rule the rest of the data layer already followed, applied to the one place that had not.
+ *   raises `AppError.UsernameTaken`/`UsernameReserved` and `appErrorMessageResId` renders them --
+ *   the rule the rest of the data layer already followed, applied to the one place that had not.
  * - `AuthScreen` took a `logoRes` parameter. It drew `R.mipmap.ic_launcher`, which belongs to the
  *   application module; the launcher icon is :app's by definition and copying it here would fork
  *   an asset. Same hoist as SettingsScreen's `versionName`, for the same reason.
@@ -48,12 +48,14 @@ dependencies {
      * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
 
-    // `validationErrorMessageResId`, and the field labels and username messages AuthScreen and
-    // AuthViewModel resolve as `CommonR`. Eight of the nine features declare this edge now, but
-    // deliberately not from the convention: they want different tenants of the module -- auth and
+    // `validationErrorMessageResId`, `ErrorMessage.resolve`, and the field labels and username
+    // messages AuthScreen resolves as `CommonR`. Every feature declares this edge now. It stayed
+    // out of the convention because features wanted different tenants of the module -- auth and
     // settings the validation strings, profile the media seam, the four note screens the delegates
-    // -- and the rule here is "more than one module wants it, for the same reason". Explore wants
-    // none of it, and a convention that gave it to every feature would hide that.
+    // -- and Explore wanted none, failing the rule "more than one module wants it, for the same
+    // reason". Screens resolving their own failure text gave all nine the same reason,
+    // `ErrorMessage.resolve`, so that argument no longer holds. Moving the edge into
+    // `smartphotos.android.feature` is a follow-up, deliberately not bundled with that change.
     implementation(project(":core:common"))
 
     // AsyncImage, for the launcher icon the nav graph passes in as `logoRes`.

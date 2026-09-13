@@ -10,7 +10,9 @@ import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteShareDelegate
 import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.ErrorMessage
 import com.jiahan.smartcamera.util.ErrorTag
+import com.jiahan.smartcamera.util.toErrorMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -25,7 +27,7 @@ import javax.inject.Inject
 sealed interface NotePreviewContent {
     data object Loading : NotePreviewContent
     data class Success(val note: Note) : NotePreviewContent
-    data class Error(val message: String) : NotePreviewContent
+    data class Error(val message: ErrorMessage) : NotePreviewContent
 }
 
 data class NotePreviewUiState(
@@ -36,7 +38,7 @@ data class NotePreviewUiState(
 private sealed interface FetchStatus {
     data object Pending : FetchStatus
     data object Settled : FetchStatus
-    data class Failed(val message: String) : FetchStatus
+    data class Failed(val message: ErrorMessage) : FetchStatus
 }
 
 @HiltViewModel
@@ -86,7 +88,7 @@ class NotePreviewViewModel @Inject constructor(
                 .onSuccess { fetchStatus.value = FetchStatus.Settled }
                 .onFailure { e ->
                     errorHandler.logError(e)
-                    fetchStatus.value = FetchStatus.Failed(errorHandler.getErrorMessage(e))
+                    fetchStatus.value = FetchStatus.Failed(e.toErrorMessage())
                 }
         }
     }

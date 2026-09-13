@@ -32,6 +32,12 @@ dependencies {
      * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
 
+    // `ErrorMessage.resolve`, which turns ExploreViewModel's failures into text. The first edge
+    // here to anything beyond :core:domain and :core:ui, and it arrived when the ViewModel stopped
+    // handing over a finished string -- the text used to be resolved in :app, behind the
+    // ErrorHandler interface, where this module never had to see it.
+    implementation(project(":core:common"))
+
     // BackHandler, in ExploreScreen's search mode.
     implementation(libs.androidx.activity.compose)
     // AsyncImage, for the Unsplash photos.

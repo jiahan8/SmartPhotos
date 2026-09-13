@@ -47,6 +47,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
@@ -63,8 +64,10 @@ import com.jiahan.smartcamera.common.ProfileAvatar
 import com.jiahan.smartcamera.common.bounceClick
 import com.jiahan.smartcamera.common.shimmer
 import com.jiahan.smartcamera.common.showAppSnackbar
+import com.jiahan.smartcamera.core.common.R as CommonR
 import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.domain.Note
+import com.jiahan.smartcamera.util.resolve
 
 /**
  * Edits an existing note's text. Its media is fixed at creation time, so it is rendered read-only
@@ -81,6 +84,7 @@ fun EditNoteScreen(
     viewModel: EditNoteViewModel = hiltViewModel()
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
+    val resources = LocalResources.current
     val scrollState = rememberScrollState()
     val focusRequester = remember { FocusRequester() }
 
@@ -89,7 +93,7 @@ fun EditNoteScreen(
     val hasUnsavedChanges by viewModel.hasUnsavedChanges.collectAsStateWithLifecycle()
     val content = uiState.content
     val noteText = uiState.noteText
-    val noteTextError = uiState.noteTextError
+    val isNoteTextTooLong = uiState.isNoteTextTooLong
     val saveStatus = uiState.saveStatus
     val isSaving = saveStatus is SaveStatus.Saving
 
@@ -142,7 +146,10 @@ fun EditNoteScreen(
 
             is SaveStatus.Error -> {
                 keyboardController?.hide()
-                snackbarHostState.showAppSnackbar(saveStatus.message, isError = true)
+                snackbarHostState.showAppSnackbar(
+                    saveStatus.message.resolve(resources),
+                    isError = true
+                )
                 viewModel.resetSaveStatus()
             }
 
@@ -181,7 +188,7 @@ fun EditNoteScreen(
                         CircularProgressIndicator(strokeWidth = 1.5.dp)
                     }
 
-                is EditNoteContent.Error -> FullScreenMessage(content.message)
+                is EditNoteContent.Error -> FullScreenMessage(content.message.resolve(resources))
 
                 is EditNoteContent.Success -> {
                     val note = content.note
@@ -278,9 +285,9 @@ fun EditNoteScreen(
                                     onImageLoadError = viewModel::logImageLoadError
                                 )
 
-                                noteTextError?.let { error ->
+                                if (isNoteTextTooLong) {
                                     Text(
-                                        text = error,
+                                        text = stringResource(CommonR.string.note_validation),
                                         color = MaterialTheme.colorScheme.error,
                                         style = MaterialTheme.typography.bodySmall
                                     )
