@@ -18,6 +18,11 @@
  * back as `ProfileR.string.profile`. That is a downward read like any other, `:app` already does
  * it for `UiR.string.search` in the same enum, and it is exactly what Now in Android's
  * `TopLevelDestination` does. Duplicating the string in both modules is the thing to avoid.
+ *
+ * ProfileViewModel has since moved again, to :feature:profile-viewmodel's `commonMain`, once the
+ * capture destination it holds came from MediaCaptureRepository as a MediaUri rather than from
+ * MediaFileRepository as a Uri -- so this module no longer injects the contract its extraction
+ * brought down. HiltProfileViewModel is the subclass Hilt builds, and stays here.
  */
 plugins {
     id("smartphotos.android.feature")
@@ -48,7 +53,13 @@ dependencies {
      * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
 
-    // MediaFileRepository and toMediaUri(), plus the email/name/username labels and the validation
+    // ProfileViewModel, in this feature's multiplatform half. api for the reason :feature:explore's
+    // build file gives for its own: it is ProfileScreen's `viewModel` parameter type and
+    // HiltProfileViewModel's supertype, and :app has to resolve both.
+    api(project(":feature:profile-viewmodel"))
+
+    // toMediaUri() and toPlatformUri() at ProfileScreen's picker and camera launchers, plus the
+    // email/name/username labels and the validation
     // and failure mappers ProfileScreen shares with :feature:auth. Still declared per-module rather
     // than in the feature convention; :feature:auth's build file says why, and why that is now
     // open.

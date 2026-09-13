@@ -1,15 +1,15 @@
 package com.jiahan.smartcamera.profile
 
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
-import com.jiahan.smartcamera.data.repository.MediaFileRepository
+import com.jiahan.smartcamera.data.repository.MediaCaptureRepository
 import com.jiahan.smartcamera.data.repository.MediaUploadRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.domain.AppError
+import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.ProfilePictureUpdate
 import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.ErrorHandler
@@ -18,17 +18,14 @@ import com.jiahan.smartcamera.util.ErrorTag
 import com.jiahan.smartcamera.util.ValidationError
 import com.jiahan.smartcamera.util.ValidationResult
 import com.jiahan.smartcamera.util.toErrorMessage
-import com.jiahan.smartcamera.util.toMediaUri
 import com.jiahan.smartcamera.util.validateDisplayName
 import com.jiahan.smartcamera.util.validateUsername
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 sealed interface ProfileEvent {
     data object UpdateSuccess : ProfileEvent
@@ -57,7 +54,7 @@ data class ProfileUiState(
     val displayName: String = "",
     val username: String = "",
     val profilePictureUrl: String? = null,
-    val photoUri: Uri? = null,
+    val photoUri: MediaUri? = null,
     val displayNameError: ValidationError? = null,
     val usernameError: UsernameError? = null,
     val errorMessage: ErrorMessage? = null,
@@ -69,12 +66,19 @@ data class ProfileUiState(
     val isBottomSheetVisible: Boolean = false
 )
 
-@HiltViewModel
-class ProfileViewModel @Inject constructor(
+/**
+ * Backs the profile screen.
+ *
+ * Open and annotation-free so it can live in `commonMain`; `HiltProfileViewModel` in
+ * :feature:profile is what Hilt builds. Every media location this class holds is a [MediaUri] -- a
+ * picked picture, and the capture destination [createPhotoUri] returns -- which ProfileScreen
+ * converts at its picker and camera launchers.
+ */
+open class ProfileViewModel(
     private val userRepository: UserRepository,
     private val authRepository: AuthRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
-    private val mediaFileRepository: MediaFileRepository,
+    private val mediaCaptureRepository: MediaCaptureRepository,
     private val mediaUploadRepository: MediaUploadRepository,
     private val analyticsRepository: AnalyticsRepository,
     private val errorHandler: ErrorHandler,
@@ -242,15 +246,14 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun uploadProfilePicture(profilePictureUri: Uri) {
-        val mediaUri = profilePictureUri.toMediaUri()
+    fun uploadProfilePicture(profilePictureUri: MediaUri) {
         viewModelScope.launch {
-            mediaUploadRepository.uploadMediaToCache(listOf(mediaUri))
+            mediaUploadRepository.uploadMediaToCache(listOf(profilePictureUri))
         }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isUploading = true, isBottomSheetVisible = false) }
-            userRepository.uploadProfilePicture(mediaUri)
+            userRepository.uploadProfilePicture(profilePictureUri)
                 .onSuccess { profilePictureUrl ->
                     if (profilePictureUrl == null) {
                         _profileEvent.tryEmit(ProfileEvent.UpdateError())
@@ -261,7 +264,7 @@ class ProfileViewModel @Inject constructor(
                         displayName = null,
                         username = null,
                         profilePicture = ProfilePictureUpdate.Set(
-                            uri = mediaUri,
+                            uri = profilePictureUri,
                             url = profilePictureUrl
                         )
                     ).onSuccess {
@@ -298,18 +301,15 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun createPhotoUri(): Uri? = mediaFileRepository.createPhotoUri()
+    fun createPhotoUri(): MediaUri? = mediaCaptureRepository.createPhotoUri()
 
-    fun updatePhotoUri(uri: Uri?) {
+    fun updatePhotoUri(uri: MediaUri?) {
         _uiState.update { it.copy(photoUri = uri) }
     }
 
-    fun cancelPhotoCapture(uri: Uri) {
+    fun cancelPhotoCapture(uri: MediaUri) {
         viewModelScope.launch {
-            mediaUploadRepository.uploadMediaToCache(
-                listOf(uri.toMediaUri()),
-                deleteAfterUpload = true
-            )
+            mediaUploadRepository.uploadMediaToCache(listOf(uri), deleteAfterUpload = true)
         }
         _uiState.update { it.copy(photoUri = null) }
     }

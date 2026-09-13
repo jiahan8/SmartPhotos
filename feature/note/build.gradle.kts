@@ -18,8 +18,10 @@
  * share, and :app is the one that receives the intent.
  *
  * EditNoteViewModel has since moved again, to :feature:note-viewmodel's `commonMain`, the way
- * ExploreViewModel did. HiltEditNoteViewModel is the subclass Hilt builds, and stays here.
- * NoteViewModel stays too, for the `android.net.Uri` it holds.
+ * ExploreViewModel did, and NoteViewModel followed once its capture destination stopped being an
+ * `android.net.Uri`. HiltEditNoteViewModel and HiltNoteViewModel are the subclasses Hilt builds, and
+ * stay here -- the second is also where `IncomingShareHandler`'s pending share is consumed, since
+ * the handler is a Hilt singleton :app posts to.
  */
 plugins {
     id("smartphotos.android.feature")
@@ -39,13 +41,14 @@ dependencies {
      * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
 
-    // EditNoteViewModel, in this feature's multiplatform half. api for the reason :feature:explore's
-    // build file gives for its own: it is EditNoteScreen's `viewModel` parameter type and
-    // HiltEditNoteViewModel's supertype, and :app has to resolve both.
+    // EditNoteViewModel and NoteViewModel, in this feature's multiplatform half. api for the reason
+    // :feature:explore's build file gives for its own: each is its screen's `viewModel` parameter
+    // type and a Hilt subclass's supertype, and :app has to resolve both -- and IncomingShare, which
+    // :app's MainViewModel builds.
     api(project(":feature:note-viewmodel"))
 
-    // MediaFileRepository and toMediaUri() for the picked media, plus the three note-validation
-    // strings that appErrorMessageResId also reads.
+    // toMediaUri() and toPlatformUri() at NoteScreen's picker and camera launchers, plus the three
+    // note-validation strings that appErrorMessageResId also reads.
     implementation(project(":core:common"))
 
     // The photo-picker and camera launchers NoteScreen holds.

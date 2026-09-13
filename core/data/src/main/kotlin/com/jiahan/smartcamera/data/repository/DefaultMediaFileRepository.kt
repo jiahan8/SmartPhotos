@@ -28,23 +28,23 @@ class DefaultMediaFileRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val errorHandler: ErrorHandler,
     @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
-) : MediaFileRepository, MediaCacheRepository {
+) : MediaFileRepository, MediaCacheRepository, MediaCaptureRepository {
 
-    override fun createPhotoUri(): Uri? = try {
+    override fun createPhotoUri(): MediaUri? = try {
         val timeStamp = System.currentTimeMillis()
         val imageFile =
             File.createTempFile("$PREFIX_PHOTO$timeStamp", EXTENSION_JPG, context.cacheDir)
-        getUriForFile(context, FILE_PROVIDER_AUTHORITY, imageFile)
+        getUriForFile(context, FILE_PROVIDER_AUTHORITY, imageFile).toMediaUri()
     } catch (e: Exception) {
         errorHandler.logError(e)
         null
     }
 
-    override fun createVideoUri(): Uri? = try {
+    override fun createVideoUri(): MediaUri? = try {
         val timeStamp = System.currentTimeMillis()
         val videoFile =
             File.createTempFile("$PREFIX_VIDEO$timeStamp", EXTENSION_MP4, context.cacheDir)
-        getUriForFile(context, FILE_PROVIDER_AUTHORITY, videoFile)
+        getUriForFile(context, FILE_PROVIDER_AUTHORITY, videoFile).toMediaUri()
     } catch (e: Exception) {
         errorHandler.logError(e)
         null

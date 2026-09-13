@@ -71,6 +71,8 @@ import com.jiahan.smartcamera.core.common.R as CommonR
 import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.domain.NoteMediaDetail
 import com.jiahan.smartcamera.util.resolve
+import com.jiahan.smartcamera.util.toMediaUri
+import com.jiahan.smartcamera.util.toPlatformUri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,7 +81,7 @@ fun NoteScreen(
     onNavigateToPhotoPreview: (uri: String) -> Unit,
     onNavigateToVideoPreview: (uri: String) -> Unit,
     snackbarHostState: SnackbarHostState,
-    viewModel: NoteViewModel = hiltViewModel()
+    viewModel: NoteViewModel = hiltViewModel<HiltNoteViewModel>()
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current
@@ -121,7 +123,7 @@ fun NoteScreen(
     val libraryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia()
     ) { uriList ->
-        viewModel.addMedia(uriList = uriList)
+        viewModel.addMedia(uriList = uriList.map { it.toMediaUri() })
     }
 
     val pictureLauncher = rememberLauncherForActivityResult(
@@ -151,7 +153,7 @@ fun NoteScreen(
         if (isGranted) {
             val uri = viewModel.createPhotoUri()
             viewModel.updatePhotoUri(uri)
-            uri?.let { pictureLauncher.launch(it) }
+            uri?.let { pictureLauncher.launch(it.toPlatformUri()) }
         }
     }
 
@@ -162,7 +164,7 @@ fun NoteScreen(
         if (isGranted) {
             val uri = viewModel.createVideoUri()
             viewModel.updateVideoUri(uri)
-            uri?.let { videoLauncher.launch(it) }
+            uri?.let { videoLauncher.launch(it.toPlatformUri()) }
         }
     }
 
@@ -314,7 +316,7 @@ fun NoteScreen(
                                     if (hasCameraPermission) {
                                         val uri = viewModel.createPhotoUri()
                                         viewModel.updatePhotoUri(uri)
-                                        uri?.let { pictureLauncher.launch(it) }
+                                        uri?.let { pictureLauncher.launch(it.toPlatformUri()) }
                                     } else {
                                         photoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                                     }
@@ -323,7 +325,7 @@ fun NoteScreen(
                                     if (hasCameraPermission) {
                                         val uri = viewModel.createVideoUri()
                                         viewModel.updateVideoUri(uri)
-                                        uri?.let { videoLauncher.launch(it) }
+                                        uri?.let { videoLauncher.launch(it.toPlatformUri()) }
                                     } else {
                                         videoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                                     }

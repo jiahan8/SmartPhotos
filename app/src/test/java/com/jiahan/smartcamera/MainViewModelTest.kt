@@ -14,6 +14,7 @@ import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.domain.AppUpdateState
+import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.home.HomeRoute
 import com.jiahan.smartcamera.note.IncomingShare
 import com.jiahan.smartcamera.note.IncomingShareHandler
@@ -349,7 +350,7 @@ class MainViewModelTest {
     @Test
     fun `handleIncomingIntent with ACTION_SEND uri posts a uri-only share`() = runTest {
         val vm = createViewModel()
-        val uri: Uri = mockk()
+        val (uri, mediaUri) = fakeUri("content://media/shared")
         val intent: Intent = mockk()
         every { intent.action } returns Intent.ACTION_SEND
         every { intent.getStringExtra(Intent.EXTRA_TEXT) } returns null
@@ -357,13 +358,15 @@ class MainViewModelTest {
 
         vm.handleIncomingIntent(intent)
 
-        verify { incomingShareHandler.postShare(IncomingShare(text = null, uris = listOf(uri))) }
+        verify {
+            incomingShareHandler.postShare(IncomingShare(text = null, uris = listOf(mediaUri)))
+        }
     }
 
     @Test
     fun `handleIncomingIntent with ACTION_SEND text and uri posts both`() = runTest {
         val vm = createViewModel()
-        val uri: Uri = mockk()
+        val (uri, mediaUri) = fakeUri("content://media/shared")
         val intent: Intent = mockk()
         every { intent.action } returns Intent.ACTION_SEND
         every { intent.getStringExtra(Intent.EXTRA_TEXT) } returns "hello"
@@ -372,7 +375,7 @@ class MainViewModelTest {
         vm.handleIncomingIntent(intent)
 
         verify {
-            incomingShareHandler.postShare(IncomingShare(text = "hello", uris = listOf(uri)))
+            incomingShareHandler.postShare(IncomingShare(text = "hello", uris = listOf(mediaUri)))
         }
     }
 
@@ -393,8 +396,8 @@ class MainViewModelTest {
     @Test
     fun `handleIncomingIntent with ACTION_SEND_MULTIPLE posts all uris`() = runTest {
         val vm = createViewModel()
-        val uri1: Uri = mockk()
-        val uri2: Uri = mockk()
+        val (uri1, mediaUri1) = fakeUri("content://media/shared1")
+        val (uri2, mediaUri2) = fakeUri("content://media/shared2")
         val intent: Intent = mockk()
         every { intent.action } returns Intent.ACTION_SEND_MULTIPLE
         every { intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM) } returns
@@ -403,9 +406,19 @@ class MainViewModelTest {
         vm.handleIncomingIntent(intent)
 
         verify {
-            incomingShareHandler.postShare(IncomingShare(text = null, uris = listOf(uri1, uri2)))
+            incomingShareHandler.postShare(
+                IncomingShare(text = null, uris = listOf(mediaUri1, mediaUri2))
+            )
         }
     }
+
+    /**
+     * A [Uri] mock with a fixed [toString], paired with the [MediaUri] the ViewModel converts it
+     * into before posting the share. `IncomingShare` carries [MediaUri] so the shared note
+     * ViewModel can take it, so expectations are written against the converted value.
+     */
+    private fun fakeUri(value: String): Pair<Uri, MediaUri> =
+        mockk<Uri>().also { every { it.toString() } returns value } to MediaUri(value)
 
     @Test
     fun `handleIncomingIntent with ACTION_SEND_MULTIPLE and no uris does not post a share`() =

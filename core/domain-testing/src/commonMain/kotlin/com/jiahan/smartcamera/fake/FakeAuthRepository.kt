@@ -83,8 +83,13 @@ class FakeAuthRepository : AuthRepository {
         return deleteAccountResult
     }
 
-    override suspend fun isUsernameAvailable(username: String): Result<Boolean> =
-        usernameAvailableAnswer?.invoke(username) ?: usernameAvailableResult
+    /** Each username [isUsernameAvailable] was asked about, in order. */
+    val checkedUsernames = mutableListOf<String>()
+
+    override suspend fun isUsernameAvailable(username: String): Result<Boolean> {
+        checkedUsernames += username
+        return usernameAvailableAnswer?.invoke(username) ?: usernameAvailableResult
+    }
 
     override suspend fun isEmailRegistered(email: String): Result<Boolean> = emailRegisteredResult
 }

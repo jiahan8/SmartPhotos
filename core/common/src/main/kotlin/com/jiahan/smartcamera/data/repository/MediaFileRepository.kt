@@ -4,45 +4,33 @@ import android.graphics.Bitmap
 import android.net.Uri
 
 /**
- * Handles creation, inspection and deletion of temporary media files used when
- * capturing photos/videos in the Note flow.
+ * Inspection, deletion and thumbnail writing for the temporary media files behind a note's
+ * attachments -- the file-level half of preparing picked and captured media for upload.
  *
  * Keeping these Android-framework operations in the data layer ensures that
  * no ViewModel needs to hold a reference to [android.content.Context].
  *
  * This is the one repository interface that deliberately keeps Android types in its signatures:
- * every method here *is* a `ContentResolver`/`FileProvider` operation, and the URIs it hands back
- * go straight to activity-result contracts. Wrapping them in
- * [com.jiahan.smartcamera.domain.MediaUri] would add conversions at every call site while hiding
- * that this seam is Android-only and will never move to a shared source set. Contracts that carry
- * media *between* layers use `MediaUri` instead — see `MediaUploadRepository` and
- * `UserRepository`. `downloadToCacheFile` was the one method here whose result did travel between
- * layers, out through a share event to the screen, so it left for exactly that reason: it is
- * `MediaCacheRepository`'s now, in :core:domain, and `DefaultMediaFileRepository` implements both.
+ * every method here is a `ContentResolver` or file operation, and every caller is inside the data
+ * layer (`DefaultMediaUploadRepository`), so nothing it returns reaches a ViewModel. Contracts that
+ * carry media *between* layers use [com.jiahan.smartcamera.domain.MediaUri] instead, and two were
+ * carved out of this one for exactly that reason: `downloadToCacheFile`, whose result left through
+ * a share event, is `MediaCacheRepository`'s, and `createPhotoUri`/`createVideoUri`, whose results
+ * the note composer's and profile screen's ViewModels hold until a capture returns, are
+ * `MediaCaptureRepository`'s. Both are in :core:domain, and `DefaultMediaFileRepository` implements
+ * all three.
  *
  * Those Android types are also why this sits in :core:common rather than beside the other
  * contracts in :core:domain, which has no Android plugin. It lived in :core:data next to
  * `DefaultMediaFileRepository` until `:feature:profile` was extracted and needed to inject it: a
  * feature module must not depend on :core:data, so the interface came down to the module both
- * sides can see while the implementation stayed put. `AppUpdateRepository` is the other interface
- * stranded that way and has *not* followed, because nothing below :app injects it — move it if and
- * when something does.
+ * sides can see while the implementation stayed put. No feature injects it any more -- the capture
+ * methods were what `:feature:profile` wanted -- but it has not gone back up: `FakeMediaFileRepository`
+ * in :core:testing implements it, and no fixtures module may depend on :core:data.
+ * `AppUpdateRepository` is the interface that never came down, because nothing below :app injects
+ * it — move it if and when something does.
  */
 interface MediaFileRepository {
-
-    /**
-     * Creates a temporary JPEG file in the app cache and returns a FileProvider URI
-     * that can be passed directly to the TakePicture activity-result contract.
-     * Returns `null` if the file could not be created.
-     */
-    fun createPhotoUri(): Uri?
-
-    /**
-     * Creates a temporary MP4 file in the app cache and returns a FileProvider URI
-     * that can be passed directly to the CaptureVideo activity-result contract.
-     * Returns `null` if the file could not be created.
-     */
-    fun createVideoUri(): Uri?
 
     /**
      * Saves [bitmap] as a temporary JPEG file in the app cache (used for

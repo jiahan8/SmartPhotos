@@ -8,6 +8,7 @@ import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 class FakeAnalyticsRepository : AnalyticsRepository {
 
     var lastLoggedText: String? = null
+    var lastLoggedNoteCreate: String? = null
     var lastLoggedDisplayName: String? = null
     var lastLoggedUsername: String? = null
 
@@ -17,7 +18,9 @@ class FakeAnalyticsRepository : AnalyticsRepository {
 
     override fun logNoteSearch(query: String) {}
 
-    override fun logNoteCreate(text: String) {}
+    override fun logNoteCreate(text: String) {
+        lastLoggedNoteCreate = text
+    }
 
     override fun logNoteEdit(text: String) {}
 

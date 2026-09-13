@@ -28,6 +28,7 @@ import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AppUpdateRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.MediaCacheRepository
+import com.jiahan.smartcamera.data.repository.MediaCaptureRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.data.repository.MediaUploadRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
@@ -40,6 +41,7 @@ import com.jiahan.smartcamera.explore.ExploreRoute
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeAuthRepository
 import com.jiahan.smartcamera.fake.FakeMediaCacheRepository
+import com.jiahan.smartcamera.fake.FakeMediaCaptureRepository
 import com.jiahan.smartcamera.fake.FakeMediaFileRepository
 import com.jiahan.smartcamera.fake.FakeMediaUploadRepository
 import com.jiahan.smartcamera.fake.FakeNoteRepository
@@ -150,6 +152,10 @@ class SmartPhotosNavigationTest {
     @BindValue
     @JvmField
     val mediaCacheRepository: MediaCacheRepository = FakeMediaCacheRepository()
+
+    @BindValue
+    @JvmField
+    val mediaCaptureRepository: MediaCaptureRepository = FakeMediaCaptureRepository()
 
     @BindValue
     @JvmField

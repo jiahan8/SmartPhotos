@@ -9,6 +9,7 @@ import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AppUpdateRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
 import com.jiahan.smartcamera.data.repository.MediaCacheRepository
+import com.jiahan.smartcamera.data.repository.MediaCaptureRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.PhotoRepository
@@ -64,6 +65,9 @@ class HiltGraphSmokeTest {
 
     @Inject
     lateinit var mediaCacheRepository: MediaCacheRepository
+
+    @Inject
+    lateinit var mediaCaptureRepository: MediaCaptureRepository
 
     @Inject
     lateinit var photoRepository: PhotoRepository
@@ -129,6 +133,7 @@ class HiltGraphSmokeTest {
         assertNotNull(noteRepository)
         assertNotNull(mediaFileRepository)
         assertNotNull(mediaCacheRepository)
+        assertNotNull(mediaCaptureRepository)
         assertNotNull(photoRepository)
         assertNotNull(appUpdateRepository)
         assertNotNull(analyticsRepository)

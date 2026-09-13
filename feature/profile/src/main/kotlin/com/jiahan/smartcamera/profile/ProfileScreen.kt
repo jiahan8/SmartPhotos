@@ -70,6 +70,8 @@ import com.jiahan.smartcamera.core.common.R as CommonR
 import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.feature.profile.R
 import com.jiahan.smartcamera.util.resolve
+import com.jiahan.smartcamera.util.toMediaUri
+import com.jiahan.smartcamera.util.toPlatformUri
 import com.jiahan.smartcamera.util.validationErrorMessageResId
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,7 +80,7 @@ fun ProfileScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToPhotoPreview: (url: String) -> Unit,
     snackbarHostState: SnackbarHostState,
-    viewModel: ProfileViewModel = hiltViewModel()
+    viewModel: ProfileViewModel = hiltViewModel<HiltProfileViewModel>()
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current
@@ -117,7 +119,7 @@ fun ProfileScreen(
         contract = PickVisualMedia()
     ) { uri ->
         uri?.let {
-            viewModel.uploadProfilePicture(it)
+            viewModel.uploadProfilePicture(it.toMediaUri())
         }
     }
 
@@ -138,7 +140,7 @@ fun ProfileScreen(
         if (isGranted) {
             val uri = viewModel.createPhotoUri()
             viewModel.updatePhotoUri(uri)
-            uri?.let { pictureLauncher.launch(it) }
+            uri?.let { pictureLauncher.launch(it.toPlatformUri()) }
         }
     }
 
@@ -183,7 +185,7 @@ fun ProfileScreen(
                         if (hasCameraPermission) {
                             val uri = viewModel.createPhotoUri()
                             viewModel.updatePhotoUri(uri)
-                            uri?.let { pictureLauncher.launch(it) }
+                            uri?.let { pictureLauncher.launch(it.toPlatformUri()) }
                         } else {
                             photoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                         }

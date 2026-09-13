@@ -20,6 +20,7 @@ import com.jiahan.smartcamera.note.IncomingShare
 import com.jiahan.smartcamera.note.IncomingShareHandler
 import com.jiahan.smartcamera.util.AppConstants.STATEFLOW_WHILE_SUBSCRIBED_MS
 import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.util.toMediaUri
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -133,7 +134,11 @@ class MainViewModel @Inject constructor(
                         Intent.EXTRA_STREAM,
                         Uri::class.java
                     )
-                if (text != null || uri != null) IncomingShare(text, listOfNotNull(uri)) else null
+                if (text != null || uri != null) {
+                    IncomingShare(text, listOfNotNull(uri?.toMediaUri()))
+                } else {
+                    null
+                }
             }
 
             Intent.ACTION_SEND_MULTIPLE -> {
@@ -142,7 +147,11 @@ class MainViewModel @Inject constructor(
                     Intent.EXTRA_STREAM,
                     Uri::class.java
                 )
-                if (!uris.isNullOrEmpty()) IncomingShare(text = null, uris = uris) else null
+                if (!uris.isNullOrEmpty()) {
+                    IncomingShare(text = null, uris = uris.map { it.toMediaUri() })
+                } else {
+                    null
+                }
             }
 
             else -> null

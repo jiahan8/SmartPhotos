@@ -131,7 +131,7 @@ unused-binding incident recorded below.)
 | Layer | Location | Responsibility |
 | --- | --- | --- |
 | UI | `<feature>/*Screen.kt` (`:feature:*`), `navigation/` (`:app`) | Render `UiState`, forward user intents. No Firebase/Room/DataStore calls, no business logic beyond UI-only state. |
-| ViewModel | `<feature>/*ViewModel.kt` (`:feature:*`) | `@HiltViewModel`, exposes a `*UiState` via `StateFlow` wrapping a nested sealed loading/loaded/error content type. Depends on repository *interfaces* only. |
+| ViewModel | `<feature>/*ViewModel.kt` (`:feature:<name>-viewmodel`, `commonMain`) | Open and annotation-free; Hilt builds its `Hilt<Name>ViewModel` subclass in `:feature:<name>`. Exposes a `*UiState` via `StateFlow` wrapping a nested sealed loading/loaded/error content type. Depends on repository *interfaces* only. |
 | Repository | interfaces in `:core:domain` (plus two in `:core:common`/`:core:data`), `Default*` implementations in `:core:data` | Coordinates remote (Firestore/Storage/Functions) and local (Room/DataStore). Exposes domain models only. Every fallible operation returns `Result<T>` via `safeCall`. |
 | Domain | `domain/` (`:core:domain`) | Plain data classes (`Note`, `MediaDetail`, `User`, …). A multiplatform module, so `commonMain` compiles against the intersection of `jvm` and two iOS targets and neither `import android.*` nor `import java.*` resolves. |
 | Local | `database/`, `data/datastore/` (`:core:data`) | The Room mirror and preferences. Schemas exported to `core/data/schemas/`. |
@@ -140,10 +140,13 @@ unused-binding incident recorded below.)
 Two repository interfaces cannot live in `:core:domain`, because their signatures carry Android
 types. `AppUpdateRepository` (`ActivityResultLauncher`/`IntentSenderRequest`) stays in `:core:data`
 beside its implementation, since only `:app`'s `MainViewModel` injects it. `MediaFileRepository`
-(`Bitmap`/`Uri`) sits in `:core:common`, because a feature module injects it and must not depend on
-`:core:data`. Its one method whose result crossed layers, `downloadToCacheFile`, has since split off
-as `MediaCacheRepository` in `:core:domain`, returning a `MediaUri`; `DefaultMediaFileRepository`
-implements both. Move the next Android-typed interface down only when a feature actually needs it.
+(`Bitmap`/`Uri`) sits in `:core:common`, where it came down because a feature module injected it and
+must not depend on `:core:data`. Every method whose result crossed layers has since split off into
+`:core:domain`, returning a `MediaUri`: `downloadToCacheFile` as `MediaCacheRepository`, and
+`createPhotoUri`/`createVideoUri` as `MediaCaptureRepository`. `DefaultMediaFileRepository`
+implements all three. What is left of `MediaFileRepository` is called only inside `:core:data`; it
+stays in `:core:common` because `FakeMediaFileRepository` in `:core:testing` implements it. Move the
+next Android-typed interface down only when a feature actually needs it.
 
 ## Cross-feature updates, and the `*Handler` pattern that was removed
 
@@ -497,10 +500,21 @@ the JVM:** no navigation test reaches a media preview, so where NotePreview's mo
 `SavedStateHandle` under Robolectric — three cases each, the rest of both suites in `commonTest`.
 `FakeMediaCacheRepository` gained a `downloadAnswer` hook to hold a download in flight.
 
-Two ViewModels remain in the Android feature modules, Note and Profile, and their `Uri` is the
-harder kind: each asks `MediaFileRepository.createPhotoUri()` for a capture destination, from a
-contract that lives in `:core:common` because its signatures carry Android types. `:app`'s
-`MainViewModel` is Android-bound through `AppUpdateRepository`.
+**`NoteViewModel` and `ProfileViewModel` went last, together**, into `:feature:note-viewmodel` and a
+new `:feature:profile-viewmodel`, and their `Uri` was the harder kind: each asked
+`MediaFileRepository.createPhotoUri()` for a capture destination and held it in state until the
+camera came back. `createPhotoUri`/`createVideoUri` split off as `MediaCaptureRepository` in
+`:core:domain`, returning a `MediaUri`, exactly as `downloadToCacheFile` had, so every location both
+ViewModels hold is a `MediaUri` and the screens convert at their picker and camera launchers. The
+one new decision was Note's pending share. `IncomingShareHandler` is a Hilt singleton `:app` posts
+to, so it stays in `:feature:note`; `HiltNoteViewModel` consumes it while constructing the shared
+class, which takes the `IncomingShare` itself — moved to `commonMain` with `MediaUri`s, converted by
+`MainViewModel` as it reads the intent. Both suites left mockk, and `FakeUserRepository`,
+`FakeAuthRepository` and `FakeAnalyticsRepository` gained the call records that the strict mocks'
+exact-argument stubs and verifications had stood for.
+
+**No feature ViewModel is left in an Android module.** `:app`'s `MainViewModel` is the one still
+Android-bound, through `AppUpdateRepository` and the `Intent` it parses.
 
 ### What is left
 

@@ -13,7 +13,7 @@ import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeAuthRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
-import com.jiahan.smartcamera.fake.FakeMediaFileRepository
+import com.jiahan.smartcamera.fake.FakeMediaCaptureRepository
 import com.jiahan.smartcamera.fake.FakeMediaUploadRepository
 import com.jiahan.smartcamera.fake.FakeUserPreferencesRepository
 import com.jiahan.smartcamera.fake.FakeUserRepository
@@ -50,7 +50,7 @@ class ProfileScreenTest : BaseScreenTest() {
             userRepository = userRepository,
             authRepository = authRepository,
             userPreferencesRepository = FakeUserPreferencesRepository(),
-            mediaFileRepository = FakeMediaFileRepository(),
+            mediaCaptureRepository = FakeMediaCaptureRepository(),
             mediaUploadRepository = FakeMediaUploadRepository(),
             analyticsRepository = FakeAnalyticsRepository(),
             errorHandler = FakeErrorHandler(),

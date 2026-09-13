@@ -16,7 +16,7 @@ that story is in [ARCHITECTURE.md](ARCHITECTURE.md).**
 | `:core:data` | Android library holding every implementation of a `:core:domain`/`:core:common` contract: the `Default*`/`Firebase*` repositories, Room, DataStore, `FirebaseModule`, `DataModule`. |
 | `:core:ui` | Android library, shared Compose vocabulary: `common/`, `ui/theme/`, `util/DateTimeUtils.kt`/`FlowUtils.kt`. |
 | `:feature:*` | One Android library per screen — `home`, `search`, `note`, `preview`, `favorite`, `profile`, `settings`, `auth`, `explore` — holding its Compose screen(s), ViewModel(s), route and tests. |
-| `:feature:<name>-viewmodel` | Kotlin Multiplatform half of a feature, on `smartphotos.kmp.viewmodel`: its ViewModel in `commonMain` and that ViewModel's suite in `commonTest` — `auth`, `explore`, `favorite`, `home`, `note` (`EditNoteViewModel` only), `preview`, `search` and `settings` so far. The feature module keeps the screen, route, screen tests and `Hilt<Name>ViewModel`, the subclass Hilt builds — and which decodes the route, if there is one, passing the shared class plain arguments. |
+| `:feature:<name>-viewmodel` | Kotlin Multiplatform half of a feature, on `smartphotos.kmp.viewmodel`: its ViewModel in `commonMain` and that ViewModel's suite in `commonTest` — one per feature, all nine: `auth`, `explore`, `favorite`, `home`, `note`, `preview`, `profile`, `search` and `settings`. The feature module keeps the screen, route, screen tests and `Hilt<Name>ViewModel`, the subclass Hilt builds — and which decodes the route, if there is one, passing the shared class plain arguments. |
 | `:core:testing` | Shared Android test fixtures: `MainDispatcherRule`, `FakeMediaFileRepository`, and — re-exported via `api` — `:core:domain-testing`'s fakes. `testImplementation` only (plus `androidTestImplementation` wherever a `sharedTest/` runs in both). |
 | `:core:domain-testing` | Kotlin Multiplatform fixtures: the fakes for `:core:domain`'s contracts and `NoteMirror`, usable from a shared module's `commonTest` (each `:feature:<name>-viewmodel`'s) and, through `:core:testing`, from every Android test. |
 | `:core:screenshot-testing` | `BaseScreenshotTest` + the four artifacts it names (Robolectric, Roborazzi ×2, compose `ui-test-junit4`). No build file declares it — `smartphotos.android.screenshot` pulls it in. |
@@ -307,7 +307,7 @@ same settings:
 | `smartphotos.android.feature` | all nine `:feature:*` | the library + compose conventions, KSP, Hilt, kotlin-serialization | the `:core:domain`/`:core:ui` edges, the Compose set, icons, lifecycle, `ui-test-manifest`, the test baseline (`:core:testing`, junit, mockk, coroutines-test, Turbine) and the androidTest baseline; **enforces the feature layering** |
 | `smartphotos.android.screenshot` | `:core:ui`, `:feature:home`, `:feature:search`, `:feature:settings` | Roborazzi | `outputDir` → `src/test/screenshots`, `unitTests.isIncludeAndroidResources`, `testImplementation(:core:screenshot-testing)`; **refuses to apply to the harness module** |
 | `smartphotos.kmp.library` | `:core:domain`, `:core:domain-testing`, and every `:feature:<name>-viewmodel` through `smartphotos.kmp.viewmodel` | Kotlin Multiplatform — **nothing Android** | `jvm()` + `iosArm64`/`iosSimulatorArm64` (no `iosX64`: `lifecycle-viewmodel` publishes none), Java 11, JVM target 11, test-JVM pin |
-| `smartphotos.kmp.viewmodel` | every `:feature:<name>-viewmodel` — `auth`, `explore`, `favorite`, `home`, `note`, `preview`, `search`, `settings` | `smartphotos.kmp.library` | `api` edges to `:core:domain`, `lifecycle-viewmodel` and coroutines; `commonTest` on kotlin-test, coroutines-test, Turbine and `:core:domain-testing` |
+| `smartphotos.kmp.viewmodel` | every `:feature:<name>-viewmodel` — `auth`, `explore`, `favorite`, `home`, `note`, `preview`, `profile`, `search`, `settings` | `smartphotos.kmp.library` | `api` edges to `:core:domain`, `lifecycle-viewmodel` and coroutines; `commonTest` on kotlin-test, coroutines-test, Turbine and `:core:domain-testing` |
 
 - **A feature's build file contains only what that feature alone needs beyond the convention** —
   explore keeps `coil-compose`/`activity-compose`; settings keeps `androidx-core-ktx`/Roborazzi.
@@ -328,7 +328,8 @@ the Firestore collections, and the Cloud Functions' division of labour.
 
 - **UI** — Compose screens (`*Screen.kt`) + the graph in `navigation/SmartPhotosNavGraph.kt`, each
   destination's route type living in the feature package that owns it.
-- **ViewModel** — `@HiltViewModel` classes exposing a `*UiState` data class via `StateFlow`. The
+- **ViewModel** — open classes in each feature's `-viewmodel` module, built by Hilt through a
+  `Hilt<Name>ViewModel` subclass, exposing a `*UiState` data class via `StateFlow`. The
   loading/loaded/error branch is a **nested sealed sub-type** (e.g. `HomeContent`), kept separate
   from flat fields on the outer `*UiState` for orthogonal UI state (`isRefreshing`, dialogs,
   pagination) that shouldn't force a full state-machine branch.

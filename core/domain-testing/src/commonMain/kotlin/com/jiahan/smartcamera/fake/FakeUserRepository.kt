@@ -12,14 +12,24 @@ import kotlinx.datetime.LocalDate
 class FakeUserRepository : UserRepository {
 
     var user: User? = null
-    var uploadedUrl: String? = "https://example.com/profile.jpg"
+
+    /** Answers [getUser] in place of [user] when set -- e.g. a failed load. */
+    var getUserResult: Result<User?>? = null
+    var uploadProfilePictureResult: Result<String?> =
+        Result.success("https://example.com/profile.jpg")
     var updateUserProfileResult: Result<Unit> = Result.success(Unit)
 
+    var getUserCallCount = 0
     var updateUserProfileCallCount = 0
     var lastUpdatedDisplayName: String? = null
     var lastUpdatedUsername: String? = null
+    var lastUpdatedProfilePicture: ProfilePictureUpdate? = null
+    var lastUploadedProfilePictureUri: MediaUri? = null
 
-    override suspend fun getUser(): Result<User?> = Result.success(user)
+    override suspend fun getUser(): Result<User?> {
+        getUserCallCount++
+        return getUserResult ?: Result.success(user)
+    }
 
     override suspend fun getUser(userId: String): Result<User?> = Result.success(user)
 
@@ -34,11 +44,14 @@ class FakeUserRepository : UserRepository {
         updateUserProfileCallCount++
         lastUpdatedDisplayName = displayName
         lastUpdatedUsername = username
+        lastUpdatedProfilePicture = profilePicture
         return updateUserProfileResult
     }
 
-    override suspend fun uploadProfilePicture(uri: MediaUri): Result<String?> =
-        Result.success(uploadedUrl)
+    override suspend fun uploadProfilePicture(uri: MediaUri): Result<String?> {
+        lastUploadedProfilePictureUri = uri
+        return uploadProfilePictureResult
+    }
 
     override suspend fun updateFcmToken(token: String): Result<Unit> = Result.success(Unit)
 

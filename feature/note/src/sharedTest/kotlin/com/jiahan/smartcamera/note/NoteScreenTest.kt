@@ -1,6 +1,5 @@
 package com.jiahan.smartcamera.note
 
-import android.net.Uri
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.test.assertIsDisplayed
@@ -19,7 +18,7 @@ import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.NoteMediaDetail
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
-import com.jiahan.smartcamera.fake.FakeMediaFileRepository
+import com.jiahan.smartcamera.fake.FakeMediaCaptureRepository
 import com.jiahan.smartcamera.fake.FakeMediaUploadRepository
 import com.jiahan.smartcamera.fake.FakeNoteRepository
 import com.jiahan.smartcamera.fake.FakeUserPreferencesRepository
@@ -69,8 +68,8 @@ class NoteScreenTest : BaseScreenTest() {
                 )
             ),
             analyticsRepository = FakeAnalyticsRepository(),
-            mediaFileRepository = FakeMediaFileRepository(),
-            incomingShareHandler = IncomingShareHandler(),
+            mediaCaptureRepository = FakeMediaCaptureRepository(),
+            pendingShare = null,
             errorHandler = FakeErrorHandler(),
         )
         composeTestRule.setContent {
@@ -150,7 +149,7 @@ class NoteScreenTest : BaseScreenTest() {
         launchNoteScreen()
         waitForText("tester")
 
-        viewModel.addMedia(listOf(Uri.parse("content://fake/photo1")))
+        viewModel.addMedia(listOf(MediaUri("content://fake/photo1")))
 
         waitForContentDescription(string(UiR.string.cd_note_photo))
         composeTestRule.onNodeWithText(string(R.string.save)).assertIsEnabled()
@@ -163,7 +162,7 @@ class NoteScreenTest : BaseScreenTest() {
         )
         launchNoteScreen()
         waitForText("tester")
-        viewModel.addMedia(listOf(Uri.parse("content://fake/photo1")))
+        viewModel.addMedia(listOf(MediaUri("content://fake/photo1")))
         waitForContentDescription(string(UiR.string.cd_note_photo))
 
         composeTestRule.onNodeWithContentDescription(string(UiR.string.cd_note_photo))
@@ -179,7 +178,7 @@ class NoteScreenTest : BaseScreenTest() {
         )
         launchNoteScreen()
         waitForText("tester")
-        viewModel.addMedia(listOf(Uri.parse("content://fake/photo1")))
+        viewModel.addMedia(listOf(MediaUri("content://fake/photo1")))
         waitForContentDescription(string(UiR.string.cd_note_photo))
 
         composeTestRule.onNodeWithContentDescription(string(R.string.cd_remove_image))

@@ -1,16 +1,15 @@
 package com.jiahan.smartcamera.note
 
-import android.net.Uri
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.getAndUpdate
 import javax.inject.Inject
 import javax.inject.Singleton
 
-data class IncomingShare(val text: String?, val uris: List<Uri>)
-
 /**
- * Holds a share the OS handed `MainViewModel` until [NoteViewModel] can take it.
+ * Holds a share the OS handed `MainViewModel` until [HiltNoteViewModel] can take it and hand it to
+ * [NoteViewModel]. The [IncomingShare] itself is in :feature:note-viewmodel, since the shared
+ * ViewModel receives it; this holder stays here, a Hilt singleton.
  *
  * The scope is load-bearing: `:app` posts and `:feature:note` consumes, so both have to resolve
  * the same instance. It sits on the class rather than in a `@Provides` in `:app`'s `AppModule`,

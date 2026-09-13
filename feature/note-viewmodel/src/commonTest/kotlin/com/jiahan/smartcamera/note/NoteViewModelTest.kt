@@ -1,80 +1,74 @@
 package com.jiahan.smartcamera.note
 
-import android.net.Uri
-import com.jiahan.smartcamera.MainDispatcherRule
 import com.jiahan.smartcamera.data.datastore.UserPreferences
-import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
-import com.jiahan.smartcamera.data.repository.AnalyticsRepository
-import com.jiahan.smartcamera.data.repository.MediaFileRepository
-import com.jiahan.smartcamera.data.repository.MediaUploadRepository
-import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.NoteMediaDetail
+import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
+import com.jiahan.smartcamera.fake.FakeErrorHandler
+import com.jiahan.smartcamera.fake.FakeMediaCaptureRepository
+import com.jiahan.smartcamera.fake.FakeMediaUploadRepository
+import com.jiahan.smartcamera.fake.FakeNoteRepository
+import com.jiahan.smartcamera.fake.FakeUserPreferencesRepository
 import com.jiahan.smartcamera.util.AppConstants.MAX_NOTE_MEDIA_ITEMS
 import com.jiahan.smartcamera.util.AppConstants.MAX_NOTE_TEXT_LENGTH
-import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorMessage
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.just
-import io.mockk.mockk
-import io.mockk.runs
-import io.mockk.unmockkAll
-import io.mockk.verify
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Before
-import org.junit.Rule
-import org.junit.Test
+import kotlinx.coroutines.test.setMain
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
+/**
+ * [NoteViewModel]'s suite, in `commonTest` beside its subject, on :core:domain-testing's fakes with
+ * [Dispatchers.setMain] called directly -- `ExploreViewModelTest` records why each of those.
+ *
+ * Every media location is a [MediaUri] now, so the `Uri` mocks with a stubbed `toString`, which
+ * paired each platform URI with the value the ViewModel converted it into, are gone: a test hands
+ * over the value the repository receives. Where a strict mock implied that a call never happened --
+ * `addNote` after a failed upload -- the fake's call count asserts it.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
 class NoteViewModelTest {
 
-    @get:Rule
-    val mainDispatcherRule = MainDispatcherRule()
-
-    private val noteRepository: NoteRepository = mockk()
-    private val mediaUploadRepository: MediaUploadRepository = mockk()
-    private val userPreferencesRepository: UserPreferencesRepository = mockk()
-    private val analyticsRepository: AnalyticsRepository = mockk()
-    private val mediaFileRepository: MediaFileRepository = mockk()
-    private val incomingShareHandler: IncomingShareHandler = mockk()
-    private val errorHandler: ErrorHandler = mockk()
+    private val noteRepository = FakeNoteRepository()
+    private val mediaUploadRepository = FakeMediaUploadRepository()
+    private val analyticsRepository = FakeAnalyticsRepository()
 
     private lateinit var viewModel: NoteViewModel
 
-    @Before
+    @BeforeTest
     fun setUp() {
-        every { analyticsRepository.logNoteCreate(any()) } just runs
-        every { errorHandler.logError(any()) } just runs
-        every { incomingShareHandler.consume() } returns null
-        every { userPreferencesRepository.userPreferences } returns
-                flowOf(
-                    UserPreferences(
-                        isDarkTheme = false,
-                        username = "user1",
-                        profilePictureUrl = null
-                    )
-                )
+        Dispatchers.setMain(UnconfinedTestDispatcher())
         viewModel = NoteViewModel(
-            noteRepository,
-            mediaUploadRepository,
-            userPreferencesRepository,
-            analyticsRepository,
-            mediaFileRepository,
-            incomingShareHandler,
-            errorHandler
+            noteRepository = noteRepository,
+            mediaUploadRepository = mediaUploadRepository,
+            userPreferencesRepository = FakeUserPreferencesRepository(
+                initial = UserPreferences(
+                    isDarkTheme = false,
+                    username = "user1",
+                    profilePictureUrl = null
+                )
+            ),
+            analyticsRepository = analyticsRepository,
+            mediaCaptureRepository = FakeMediaCaptureRepository(),
+            pendingShare = null,
+            errorHandler = FakeErrorHandler()
         )
     }
 
-    @After
-    fun tearDown() = unmockkAll()
+    @AfterTest
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
 
     // -------------------------------------------------------------------------
     // Initial state
@@ -135,16 +129,8 @@ class NoteViewModelTest {
     @Test
     fun `updateNoteText logs analytics event`() {
         viewModel.updateNoteText("cat photo")
-        verify { analyticsRepository.logNoteCreate("cat photo") }
+        assertEquals("cat photo", analyticsRepository.lastLoggedNoteCreate)
     }
-
-    /**
-     * A [Uri] mock with a fixed [toString], paired with the [MediaUri] the ViewModel converts it
-     * into before calling the repository. Repository contracts take [MediaUri], so expectations
-     * have to be written against the converted value rather than the platform [Uri].
-     */
-    private fun fakeUri(value: String): Pair<Uri, MediaUri> =
-        mockk<Uri>().also { every { it.toString() } returns value } to MediaUri(value)
 
     // -------------------------------------------------------------------------
     // removeMediaAt
@@ -166,10 +152,9 @@ class NoteViewModelTest {
                 isVideo = false
             )
         )
-        coEvery { mediaUploadRepository.buildLocalMediaDetails(any()) } returns Result.success(mediaDetails)
-        coEvery { mediaUploadRepository.uploadMediaToCache(any(), any()) } returns Unit
+        mediaUploadRepository.buildLocalMediaDetailsResult = Result.success(mediaDetails)
 
-        viewModel.addMedia(listOf(mockk(), mockk()))
+        viewModel.addMedia(listOf(MediaUri("content://media/1"), MediaUri("content://media/2")))
         assertEquals(2, viewModel.uiState.value.mediaList.size)
 
         viewModel.removeMediaAt(0)
@@ -204,11 +189,9 @@ class NoteViewModelTest {
                     isVideo = false
                 )
             }
-            coEvery { mediaUploadRepository.buildLocalMediaDetails(any()) } returns
-                    Result.success(tooMany)
-            coEvery { mediaUploadRepository.uploadMediaToCache(any(), any()) } returns Unit
+            mediaUploadRepository.buildLocalMediaDetailsResult = Result.success(tooMany)
 
-            viewModel.addMedia(listOf(mockk()))
+            viewModel.addMedia(listOf(MediaUri("content://media/picked")))
 
             assertEquals(tooMany.take(MAX_NOTE_MEDIA_ITEMS), viewModel.uiState.value.mediaList)
             assertEquals(UploadStatus.MediaLimitReached, viewModel.uiState.value.uploadStatus)
@@ -220,8 +203,7 @@ class NoteViewModelTest {
 
     @Test
     fun `resetUploadStatus resets to Idle`() = runTest {
-        coEvery { mediaUploadRepository.uploadMedia(any()) } returns
-                Result.failure(RuntimeException("upload fail"))
+        mediaUploadRepository.uploadMediaResult = Result.failure(RuntimeException("upload fail"))
         viewModel.updateNoteText("hello")
         viewModel.saveNote()
 
@@ -235,35 +217,33 @@ class NoteViewModelTest {
 
     @Test
     fun `updatePhotoUri stores the uri`() {
-        val uri: Uri = mockk()
+        val uri = MediaUri("content://media/photo")
         viewModel.updatePhotoUri(uri)
         assertEquals(uri, viewModel.uiState.value.photoUri)
     }
 
     @Test
     fun `updateVideoUri stores the uri`() {
-        val uri: Uri = mockk()
+        val uri = MediaUri("content://media/video")
         viewModel.updateVideoUri(uri)
         assertEquals(uri, viewModel.uiState.value.videoUri)
     }
 
     @Test
     fun `cancelPhotoCapture quick-uploads uri and clears photoUri`() = runTest {
-        val (uri, mediaUri) = fakeUri("content://media/photo")
-        coEvery { mediaUploadRepository.uploadMediaToCache(listOf(mediaUri), true) } returns Unit
+        val uri = MediaUri("content://media/photo")
         viewModel.updatePhotoUri(uri)
         viewModel.cancelPhotoCapture(uri)
-        coVerify { mediaUploadRepository.uploadMediaToCache(listOf(mediaUri), true) }
+        assertEquals(listOf(listOf(uri) to true), mediaUploadRepository.cacheUploads)
         assertNull(viewModel.uiState.value.photoUri)
     }
 
     @Test
     fun `cancelVideoCapture quick-uploads uri and clears videoUri`() = runTest {
-        val (uri, mediaUri) = fakeUri("content://media/video")
-        coEvery { mediaUploadRepository.uploadMediaToCache(listOf(mediaUri), true) } returns Unit
+        val uri = MediaUri("content://media/video")
         viewModel.updateVideoUri(uri)
         viewModel.cancelVideoCapture(uri)
-        coVerify { mediaUploadRepository.uploadMediaToCache(listOf(mediaUri), true) }
+        assertEquals(listOf(listOf(uri) to true), mediaUploadRepository.cacheUploads)
         assertNull(viewModel.uiState.value.videoUri)
     }
 
@@ -274,31 +254,28 @@ class NoteViewModelTest {
     @Test
     fun `saveNote success emits Success state`() = runTest {
         viewModel.updateNoteText("My note")
-        coEvery { mediaUploadRepository.uploadMedia(any()) } returns
-                Result.success(listOf(MediaDetail(photoUrl = "http://url")))
-        coEvery { noteRepository.addNote(any()) } returns Result.success(Unit)
+        mediaUploadRepository.uploadMediaResult =
+            Result.success(listOf(MediaDetail(photoUrl = "http://url")))
+        noteRepository.addNoteResult = Result.success(Unit)
 
         viewModel.saveNote()
 
         // This used to also await a NoteHandler emission. addNote reads the created note back into
         // the `notes` table now, so the feeds see it as a row -- there is no event to assert.
         assertTrue(viewModel.uiState.value.uploadStatus is UploadStatus.Success)
-        coVerify { noteRepository.addNote(any()) }
+        assertEquals(1, noteRepository.addNoteCallCount)
     }
 
     @Test
     fun `saveNote failure on media upload sets Error state`() = runTest {
         viewModel.updateNoteText("My note")
-        coEvery { mediaUploadRepository.uploadMedia(any()) } returns
-                Result.failure(RuntimeException("upload fail"))
+        mediaUploadRepository.uploadMediaResult = Result.failure(RuntimeException("upload fail"))
 
         viewModel.saveNote()
 
         val state = viewModel.uiState.value.uploadStatus
         assertTrue(state is UploadStatus.Error)
-        assertEquals(
-            ErrorMessage.Unlocalized("upload fail"),
-            (state as UploadStatus.Error).message
-        )
+        assertEquals(ErrorMessage.Unlocalized("upload fail"), state.message)
+        assertEquals(0, noteRepository.addNoteCallCount)
     }
 }
