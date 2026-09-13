@@ -27,6 +27,7 @@ import com.jiahan.smartcamera.data.di.DataModule
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AppUpdateRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
+import com.jiahan.smartcamera.data.repository.MediaCacheRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.data.repository.MediaUploadRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
@@ -38,6 +39,7 @@ import com.jiahan.smartcamera.domain.Note
 import com.jiahan.smartcamera.explore.ExploreRoute
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeAuthRepository
+import com.jiahan.smartcamera.fake.FakeMediaCacheRepository
 import com.jiahan.smartcamera.fake.FakeMediaFileRepository
 import com.jiahan.smartcamera.fake.FakeMediaUploadRepository
 import com.jiahan.smartcamera.fake.FakeNoteRepository
@@ -114,7 +116,7 @@ class SmartPhotosNavigationTest {
     private lateinit var navController: TestNavHostController
 
     /*
-     * The nine bindings DataModule would have supplied. All but the last come from :core:testing;
+     * The bindings DataModule would have supplied, one per Binds. All but the last come from :core:testing;
      * FakeAppUpdateRepository is local, for the module reason its own file records.
      */
     @BindValue
@@ -144,6 +146,10 @@ class SmartPhotosNavigationTest {
     @BindValue
     @JvmField
     val mediaFileRepository: MediaFileRepository = FakeMediaFileRepository()
+
+    @BindValue
+    @JvmField
+    val mediaCacheRepository: MediaCacheRepository = FakeMediaCacheRepository()
 
     @BindValue
     @JvmField

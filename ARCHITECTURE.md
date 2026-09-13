@@ -141,7 +141,9 @@ Two repository interfaces cannot live in `:core:domain`, because their signature
 types. `AppUpdateRepository` (`ActivityResultLauncher`/`IntentSenderRequest`) stays in `:core:data`
 beside its implementation, since only `:app`'s `MainViewModel` injects it. `MediaFileRepository`
 (`Bitmap`/`Uri`) sits in `:core:common`, because a feature module injects it and must not depend on
-`:core:data`. Move the next Android-typed interface down only when a feature actually needs it.
+`:core:data`. Its one method whose result crossed layers, `downloadToCacheFile`, has since split off
+as `MediaCacheRepository` in `:core:domain`, returning a `MediaUri`; `DefaultMediaFileRepository`
+implements both. Move the next Android-typed interface down only when a feature actually needs it.
 
 ## Cross-feature updates, and the `*Handler` pattern that was removed
 
@@ -166,9 +168,10 @@ What replaced it is the Room mirror: the four note-rendering screens observe a l
 and nothing to miss. `addNote` reading its own note back via `getNote` is what made this possible —
 that one extra document read retired the `NoteHandler` event telling Home to refetch everything.
 `NoteActionsDelegate` inlined into a small list transform in each ViewModel at the same time, since
-there was no longer any shared subscription for it to own. The two `@ViewModelScoped` survivors in
-`:core:common` are `NoteShareDelegate` (share-sheet plumbing) and `NoteErrorReporter` (the
-`actionError` snackbar flow).
+there was no longer any shared subscription for it to own. The two ViewModel-scoped survivors
+are `NoteShareDelegate` (share-sheet plumbing) and `NoteErrorReporter` (the `actionError` snackbar
+flow) — in `:core:domain`'s `commonMain` since the multiplatform work, with their Hilt wiring in
+`:core:common`.
 
 **The one event that remains** is `note/IncomingShareHandler.kt`, an event a screen genuinely must
 not miss (an inbound Android share intent). It is deliberately *not* a `SharedFlow`: it is a
@@ -265,8 +268,8 @@ survives.
 
 ## Dependency injection graph
 
-Hilt. Every `@Provides`/`@Binds` module is `@InstallIn(SingletonComponent::class)`, and the
-component is assembled in `:app` — which is why `:core:data` can inject `@IoDispatcher` and
+Hilt. Every `@Provides`/`@Binds` module but one is `@InstallIn(SingletonComponent::class)`, and
+the component is assembled in `:app` — which is why `:core:data` can inject `@IoDispatcher` and
 `@DebugBuild` while their providers stay in `:app`'s `AppModule`.
 
 | Module | Lives in | Provides |
@@ -277,6 +280,7 @@ component is assembled in `:app` — which is why `:core:data` can inject `@IoDi
 | `data/di/FirebaseModule.kt` | `:core:data` | The Firebase SDK singletons |
 | `data/datastore/DataStoreModule.kt` | `:core:data` | DataStore, and the one deliberate place a `CoroutineScope` is built at module level rather than injected |
 | `database/di/DatabaseModule.kt` | `:core:data` | `AppDatabase` and its DAOs |
+| `note/di/NoteDelegateModule.kt` | `:core:common` | `NoteErrorReporter` and `NoteShareDelegate`, `@ViewModelScoped` — the one module installed in `ViewModelComponent` |
 
 `di/Qualifiers.kt` (`:core:domain`) holds the `@IoDispatcher`, `@ApplicationScope` and `@DebugBuild`
 annotations themselves, kept apart from the providers because they are plain JSR-330 and can live in
@@ -285,11 +289,15 @@ they sit in its `jvmMain` source set rather than `commonMain` — JSR-330 is a J
 is Android-only, so they are the one thing in that module an iOS target could never use. Android
 consumers resolve the `jvm` variant, so nothing at the injection sites changed.
 
-**Not everything is a `@Singleton`.** `NoteShareDelegate` and `NoteErrorReporter` (`:core:common`)
-are `@ViewModelScoped` via a plain `@Inject` constructor — the
+**Not everything is a `@Singleton`.** `NoteShareDelegate` and `NoteErrorReporter` are
+`@ViewModelScoped` — the
 [scope](https://developer.android.com/training/dependency-injection/hilt-android#component-scopes)
-that matches their actual lifetime, with no module needed since Hilt resolves them straight from the
-constructor. There is no per-feature `di/` package; bindings live in one of the six modules above.
+that matches their actual lifetime, and a load-bearing one: the delegate reports share failures onto
+the reporter its ViewModel exposes, so both must hold the same instance. They used to get it from a
+plain `@Inject` constructor, with no module needed. Moving them to `:core:domain`'s `commonMain`,
+where no annotation resolves, moved the scope into `NoteDelegateModule`'s `@Provides` methods — the
+same bindings, declared at the Android edge. There is no per-feature `di/` package; bindings live in
+one of the seven modules above.
 
 ## Incidents worth not repeating
 
@@ -450,10 +458,22 @@ left to build, the suite dropped Robolectric along with mockk, and
 decode runs. A future `commonMain` ViewModel reading a route should follow suit unless it needs the
 `SavedStateHandle` for state of its own.
 
+**The note delegates went next, ahead of the ViewModels that use them.** `NoteErrorReporter` and
+`NoteShareDelegate` were the last obstacle the four note screens' ViewModels shared, and
+Android-bound twice over: an `OutgoingShare` carried `android.net.Uri`, and both classes were
+`@ViewModelScoped` `@Inject` constructors. The download that produced those URIs split off
+`MediaFileRepository` as `MediaCacheRepository`, returning a `MediaUri`, and the screens call
+`toPlatformUri()` as they build the intent. The classes went to `:core:domain` — where every
+ViewModel module already looks, the reason `ErrorMessage` is there — and their scope to
+`:core:common`'s `NoteDelegateModule`, the app's first `ViewModelComponent` module. The delegate's
+suite followed into `commonTest` with plain values where mocked `Uri`s had been, and the reporter
+gained one of its own.
+
 Eight ViewModels remain in the Android feature modules, each for a reason that can be named. Four
-hold `android.net.Uri` (Note, Profile and the two media previews), and four inject the
-`NoteErrorReporter`/`NoteShareDelegate` pair from `:core:common` (Home, Search, Favorite,
-NotePreview). `:app`'s `MainViewModel` is Android-bound through `AppUpdateRepository`.
+hold `android.net.Uri` (Note, Profile and the two media previews, whose share download returns a
+`MediaUri` now but whose local sources are still `Uri`s). Home, Search and Favorite are held by
+Hilt's annotations alone, and NotePreview by those and a route that a Hilt subclass can decode as
+EditNote's does. `:app`'s `MainViewModel` is Android-bound through `AppUpdateRepository`.
 
 ### What is left
 

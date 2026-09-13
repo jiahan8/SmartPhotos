@@ -41,9 +41,10 @@ dependencies {
      * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
 
-    // NoteShareDelegate and NoteErrorReporter, which four screens share and which came down here
-    // when NoteActionsDelegate inlined. The third module to declare :core:common, and the first to
-    // want it for the note delegates rather than the validators or the media seam.
+    // NoteActionError.resolve and toPlatformUri() for FavoriteScreen, and NoteDelegateModule, which
+    // provides the two note delegates FavoriteViewModel injects. The third module to declare
+    // :core:common, and the first to want it for the note delegates rather than the validators or
+    // the media seam -- they sat there then, and have since moved on to :core:domain.
     implementation(project(":core:common"))
 
     // ShareCompat.IntentBuilder, for the share chooser.

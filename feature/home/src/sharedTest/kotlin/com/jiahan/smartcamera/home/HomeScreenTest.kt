@@ -10,7 +10,7 @@ import com.jiahan.smartcamera.feature.home.R
 import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.domain.Note
 import com.jiahan.smartcamera.fake.FakeErrorHandler
-import com.jiahan.smartcamera.fake.FakeMediaFileRepository
+import com.jiahan.smartcamera.fake.FakeMediaCacheRepository
 import com.jiahan.smartcamera.fake.FakeNoteRepository
 import com.jiahan.smartcamera.fake.FakeRemoteConfigRepository
 import com.jiahan.smartcamera.note.NoteErrorReporter
@@ -52,7 +52,7 @@ class HomeScreenTest : BaseScreenTest() {
             noteRepository = noteRepository,
             noteErrorReporter = noteErrorReporter,
             noteShare = NoteShareDelegate(
-                FakeMediaFileRepository(),
+                FakeMediaCacheRepository(),
                 noteErrorReporter,
             ),
             errorHandler = errorHandler,

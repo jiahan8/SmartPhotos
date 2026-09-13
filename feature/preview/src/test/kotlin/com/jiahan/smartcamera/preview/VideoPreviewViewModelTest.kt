@@ -6,7 +6,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.cash.turbine.test
 import com.jiahan.smartcamera.MainDispatcherRule
-import com.jiahan.smartcamera.data.repository.MediaFileRepository
+import com.jiahan.smartcamera.data.repository.MediaCacheRepository
+import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.util.ErrorHandler
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -53,7 +54,7 @@ class VideoPreviewViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
-    private val mediaFileRepository = mockk<MediaFileRepository>()
+    private val mediaCacheRepository = mockk<MediaCacheRepository>()
 
     @After
     fun tearDown() = unmockkAll()
@@ -64,15 +65,15 @@ class VideoPreviewViewModelTest {
         return VideoPreviewViewModel(
             savedStateHandle,
             mockk<ErrorHandler>(relaxed = true),
-            mediaFileRepository
+            mediaCacheRepository
         )
     }
 
     /** Suspends the download at [delay] so a test can observe the in-flight state. */
     private fun stubSlowDownload(url: String) {
-        coEvery { mediaFileRepository.downloadToCacheFile(url, isVideo = true) } coAnswers {
+        coEvery { mediaCacheRepository.downloadToCacheFile(url, isVideo = true) } coAnswers {
             delay(1.seconds)
-            CACHE_URI.toUri()
+            MediaUri(CACHE_URI)
         }
     }
 
@@ -140,11 +141,11 @@ class VideoPreviewViewModelTest {
         val url = "https://example.com/clip.mp4"
         val downloadedUri = CACHE_URI.toUri()
         coEvery {
-            mediaFileRepository.downloadToCacheFile(
+            mediaCacheRepository.downloadToCacheFile(
                 url,
                 isVideo = true
             )
-        } returns downloadedUri
+        } returns MediaUri(CACHE_URI)
 
         val vm = createViewModel(MediaSourceType.REMOTE, url)
 
@@ -157,7 +158,7 @@ class VideoPreviewViewModelTest {
     @Test
     fun `shareVideo reports SHARE_FAILED when the download fails`() = runTest {
         val url = "https://example.com/clip.mp4"
-        coEvery { mediaFileRepository.downloadToCacheFile(url, isVideo = true) } returns null
+        coEvery { mediaCacheRepository.downloadToCacheFile(url, isVideo = true) } returns null
 
         val vm = createViewModel(MediaSourceType.REMOTE, url)
 
@@ -170,7 +171,7 @@ class VideoPreviewViewModelTest {
     @Test
     fun `shareVideo raises no share event when the download fails`() = runTest {
         val url = "https://example.com/clip.mp4"
-        coEvery { mediaFileRepository.downloadToCacheFile(url, isVideo = true) } returns null
+        coEvery { mediaCacheRepository.downloadToCacheFile(url, isVideo = true) } returns null
 
         val vm = createViewModel(MediaSourceType.REMOTE, url)
 
@@ -226,14 +227,14 @@ class VideoPreviewViewModelTest {
         vm.shareVideo()
         advanceUntilIdle()
 
-        coVerify(exactly = 1) { mediaFileRepository.downloadToCacheFile(url, isVideo = true) }
+        coVerify(exactly = 1) { mediaCacheRepository.downloadToCacheFile(url, isVideo = true) }
     }
 
     /** Reset in a `finally`, so a failed share does not leave the button wedged. */
     @Test
     fun `isSharing is false after a failed share`() = runTest {
         val url = "https://example.com/clip.mp4"
-        coEvery { mediaFileRepository.downloadToCacheFile(url, isVideo = true) } returns null
+        coEvery { mediaCacheRepository.downloadToCacheFile(url, isVideo = true) } returns null
         val vm = createViewModel(MediaSourceType.REMOTE, url)
 
         vm.shareVideo()

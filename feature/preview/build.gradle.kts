@@ -39,8 +39,9 @@ dependencies {
      * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
 
-    // NoteShareDelegate and NoteErrorReporter, plus MediaFileRepository -- PhotoPreviewViewModel
-    // and VideoPreviewViewModel download to a cache file before sharing.
+    // NoteActionError.resolve, NoteDelegateModule for the two note delegates NotePreviewViewModel
+    // injects, and toPlatformUri() -- for a note's shared media, and for the cache file
+    // PhotoPreviewViewModel and VideoPreviewViewModel download through MediaCacheRepository.
     implementation(project(":core:common"))
 
     // ShareCompat.IntentBuilder and androidx.core.net.toUri.

@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import androidx.core.content.FileProvider.getUriForFile
 import com.jiahan.smartcamera.di.IoDispatcher
+import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_MP4
@@ -14,6 +15,7 @@ import com.jiahan.smartcamera.util.FileConstants.PREFIX_PHOTO
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_THUMBNAIL
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_VIDEO
 import com.jiahan.smartcamera.util.safeCall
+import com.jiahan.smartcamera.util.toMediaUri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -26,7 +28,7 @@ class DefaultMediaFileRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val errorHandler: ErrorHandler,
     @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
-) : MediaFileRepository {
+) : MediaFileRepository, MediaCacheRepository {
 
     override fun createPhotoUri(): Uri? = try {
         val timeStamp = System.currentTimeMillis()
@@ -61,7 +63,7 @@ class DefaultMediaFileRepository @Inject constructor(
         bitmap.recycle()
     }
 
-    override suspend fun downloadToCacheFile(url: String, isVideo: Boolean): Uri? =
+    override suspend fun downloadToCacheFile(url: String, isVideo: Boolean): MediaUri? =
         withContext(ioDispatcher) {
             safeCall {
                 val timeStamp = System.currentTimeMillis()
@@ -76,7 +78,7 @@ class DefaultMediaFileRepository @Inject constructor(
                         FileOutputStream(file).use { output -> input.copyTo(output) }
                     }
                 }.onFailure { file.delete() }.getOrThrow()
-                getUriForFile(context, FILE_PROVIDER_AUTHORITY, file)
+                getUriForFile(context, FILE_PROVIDER_AUTHORITY, file).toMediaUri()
             }.onFailure(errorHandler::logError).getOrNull()
         }
 

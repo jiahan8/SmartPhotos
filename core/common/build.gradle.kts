@@ -38,11 +38,13 @@
  */
 plugins {
     id("smartphotos.android.library")
-    // Hilt arrives here for NoteShareDelegate and NoteErrorReporter, which are @ViewModelScoped
-    // @Inject classes: Dagger has to generate their factories in the module that owns them, so the
-    // processor has to run here rather than only in :app where the component is assembled. This is
-    // what :core:data already does, and what NiA does in several of its core modules -- DI is not
-    // what this module's charter excludes. Compose is, and that is still not applied.
+    // Hilt arrives here for NoteDelegateModule, which provides NoteShareDelegate and
+    // NoteErrorReporter once per ViewModel. The two classes used to live here as ViewModelScoped
+    // Inject constructors; they moved to :core:domain's commonMain, where no annotation resolves,
+    // and the scope stayed on this side of that edge. The processor has to run in the module that
+    // declares a Hilt module rather than only in :app where the component is assembled -- what
+    // :core:data already does. DI is not what this module's charter excludes. Compose is, and that
+    // is still not applied.
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
 }
@@ -64,22 +66,14 @@ dependencies {
     // `androidx.core.net.toUri`, in MediaUriExt.
     implementation(libs.androidx.core.ktx)
 
-    // Declared rather than inherited through :core:domain's `api`, because NoteShareDelegate uses
-    // coroutineScope/async/awaitAll and MutableSharedFlow directly. Inheriting a transitive `api`
-    // for something a module uses itself breaks silently if the exporter ever narrows -- the same
-    // rule that has :feature:explore declaring its own Compose.
-    implementation(libs.kotlinx.coroutines.core)
-
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)
 
     testImplementation(libs.junit)
-    // NoteShareDelegate is the first thing here with behaviour worth testing directly. It cannot
-    // borrow :core:testing's fakes -- that module depends on this one, so the edge would be a
-    // cycle -- hence mockk for the two interfaces it collaborates with.
+    // ErrorMessagesTest stubs `Resources`, to assert which string id a failure resolves to. The
+    // coroutines-test and Turbine lines that sat beside this went with NoteShareDelegateTest, which
+    // followed its subject to :core:domain's commonTest.
     testImplementation(libs.mockk)
-    testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.turbine)
     // MediaUriExt is the one thing here that touches a real Android type: its whole job is
     // `Uri.toString()` one way and `String.toUri()` the other, so a stubbed `android.net.Uri`
     // would leave the test asserting nothing. Robolectric gives it the real parser.

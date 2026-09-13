@@ -42,6 +42,7 @@ import com.jiahan.smartcamera.common.showAppSnackbar
 import com.jiahan.smartcamera.note.resolve
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
 import com.jiahan.smartcamera.util.resolve
+import com.jiahan.smartcamera.util.toPlatformUri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,7 +96,7 @@ fun SearchScreen(
             val intentBuilder = ShareCompat.IntentBuilder(context)
                 .setType(if (shareContent.uris.isEmpty()) "text/plain" else "*/*")
             shareContent.text?.let { intentBuilder.setText(it) }
-            shareContent.uris.forEach { intentBuilder.addStream(it) }
+            shareContent.uris.forEach { intentBuilder.addStream(it.toPlatformUri()) }
             intentBuilder.startChooser()
         }
     }

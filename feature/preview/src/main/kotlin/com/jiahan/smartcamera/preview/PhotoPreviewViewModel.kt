@@ -6,9 +6,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
-import com.jiahan.smartcamera.data.repository.MediaFileRepository
+import com.jiahan.smartcamera.data.repository.MediaCacheRepository
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorTag
+import com.jiahan.smartcamera.util.toPlatformUri
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,7 +22,7 @@ import javax.inject.Inject
 class PhotoPreviewViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val errorHandler: ErrorHandler,
-    private val mediaFileRepository: MediaFileRepository
+    private val mediaCacheRepository: MediaCacheRepository
 ) : ViewModel() {
 
     val photoSource: PhotoSource = run {
@@ -53,7 +54,8 @@ class PhotoPreviewViewModel @Inject constructor(
                 val uri = when (val source = photoSource) {
                     is PhotoSource.LocalUri -> source.uri
                     is PhotoSource.RemoteUrl ->
-                        mediaFileRepository.downloadToCacheFile(source.url, isVideo = false)
+                        mediaCacheRepository.downloadToCacheFile(source.url, isVideo = false)
+                            ?.toPlatformUri()
                 }
                 if (uri != null) {
                     _shareEvent.emit(uri)

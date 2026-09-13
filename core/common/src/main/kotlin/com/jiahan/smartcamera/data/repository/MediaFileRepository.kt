@@ -16,7 +16,9 @@ import android.net.Uri
  * [com.jiahan.smartcamera.domain.MediaUri] would add conversions at every call site while hiding
  * that this seam is Android-only and will never move to a shared source set. Contracts that carry
  * media *between* layers use `MediaUri` instead — see `MediaUploadRepository` and
- * `UserRepository`.
+ * `UserRepository`. `downloadToCacheFile` was the one method here whose result did travel between
+ * layers, out through a share event to the screen, so it left for exactly that reason: it is
+ * `MediaCacheRepository`'s now, in :core:domain, and `DefaultMediaFileRepository` implements both.
  *
  * Those Android types are also why this sits in :core:common rather than beside the other
  * contracts in :core:domain, which has no Android plugin. It lived in :core:data next to
@@ -48,13 +50,6 @@ interface MediaFileRepository {
      * written. Returns `null` if the file could not be created.
      */
     fun saveBitmapAsTempFile(bitmap: Bitmap): Uri?
-
-    /**
-     * Downloads the remote resource at [url] into a temporary cache file and
-     * returns a FileProvider URI for it, so it can be attached to a share
-     * intent. Returns `null` if the download fails.
-     */
-    suspend fun downloadToCacheFile(url: String, isVideo: Boolean): Uri?
 
     /**
      * True when [uri]'s MIME type identifies it as a video, so a caller can tell a picked or

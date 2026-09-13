@@ -18,9 +18,8 @@ import javax.inject.Inject
  *
  * Deliberately not an interface with a `Default*` implementation and a `DataModule` binding: its
  * only consumer is [com.jiahan.smartcamera.data.repository.DefaultAuthRepository], one module away
- * from nothing, and Hilt resolves it straight from the constructor. Same shape as
- * `NoteShareDelegate` and `NoteErrorReporter`. Give it a seam when something outside :core:data
- * needs one.
+ * from nothing, and Hilt resolves it straight from the constructor. Give it a seam when something
+ * outside :core:data needs one.
  *
  * **What this is not:** it does not sign anybody out and does not touch the network — the caller
  * has already done that. It is the local half only.

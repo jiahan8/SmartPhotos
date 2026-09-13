@@ -8,7 +8,7 @@ import androidx.compose.runtime.remember
 import com.jiahan.smartcamera.domain.Note
 import com.jiahan.smartcamera.domain.NotePage
 import com.jiahan.smartcamera.fake.FakeErrorHandler
-import com.jiahan.smartcamera.fake.FakeMediaFileRepository
+import com.jiahan.smartcamera.fake.FakeMediaCacheRepository
 import com.jiahan.smartcamera.fake.FakeNoteRepository
 import com.jiahan.smartcamera.fake.FakeRemoteConfigRepository
 import com.jiahan.smartcamera.home.HomeScreen
@@ -90,7 +90,7 @@ class HomeScreenScreenshotTest : BaseScreenshotTest() {
             repo,
             noteErrorReporter,
             NoteShareDelegate(
-                FakeMediaFileRepository(),
+                FakeMediaCacheRepository(),
                 noteErrorReporter,
             ),
             errorHandler,

@@ -15,6 +15,13 @@
  * now sits: Hilt is Android-only, so its JSR-330 annotations cannot follow the models down into
  * commonMain. Android consumers resolve this module's `jvm` variant and so still see them, which
  * is why that move needed no edit anywhere else in the build.
+ *
+ * It also holds the two delegates the four note screens' ViewModels share, `NoteErrorReporter` and
+ * `NoteShareDelegate`, in `note/`. They are ViewModel-layer helpers rather than domain models, and
+ * are here for the reason `ErrorMessage` is: every ViewModel module, Android or multiplatform,
+ * already sees this one. What kept them in :core:common was `android.net.Uri` in a share and Hilt's
+ * annotations on both; the share carries a `MediaUri` now, and the Hilt wiring is :core:common's
+ * `NoteDelegateModule`, since nothing here may name Hilt.
  */
 plugins {
     // Applies kotlin.multiplatform -- and nothing Android -- plus the target set and the JVM
@@ -49,6 +56,9 @@ kotlin {
             // and org.junit exists on none of them but the JVM.
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
+            // NoteShareDelegate and NoteErrorReporter emit on SharedFlows, which have no `.value` to
+            // read -- the case AGENTS.md reaches for Turbine in. It publishes the Apple variants.
+            implementation(libs.turbine)
         }
     }
 }

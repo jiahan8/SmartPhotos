@@ -6,7 +6,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
-import com.jiahan.smartcamera.fake.FakeMediaFileRepository
+import com.jiahan.smartcamera.fake.FakeMediaCacheRepository
 import com.jiahan.smartcamera.fake.FakeNoteRepository
 import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteShareDelegate
@@ -39,7 +39,7 @@ class SearchScreenScreenshotTest : BaseScreenshotTest() {
             analyticsRepository = FakeAnalyticsRepository(),
             noteErrorReporter = noteErrorReporter,
             noteShare = NoteShareDelegate(
-                FakeMediaFileRepository(),
+                FakeMediaCacheRepository(),
                 noteErrorReporter,
             ),
             errorHandler = errorHandler,

@@ -9,7 +9,7 @@ import androidx.compose.ui.test.performTextInput
 import com.jiahan.smartcamera.domain.Note
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
-import com.jiahan.smartcamera.fake.FakeMediaFileRepository
+import com.jiahan.smartcamera.fake.FakeMediaCacheRepository
 import com.jiahan.smartcamera.fake.FakeNoteRepository
 import com.jiahan.smartcamera.note.NoteErrorReporter
 import com.jiahan.smartcamera.note.NoteShareDelegate
@@ -52,7 +52,7 @@ class SearchScreenTest : BaseScreenTest() {
             analyticsRepository = FakeAnalyticsRepository(),
             noteErrorReporter = noteErrorReporter,
             noteShare = NoteShareDelegate(
-                FakeMediaFileRepository(),
+                FakeMediaCacheRepository(),
                 noteErrorReporter,
             ),
             errorHandler = errorHandler,

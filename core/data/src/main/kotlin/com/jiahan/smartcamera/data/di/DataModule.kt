@@ -12,6 +12,7 @@ import com.jiahan.smartcamera.data.repository.DefaultPhotoRepository
 import com.jiahan.smartcamera.data.repository.DefaultUserRepository
 import com.jiahan.smartcamera.data.repository.FirebaseAnalyticsRepository
 import com.jiahan.smartcamera.data.repository.FirebaseRemoteConfigRepository
+import com.jiahan.smartcamera.data.repository.MediaCacheRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.data.repository.MediaUploadRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
@@ -71,6 +72,14 @@ abstract class DataModule {
     abstract fun bindMediaFileRepository(
         defaultMediaFileRepository: DefaultMediaFileRepository
     ): MediaFileRepository
+
+    // The same class again. DefaultMediaFileRepository implements MediaCacheRepository too: the
+    // half of its contract that returns a MediaUri, and so the half that could move to :core:domain.
+    @Binds
+    @Singleton
+    abstract fun bindMediaCacheRepository(
+        defaultMediaFileRepository: DefaultMediaFileRepository
+    ): MediaCacheRepository
 
     @Binds
     @Singleton

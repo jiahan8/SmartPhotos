@@ -38,7 +38,9 @@ dependencies {
      * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
 
-    // NoteShareDelegate and NoteErrorReporter.
+    // NoteActionError.resolve and toPlatformUri() for SearchScreen, and NoteDelegateModule, which
+    // provides the two note delegates SearchViewModel injects. The delegates themselves are
+    // :core:domain's.
     implementation(project(":core:common"))
 
     // ShareCompat.IntentBuilder, for the share chooser.

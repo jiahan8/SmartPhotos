@@ -8,6 +8,7 @@ import com.google.android.play.core.appupdate.AppUpdateManager
 import com.jiahan.smartcamera.data.repository.AnalyticsRepository
 import com.jiahan.smartcamera.data.repository.AppUpdateRepository
 import com.jiahan.smartcamera.data.repository.AuthRepository
+import com.jiahan.smartcamera.data.repository.MediaCacheRepository
 import com.jiahan.smartcamera.data.repository.MediaFileRepository
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.data.repository.PhotoRepository
@@ -60,6 +61,9 @@ class HiltGraphSmokeTest {
 
     @Inject
     lateinit var mediaFileRepository: MediaFileRepository
+
+    @Inject
+    lateinit var mediaCacheRepository: MediaCacheRepository
 
     @Inject
     lateinit var photoRepository: PhotoRepository
@@ -124,6 +128,7 @@ class HiltGraphSmokeTest {
         assertNotNull(userRepository)
         assertNotNull(noteRepository)
         assertNotNull(mediaFileRepository)
+        assertNotNull(mediaCacheRepository)
         assertNotNull(photoRepository)
         assertNotNull(appUpdateRepository)
         assertNotNull(analyticsRepository)

@@ -11,8 +11,8 @@ that story is in [ARCHITECTURE.md](ARCHITECTURE.md).**
 | Module | What lives there |
 | --- | --- |
 | `:app` | `MainActivity`, `MyApp`, `MainViewModel`, `SmartPhotosApp`, `navigation/`, the messaging service, `di/AppModule.kt`, `util/`. Hosts the NavHost, supplies each screen's navigation lambdas, installs the Hilt bindings — **no feature screen renders here**. |
-| `:core:domain` | Kotlin Multiplatform, `jvm` + two iOS targets (no AGP, no Hilt/KSP): domain models, repository *interfaces*, `safeCall`, the `ErrorHandler` interface, DI qualifiers, and the three field validators (`util/ValidationUtils.kt`) with `ValidationResult`/`ValidationError`. |
-| `:core:common` | Android library, deliberately not Compose: the validation and failure strings + the mappers screens resolve them with (`validationErrorMessageResId`, `ErrorMessage.resolve`/`appErrorMessageResId`), the `MediaFileRepository` contract, `util/MediaUriExt.kt`, and the two `@ViewModelScoped` classes every feature shares (`NoteShareDelegate`, `NoteErrorReporter` — why it has Hilt/KSP). |
+| `:core:domain` | Kotlin Multiplatform, `jvm` + two iOS targets (no AGP, no Hilt/KSP): domain models, repository *interfaces*, `safeCall`, the `ErrorHandler` interface, DI qualifiers, and the three field validators (`util/ValidationUtils.kt`) with `ValidationResult`/`ValidationError`. Also `note/`: `NoteErrorReporter` and `NoteShareDelegate`, the two delegates four note screens' ViewModels share — plain classes, scoped per ViewModel by `:core:common`'s Hilt module. |
+| `:core:common` | Android library, deliberately not Compose: the validation and failure strings + the mappers screens resolve them with (`validationErrorMessageResId`, `ErrorMessage.resolve`/`appErrorMessageResId`), the `MediaFileRepository` contract, `util/MediaUriExt.kt`, `NoteActionError.resolve`, and `note/di/NoteDelegateModule.kt`, which provides `:core:domain`'s two note delegates once per ViewModel (why it has Hilt/KSP). |
 | `:core:data` | Android library holding every implementation of a `:core:domain`/`:core:common` contract: the `Default*`/`Firebase*` repositories, Room, DataStore, `FirebaseModule`, `DataModule`. |
 | `:core:ui` | Android library, shared Compose vocabulary: `common/`, `ui/theme/`, `util/DateTimeUtils.kt`/`FlowUtils.kt`. |
 | `:feature:*` | One Android library per screen — `home`, `search`, `note`, `preview`, `favorite`, `profile`, `settings`, `auth`, `explore` — holding its Compose screen(s), ViewModel(s), route and tests. |
@@ -221,7 +221,7 @@ for.
 **`:app`'s nav graph is tested by `SmartPhotosNavigationTest`, and it is the one suite that needs
 Hilt.** The nine feature suites hand their screen a ViewModel built from fakes; there the subject
 *is* the graph, so every screen inside defaults to `hiltViewModel()` and the whole data layer has to
-resolve. It uses `@UninstallModules(DataModule::class)` plus `@BindValue` fakes for all nine
+resolve. It uses `@UninstallModules(DataModule::class)` plus a `@BindValue` fake for each of its
 bindings — **per class, not `@TestInstallIn`**, because `HiltGraphSmokeTest` in the same source set
 exists precisely to resolve the *real* bindings and a global replacement would gut it. Two pieces of
 scaffolding come with it: `HiltTestActivity` in `src/debug` (an `@AndroidEntryPoint` host, since
@@ -598,7 +598,7 @@ Two things this is *not* about:
 
 Snackbars and other fire-and-forget signals travel from ViewModel to screen on a
 `MutableSharedFlow(extraBufferCapacity = 1)` exposed as a read-only `SharedFlow`, collected in the
-screen's `LaunchedEffect` and shown through `SnackbarHostState`. `actionError` (via `:core:common`'s
+screen's `LaunchedEffect` and shown through `SnackbarHostState`. `actionError` (via `:core:domain`'s
 `NoteErrorReporter`) and `ProfileViewModel.profileEvent` are the existing instances — **follow their shape
 rather than inventing a third.** The payload is an identity the screen resolves (`NoteActionError`,
 `ProfileEvent.UpdateError`), never a string, for the reason under [Error handling](#error-handling).
@@ -658,9 +658,11 @@ lists, no manual URL escaping.**
 
 ### Dependency injection
 
-Hilt, all *modules* `@InstallIn(SingletonComponent::class)` — but constructor-injected classes may
-be narrower (`NoteErrorReporter` is `@ViewModelScoped`), so "all modules are singleton" isn't
-"everything is a singleton". App-wide bindings live in `di/AppModule.kt` (`:app`); other
+Hilt, every *module* `@InstallIn(SingletonComponent::class)` but one: `note/di/NoteDelegateModule.kt`
+(`:core:common`) installs in `ViewModelComponent`, because `NoteErrorReporter` and
+`NoteShareDelegate` must be one instance per ViewModel and, living in `commonMain`, cannot carry
+the scope annotation themselves. A constructor-injected class can be narrower than singleton too,
+so "the modules are singleton" isn't "everything is a singleton". App-wide bindings live in `di/AppModule.kt` (`:app`); other
 cross-cutting layers get their own module — `util/di/UtilModule.kt` (`:app`),
 `data/di/DataModule.kt`, `data/di/FirebaseModule.kt`, `database/di/DatabaseModule.kt`
 (`:core:data`). There is no per-feature `di/` package; follow this layer-scoped pattern.
