@@ -4,6 +4,7 @@ import com.jiahan.smartcamera.buildlogic.configureKotlinAndroid
 import com.jiahan.smartcamera.buildlogic.configureManagedDevices
 import com.jiahan.smartcamera.buildlogic.configureTestJvm
 import com.jiahan.smartcamera.buildlogic.disableAndroidTestWithoutSources
+import com.jiahan.smartcamera.buildlogic.disableUnitTestWithoutSources
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
@@ -30,6 +31,9 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
         // those does not skip itself. The variant API rather than the DSL, hence the components
         // extension rather than a line inside the block above.
         disableAndroidTestWithoutSources(extensions.getByType<LibraryAndroidComponentsExtension>())
+        // The unit-test half of the same problem: the three fixtures modules and :feature:profile
+        // have no JVM test sources, and a unit-test task over none fails rather than skips.
+        disableUnitTestWithoutSources(extensions.getByType<LibraryAndroidComponentsExtension>())
         configureTestJvm()
     }
 }

@@ -4,6 +4,7 @@ import com.jiahan.smartcamera.buildlogic.configureKotlinAndroid
 import com.jiahan.smartcamera.buildlogic.configureManagedDevices
 import com.jiahan.smartcamera.buildlogic.configureTestJvm
 import com.jiahan.smartcamera.buildlogic.disableAndroidTestWithoutSources
+import com.jiahan.smartcamera.buildlogic.disableUnitTestWithoutSources
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
@@ -30,6 +31,10 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
         // that module would want. The variant API rather than the DSL, hence the components
         // extension rather than a line inside the block above.
         disableAndroidTestWithoutSources(
+            extensions.getByType<ApplicationAndroidComponentsExtension>(),
+        )
+        // Also a no-op for :app, which has unit tests, and here for the same second-module reason.
+        disableUnitTestWithoutSources(
             extensions.getByType<ApplicationAndroidComponentsExtension>(),
         )
         configureTestJvm()

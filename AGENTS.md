@@ -74,7 +74,7 @@ Run from the repo root (Gradle wrapper):
 | Task | Command |
 | --- | --- |
 | Debug APK | `./gradlew assembleDebug` |
-| Unit tests (648 across 14 modules) | `./gradlew testDebugUnitTest jvmTest` |
+| Unit tests (668 across 23 modules) | `./gradlew testDebugUnitTest jvmTest` |
 | Multiplatform tests on an iOS simulator (Mac only) | `./gradlew iosSimulatorArm64Test` |
 | Prove every `commonMain` is still common | `./gradlew compileCommonMainKotlinMetadata` |
 | Hilt graph + androidTest sources | `./gradlew compileDebugAndroidTestKotlin` |
@@ -105,6 +105,14 @@ Android-variant `testDebugUnitTest` every other module uses (as do `lintDebug` a
 `connectedDebugAndroidTest`) — hence both tasks above. **Not `allTests`**, which would pull in the
 Apple targets: those build only on a Mac, and CI is Linux. `:core:testing` and
 `:core:screenshot-testing` have no tests of their own, and neither does `:core:domain-testing`.
+
+**An Android module with neither `src/test/` nor `src/sharedTest/` has no unit-test task at all** —
+`disableUnitTestWithoutSources` (`build-logic`) switches the component off, the JVM-side twin of
+`disableAndroidTestWithoutSources` below. Without it the task does not skip: with no test class
+compiled — only resources and an `R.jar` — Gradle 9 still fails it with "the test task did not
+discover any tests to execute", which is what `:feature:profile` did once `ProfileViewModelTest`
+left for `commonTest`.
+Adding either directory switches the task back on with no build-file edit.
 
 - **Its tests live in `commonTest` and so must compile for every target**, which rules out
   `org.junit` (use `kotlin.test`), `java.*`, and `kotlinx.coroutines.runBlocking` — the last is
