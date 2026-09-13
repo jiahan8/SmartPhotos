@@ -10,10 +10,10 @@ are about to change something a rule protects.
 
 Two deployables share one Firebase project:
 
-- **Android app** — Kotlin + Jetpack Compose, MVVM, across twenty-five Gradle modules: `:app`,
+- **Android app** — Kotlin + Jetpack Compose, MVVM, across twenty-six Gradle modules: `:app`,
   `:core:domain`, `:core:common`, `:core:data`, `:core:ui`, nine `:feature:*` libraries plus the
   multiplatform `:feature:<name>-viewmodel` modules (`auth`, `explore`, `favorite`, `home`, `note`,
-  `search`, `settings`), and the
+  `preview`, `search`, `settings`), and the
   four test-only modules `:core:testing` / `:core:domain-testing` / `:core:screenshot-testing` /
   `:core:ui-testing`. Plus
   `build-logic/`, an included build holding the seven convention plugins. The per-module contents and
@@ -478,11 +478,17 @@ and mirrors an answer's result the way it already mirrored a fixed one, so the s
 fake's own `NoteMirror` instead of wiring their own. The `NoteShareDelegate` in them is a real one
 over `FakeMediaCacheRepository`, where a relaxed mock stood in.
 
-Five ViewModels remain in the Android feature modules, each for a reason that can be named. Four
-hold `android.net.Uri` (Note, Profile and the two media previews, whose share download returns a
-`MediaUri` now but whose local sources are still `Uri`s). NotePreview has only its route left, which
-a Hilt subclass can decode as EditNote's does. `:app`'s `MainViewModel` is Android-bound through
-`AppUpdateRepository`.
+**`NotePreviewViewModel` completed the note screens**, into `:feature:preview-viewmodel`, in
+EditNote's shape exactly: `HiltNotePreviewViewModel` decodes `NotePreviewRoute` and passes a plain
+`noteId`, and the suite left Robolectric along with mockk.
+`SmartPhotosNavigationTest.pendingNoteId_navigatesToNotePreview_andIsConsumed` now follows a
+notification's id past the back stack to the fetch, since nothing on the JVM runs that decode any
+more.
+
+Four ViewModels remain in the Android feature modules, and they share one reason: each holds
+`android.net.Uri` (Note, Profile and the two media previews, whose share download returns a
+`MediaUri` now but whose local sources are still `Uri`s). `:app`'s `MainViewModel` is Android-bound
+through `AppUpdateRepository`.
 
 ### What is left
 

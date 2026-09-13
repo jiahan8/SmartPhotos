@@ -1,9 +1,7 @@
 package com.jiahan.smartcamera.preview
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.navigation.toRoute
 import com.jiahan.smartcamera.data.repository.NoteRepository
 import com.jiahan.smartcamera.domain.Note
 import com.jiahan.smartcamera.note.NoteErrorReporter
@@ -13,7 +11,6 @@ import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorMessage
 import com.jiahan.smartcamera.util.ErrorTag
 import com.jiahan.smartcamera.util.toErrorMessage
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -22,7 +19,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 sealed interface NotePreviewContent {
     data object Loading : NotePreviewContent
@@ -41,16 +37,22 @@ private sealed interface FetchStatus {
     data class Failed(val message: ErrorMessage) : FetchStatus
 }
 
-@HiltViewModel
-class NotePreviewViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
+/**
+ * Backs the note preview screen.
+ *
+ * Open and annotation-free so it can live in `commonMain`; `HiltNotePreviewViewModel` in
+ * :feature:preview is what Hilt builds. It takes [noteId] as a plain argument rather than a
+ * `SavedStateHandle`, because that subclass decodes `NotePreviewRoute` -- the shape
+ * `EditNoteViewModel` set, for the same reason: the route stays beside its screen, and this module
+ * needs neither Navigation nor the serialization plugin for one String.
+ */
+open class NotePreviewViewModel(
+    private val noteId: String,
     private val noteRepository: NoteRepository,
     private val noteErrorReporter: NoteErrorReporter,
     private val errorHandler: ErrorHandler,
     private val noteShare: NoteShareDelegate
 ) : ViewModel() {
-
-    private val noteId: String = savedStateHandle.toRoute<NotePreviewRoute>().noteId
 
     private val _uiState = MutableStateFlow(NotePreviewUiState())
     val uiState = _uiState.asStateFlow()

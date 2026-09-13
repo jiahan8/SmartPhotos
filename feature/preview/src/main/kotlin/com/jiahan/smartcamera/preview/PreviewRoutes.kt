@@ -7,10 +7,11 @@ import kotlinx.serialization.Serializable
  * Navigation routes for the three preview screens. Routes live in the feature package that owns
  * them rather than in one central hierarchy -- see `smartPhotosNavGraph`.
  *
- * All three ViewModels read their route back with `savedStateHandle.toRoute<...>()`, so the
- * property names below are the argument names Navigation serializes -- renaming one changes both
- * the generated route pattern and the key each ViewModel's test builds its `SavedStateHandle`
- * with.
+ * Each is read back with `savedStateHandle.toRoute<...>()` -- by `PhotoPreviewViewModel` and
+ * `VideoPreviewViewModel` themselves, and for the note preview by `HiltNotePreviewViewModel`, which
+ * hands the shared `NotePreviewViewModel` a plain `noteId`. So the property names below are the
+ * argument names Navigation serializes: renaming one changes the generated route pattern, and the
+ * key the photo and video suites build their `SavedStateHandle` with.
  */
 @Serializable
 data class PhotoPreviewRoute(val type: MediaSourceType, val source: String)

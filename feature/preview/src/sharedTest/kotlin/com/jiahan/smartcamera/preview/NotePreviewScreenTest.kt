@@ -6,7 +6,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.lifecycle.SavedStateHandle
 import com.jiahan.smartcamera.feature.preview.R
 import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.domain.MediaDetail
@@ -28,13 +27,13 @@ import org.junit.runner.RunWith
 /**
  * Compose UI tests for [NotePreviewScreen].
  *
- * A real [NotePreviewViewModel] is built from in-memory fakes and a manually-constructed
- * [SavedStateHandle] (standing in for the `NotePreviewRoute` nav route), so the screen renders
+ * A real [NotePreviewViewModel] is built from in-memory fakes and the `noteId` the
+ * `NotePreviewRoute` nav route would carry, so the screen renders
  * end-to-end with no Firebase, no network, and no real navigation graph.
  *
  * Deliberately NOT covered here: the favorite-toggle icon (identified only by an accessibility
  * `onClickLabel`, not text/content-description — already thoroughly covered at the ViewModel level
- * in `NotePreviewViewModelTest`, in the `test` source set) and the share icon (fires a real system
+ * in `NotePreviewViewModelTest`, in :feature:preview-viewmodel's `commonTest`) and the share icon (fires a real system
  * share-sheet intent on device; no existing screen test in this codebase exercises share for the
  * same reason).
  */
@@ -63,7 +62,7 @@ class NotePreviewScreenTest : BaseScreenTest() {
         val errorHandler = FakeErrorHandler()
         val noteErrorReporter = NoteErrorReporter(errorHandler)
         val viewModel = NotePreviewViewModel(
-            savedStateHandle = SavedStateHandle(mapOf("noteId" to noteId)),
+            noteId = noteId,
             noteRepository = noteRepository,
             noteErrorReporter = noteErrorReporter,
             errorHandler = errorHandler,

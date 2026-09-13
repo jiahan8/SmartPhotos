@@ -88,7 +88,7 @@ fun NotePreviewScreen(
     onNavigateToVideoPreview: (url: String) -> Unit,
     onNavigateToEdit: (noteId: String) -> Unit,
     snackbarHostState: SnackbarHostState,
-    viewModel: NotePreviewViewModel = hiltViewModel()
+    viewModel: NotePreviewViewModel = hiltViewModel<HiltNotePreviewViewModel>()
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current

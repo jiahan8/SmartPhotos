@@ -412,6 +412,13 @@ class SmartPhotosNavigationTest {
                 navController.currentBackStackEntry?.toRoute<NotePreviewRoute>()?.noteId
             },
         )
+        // And past the back stack into the screen: HiltNotePreviewViewModel decodes the id and
+        // hands it to the shared ViewModel, which fetches that note. Nothing on the JVM runs that
+        // decode any more, so this is the one place a broken hand-off would show.
+        val fakeNoteRepository = noteRepository as FakeNoteRepository
+        composeTestRule.waitUntil(NAVIGATION_TIMEOUT_MS) {
+            "note-from-notification" in fakeNoteRepository.requestedNoteIds
+        }
         assertTrue(consumedPendingNoteId)
     }
 
