@@ -1,8 +1,6 @@
 package com.jiahan.smartcamera.data.di
 
 import com.google.firebase.Firebase
-import com.google.firebase.analytics.FirebaseAnalytics
-import com.google.firebase.analytics.analytics
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
@@ -15,6 +13,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dev.gitlive.firebase.Firebase as GitLiveFirebase
+import dev.gitlive.firebase.analytics.FirebaseAnalytics
+import dev.gitlive.firebase.analytics.analytics
 import dev.gitlive.firebase.functions.FirebaseFunctions as GitLiveFirebaseFunctions
 import dev.gitlive.firebase.functions.functions as gitLiveFunctions
 import dev.gitlive.firebase.remoteconfig.FirebaseRemoteConfig
@@ -63,9 +63,11 @@ object FirebaseModule {
     @Singleton
     fun provideFirebaseFirestore(): FirebaseFirestore = Firebase.firestore
 
+    // GitLive's, for FirebaseAnalyticsRepository in :core:firebase; the Android SDK's provider went
+    // with that class, as nothing else injects the type.
     @Provides
     @Singleton
-    fun provideFirebaseAnalytics(): FirebaseAnalytics = Firebase.analytics
+    fun provideFirebaseAnalytics(): FirebaseAnalytics = GitLiveFirebase.analytics
 
     @Provides
     @Singleton

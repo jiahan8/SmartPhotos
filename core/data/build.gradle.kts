@@ -128,16 +128,16 @@ dependencies {
      * readiness section of AGENTS.md calls the ceiling on sharing this layer.
      */
     api(platform(libs.firebase.bom))
-    api(libs.firebase.analytics)
     api(libs.firebase.auth)
     api(libs.firebase.firestore)
     api(libs.firebase.functions)
     api(libs.firebase.messaging)
-    // GitLive's FirebaseFunctions and FirebaseRemoteConfig are providers' return types and
-    // parameters. firebase-config itself is gone from this list: no source here names the Android
-    // SDK's Remote Config since its repository moved to :core:firebase.
+    // GitLive's FirebaseFunctions, FirebaseRemoteConfig and FirebaseAnalytics are providers' return
+    // types and parameters. firebase-config and firebase-analytics themselves are gone from this
+    // list: no source here names those Android SDKs since their repositories moved to :core:firebase.
     api(libs.gitlive.firebase.functions)
     api(libs.gitlive.firebase.config)
+    api(libs.gitlive.firebase.analytics)
     api(libs.play.app.update)
     api(libs.datastore.preferences)
     api(libs.datastore.preferences.core)

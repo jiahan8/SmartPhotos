@@ -281,8 +281,8 @@ the component is assembled in `:app` — which is why `:core:data` can inject `@
 | --- | --- | --- |
 | `di/AppModule.kt` | `:app` | `CoroutineDispatcher`s via `@IoDispatcher`/`@ApplicationScope`, the `@DebugBuild` flag, app-wide bindings |
 | `util/di/UtilModule.kt` | `:app` | `ErrorHandler` (logging only; screens resolve their own text) |
-| `data/di/DataModule.kt` | `:core:data` | Binds each repository interface to its `Default*`, and constructs the shared ones (`DefaultUserPreferencesRepository`, `DefaultPhotoRepository`, `FirebaseRemoteConfigRepository`), which have no injected constructor to bind |
-| `data/di/FirebaseModule.kt` | `:core:data` | The Firebase SDK singletons, plus GitLive's `FirebaseFunctions` and `FirebaseRemoteConfig` for `:core:firebase` |
+| `data/di/DataModule.kt` | `:core:data` | Binds each repository interface to its `Default*`, and constructs the shared ones (`DefaultUserPreferencesRepository`, `DefaultPhotoRepository`, `FirebaseRemoteConfigRepository`, `FirebaseAnalyticsRepository`), which have no injected constructor to bind |
+| `data/di/FirebaseModule.kt` | `:core:data` | The Firebase SDK singletons, plus GitLive's `FirebaseFunctions`, `FirebaseRemoteConfig` and `FirebaseAnalytics` for `:core:firebase` |
 | `data/datastore/DataStoreModule.kt` | `:core:data` | DataStore, and the one deliberate place a `CoroutineScope` is built at module level rather than injected |
 | `database/di/DatabaseModule.kt` | `:core:data` | `AppDatabase` (declared in `:core:database`) and its DAOs |
 | `note/di/NoteDelegateModule.kt` | `:core:common` | `NoteErrorReporter` and `NoteShareDelegate`, `@ViewModelScoped` — the one module installed in `ViewModelComponent` |
@@ -587,6 +587,12 @@ for it; a new test pins that ordering, which the old class left to timing. The A
 the shape for the next gap:** call GitLive in common code where it has the API, and reach the SDK
 through its `android` accessor in an `actual` where it does not.
 
+**`FirebaseAnalyticsRepository` came next, with nothing to decide.** GitLive's `logEvent` takes a
+map, which its Android implementation turns into the same `Bundle` the old class built, and the two
+SDK constants common code cannot name became their values, `search` and `search_term`. The class
+had no tests; it has a suite now, over an `AnalyticsSink` seam, pinning the event and parameter
+names the Analytics console reports by.
+
 ### What is left
 
 **The ceiling to know about before planning further: Hilt has no KMP support, and it is load-bearing
@@ -607,8 +613,7 @@ constructs a shared class as readily as a subclass does, so Hilt only has to be 
 second platform needs a container; Firebase is what actually gates the `Default*`s that remain.
 
 **Local persistence is shared now** — DataStore and Room both, above — so what is left of the data
-layer is the Firebase repositories still on the Android SDK — Auth, Note, User, MediaUpload
-and Analytics — plus `DefaultMediaFileRepository`, which is Android file and bitmap
+layer is the Firebase repositories still on the Android SDK — Auth, Note, User and MediaUpload — plus `DefaultMediaFileRepository`, which is Android file and bitmap
 work, and `DefaultAppUpdateRepository`, which is Play Core; those two stay Android by nature. The wiring that
 opens each store (`DatabaseModule`, `DataStoreModule`) stays at the Android edge by nature, since
 both begin from a `Context`.

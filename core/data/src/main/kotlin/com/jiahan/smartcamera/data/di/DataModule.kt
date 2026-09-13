@@ -32,6 +32,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import dev.gitlive.firebase.analytics.FirebaseAnalytics
 import dev.gitlive.firebase.functions.FirebaseFunctions
 import dev.gitlive.firebase.remoteconfig.FirebaseRemoteConfig
 import kotlinx.coroutines.CoroutineScope
@@ -40,12 +41,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class DataModule {
-
-    @Binds
-    @Singleton
-    abstract fun bindAnalyticsRepository(
-        firebaseAnalyticsRepository: FirebaseAnalyticsRepository
-    ): AnalyticsRepository
 
     @Binds
     @Singleton
@@ -129,5 +124,12 @@ abstract class DataModule {
             @ApplicationScope scope: CoroutineScope,
         ): RemoteConfigRepository =
             FirebaseRemoteConfigRepository(remoteConfig, errorHandler, isDebugBuild, scope)
+
+        // Also in :core:firebase.
+        @Provides
+        @Singleton
+        fun provideAnalyticsRepository(
+            analytics: FirebaseAnalytics
+        ): AnalyticsRepository = FirebaseAnalyticsRepository(analytics)
     }
 }

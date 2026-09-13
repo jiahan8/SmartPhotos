@@ -46,9 +46,11 @@ kotlin {
         commonMain.dependencies {
             // api: DefaultPhotoRepository implements a :core:domain interface and returns its models.
             api(project(":core:domain"))
-            // api: the public constructors take GitLive's FirebaseFunctions and FirebaseRemoteConfig.
+            // api: the public constructors take GitLive's FirebaseFunctions, FirebaseRemoteConfig and
+            // FirebaseAnalytics.
             api(libs.gitlive.firebase.functions)
             api(libs.gitlive.firebase.config)
+            api(libs.gitlive.firebase.analytics)
         }
 
         androidMain.dependencies {
