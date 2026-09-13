@@ -10,12 +10,13 @@ are about to change something a rule protects.
 
 Two deployables share one Firebase project:
 
-- **Android app** — Kotlin + Jetpack Compose, MVVM, across nineteen Gradle modules: `:app`,
+- **Android app** — Kotlin + Jetpack Compose, MVVM, across twenty-one Gradle modules: `:app`,
   `:core:domain`, `:core:common`, `:core:data`, `:core:ui`, nine `:feature:*` libraries plus the
-  multiplatform `:feature:explore-viewmodel`, and the
+  multiplatform `:feature:auth-viewmodel`, `:feature:explore-viewmodel` and
+  `:feature:settings-viewmodel`, and the
   four test-only modules `:core:testing` / `:core:domain-testing` / `:core:screenshot-testing` /
   `:core:ui-testing`. Plus
-  `build-logic/`, an included build holding the six convention plugins. The per-module contents and
+  `build-logic/`, an included build holding the seven convention plugins. The per-module contents and
   the dependency rules are in [AGENTS.md](AGENTS.md).
 - **Cloud Functions** (`functions/`, Node 24) — triggered by Firestore writes and callable from the
   app, doing the work that shouldn't run on-device: calling Google Cloud Vision, enforcing limits
@@ -431,6 +432,20 @@ things came out of it:
   `:core:testing`), and the suite now lives in `:feature:explore-viewmodel`'s `commonTest`: fakes
   where mockk was, `Dispatchers.setMain` where the rule was, running on the JVM in CI and on an iOS
   simulator on a Mac.
+
+**`AuthViewModel` and `SettingsViewModel` followed**, into `:feature:auth-viewmodel` and
+`:feature:settings-viewmodel`, suites and all — the pattern applied rather than re-derived. A second
+module wanting the same build lines is build-logic's threshold, and this step brought two, so those
+lines became the
+`smartphotos.kmp.viewmodel` convention, and a new ViewModel module's build file is its plugin id.
+`FakeAuthRepository` gained answer hooks for the calls those suites hold in flight.
+
+Nine ViewModels remain in the Android feature modules, each for a reason that can be named. Four
+hold `android.net.Uri` (Note, Profile and the two media previews), and four inject the
+`NoteErrorReporter`/`NoteShareDelegate` pair from `:core:common` (Home, Search, Favorite,
+NotePreview). EditNote's only tie is `SavedStateHandle.toRoute`, and `navigation-common` 2.10
+publishes Apple variants, so that one is likely the next to move. `:app`'s `MainViewModel` is
+Android-bound through `AppUpdateRepository`.
 
 ### What is left
 

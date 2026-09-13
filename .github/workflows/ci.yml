@@ -100,7 +100,7 @@ jobs:
         run: ./gradlew compileDebugAndroidTestKotlin
 
       # `jvmTest` is the multiplatform modules' unit-test task -- :core:domain's suite and
-      # :feature:explore-viewmodel's, both in commonTest -- and the Android `testDebugUnitTest`
+      # each :feature:<name>-viewmodel's, all in commonTest -- and the Android `testDebugUnitTest`
       # variant task does not reach it, so leaving it off would skip them silently rather than fail.
       # Unqualified for the reason the common-sources step below gives: the next multiplatform
       # module's tests run here with no edit. (It named :core:domain while that was the only one.)
@@ -124,8 +124,8 @@ jobs:
       # toolchain; what it cannot cover is a Kotlin/Native codegen difference, which only an iOS
       # compile on a Mac would catch.
       #
-      # Unqualified, so it reaches every module that has the task -- :core:domain and
-      # :feature:explore-viewmodel today, and the next shared module with no edit here. That is the
+      # Unqualified, so it reaches every module that has the task -- :core:domain,
+      # :core:domain-testing and every :feature:<name>-viewmodel today, and the next shared module with no edit here. That is the
       # argument the artifact paths below make for globs; Android modules have no such task, and a
       # name no project declares would fail loudly rather than skip.
       - name: Verify shared sources stay common

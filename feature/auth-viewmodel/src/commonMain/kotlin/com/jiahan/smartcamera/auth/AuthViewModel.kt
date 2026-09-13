@@ -13,14 +13,12 @@ import com.jiahan.smartcamera.util.ValidationResult
 import com.jiahan.smartcamera.util.toErrorMessage
 import com.jiahan.smartcamera.util.validateDisplayName
 import com.jiahan.smartcamera.util.validateUsername
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 sealed interface AuthStatus {
     data object Idle : AuthStatus
@@ -68,8 +66,14 @@ sealed interface AuthNavigationEvent {
     data object NavigateToHome : AuthNavigationEvent
 }
 
-@HiltViewModel
-class AuthViewModel @Inject constructor(
+/**
+ * Sign-in, sign-up, password reset and email verification behind AuthScreen.
+ *
+ * In `commonMain` the way ExploreViewModel is: it carries no Hilt annotations, which resolve on
+ * neither the JVM target nor the Apple ones, and it is `open`, because what Hilt instantiates is
+ * `HiltAuthViewModel` in :feature:auth -- a subclass that adds those annotations and nothing else.
+ */
+open class AuthViewModel(
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
     private val userPreferencesRepository: UserPreferencesRepository,

@@ -1,55 +1,55 @@
 package com.jiahan.smartcamera.settings
 
 import app.cash.turbine.test
-import com.jiahan.smartcamera.MainDispatcherRule
-import com.jiahan.smartcamera.data.datastore.UserPreferences
-import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
-import com.jiahan.smartcamera.data.repository.AnalyticsRepository
-import com.jiahan.smartcamera.data.repository.AuthRepository
-import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
+import com.jiahan.smartcamera.fake.FakeAuthRepository
+import com.jiahan.smartcamera.fake.FakeErrorHandler
+import com.jiahan.smartcamera.fake.FakeUserPreferencesRepository
 import com.jiahan.smartcamera.util.ErrorMessage
 import com.jiahan.smartcamera.util.ValidationError
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.verify
-import io.mockk.every
-import io.mockk.just
-import io.mockk.mockk
-import io.mockk.runs
-import io.mockk.unmockkAll
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Before
-import org.junit.Rule
-import org.junit.Test
+import kotlinx.coroutines.test.setMain
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
-@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+/**
+ * [SettingsViewModel]'s suite, in `commonTest` beside its subject: one source for the JVM and the
+ * Apple targets, on :core:domain-testing's fakes rather than mockk, with [Dispatchers.setMain]
+ * called directly where `MainDispatcherRule` was. `ExploreViewModelTest` records why each of those.
+ *
+ * Where a mock's `coVerify` checked a repository was or was not called, the fake's call count and
+ * last arguments do; where a test held a call in flight with a `CompletableDeferred`, the fake's
+ * answer hook awaits it.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
 class SettingsViewModelTest {
 
-    @get:Rule
-    val mainDispatcherRule = MainDispatcherRule(StandardTestDispatcher())
+    // Standard rather than unconfined: signOut and deleteAccount wait AUTH_ACTION_DELAY_MS before
+    // navigating, so these tests drive virtual time themselves.
+    private val testDispatcher: TestDispatcher = StandardTestDispatcher()
 
-    private val authRepository: AuthRepository = mockk()
-    private val analyticsRepository: AnalyticsRepository = mockk()
-    private val userPreferencesRepository: UserPreferencesRepository = mockk()
-    private val errorHandler: ErrorHandler = mockk()
+    private val authRepository = FakeAuthRepository()
+    private val analyticsRepository = FakeAnalyticsRepository()
+    private val userPreferencesRepository = FakeUserPreferencesRepository()
+    private val errorHandler = FakeErrorHandler()
 
     private lateinit var viewModel: SettingsViewModel
 
-    @Before
+    @BeforeTest
     fun setUp() {
-        every { analyticsRepository.setUserId(any()) } just runs
-        every { analyticsRepository.logText(any()) } just runs
-        every { errorHandler.logError(any()) } just runs
-        every { userPreferencesRepository.userPreferences } returns
-                flowOf(UserPreferences(isDarkTheme = false, username = "", profilePictureUrl = null))
+        Dispatchers.setMain(testDispatcher)
         viewModel = SettingsViewModel(
             authRepository,
             analyticsRepository,
@@ -58,8 +58,10 @@ class SettingsViewModelTest {
         )
     }
 
-    @After
-    fun tearDown() = unmockkAll()
+    @AfterTest
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
 
     // -------------------------------------------------------------------------
     // Initial state
@@ -80,30 +82,28 @@ class SettingsViewModelTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `signOut success sends NavigateToAuth event`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            coEvery { authRepository.signOut() } returns Result.success(Unit)
+    fun `signOut success sends NavigateToAuth event`() = runTest(testDispatcher) {
+        authRepository.signOutResult = Result.success(Unit)
 
-            viewModel.navigationEvent.test {
-                viewModel.signOut()
-                advanceUntilIdle()
-                assertEquals(SettingsNavigationEvent.NavigateToAuth, awaitItem())
-                cancelAndIgnoreRemainingEvents()
-            }
+        viewModel.navigationEvent.test {
+            viewModel.signOut()
+            advanceUntilIdle()
+            assertEquals(SettingsNavigationEvent.NavigateToAuth, awaitItem())
+            cancelAndIgnoreRemainingEvents()
         }
+    }
 
     @Test
-    fun `signOut success resets uiState to Idle`() = runTest(mainDispatcherRule.testDispatcher) {
-        coEvery { authRepository.signOut() } returns Result.success(Unit)
+    fun `signOut success resets uiState to Idle`() = runTest(testDispatcher) {
+        authRepository.signOutResult = Result.success(Unit)
         viewModel.signOut()
         advanceUntilIdle()
         assertEquals(SettingsStatus.Idle, viewModel.uiState.value.status)
     }
 
     @Test
-    fun `signOut failure sets Error uiState`() = runTest(mainDispatcherRule.testDispatcher) {
-        val exception = RuntimeException("sign out failed")
-        coEvery { authRepository.signOut() } returns Result.failure(exception)
+    fun `signOut failure sets Error uiState`() = runTest(testDispatcher) {
+        authRepository.signOutResult = Result.failure(RuntimeException("sign out failed"))
 
         viewModel.signOut()
         advanceUntilIdle()
@@ -112,7 +112,7 @@ class SettingsViewModelTest {
         assertTrue(state is SettingsStatus.Error)
         assertEquals(
             ErrorMessage.Unlocalized("sign out failed"),
-            (state as SettingsStatus.Error).message
+            state.message
         )
     }
 
@@ -121,31 +121,28 @@ class SettingsViewModelTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `deleteAccount success sends NavigateToAuth event`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            coEvery { authRepository.deleteAccount() } returns Result.success(Unit)
+    fun `deleteAccount success sends NavigateToAuth event`() = runTest(testDispatcher) {
+        authRepository.deleteAccountResult = Result.success(Unit)
 
-            viewModel.navigationEvent.test {
-                viewModel.deleteAccount()
-                advanceUntilIdle()
-                assertEquals(SettingsNavigationEvent.NavigateToAuth, awaitItem())
-                cancelAndIgnoreRemainingEvents()
-            }
-        }
-
-    @Test
-    fun `deleteAccount success resets uiState to Idle`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            coEvery { authRepository.deleteAccount() } returns Result.success(Unit)
+        viewModel.navigationEvent.test {
             viewModel.deleteAccount()
             advanceUntilIdle()
-            assertEquals(SettingsStatus.Idle, viewModel.uiState.value.status)
+            assertEquals(SettingsNavigationEvent.NavigateToAuth, awaitItem())
+            cancelAndIgnoreRemainingEvents()
         }
+    }
 
     @Test
-    fun `deleteAccount failure sets Error uiState`() = runTest(mainDispatcherRule.testDispatcher) {
-        val exception = RuntimeException("delete failed")
-        coEvery { authRepository.deleteAccount() } returns Result.failure(exception)
+    fun `deleteAccount success resets uiState to Idle`() = runTest(testDispatcher) {
+        authRepository.deleteAccountResult = Result.success(Unit)
+        viewModel.deleteAccount()
+        advanceUntilIdle()
+        assertEquals(SettingsStatus.Idle, viewModel.uiState.value.status)
+    }
+
+    @Test
+    fun `deleteAccount failure sets Error uiState`() = runTest(testDispatcher) {
+        authRepository.deleteAccountResult = Result.failure(RuntimeException("delete failed"))
 
         viewModel.deleteAccount()
         advanceUntilIdle()
@@ -207,26 +204,25 @@ class SettingsViewModelTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `updateNewPassword clears any existing newPasswordError`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            viewModel.showChangePasswordDialog()
-            viewModel.updateCurrentPassword("current")
-            viewModel.changePassword()
-            advanceUntilIdle()
-            assertEquals(
-                ValidationError.PASSWORD_EMPTY,
-                (viewModel.uiState.value.dialogState as SettingsDialogState.ChangePassword)
-                    .newPasswordError
-            )
+    fun `updateNewPassword clears any existing newPasswordError`() = runTest(testDispatcher) {
+        viewModel.showChangePasswordDialog()
+        viewModel.updateCurrentPassword("current")
+        viewModel.changePassword()
+        advanceUntilIdle()
+        assertEquals(
+            ValidationError.PASSWORD_EMPTY,
+            (viewModel.uiState.value.dialogState as SettingsDialogState.ChangePassword)
+                .newPasswordError
+        )
 
-            viewModel.updateNewPassword("newPass1")
+        viewModel.updateNewPassword("newPass1")
 
-            assertEquals(
-                null,
-                (viewModel.uiState.value.dialogState as SettingsDialogState.ChangePassword)
-                    .newPasswordError
-            )
-        }
+        assertEquals(
+            null,
+            (viewModel.uiState.value.dialogState as SettingsDialogState.ChangePassword)
+                .newPasswordError
+        )
+    }
 
     @Test
     fun `updateConfirmNewPassword mismatch sets confirmNewPasswordError`() {
@@ -254,13 +250,13 @@ class SettingsViewModelTest {
 
     @Test
     fun `changePassword with blank new password does not call repository`() =
-        runTest(mainDispatcherRule.testDispatcher) {
+        runTest(testDispatcher) {
             viewModel.showChangePasswordDialog()
             viewModel.updateCurrentPassword("current")
             viewModel.changePassword()
             advanceUntilIdle()
 
-            coVerify(exactly = 0) { authRepository.changePassword(any(), any()) }
+            assertEquals(0, authRepository.changePasswordCallCount)
             assertEquals(
                 ValidationError.PASSWORD_EMPTY,
                 (viewModel.uiState.value.dialogState as SettingsDialogState.ChangePassword)
@@ -270,7 +266,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `changePassword with mismatched confirm password does not call repository`() =
-        runTest(mainDispatcherRule.testDispatcher) {
+        runTest(testDispatcher) {
             viewModel.showChangePasswordDialog()
             viewModel.updateCurrentPassword("current")
             viewModel.updateNewPassword("newPass1")
@@ -278,7 +274,7 @@ class SettingsViewModelTest {
             viewModel.changePassword()
             advanceUntilIdle()
 
-            coVerify(exactly = 0) { authRepository.changePassword(any(), any()) }
+            assertEquals(0, authRepository.changePasswordCallCount)
             assertEquals(
                 ConfirmPasswordError.MISMATCH,
                 (viewModel.uiState.value.dialogState as SettingsDialogState.ChangePassword)
@@ -286,11 +282,11 @@ class SettingsViewModelTest {
             )
         }
 
+    // No comma in the name: Kotlin/Native rejects one, and this suite compiles for the Apple targets.
     @Test
-    fun `changePassword success calls repository, dismisses dialog, and emits event`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            coEvery { authRepository.changePassword("current", "newPass1") } returns
-                    Result.success(Unit)
+    fun `changePassword success calls the repository then dismisses the dialog and emits the event`() =
+        runTest(testDispatcher) {
+            authRepository.changePasswordResult = Result.success(Unit)
 
             viewModel.showChangePasswordDialog()
             viewModel.updateCurrentPassword("current")
@@ -300,13 +296,11 @@ class SettingsViewModelTest {
             viewModel.changePasswordEvent.test {
                 viewModel.changePassword()
                 advanceUntilIdle()
-                assertEquals(
-                    SettingsChangePasswordEvent.Success,
-                    awaitItem()
-                )
+                assertEquals(SettingsChangePasswordEvent.Success, awaitItem())
                 cancelAndIgnoreRemainingEvents()
             }
 
+            assertEquals("current" to "newPass1", authRepository.lastChangePasswordArgs)
             val state = viewModel.uiState.value
             assertEquals(SettingsDialogState.None, state.dialogState)
             assertEquals(SettingsStatus.Idle, state.status)
@@ -314,11 +308,9 @@ class SettingsViewModelTest {
 
     @Test
     fun `changePassword sets Loading status while repository call is in flight`() =
-        runTest(mainDispatcherRule.testDispatcher) {
+        runTest(testDispatcher) {
             val deferredResult = CompletableDeferred<Result<Unit>>()
-            coEvery { authRepository.changePassword("current", "newPass1") } coAnswers {
-                deferredResult.await()
-            }
+            authRepository.changePasswordAnswer = { _, _ -> deferredResult.await() }
 
             viewModel.showChangePasswordDialog()
             viewModel.updateCurrentPassword("current")
@@ -338,10 +330,9 @@ class SettingsViewModelTest {
 
     @Test
     fun `changePassword failure sets Error uiState and leaves dialog open`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            val exception = RuntimeException("wrong password")
-            coEvery { authRepository.changePassword(any(), any()) } returns
-                    Result.failure(exception)
+        runTest(testDispatcher) {
+            authRepository.changePasswordResult =
+                Result.failure(RuntimeException("wrong password"))
 
             viewModel.showChangePasswordDialog()
             viewModel.updateCurrentPassword("wrong")
@@ -354,7 +345,7 @@ class SettingsViewModelTest {
             assertTrue(state.status is SettingsStatus.Error)
             assertEquals(
                 ErrorMessage.Unlocalized("wrong password"),
-                (state.status as SettingsStatus.Error).message
+                state.status.message
             )
             assertTrue(state.dialogState is SettingsDialogState.ChangePassword)
         }
@@ -364,19 +355,17 @@ class SettingsViewModelTest {
     // -------------------------------------------------------------------------
 
     @Test
-    fun `openLanguageSettings sends OpenLanguageSettings event`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            viewModel.navigationEvent.test {
-                viewModel.openLanguageSettings()
-                assertEquals(SettingsNavigationEvent.OpenLanguageSettings, awaitItem())
-                cancelAndIgnoreRemainingEvents()
-            }
+    fun `openLanguageSettings sends OpenLanguageSettings event`() = runTest(testDispatcher) {
+        viewModel.navigationEvent.test {
+            viewModel.openLanguageSettings()
+            assertEquals(SettingsNavigationEvent.OpenLanguageSettings, awaitItem())
+            cancelAndIgnoreRemainingEvents()
         }
+    }
 
     @Test
-    fun `dismissError resets uiState to Idle`() = runTest(mainDispatcherRule.testDispatcher) {
-        val exception = RuntimeException("err")
-        coEvery { authRepository.signOut() } returns Result.failure(exception)
+    fun `dismissError resets uiState to Idle`() = runTest(testDispatcher) {
+        authRepository.signOutResult = Result.failure(RuntimeException("err"))
         viewModel.signOut()
         advanceUntilIdle()
 
@@ -386,29 +375,23 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `setDarkTheme delegates to userPreferencesRepository`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            coEvery { userPreferencesRepository.setDarkTheme(true) } returns
-                    Result.success(Unit)
+    fun `setDarkTheme delegates to userPreferencesRepository`() = runTest(testDispatcher) {
+        viewModel.setDarkTheme(true)
+        advanceUntilIdle()
 
-            viewModel.setDarkTheme(true)
-            advanceUntilIdle()
-
-            coVerify { userPreferencesRepository.setDarkTheme(true) }
-        }
+        assertTrue(userPreferencesRepository.userPreferences.first().isDarkTheme)
+    }
 
     @Test
-    fun `setDarkTheme failure is logged silently`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            val exception = RuntimeException("pref error")
-            coEvery { userPreferencesRepository.setDarkTheme(any()) } returns
-                    Result.failure(exception)
+    fun `setDarkTheme failure is logged silently`() = runTest(testDispatcher) {
+        val exception = RuntimeException("pref error")
+        userPreferencesRepository.setDarkThemeResult = Result.failure(exception)
 
-            viewModel.setDarkTheme(false)
-            advanceUntilIdle()
+        viewModel.setDarkTheme(false)
+        advanceUntilIdle()
 
-            verify { errorHandler.logError(exception) }
-            // uiState unchanged — no error shown to user
-            assertEquals(SettingsStatus.Idle, viewModel.uiState.value.status)
-        }
+        assertEquals(listOf<Throwable>(exception), errorHandler.loggedErrors)
+        // uiState unchanged — no error shown to user
+        assertEquals(SettingsStatus.Idle, viewModel.uiState.value.status)
+    }
 }

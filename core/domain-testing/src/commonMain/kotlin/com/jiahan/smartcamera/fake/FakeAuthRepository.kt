@@ -24,6 +24,16 @@ class FakeAuthRepository : AuthRepository {
     var usernameAvailableResult: Result<Boolean> = Result.success(true)
     var emailRegisteredResult: Result<Boolean> = Result.success(true)
 
+    /**
+     * Per-call answers for the calls a test holds in flight -- a sign-in, an availability check or
+     * a password change still suspended while the test looks at the Loading state. Null falls back
+     * to the matching result above.
+     */
+    var signInAnswer: (suspend (email: String, password: String) -> Result<Unit>)? = null
+    var usernameAvailableAnswer: (suspend (username: String) -> Result<Boolean>)? = null
+    var changePasswordAnswer:
+        (suspend (currentPassword: String, newPassword: String) -> Result<Unit>)? = null
+
     var signInCallCount = 0
     var signUpCallCount = 0
     var signOutCallCount = 0
@@ -35,7 +45,7 @@ class FakeAuthRepository : AuthRepository {
     override suspend fun signIn(email: String, password: String): Result<Unit> {
         signInCallCount++
         lastSignInEmail = email
-        return signInResult
+        return signInAnswer?.invoke(email, password) ?: signInResult
     }
 
     override suspend fun signUp(
@@ -61,7 +71,7 @@ class FakeAuthRepository : AuthRepository {
     ): Result<Unit> {
         changePasswordCallCount++
         lastChangePasswordArgs = currentPassword to newPassword
-        return changePasswordResult
+        return changePasswordAnswer?.invoke(currentPassword, newPassword) ?: changePasswordResult
     }
 
     override suspend fun checkEmailVerified(): Result<Boolean> = checkEmailVerifiedResult
@@ -74,7 +84,7 @@ class FakeAuthRepository : AuthRepository {
     }
 
     override suspend fun isUsernameAvailable(username: String): Result<Boolean> =
-        usernameAvailableResult
+        usernameAvailableAnswer?.invoke(username) ?: usernameAvailableResult
 
     override suspend fun isEmailRegistered(email: String): Result<Boolean> = emailRegisteredResult
 }

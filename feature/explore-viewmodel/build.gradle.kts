@@ -21,33 +21,9 @@
  * consume.
  */
 plugins {
-    // Nothing Android, and the same target set as :core:domain -- which is also why that set lost
-    // iosX64: this module's lifecycle-viewmodel dependency publishes no variant for it.
-    id("smartphotos.kmp.library")
-}
-
-kotlin {
-    sourceSets {
-        commonMain.dependencies {
-            // api: PhotoRepository, AnalyticsRepository and ErrorHandler are ExploreViewModel's
-            // constructor parameters, and HiltExploreViewModel restates them in its own.
-            api(project(":core:domain"))
-
-            // api: ExploreViewModel extends ViewModel, so a consumer cannot subclass or call it
-            // without resolving this.
-            api(libs.androidx.lifecycle.viewmodel)
-
-            // api: `uiState` is a StateFlow. Declared rather than inherited through :core:domain's
-            // own api edge, because this module names coroutines itself.
-            api(libs.kotlinx.coroutines.core)
-        }
-
-        commonTest.dependencies {
-            // kotlin-test rather than junit, and no mockk: the suite compiles for the Apple targets
-            // too, where neither exists. :core:domain-testing's fakes stand in where mockk was.
-            implementation(libs.kotlin.test)
-            implementation(libs.kotlinx.coroutines.test)
-            implementation(project(":core:domain-testing"))
-        }
-    }
+    // Everything this module declared by hand while it was the only ViewModel module -- the
+    // :core:domain, lifecycle-viewmodel and coroutines api edges, and the commonTest set -- moved
+    // into this convention when :feature:auth-viewmodel and :feature:settings-viewmodel wanted
+    // the same lines. The reasons for each are recorded there.
+    id("smartphotos.kmp.viewmodel")
 }

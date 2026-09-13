@@ -13,7 +13,6 @@ import com.jiahan.smartcamera.util.ValidationError
 import com.jiahan.smartcamera.util.ValidationResult
 import com.jiahan.smartcamera.util.toErrorMessage
 import com.jiahan.smartcamera.util.validateNewPassword
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -26,7 +25,6 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 
 sealed interface SettingsStatus {
@@ -68,8 +66,15 @@ data class SettingsUiState(
     val dialogState: SettingsDialogState = SettingsDialogState.None,
 )
 
-@HiltViewModel
-class SettingsViewModel @Inject constructor(
+/**
+ * Theme, language, password change, sign-out and account deletion behind SettingsScreen.
+ *
+ * In `commonMain` the way ExploreViewModel is: it carries no Hilt annotations, which resolve on
+ * neither the JVM target nor the Apple ones, and it is `open`, because what Hilt instantiates is
+ * `HiltSettingsViewModel` in :feature:settings -- a subclass that adds those annotations and nothing
+ * else.
+ */
+open class SettingsViewModel(
     private val authRepository: AuthRepository,
     private val analyticsRepository: AnalyticsRepository,
     private val userPreferencesRepository: UserPreferencesRepository,

@@ -63,7 +63,7 @@ fun AuthScreen(
     // application module, and this is a library. Same hoist as SettingsScreen's `versionName`,
     // and the same reason -- a library cannot reach :app's resources any more than its BuildConfig.
     @DrawableRes logoRes: Int,
-    viewModel: AuthViewModel = hiltViewModel()
+    viewModel: AuthViewModel = hiltViewModel<HiltAuthViewModel>()
 ) {
     val scrollState = rememberScrollState()
     val resources = LocalResources.current

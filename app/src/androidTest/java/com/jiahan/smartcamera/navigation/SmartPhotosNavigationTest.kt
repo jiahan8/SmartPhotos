@@ -45,11 +45,13 @@ import com.jiahan.smartcamera.fake.FakeUserPreferencesRepository
 import com.jiahan.smartcamera.fake.FakeUserRepository
 import com.jiahan.smartcamera.feature.explore.R as ExploreR
 import com.jiahan.smartcamera.feature.profile.R as ProfileR
+import com.jiahan.smartcamera.feature.settings.R as SettingsR
 import com.jiahan.smartcamera.home.HomeRoute
 import com.jiahan.smartcamera.note.NoteRoute
 import com.jiahan.smartcamera.preview.NotePreviewRoute
 import com.jiahan.smartcamera.search.SearchRoute
 import com.jiahan.smartcamera.search.SearchRoute.SEARCH_DEEP_LINK_URI_PATTERN
+import com.jiahan.smartcamera.settings.SettingsRoute
 import dagger.hilt.android.testing.BindValue
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -425,7 +427,7 @@ class SmartPhotosNavigationTest {
     }
 
     /**
-     * Explore is the one screen whose ViewModel Hilt builds through a subclass.
+     * Explore's is one of the ViewModels Hilt builds through a subclass.
      *
      * `ExploreViewModel` is in `commonMain` and cannot carry Hilt's annotations, so the screen asks
      * `hiltViewModel` for `HiltExploreViewModel` instead. Nowhere else resolves that subclass
@@ -442,5 +444,22 @@ class SmartPhotosNavigationTest {
 
         assertOnRoute(ExploreRoute::class)
         composeTestRule.onNodeWithText(string(ExploreR.string.explore)).assertExists()
+    }
+
+    /**
+     * Settings' ViewModel is built through `HiltSettingsViewModel`, for Explore's reason. Auth's is
+     * the third and needs no case of its own: it is the start destination in
+     * [bottomBar_isHiddenOnANonTopLevelDestination] and [pendingShare_doesNotNavigateAwayFromAuth],
+     * both of which compose it through Hilt.
+     */
+    @Test
+    fun settings_composesWithItsHiltBuiltViewModel() {
+        launchApp()
+
+        composeTestRule.runOnIdle { navController.navigate(SettingsRoute) }
+        waitUntilOnRoute(SettingsRoute::class)
+
+        assertOnRoute(SettingsRoute::class)
+        composeTestRule.onNodeWithText(string(SettingsR.string.settings)).assertExists()
     }
 }

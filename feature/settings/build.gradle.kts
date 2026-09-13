@@ -27,6 +27,9 @@
  *   string is not a branch condition, so there is no R8 constant-folding to preserve. Hoisting it
  *   also fixed a standing annoyance, since `settingsScreen_default.png` no longer goes stale on
  *   every version bump.
+ *
+ * SettingsViewModel has since moved to :feature:settings-viewmodel's `commonMain`, the way
+ * ExploreViewModel did. HiltSettingsViewModel is the subclass Hilt builds, and stays here.
  */
 plugins {
     id("smartphotos.android.feature")
@@ -48,6 +51,11 @@ dependencies {
      * kotlinx-coroutines-test, Turbine and the five on-device lines -- all arrive from
      * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
+
+    // SettingsViewModel, in this feature's multiplatform half. api for the reason
+    // :feature:explore's build file gives for its own: it is SettingsScreen's `viewModel` parameter
+    // type and HiltSettingsViewModel's supertype, and :app has to resolve both.
+    api(project(":feature:settings-viewmodel"))
 
     // ConfigurationCompat, to read the active locale for the Language row.
     implementation(libs.androidx.core.ktx)

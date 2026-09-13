@@ -29,6 +29,9 @@
  * What did NOT have to move is worth recording too: `password`, `login`, the verification-email
  * copy and `cd_app_logo` are auth's alone, so all seventeen came here. Only the strings profile
  * also reads went down.
+ *
+ * AuthViewModel has since moved again, to :feature:auth-viewmodel's `commonMain`, the way
+ * ExploreViewModel did. HiltAuthViewModel is the subclass Hilt builds, and stays here.
  */
 plugins {
     id("smartphotos.android.feature")
@@ -47,6 +50,11 @@ dependencies {
      * kotlinx-coroutines-test, Turbine and the five on-device lines -- all arrive from
      * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
+
+    // AuthViewModel, in this feature's multiplatform half. api for the reason :feature:explore's
+    // build file gives for its own: it is AuthScreen's `viewModel` parameter type and
+    // HiltAuthViewModel's supertype, and :app has to resolve both.
+    api(project(":feature:auth-viewmodel"))
 
     // `validationErrorMessageResId`, `ErrorMessage.resolve`, and the field labels and username
     // messages AuthScreen resolves as `CommonR`. Every feature declares this edge now. It stayed

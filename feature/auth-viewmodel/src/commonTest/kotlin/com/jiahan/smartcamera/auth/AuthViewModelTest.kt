@@ -1,71 +1,68 @@
 package com.jiahan.smartcamera.auth
 
 import app.cash.turbine.test
-import com.jiahan.smartcamera.MainDispatcherRule
-import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
-import com.jiahan.smartcamera.data.repository.AnalyticsRepository
-import com.jiahan.smartcamera.data.repository.AuthRepository
-import com.jiahan.smartcamera.data.repository.UserRepository
-import com.jiahan.smartcamera.util.ErrorHandler
+import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
+import com.jiahan.smartcamera.fake.FakeAuthRepository
+import com.jiahan.smartcamera.fake.FakeErrorHandler
+import com.jiahan.smartcamera.fake.FakeUserPreferencesRepository
+import com.jiahan.smartcamera.fake.FakeUserRepository
 import com.jiahan.smartcamera.util.ErrorMessage
-import io.mockk.coEvery
-import io.mockk.every
-import io.mockk.just
-import io.mockk.mockk
-import io.mockk.runs
-import io.mockk.unmockkAll
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Before
-import org.junit.Rule
-import org.junit.Test
 
+/**
+ * [AuthViewModel]'s suite, in `commonTest` beside its subject: one source for the JVM and the Apple
+ * targets, on :core:domain-testing's fakes rather than mockk, with [Dispatchers.setMain] called
+ * directly where `MainDispatcherRule` was. `ExploreViewModelTest` records why each of those.
+ *
+ * One behaviour does not carry over by itself. An unstubbed mock failed the test when called; a
+ * fake just answers. Where a test leaned on that -- "without a network call" -- it now reads the
+ * fake's call count instead.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class AuthViewModelTest {
 
-    @get:Rule
-    val mainDispatcherRule = MainDispatcherRule()
-
-    private val authRepository: AuthRepository = mockk()
-    private val userRepository: UserRepository = mockk()
-    private val userPreferencesRepository: UserPreferencesRepository = mockk()
-    private val analyticsRepository: AnalyticsRepository = mockk()
-    private val errorHandler: ErrorHandler = mockk()
+    private val authRepository = FakeAuthRepository()
+    private val userRepository = FakeUserRepository()
+    private val userPreferencesRepository = FakeUserPreferencesRepository()
+    private val analyticsRepository = FakeAnalyticsRepository()
+    private val errorHandler = FakeErrorHandler()
 
     private lateinit var viewModel: AuthViewModel
 
-    @Before
+    @BeforeTest
     fun setUp() {
-        every { analyticsRepository.logText(any()) } just runs
-        every { analyticsRepository.logDisplayName(any()) } just runs
-        every { analyticsRepository.logUsername(any()) } just runs
-        every { analyticsRepository.setUserId(any()) } just runs
-        every { authRepository.currentUserId } returns "test-uid"
-        every { errorHandler.logError(any()) } just runs
-        coEvery { userRepository.registerForPushNotifications() } returns Result.success(Unit)
-
-        viewModel = AuthViewModel(
-            authRepository, userRepository, userPreferencesRepository,
-            analyticsRepository, errorHandler
-        )
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+        viewModel = createViewModel()
     }
 
-    @After
-    fun tearDown() = unmockkAll()
+    @AfterTest
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
+    private fun createViewModel() = AuthViewModel(
+        authRepository, userRepository, userPreferencesRepository,
+        analyticsRepository, errorHandler
+    )
 
     // -------------------------------------------------------------------------
     // Field updates
@@ -152,6 +149,7 @@ class AuthViewModelTest {
         viewModel.signIn()
 
         assertTrue(viewModel.uiState.value.status is AuthStatus.Error)
+        assertEquals(0, authRepository.signInCallCount)
     }
 
     @Test
@@ -162,6 +160,7 @@ class AuthViewModelTest {
         viewModel.signIn()
 
         assertTrue(viewModel.uiState.value.status is AuthStatus.Error)
+        assertEquals(0, authRepository.signInCallCount)
     }
 
     // -------------------------------------------------------------------------
@@ -172,13 +171,8 @@ class AuthViewModelTest {
     fun `signIn success with verified email sends NavigateToHome event`() = runTest {
         viewModel.updateEmail("user@example.com")
         viewModel.updatePassword("password123")
-
-        coEvery { authRepository.signIn(any(), any()) } returns Result.success(Unit)
-        coEvery { authRepository.checkEmailVerified() } returns Result.success(true)
-        coEvery { userRepository.getUser() } returns Result.success(null)
-        coEvery {
-            userPreferencesRepository.updateLocalUserProfile(any(), any())
-        } returns Result.success(Unit)
+        authRepository.signInResult = Result.success(Unit)
+        authRepository.checkEmailVerifiedResult = Result.success(true)
 
         viewModel.navigationEvent.test {
             viewModel.signIn()
@@ -191,13 +185,8 @@ class AuthViewModelTest {
     fun `signIn success with verified email resets state to Idle`() = runTest {
         viewModel.updateEmail("user@example.com")
         viewModel.updatePassword("password123")
-
-        coEvery { authRepository.signIn(any(), any()) } returns Result.success(Unit)
-        coEvery { authRepository.checkEmailVerified() } returns Result.success(true)
-        coEvery { userRepository.getUser() } returns Result.success(null)
-        coEvery {
-            userPreferencesRepository.updateLocalUserProfile(any(), any())
-        } returns Result.success(Unit)
+        authRepository.signInResult = Result.success(Unit)
+        authRepository.checkEmailVerifiedResult = Result.success(true)
 
         viewModel.signIn()
 
@@ -208,9 +197,8 @@ class AuthViewModelTest {
     fun `signIn success with unverified email sets Error with isResendButtonVisible true`() = runTest {
         viewModel.updateEmail("user@example.com")
         viewModel.updatePassword("password123")
-
-        coEvery { authRepository.signIn(any(), any()) } returns Result.success(Unit)
-        coEvery { authRepository.checkEmailVerified() } returns Result.success(false)
+        authRepository.signInResult = Result.success(Unit)
+        authRepository.checkEmailVerifiedResult = Result.success(false)
 
         viewModel.signIn()
 
@@ -225,25 +213,15 @@ class AuthViewModelTest {
     @Test
     fun `signIn emits Loading state before network call completes`() = runTest {
         // Use StandardTestDispatcher so we can pause execution between Loading and the result
-        val paused = StandardTestDispatcher(testScheduler)
-        Dispatchers.setMain(paused)
-        val vm = AuthViewModel(
-            authRepository, userRepository, userPreferencesRepository,
-            analyticsRepository, errorHandler
-        )
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val vm = createViewModel()
         vm.updateEmail("user@example.com")
         vm.updatePassword("password123")
-        coEvery {
-            authRepository.signIn(
-                any(),
-                any()
-            )
-        } coAnswers { delay(1.seconds); Result.success(Unit) }
-        coEvery { authRepository.checkEmailVerified() } returns Result.success(true)
-        coEvery { userRepository.getUser() } returns Result.success(null)
-        coEvery {
-            userPreferencesRepository.updateLocalUserProfile(any(), any())
-        } returns Result.success(Unit)
+        authRepository.signInAnswer = { _, _ ->
+            delay(1.seconds)
+            Result.success(Unit)
+        }
+        authRepository.checkEmailVerifiedResult = Result.success(true)
 
         vm.uiState.map { it.status }.distinctUntilChanged().test {
             assertEquals(AuthStatus.Idle, awaitItem()) // initial value
@@ -262,20 +240,17 @@ class AuthViewModelTest {
 
     @Test
     fun `signUp emits Loading state before network call completes`() = runTest {
-        val paused = StandardTestDispatcher(testScheduler)
-        Dispatchers.setMain(paused)
-        val vm = AuthViewModel(
-            authRepository, userRepository, userPreferencesRepository,
-            analyticsRepository, errorHandler
-        )
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val vm = createViewModel()
         vm.updateEmail("new@example.com")
         vm.updatePassword("password123")
         vm.updateDisplayName("New User")
         vm.updateUsername("newuser")
-        coEvery { authRepository.isUsernameAvailable("newuser") } coAnswers {
-            delay(1.seconds); Result.success(true)
+        authRepository.usernameAvailableAnswer = { _ ->
+            delay(1.seconds)
+            Result.success(true)
         }
-        coEvery { authRepository.signUp(any(), any(), any(), any()) } returns Result.success(Unit)
+        authRepository.signUpResult = Result.success(Unit)
 
         vm.uiState.map { it.status }.distinctUntilChanged().test {
             assertEquals(AuthStatus.Idle, awaitItem())
@@ -296,9 +271,7 @@ class AuthViewModelTest {
     fun `signIn network failure sets Error state`() = runTest {
         viewModel.updateEmail("user@example.com")
         viewModel.updatePassword("wrongpass")
-
-        val exception = RuntimeException("Invalid credentials")
-        coEvery { authRepository.signIn(any(), any()) } returns Result.failure(exception)
+        authRepository.signInResult = Result.failure(RuntimeException("Invalid credentials"))
 
         viewModel.signIn()
 
@@ -306,7 +279,7 @@ class AuthViewModelTest {
         assertTrue(state is AuthStatus.Error)
         assertEquals(
             AuthError.Failed(ErrorMessage.Unlocalized("Invalid credentials")),
-            (state as AuthStatus.Error).error
+            state.error
         )
     }
 
@@ -314,10 +287,9 @@ class AuthViewModelTest {
     fun `signIn checkEmailVerified failure sets Error state`() = runTest {
         viewModel.updateEmail("user@example.com")
         viewModel.updatePassword("password123")
-
-        coEvery { authRepository.signIn(any(), any()) } returns Result.success(Unit)
-        val exception = RuntimeException("verification check failed")
-        coEvery { authRepository.checkEmailVerified() } returns Result.failure(exception)
+        authRepository.signInResult = Result.success(Unit)
+        authRepository.checkEmailVerifiedResult =
+            Result.failure(RuntimeException("verification check failed"))
 
         viewModel.signIn()
 
@@ -325,7 +297,7 @@ class AuthViewModelTest {
         assertTrue(state is AuthStatus.Error)
         assertEquals(
             AuthError.Failed(ErrorMessage.Unlocalized("verification check failed")),
-            (state as AuthStatus.Error).error
+            state.error
         )
         assertFalse(viewModel.uiState.value.isResendButtonVisible)
     }
@@ -404,8 +376,7 @@ class AuthViewModelTest {
         viewModel.updatePassword("password")
         viewModel.updateDisplayName("John Doe")
         viewModel.updateUsername("taken")
-
-        coEvery { authRepository.isUsernameAvailable("taken") } returns Result.success(false)
+        authRepository.usernameAvailableResult = Result.success(false)
 
         viewModel.signUp()
 
@@ -422,9 +393,8 @@ class AuthViewModelTest {
         viewModel.updatePassword("password123")
         viewModel.updateDisplayName("New User")
         viewModel.updateUsername("newuser")
-
-        coEvery { authRepository.isUsernameAvailable("newuser") } returns Result.success(true)
-        coEvery { authRepository.signUp(any(), any(), any(), any()) } returns Result.success(Unit)
+        authRepository.usernameAvailableResult = Result.success(true)
+        authRepository.signUpResult = Result.success(Unit)
 
         viewModel.signUp()
 
@@ -445,9 +415,7 @@ class AuthViewModelTest {
         viewModel.updatePassword("password")
         viewModel.updateDisplayName("John Doe")
         viewModel.updateUsername("johndoe")
-
-        val exception = RuntimeException("network down")
-        coEvery { authRepository.isUsernameAvailable("johndoe") } returns Result.failure(exception)
+        authRepository.usernameAvailableResult = Result.failure(RuntimeException("network down"))
 
         viewModel.signUp()
 
@@ -455,7 +423,7 @@ class AuthViewModelTest {
         assertTrue(state is AuthStatus.Error)
         assertEquals(
             AuthError.Failed(ErrorMessage.Unlocalized("network down")),
-            (state as AuthStatus.Error).error
+            state.error
         )
     }
 
@@ -465,11 +433,8 @@ class AuthViewModelTest {
         viewModel.updatePassword("password123")
         viewModel.updateDisplayName("New User")
         viewModel.updateUsername("newuser")
-
-        coEvery { authRepository.isUsernameAvailable("newuser") } returns Result.success(true)
-        val exception = RuntimeException("signup failed")
-        coEvery { authRepository.signUp(any(), any(), any(), any()) } returns
-                Result.failure(exception)
+        authRepository.usernameAvailableResult = Result.success(true)
+        authRepository.signUpResult = Result.failure(RuntimeException("signup failed"))
 
         viewModel.signUp()
 
@@ -477,7 +442,7 @@ class AuthViewModelTest {
         assertTrue(state is AuthStatus.Error)
         assertEquals(
             AuthError.Failed(ErrorMessage.Unlocalized("signup failed")),
-            (state as AuthStatus.Error).error
+            state.error
         )
         assertFalse(viewModel.uiState.value.isResendButtonVisible)
     }
@@ -496,9 +461,7 @@ class AuthViewModelTest {
     @Test
     fun `resetPassword with unregistered email sets Error state`() = runTest {
         viewModel.updateEmail("unknown@example.com")
-        coEvery {
-            authRepository.isEmailRegistered("unknown@example.com")
-        } returns Result.success(false)
+        authRepository.emailRegisteredResult = Result.success(false)
 
         viewModel.resetPassword()
 
@@ -508,8 +471,8 @@ class AuthViewModelTest {
     @Test
     fun `resetPassword success sets Info state`() = runTest {
         viewModel.updateEmail("user@example.com")
-        coEvery { authRepository.isEmailRegistered("user@example.com") } returns Result.success(true)
-        coEvery { authRepository.resetPassword("user@example.com") } returns Result.success(Unit)
+        authRepository.emailRegisteredResult = Result.success(true)
+        authRepository.resetPasswordResult = Result.success(Unit)
 
         viewModel.resetPassword()
 
@@ -522,12 +485,8 @@ class AuthViewModelTest {
     @Test
     fun `resetPassword repository failure sets Error state`() = runTest {
         viewModel.updateEmail("user@example.com")
-        coEvery {
-            authRepository.isEmailRegistered("user@example.com")
-        } returns Result.success(true)
-        val exception = RuntimeException("reset failed")
-        coEvery { authRepository.resetPassword("user@example.com") } returns
-                Result.failure(exception)
+        authRepository.emailRegisteredResult = Result.success(true)
+        authRepository.resetPasswordResult = Result.failure(RuntimeException("reset failed"))
 
         viewModel.resetPassword()
 
@@ -535,7 +494,7 @@ class AuthViewModelTest {
         assertTrue(state is AuthStatus.Error)
         assertEquals(
             AuthError.Failed(ErrorMessage.Unlocalized("reset failed")),
-            (state as AuthStatus.Error).error
+            state.error
         )
     }
 
@@ -545,7 +504,7 @@ class AuthViewModelTest {
 
     @Test
     fun `resendVerificationEmail success sets Info with isResendButtonVisible true`() = runTest {
-        coEvery { authRepository.sendEmailVerification() } returns Result.success(Unit)
+        authRepository.sendEmailVerificationResult = Result.success(Unit)
 
         viewModel.resendVerificationEmail()
 
@@ -558,7 +517,7 @@ class AuthViewModelTest {
 
     @Test
     fun `resendVerificationEmail failure sets Error state`() = runTest {
-        coEvery { authRepository.sendEmailVerification() } returns Result.failure(RuntimeException())
+        authRepository.sendEmailVerificationResult = Result.failure(RuntimeException())
 
         viewModel.resendVerificationEmail()
 
