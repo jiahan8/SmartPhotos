@@ -42,6 +42,7 @@ import androidx.media3.ui.PlayerView
 import com.jiahan.smartcamera.common.showAppSnackbar
 import com.jiahan.smartcamera.feature.preview.R
 import com.jiahan.smartcamera.util.FileConstants.MIME_TYPE_VIDEO
+import com.jiahan.smartcamera.util.toPlatformUri
 import com.jiahan.smartcamera.core.ui.R as UiR
 
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -50,7 +51,7 @@ import com.jiahan.smartcamera.core.ui.R as UiR
 fun VideoPreviewScreen(
     onBack: () -> Unit,
     snackbarHostState: SnackbarHostState,
-    viewModel: VideoPreviewViewModel = hiltViewModel()
+    viewModel: VideoPreviewViewModel = hiltViewModel<HiltVideoPreviewViewModel>()
 ) {
     val videoSource = viewModel.videoSource
     val context = LocalContext.current
@@ -61,7 +62,7 @@ fun VideoPreviewScreen(
         viewModel.shareEvent.collect { uri ->
             ShareCompat.IntentBuilder(context)
                 .setType(MIME_TYPE_VIDEO)
-                .addStream(uri)
+                .addStream(uri.toPlatformUri())
                 .startChooser()
         }
     }
@@ -83,7 +84,7 @@ fun VideoPreviewScreen(
                 }
             })
             when (videoSource) {
-                is VideoSource.LocalUri -> setMediaItem(MediaItem.fromUri(videoSource.uri))
+                is VideoSource.LocalUri -> setMediaItem(MediaItem.fromUri(videoSource.uri.toPlatformUri()))
                 is VideoSource.RemoteUrl -> setMediaItem(MediaItem.fromUri(videoSource.url))
             }
             prepare()

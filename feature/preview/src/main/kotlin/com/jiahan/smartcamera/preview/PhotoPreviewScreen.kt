@@ -49,6 +49,7 @@ import com.jiahan.smartcamera.common.showAppSnackbar
 import com.jiahan.smartcamera.core.ui.R as UiR
 import com.jiahan.smartcamera.util.AppConstants.ANIMATION_DURATION_SHORT_MS
 import com.jiahan.smartcamera.util.FileConstants.MIME_TYPE_IMAGE
+import com.jiahan.smartcamera.util.toPlatformUri
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,7 +57,7 @@ import kotlinx.coroutines.launch
 fun PhotoPreviewScreen(
     onBack: () -> Unit,
     snackbarHostState: SnackbarHostState,
-    viewModel: PhotoPreviewViewModel = hiltViewModel()
+    viewModel: PhotoPreviewViewModel = hiltViewModel<HiltPhotoPreviewViewModel>()
 ) {
     val photoSource = viewModel.photoSource
     val context = LocalContext.current
@@ -67,7 +68,7 @@ fun PhotoPreviewScreen(
         viewModel.shareEvent.collect { uri ->
             ShareCompat.IntentBuilder(context)
                 .setType(MIME_TYPE_IMAGE)
-                .addStream(uri)
+                .addStream(uri.toPlatformUri())
                 .startChooser()
         }
     }
@@ -183,7 +184,7 @@ fun PhotoPreviewScreen(
             }
 
             val model = when (photoSource) {
-                is PhotoSource.LocalUri -> photoSource.uri
+                is PhotoSource.LocalUri -> photoSource.uri.toPlatformUri()
                 is PhotoSource.RemoteUrl -> photoSource.url
             }
             // Drawn before (and therefore behind) the photo, so it never tints the image

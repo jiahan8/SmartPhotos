@@ -21,10 +21,10 @@
  * **The consumer count cannot tell that case from a genuinely shared string; only the call sites
  * can.** `copy_text` is the contrast: one string, already down in :core:ui, read here as `UiR`.
  *
- * NotePreviewViewModel has since moved again, to :feature:preview-viewmodel's `commonMain`, the way
- * EditNoteViewModel did. HiltNotePreviewViewModel is the subclass Hilt builds and the place its
- * route is decoded, and stays here. The photo and video ViewModels stay too, for the
- * `android.net.Uri` each holds.
+ * All three ViewModels have since moved again, to :feature:preview-viewmodel's `commonMain`, the way
+ * EditNoteViewModel did. What stays here for each is its `Hilt*ViewModel`: the subclass Hilt builds
+ * and the place its route is decoded. The photo and video subclasses decode all the way to a
+ * PhotoSource or VideoSource, which is what keeps MediaSourceType, and its `@Keep`, in this module.
  */
 plugins {
     id("smartphotos.android.feature")
@@ -44,22 +44,21 @@ dependencies {
      * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
 
-    // NotePreviewViewModel, in this feature's multiplatform half. api for the reason
-    // :feature:explore's build file gives for its own: it is NotePreviewScreen's `viewModel`
-    // parameter type and HiltNotePreviewViewModel's supertype, and :app has to resolve both.
+    // The three preview ViewModels, in this feature's multiplatform half. api for the reason
+    // :feature:explore's build file gives for its own: each is its screen's `viewModel` parameter
+    // type and a Hilt subclass's supertype, and :app has to resolve both.
     api(project(":feature:preview-viewmodel"))
 
     // NoteActionError.resolve, NoteDelegateModule for the two note delegates NotePreviewViewModel
-    // injects, and toPlatformUri() -- for a note's shared media, and for the cache file
-    // PhotoPreviewViewModel and VideoPreviewViewModel download through MediaCacheRepository.
+    // injects, and toPlatformUri() -- for a note's shared media, and for the MediaUri the photo and
+    // video previews render and share.
     implementation(project(":core:common"))
 
-    // ShareCompat.IntentBuilder and androidx.core.net.toUri.
+    // ShareCompat.IntentBuilder.
     implementation(libs.androidx.core.ktx)
 
-    // toRoute<...>() in PhotoPreviewViewModel and VideoPreviewViewModel, and in
-    // HiltNotePreviewViewModel, which decodes NotePreviewRoute so the shared NotePreviewViewModel
-    // can take a plain noteId.
+    // toRoute<...>() in the three Hilt*ViewModel subclasses, which decode each route so the shared
+    // ViewModels take a plain noteId, PhotoSource or VideoSource.
     implementation(libs.androidx.navigation.compose)
 
     // AsyncImage, for the full-screen photo.
@@ -69,7 +68,7 @@ dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
 
-    // NotePreviewScreenTest and the photo and video ViewModel suites are Robolectric-backed; the
-    // artifacts for that arrive from `smartphotos.android.feature`. NotePreviewViewModelTest no
-    // longer is, having followed its subject into :feature:preview-viewmodel's commonTest.
+    // NotePreviewScreenTest and the photo and video route-decode suites are Robolectric-backed; the
+    // artifacts for that arrive from `smartphotos.android.feature`. The three ViewModel suites no
+    // longer are, having followed their subjects into :feature:preview-viewmodel's commonTest.
 }

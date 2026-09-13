@@ -1,39 +1,32 @@
 package com.jiahan.smartcamera.preview
 
-import android.net.Uri
-import androidx.core.net.toUri
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.navigation.toRoute
 import com.jiahan.smartcamera.data.repository.MediaCacheRepository
+import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorTag
-import com.jiahan.smartcamera.util.toPlatformUri
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
-@HiltViewModel
-class VideoPreviewViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
+/**
+ * Backs the full-screen photo preview.
+ *
+ * Open and annotation-free so it can live in `commonMain`; `HiltPhotoPreviewViewModel` in
+ * :feature:preview is what Hilt builds, and it decodes `PhotoPreviewRoute` into the [photoSource]
+ * this class takes -- `NotePreviewViewModel`'s shape. [shareEvent] carries a [MediaUri] rather than
+ * `android.net.Uri`, and the screen resolves it as it builds the share intent.
+ */
+open class PhotoPreviewViewModel(
+    val photoSource: PhotoSource,
     private val errorHandler: ErrorHandler,
     private val mediaCacheRepository: MediaCacheRepository
 ) : ViewModel() {
 
-    val videoSource: VideoSource = run {
-        val route = savedStateHandle.toRoute<VideoPreviewRoute>()
-        when (route.type) {
-            MediaSourceType.LOCAL -> VideoSource.LocalUri(route.source.toUri())
-            MediaSourceType.REMOTE -> VideoSource.RemoteUrl(route.source)
-        }
-    }
-
-    private val _shareEvent = MutableSharedFlow<Uri>(extraBufferCapacity = 1)
+    private val _shareEvent = MutableSharedFlow<MediaUri>(extraBufferCapacity = 1)
     val shareEvent = _shareEvent.asSharedFlow()
 
     private val _actionError = MutableSharedFlow<MediaPreviewError>(extraBufferCapacity = 1)
@@ -42,20 +35,19 @@ class VideoPreviewViewModel @Inject constructor(
     private val _isSharing = MutableStateFlow(false)
     val isSharing = _isSharing.asStateFlow()
 
-    fun logVideoLoadError(throwable: Throwable) {
-        errorHandler.logError(throwable, tag = ErrorTag.VIDEO_LOAD)
+    fun logImageLoadError(throwable: Throwable) {
+        errorHandler.logError(throwable, tag = ErrorTag.IMAGE_LOAD)
     }
 
-    fun shareVideo() {
+    fun sharePhoto() {
         if (_isSharing.value) return
         viewModelScope.launch {
             _isSharing.value = true
             try {
-                val uri = when (val source = videoSource) {
-                    is VideoSource.LocalUri -> source.uri
-                    is VideoSource.RemoteUrl ->
-                        mediaCacheRepository.downloadToCacheFile(source.url, isVideo = true)
-                            ?.toPlatformUri()
+                val uri = when (val source = photoSource) {
+                    is PhotoSource.LocalUri -> source.uri
+                    is PhotoSource.RemoteUrl ->
+                        mediaCacheRepository.downloadToCacheFile(source.url, isVideo = false)
                 }
                 if (uri != null) {
                     _shareEvent.emit(uri)

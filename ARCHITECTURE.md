@@ -485,10 +485,22 @@ EditNote's shape exactly: `HiltNotePreviewViewModel` decodes `NotePreviewRoute` 
 notification's id past the back stack to the fetch, since nothing on the JVM runs that decode any
 more.
 
-Four ViewModels remain in the Android feature modules, and they share one reason: each holds
-`android.net.Uri` (Note, Profile and the two media previews, whose share download returns a
-`MediaUri` now but whose local sources are still `Uri`s). `:app`'s `MainViewModel` is Android-bound
-through `AppUpdateRepository`.
+**`PhotoPreviewViewModel` and `VideoPreviewViewModel` followed it into the same module**, and the
+`Uri` each held turned out to be the easy kind: a local source read from a route string, and a
+share download that already returned a `MediaUri`. `PhotoSource.LocalUri` and `VideoSource.LocalUri`
+carry a `MediaUri` now, `shareEvent` emits one, and the screens call `toPlatformUri()` for Coil,
+ExoPlayer and the share intent. The Hilt subclasses decode each route all the way to a source, so
+`MediaSourceType` — `@Keep`, since Navigation resolves it through `Class.forName()` — stays beside
+the routes rather than dragging the serialization plugin into `commonMain`. **One decode stayed on
+the JVM:** no navigation test reaches a media preview, so where NotePreview's moved onto a device,
+`HiltPhotoPreviewViewModelTest` and `HiltVideoPreviewViewModelTest` build the subclasses from a
+`SavedStateHandle` under Robolectric — three cases each, the rest of both suites in `commonTest`.
+`FakeMediaCacheRepository` gained a `downloadAnswer` hook to hold a download in flight.
+
+Two ViewModels remain in the Android feature modules, Note and Profile, and their `Uri` is the
+harder kind: each asks `MediaFileRepository.createPhotoUri()` for a capture destination, from a
+contract that lives in `:core:common` because its signatures carry Android types. `:app`'s
+`MainViewModel` is Android-bound through `AppUpdateRepository`.
 
 ### What is left
 

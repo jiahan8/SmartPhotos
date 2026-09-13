@@ -16,7 +16,7 @@ that story is in [ARCHITECTURE.md](ARCHITECTURE.md).**
 | `:core:data` | Android library holding every implementation of a `:core:domain`/`:core:common` contract: the `Default*`/`Firebase*` repositories, Room, DataStore, `FirebaseModule`, `DataModule`. |
 | `:core:ui` | Android library, shared Compose vocabulary: `common/`, `ui/theme/`, `util/DateTimeUtils.kt`/`FlowUtils.kt`. |
 | `:feature:*` | One Android library per screen — `home`, `search`, `note`, `preview`, `favorite`, `profile`, `settings`, `auth`, `explore` — holding its Compose screen(s), ViewModel(s), route and tests. |
-| `:feature:<name>-viewmodel` | Kotlin Multiplatform half of a feature, on `smartphotos.kmp.viewmodel`: its ViewModel in `commonMain` and that ViewModel's suite in `commonTest` — `auth`, `explore`, `favorite`, `home`, `note` (`EditNoteViewModel` only), `preview` (`NotePreviewViewModel` only), `search` and `settings` so far. The feature module keeps the screen, route, screen tests and `Hilt<Name>ViewModel`, the subclass Hilt builds — and which decodes the route, if there is one, passing the shared class plain arguments. |
+| `:feature:<name>-viewmodel` | Kotlin Multiplatform half of a feature, on `smartphotos.kmp.viewmodel`: its ViewModel in `commonMain` and that ViewModel's suite in `commonTest` — `auth`, `explore`, `favorite`, `home`, `note` (`EditNoteViewModel` only), `preview`, `search` and `settings` so far. The feature module keeps the screen, route, screen tests and `Hilt<Name>ViewModel`, the subclass Hilt builds — and which decodes the route, if there is one, passing the shared class plain arguments. |
 | `:core:testing` | Shared Android test fixtures: `MainDispatcherRule`, `FakeMediaFileRepository`, and — re-exported via `api` — `:core:domain-testing`'s fakes. `testImplementation` only (plus `androidTestImplementation` wherever a `sharedTest/` runs in both). |
 | `:core:domain-testing` | Kotlin Multiplatform fixtures: the fakes for `:core:domain`'s contracts and `NoteMirror`, usable from a shared module's `commonTest` (each `:feature:<name>-viewmodel`'s) and, through `:core:testing`, from every Android test. |
 | `:core:screenshot-testing` | `BaseScreenshotTest` + the four artifacts it names (Robolectric, Roborazzi ×2, compose `ui-test-junit4`). No build file declares it — `smartphotos.android.screenshot` pulls it in. |
@@ -562,7 +562,7 @@ Required parameters first, then optional (defaulted) ones, with the ViewModel **
 fun PhotoPreviewScreen(
     onBack: () -> Unit,
     snackbarHostState: SnackbarHostState,
-    viewModel: PhotoPreviewViewModel = hiltViewModel()
+    viewModel: PhotoPreviewViewModel = hiltViewModel<HiltPhotoPreviewViewModel>()
 )
 ```
 
