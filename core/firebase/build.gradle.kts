@@ -1,0 +1,79 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest
+import org.jetbrains.kotlin.gradle.tasks.KotlinNativeLink
+
+/*
+ * Kotlin Multiplatform module: the Firebase-backed repository implementations, on GitLive's
+ * multiplatform Firebase SDK (`dev.gitlive:firebase-*`) instead of the Android one.
+ * `DefaultPhotoRepository` came first; the rest of :core:data's Firebase `Default*`s follow one at a
+ * time. Why GitLive, and what the spike that chose it measured, is in ARCHITECTURE.md.
+ *
+ * An Android target, like :core:database, and for a similar reason: GitLive's `invoke` and `data`
+ * are inline, so their bodies are compiled into this module per target, and Android has to get the
+ * build that inlined GitLive's Android implementation rather than its JVM one.
+ *
+ * What stays in :core:data is the Hilt wiring: `FirebaseModule` provides GitLive's instances, and
+ * `DataModule` constructs these classes, which carry no annotations.
+ */
+plugins {
+    id("smartphotos.kmp.android.library")
+    // The payload DTOs are @Serializable: GitLive returns a callable's result only through
+    // kotlinx.serialization.
+    alias(libs.plugins.kotlin.serialization)
+}
+
+kotlin {
+    android {
+        namespace = "com.jiahan.smartcamera.core.firebase"
+        // JVM 17, the one module in the build that is not on 11. GitLive 2.7.0 compiles its inline
+        // functions to JVM 17 bytecode, and Kotlin refuses to inline that into a JVM 11
+        // compilation ("Cannot inline bytecode built with JVM target 17 into bytecode that is being
+        // built with JVM target 11"). It stays contained: consumers call this module's own,
+        // non-inline API, and :core:data and :app compile, shrink and pass their device suites at 11
+        // against it. Raise this only in a module that calls GitLive itself.
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
+    }
+
+    jvm {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
+    }
+
+    sourceSets {
+        commonMain.dependencies {
+            // api: DefaultPhotoRepository implements a :core:domain interface and returns its models.
+            api(project(":core:domain"))
+            // api: its public constructor takes GitLive's FirebaseFunctions.
+            api(libs.gitlive.firebase.functions)
+        }
+
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
+            // `decode`, the function HttpsCallableResult.data runs on the raw payload, so the suite
+            // exercises GitLive's real decoder. Not exposed to consumers by firebase-functions.
+            implementation(libs.gitlive.firebase.common.internal)
+        }
+    }
+}
+
+// Matches the JVM 17 above for the `jvm` target's published variant.
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+// iOS tests compile but do not link or run. On iOS, GitLive expects the app to link the native
+// Firebase SDK itself (SwiftPM or CocoaPods), and without it the test binary fails at link time with
+// "ld: framework 'FirebaseCore' not found". Linking it is iOS-client work nobody has started; until
+// then this keeps `./gradlew iosSimulatorArm64Test` green on a Mac, while `compileTestKotlinIos*`
+// still proves the suite compiles for those targets. Delete both blocks when the SDK is linked.
+tasks.withType<KotlinNativeLink>().configureEach {
+    if (name.startsWith("linkDebugTest") || name.startsWith("linkReleaseTest")) enabled = false
+}
+tasks.withType<KotlinNativeTest>().configureEach {
+    enabled = false
+}

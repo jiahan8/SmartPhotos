@@ -29,6 +29,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import dev.gitlive.firebase.functions.FirebaseFunctions
 import javax.inject.Singleton
 
 @Module
@@ -94,12 +95,6 @@ abstract class DataModule {
 
     @Binds
     @Singleton
-    abstract fun bindPhotoRepository(
-        defaultPhotoRepository: DefaultPhotoRepository
-    ): PhotoRepository
-
-    @Binds
-    @Singleton
     abstract fun bindAppUpdateRepository(
         defaultAppUpdateRepository: DefaultAppUpdateRepository
     ): AppUpdateRepository
@@ -115,5 +110,13 @@ abstract class DataModule {
         fun provideUserPreferencesRepository(
             dataStore: DataStore<Preferences>
         ): UserPreferencesRepository = DefaultUserPreferencesRepository(dataStore)
+
+        // Provided for the same reason: DefaultPhotoRepository is in :core:firebase's commonMain,
+        // on GitLive's multiplatform FirebaseFunctions rather than the Android SDK's.
+        @Provides
+        @Singleton
+        fun providePhotoRepository(
+            functions: FirebaseFunctions
+        ): PhotoRepository = DefaultPhotoRepository(functions)
     }
 }

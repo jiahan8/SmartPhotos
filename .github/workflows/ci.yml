@@ -125,7 +125,7 @@ jobs:
       # compile on a Mac would catch.
       #
       # Unqualified, so it reaches every module that has the task -- :core:domain,
-      # :core:domain-testing, :core:datastore, :core:database and every :feature:<name>-viewmodel today, and the next shared module with no edit here. That is the
+      # :core:domain-testing, :core:datastore, :core:database, :core:firebase and every :feature:<name>-viewmodel today, and the next shared module with no edit here. That is the
       # argument the artifact paths below make for globs; Android modules have no such task, and a
       # name no project declares would fail loudly rather than skip.
       - name: Verify shared sources stay common

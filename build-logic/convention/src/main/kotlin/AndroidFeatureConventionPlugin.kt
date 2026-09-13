@@ -237,7 +237,8 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
  * cache it re-runs whenever configuration does, which is exactly when a dependency could have
  * changed.
  */
-private val DATA_IMPLEMENTATION_MODULES = setOf(":core:data", ":core:datastore", ":core:database")
+private val DATA_IMPLEMENTATION_MODULES =
+    setOf(":core:data", ":core:datastore", ":core:database", ":core:firebase")
 
 private fun Project.verifyNoLateralDependencies() = afterEvaluate {
     val forbidden = configurations.filter {

@@ -94,6 +94,10 @@ dependencies {
     // annotation processor resolves both -- the rule in the block below, for a project edge.
     api(project(":core:database"))
 
+    // implementation: DataModule constructs DefaultPhotoRepository in a provider whose signature
+    // names only PhotoRepository and GitLive's FirebaseFunctions (declared api below).
+    implementation(project(":core:firebase"))
+
     implementation(libs.androidx.core.ktx)
     // ActivityResultLauncher / IntentSenderRequest, for the in-app update flow.
     implementation(libs.androidx.activity)
@@ -130,6 +134,8 @@ dependencies {
     api(libs.firebase.firestore)
     api(libs.firebase.functions)
     api(libs.firebase.messaging)
+    // GitLive's FirebaseFunctions is a provider's return type and another's parameter.
+    api(libs.gitlive.firebase.functions)
     api(libs.play.app.update)
     api(libs.datastore.preferences)
     api(libs.datastore.preferences.core)

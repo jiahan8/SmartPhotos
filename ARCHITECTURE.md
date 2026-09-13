@@ -10,9 +10,9 @@ are about to change something a rule protects.
 
 Two deployables share one Firebase project:
 
-- **Android app** — Kotlin + Jetpack Compose, MVVM, across twenty-eight Gradle modules: `:app`,
-  `:core:domain`, `:core:common`, `:core:data`, the multiplatform `:core:datastore` and
-  `:core:database`, `:core:ui`,
+- **Android app** — Kotlin + Jetpack Compose, MVVM, across twenty-nine Gradle modules: `:app`,
+  `:core:domain`, `:core:common`, `:core:data`, the multiplatform `:core:datastore`,
+  `:core:database` and `:core:firebase`, `:core:ui`,
   nine `:feature:*` libraries plus the multiplatform `:feature:<name>-viewmodel` modules (`auth`,
   `explore`, `favorite`, `home`, `note`, `preview`, `profile`, `search`, `settings`), and the
   four test-only modules `:core:testing` / `:core:domain-testing` / `:core:screenshot-testing` /
@@ -133,7 +133,7 @@ unused-binding incident recorded below.)
 | --- | --- | --- |
 | UI | `<feature>/*Screen.kt` (`:feature:*`), `navigation/` (`:app`) | Render `UiState`, forward user intents. No Firebase/Room/DataStore calls, no business logic beyond UI-only state. |
 | ViewModel | `<feature>/*ViewModel.kt` (`:feature:<name>-viewmodel`, `commonMain`) | Open and annotation-free; Hilt builds its `Hilt<Name>ViewModel` subclass in `:feature:<name>`. Exposes a `*UiState` via `StateFlow` wrapping a nested sealed loading/loaded/error content type. Depends on repository *interfaces* only. |
-| Repository | interfaces in `:core:domain` (plus two in `:core:common`/`:core:data`), `Default*` implementations in `:core:data` (one in `:core:datastore`) | Coordinates remote (Firestore/Storage/Functions) and local (Room/DataStore). Exposes domain models only. Every fallible operation returns `Result<T>` via `safeCall`. |
+| Repository | interfaces in `:core:domain` (plus two in `:core:common`/`:core:data`), `Default*` implementations in `:core:data` (one each already in `:core:datastore` and `:core:firebase`) | Coordinates remote (Firestore/Storage/Functions) and local (Room/DataStore). Exposes domain models only. Every fallible operation returns `Result<T>` via `safeCall`. |
 | Domain | `domain/` (`:core:domain`) | Plain data classes (`Note`, `MediaDetail`, `User`, …). A multiplatform module, so `commonMain` compiles against the intersection of `jvm` and two iOS targets and neither `import android.*` nor `import java.*` resolves. |
 | Local | `database/` (`:core:database`, opened by `DatabaseModule` in `:core:data`), `data/datastore/` (the repository in `:core:datastore`, the DataStore it wraps built in `:core:data`) | The Room mirror and preferences. Schemas exported to `core/database/schemas/`. |
 | Remote | Firebase SDKs + `functions/index.js` | Auth, Firestore, Storage, Remote Config, Analytics, Crashlytics, FCM; Cloud Functions for anything needing a trusted server. |
@@ -281,8 +281,8 @@ the component is assembled in `:app` — which is why `:core:data` can inject `@
 | --- | --- | --- |
 | `di/AppModule.kt` | `:app` | `CoroutineDispatcher`s via `@IoDispatcher`/`@ApplicationScope`, the `@DebugBuild` flag, app-wide bindings |
 | `util/di/UtilModule.kt` | `:app` | `ErrorHandler` (logging only; screens resolve their own text) |
-| `data/di/DataModule.kt` | `:core:data` | Binds each repository interface to its `Default*`, and constructs `DefaultUserPreferencesRepository`, which has no injected constructor to bind |
-| `data/di/FirebaseModule.kt` | `:core:data` | The Firebase SDK singletons |
+| `data/di/DataModule.kt` | `:core:data` | Binds each repository interface to its `Default*`, and constructs `DefaultUserPreferencesRepository` and `DefaultPhotoRepository`, which have no injected constructor to bind |
+| `data/di/FirebaseModule.kt` | `:core:data` | The Firebase SDK singletons, plus GitLive's `FirebaseFunctions` for `:core:firebase` |
 | `data/datastore/DataStoreModule.kt` | `:core:data` | DataStore, and the one deliberate place a `CoroutineScope` is built at module level rather than injected |
 | `database/di/DatabaseModule.kt` | `:core:data` | `AppDatabase` (declared in `:core:database`) and its DAOs |
 | `note/di/NoteDelegateModule.kt` | `:core:common` | `NoteErrorReporter` and `NoteShareDelegate`, `@ViewModelScoped` — the one module installed in `ViewModelComponent` |
@@ -550,6 +550,31 @@ own SQLite performs, the one users run, so it stays in `:core:data`'s `sharedTes
 `:core:database`'s schemas as test assets. The serialization plugin went with the converter, and the
 layering check names the new module too.
 
+**Firebase then got its answer: GitLive's `firebase-kotlin-sdk`, chosen by a spike on
+`DefaultPhotoRepository`.** Its common API covers every Firebase call the repositories make, and
+2.7.0 is built against the same `firebase-bom` (34.18.0) this project pins; `expect`/`actual`
+would have meant writing Android actuals only, with no iOS client to justify the indirection. The
+repository moved to a new `:core:firebase`, the second `smartphotos.kmp.android.library` module.
+What the spike measured, all of it now in the build:
+
+- **GitLive reads a callable result only through kotlinx.serialization.** Its public
+  `FirebaseDecoder` exposes no raw value, so the old reader -- casts out of nested `Map`s -- became
+  `@Serializable` DTOs with every field defaulted and a lenient count serializer. Run through
+  GitLive's real `decode`, 26 of the 27 payload cases behaved identically; the one change is that a
+  numeric *string* count now parses, pinned by its own test.
+- **The Firebase call sits behind `UnsplashCallable`**, an internal seam, because GitLive's
+  `FirebaseFunctions` is a final platform class no `commonTest` can fake. The fake feeds raw payload
+  maps to GitLive's `decode`, so the decoder is still under test. That replaces mockk and
+  Robolectric's reflective `HttpsCallableResult`.
+- **JVM 17 in `:core:firebase` only.** GitLive's inline `invoke`/`data` are JVM 17 bytecode, which
+  Kotlin will not inline into 11. Consumers call the module's own non-inline API, so `:core:data`
+  and `:app` stay on 11 and build, shrink with R8 and pass their device suites against it.
+- **Kotlin 2.4.10 reads GitLive's 2.2.21-built iOS libraries**; both iOS compiles pass. The iOS
+  *test* binary does not link, because GitLive expects the app to link the native Firebase SDK, so
+  those tasks are switched off in the module until an iOS client does.
+- On Android, GitLive's `FirebaseFunctions` wraps the same default instance, provided beside the
+  Android SDK's in `FirebaseModule`; `HiltGraphSmokeTest` resolves it on a device.
+
 ### What is left
 
 **The ceiling to know about before planning further: Hilt has no KMP support, and it is load-bearing
@@ -561,18 +586,18 @@ it without leaving Hilt; a shared `Default*` would not even need the subclass, s
 can construct a class that carries no annotations.
 
 **The second ceiling is Firebase**, and it is the larger of the two: seven Android-only SDKs
-(Firestore, Auth, Functions, Storage, Messaging, Remote Config, Analytics) sit behind the
-`Default*`/`Firebase*` implementations. Sharing them means either GitLive's `firebase-kotlin-sdk`
-or `expect`/`actual` per platform. **Decide that before splitting `:core:data`, not during** — the
-repository *contracts* are already clean, so the choice is entirely about the implementations.
+(Firestore, Auth, Functions, Storage, Messaging, Remote Config, Analytics) sat behind the
+`Default*`/`Firebase*` implementations. **It is decided — GitLive (above) — and being paid down one
+repository at a time**, each moving to `:core:firebase` with its suite rewritten onto a seam.
 
 **Neither ceiling binds while Android is the only client.** A provider at the Android edge
 constructs a shared class as readily as a subclass does, so Hilt only has to be replaced once a
 second platform needs a container; Firebase is what actually gates the `Default*`s that remain.
 
 **Local persistence is shared now** — DataStore and Room both, above — so what is left of the data
-layer is what Firebase gates: every remaining `Default*` but `DefaultMediaFileRepository`, which is
-Android file and bitmap work, and `DefaultAppUpdateRepository`, which is Play Core. The wiring that
+layer is the Firebase repositories still on the Android SDK — Auth, Note, User, MediaUpload,
+RemoteConfig and Analytics — plus `DefaultMediaFileRepository`, which is Android file and bitmap
+work, and `DefaultAppUpdateRepository`, which is Play Core; those two stay Android by nature. The wiring that
 opens each store (`DatabaseModule`, `DataStoreModule`) stays at the Android edge by nature, since
 both begin from a `Context`.
 

@@ -16,6 +16,9 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import dev.gitlive.firebase.Firebase as GitLiveFirebase
+import dev.gitlive.firebase.functions.FirebaseFunctions as GitLiveFirebaseFunctions
+import dev.gitlive.firebase.functions.functions as gitLiveFunctions
 import javax.inject.Singleton
 
 /**
@@ -65,6 +68,13 @@ object FirebaseModule {
     @Provides
     @Singleton
     fun provideFirebaseFunctions(): FirebaseFunctions = Firebase.functions
+
+    // GitLive's multiplatform wrapper over the same default Functions instance, for the repositories
+    // in :core:firebase. A distinct type from the Android SDK's above, so the two bindings coexist
+    // while the remaining repositories still inject that one.
+    @Provides
+    @Singleton
+    fun provideGitLiveFirebaseFunctions(): GitLiveFirebaseFunctions = GitLiveFirebase.gitLiveFunctions
 
     @Provides
     @Singleton

@@ -1,42 +1,46 @@
 package com.jiahan.smartcamera.data.repository
 
-import android.app.Application
-import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.google.firebase.functions.FirebaseFunctions
 import com.jiahan.smartcamera.domain.PhotoPage
-import io.mockk.mockk
+import dev.gitlive.firebase.internal.decode
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.annotation.Config
+import kotlinx.serialization.builtins.nullable
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
- * Covers [DefaultPhotoRepository], which is entirely a reader of untyped Cloud Function payloads.
+ * Covers [DefaultPhotoRepository], which is entirely a reader of loosely-shaped Cloud Function
+ * payloads -- so this file is mostly a table of payload shapes.
  *
- * There is no Firebase behaviour to speak of here -- one callable, one `await`. What the class
- * actually does is turn an `Any?` of nested maps into [com.jiahan.smartcamera.domain.Photo]s, with
- * a fallback at nearly every field, and those fallbacks are invisible from the UI: a photo that
- * loses its author or its dimensions still renders, just wrongly. So this file is mostly a table of
- * payload shapes.
+ * The fake answers with a *raw* payload of nested maps and lists, the shape the platform SDK hands
+ * GitLive, and runs it through GitLive's own `decode` -- the function `HttpsCallableResult.data`
+ * calls. So each case exercises the real decoder and the mapping together, and only the network
+ * call is faked.
  *
- * Numbers arrive as `Double` as often as `Int` -- a callable payload is JSON, and the SDK hands
- * back whichever the wire produced. That is why the width/height/likes cases test both, and why the
- * production code reads them as `Number` rather than casting to `Int`.
+ * Numbers arrive as `Double` as often as `Int`, which is why the width/height/likes cases test both.
  *
  * The `hasMore` tests are the load-bearing ones. It is derived from the *raw row count*, not from
  * the parsed list, and the difference only shows when a row fails to parse -- at which point a
  * `photos.size` implementation quietly ends the feed for the rest of the session.
  */
-@RunWith(AndroidJUnit4::class)
-@Config(application = Application::class)
 class DefaultPhotoRepositoryTest {
 
-    private val functions: FirebaseFunctions = mockk(relaxed = true)
-    private val repository = DefaultPhotoRepository(functions)
+    private class FakeUnsplashCallable : UnsplashCallable {
+        val names = mutableListOf<String>()
+        var payload: Any? = null
+        var failure: Throwable? = null
+
+        override suspend fun call(name: String, args: UnsplashArgs): UnsplashPayload? {
+            names += name
+            failure?.let { throw it }
+            return decode(UnsplashPayload.serializer().nullable, payload)
+        }
+    }
+
+    private val callable = FakeUnsplashCallable()
+    private val repository = DefaultPhotoRepository(callable)
 
     /** A payload row in the shape the Unsplash-backed callable returns. */
     private fun photoRow(
@@ -54,44 +58,36 @@ class DefaultPhotoRepositoryTest {
     private fun payload(vararg rows: Any?): Map<String, Any?> = mapOf("photos" to rows.toList())
 
     private suspend fun listWith(data: Any?, pageSize: Int = 10): PhotoPage {
-        stubCallable(functions, data)
+        callable.payload = data
         return repository.listPhotos(page = 1, pageSize = pageSize).getOrThrow()
     }
 
     // -------------------------------------------------------------------------
     // Which callable each read actually invokes
-    //
-    // Everything below this pair asserts payload parsing against a stub that answers any function
-    // name, so nothing else here can tell the two Unsplash callables apart -- `searchPhotos` could
-    // call the list function and every parsing test would still pass.
     // -------------------------------------------------------------------------
 
     @Test
     fun `listPhotos calls the listUnsplashPhotos function`() = runTest {
-        val name = stubCallable(functions, payload())
+        callable.payload = payload()
 
         repository.listPhotos(page = 1, pageSize = 10)
 
-        assertEquals("listUnsplashPhotos", name.captured)
+        assertEquals(listOf("listUnsplashPhotos"), callable.names)
     }
 
     @Test
     fun `searchPhotos calls the searchUnsplashPhotos function`() = runTest {
-        val name = stubCallable(functions, payload())
+        callable.payload = payload()
 
         repository.searchPhotos("mountains", page = 1, pageSize = 10)
 
-        assertEquals("searchUnsplashPhotos", name.captured)
+        assertEquals(listOf("searchUnsplashPhotos"), callable.names)
     }
 
     // -------------------------------------------------------------------------
     // hasMore comes from the raw rows, not the parsed photos
     // -------------------------------------------------------------------------
 
-    /**
-     * The invariant the whole class is arranged around. Three of five rows are unparseable, so
-     * `photos` is short -- but the callable returned a full page, so the feed continues.
-     */
     @Test
     fun `hasMore counts raw rows even when some fail to parse`() = runTest {
         val page = listWith(
@@ -152,7 +148,7 @@ class DefaultPhotoRepositoryTest {
 
     @Test
     fun `a failing callable fails the result`() = runTest {
-        stubCallableFailure(functions, IllegalStateException("offline"))
+        callable.failure = IllegalStateException("offline")
 
         assertTrue(repository.listPhotos(page = 1, pageSize = 10).isFailure)
     }
@@ -270,7 +266,7 @@ class DefaultPhotoRepositoryTest {
         assertEquals(42, photo.likes)
     }
 
-    /** A JSON payload routinely delivers these as doubles; reading them as `Number` is why. */
+    /** A JSON payload routinely delivers these as doubles. */
     @Test
     fun `dimensions and likes read doubles`() = runTest {
         val row = photoRow(extra = mapOf("width" to 1920.0, "height" to 1080.0, "likes" to 42.0))
@@ -287,7 +283,7 @@ class DefaultPhotoRepositoryTest {
         val absent = photoRow()
         val malformed = photoRow(
             id = "b",
-            extra = mapOf("width" to "1920", "height" to null, "likes" to "many"),
+            extra = mapOf("width" to "wide", "height" to null, "likes" to "many"),
         )
 
         val photos = listWith(payload(absent, malformed)).photos
@@ -297,6 +293,22 @@ class DefaultPhotoRepositoryTest {
             assertEquals(0, photo.height)
             assertEquals(0, photo.likes)
         }
+    }
+
+    /**
+     * The one case the move to GitLive changed. Its decoder reads a numeric *string* as the number
+     * -- `"1920"` is 1920 -- where the Android SDK reader's `as? Number` cast read it as 0. Pinned
+     * so the behaviour is a known one rather than an accident either way.
+     */
+    @Test
+    fun `dimensions and likes parse numeric strings`() = runTest {
+        val row = photoRow(extra = mapOf("width" to "1920", "height" to "1080", "likes" to "42"))
+
+        val photo = listWith(payload(row)).photos.single()
+
+        assertEquals(1920, photo.width)
+        assertEquals(1080, photo.height)
+        assertEquals(42, photo.likes)
     }
 
     @Test
@@ -353,7 +365,7 @@ class DefaultPhotoRepositoryTest {
 
     @Test
     fun `searchPhotos parses the same envelope`() = runTest {
-        stubCallable(functions, payload(photoRow(id = "a"), photoRow(id = "b")))
+        callable.payload = payload(photoRow(id = "a"), photoRow(id = "b"))
 
         val page = repository.searchPhotos("mountains", page = 1, pageSize = 2).getOrThrow()
 
@@ -363,7 +375,7 @@ class DefaultPhotoRepositoryTest {
 
     @Test
     fun `searchPhotos fails when the callable fails`() = runTest {
-        stubCallableFailure(functions, IllegalStateException("offline"))
+        callable.failure = IllegalStateException("offline")
 
         assertTrue(repository.searchPhotos("mountains", page = 1, pageSize = 10).isFailure)
     }
