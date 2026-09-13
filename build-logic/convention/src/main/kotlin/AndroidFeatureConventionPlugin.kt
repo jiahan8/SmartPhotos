@@ -225,6 +225,11 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
  * classpath. `:core:testing` is the deliberate exception in the other direction -- it is the
  * fixtures module every feature takes, and it no longer reaches `:core:data` itself.
  *
+ * A feature's own shared half is not a lateral edge: `:feature:explore` depending on
+ * `:feature:explore-viewmodel` is one feature split so its ViewModel can compile in `commonMain`
+ * while the screen and the Hilt wiring stay Android. It is recognised by the `<feature>-` name
+ * prefix, which is why that half is named that way.
+ *
  * Runs at configuration time so it fails before any compilation starts. Under the configuration
  * cache it re-runs whenever configuration does, which is exactly when a dependency could have
  * changed.
@@ -248,6 +253,7 @@ private fun Project.verifyNoLateralDependencies() = afterEvaluate {
             // but a module is never a violation of its own layering rule and should not depend on
             // which bucket AGP chose.
             .filter { it != path }
+            .filterNot { it.startsWith("$path-") }
             .filter { it.startsWith(":feature:") || it == ":core:data" }
             .map { "$it (via ${configuration.name})" }
             .toList()
@@ -263,7 +269,8 @@ private fun Project.verifyNoLateralDependencies() = afterEvaluate {
             |A :feature:* module depends on :core:* only. It must not depend on another feature --
             |two screens that need the same thing means that thing belongs in a :core: module -- and
             |it must not reach :core:data, because the repositories a ViewModel injects are
-            |interfaces in :core:domain, bound in :app.
+            |interfaces in :core:domain, bound in :app. Its own shared half, named
+            |`$path-<suffix>` (as :feature:explore-viewmodel is), is the one :feature: edge allowed.
             |
             |If a feature needs an Android-typed contract, move the *interface* down to :core:common
             |and leave its implementation in :core:data -- the same move MediaFileRepository made.

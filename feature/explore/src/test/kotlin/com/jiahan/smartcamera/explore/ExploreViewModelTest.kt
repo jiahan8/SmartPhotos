@@ -36,6 +36,16 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
+/**
+ * [ExploreViewModel] is in :feature:explore-viewmodel's `commonMain`; this suite is not, and that is
+ * a known gap rather than an oversight. It is built on `:core:testing`'s [MainDispatcherRule], and
+ * :core:testing is an Android library that neither a JVM nor an Apple target can consume, so the
+ * test cannot follow its subject until the fixtures gain a multiplatform half.
+ *
+ * Running here still tests the class the app ships: it constructs [ExploreViewModel] directly, not
+ * `HiltExploreViewModel`, against the Android variant of lifecycle-viewmodel the app runs on rather
+ * than the JVM one the class was compiled against.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ExploreViewModelTest {
 

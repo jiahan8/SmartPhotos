@@ -7,7 +7,8 @@ import org.gradle.kotlin.dsl.configure
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 
 /**
- * `smartphotos.kmp.library` -- applied by `:core:domain`, the one module with no Android plugin.
+ * `smartphotos.kmp.library` -- applied by `:core:domain` and `:feature:explore-viewmodel`, the two
+ * modules with no Android plugin.
  *
  * It replaces `smartphotos.jvm.library`, and the module's charter survives the swap intact: the
  * point was never the Kotlin JVM plugin specifically, it was that `import android.*` must not
@@ -16,10 +17,16 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
  * `java.*` is now excluded too, which the JVM plugin could never have enforced. Keep this plugin
  * free of anything Android.
  *
- * The three Apple targets are what make the guarantee mean something. Without them `commonMain`
- * would be common in name only, since a single-JVM-target metadata compilation accepts the whole
- * JDK. They are declared here rather than per-module because a second shared module would want the
- * same three, and a set that drifts between modules is a set that stops being an intersection.
+ * The Apple targets are what make the guarantee mean something. Without them `commonMain` would be
+ * common in name only, since a single-JVM-target metadata compilation accepts the whole JDK. They
+ * are declared here rather than per-module because a set that drifts between modules is a set that
+ * stops being an intersection -- which the second shared module has since tested.
+ *
+ * `iosX64`, the Intel-Mac simulator, was a third and went when that second module arrived.
+ * `androidx.lifecycle:lifecycle-viewmodel` 2.11.0 publishes `iosArm64` and `iosSimulatorArm64` but
+ * no `iosX64` variant, so a module holding a ViewModel cannot declare that target at all. Dropping
+ * it here rather than in that module alone is the rule above applied. Put it back only together
+ * with every dependency that would then have to publish it.
  *
  * `configureTestJvm()` matches `tasks.withType<Test>()`, so it reaches `jvmTest` and skips the
  * Kotlin/Native test tasks. That is correct rather than an oversight: the UTC/en-US pin exists for
@@ -37,7 +44,6 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             }
             iosArm64()
             iosSimulatorArm64()
-            iosX64()
         }
 
         // Guarded because the Java plugin arrives with the `jvm()` target rather than from here,

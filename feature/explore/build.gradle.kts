@@ -14,6 +14,11 @@
  * lifecycle and :core:testing verbatim. What stayed here is what settings does not want: coil,
  * activity-compose and serialization -- the icon packs turned out to be shared and went into the
  * plugin.
+ *
+ * It was the first feature again when ViewModels started moving to shared code, for the same
+ * reason: smallest slice. ExploreViewModel is in :feature:explore-viewmodel's `commonMain` now, and
+ * what stays here is the screen, the route, the tests and HiltExploreViewModel, the subclass Hilt
+ * instantiates. ARCHITECTURE.md's Kotlin Multiplatform section records what the move found.
  */
 plugins {
     id("smartphotos.android.feature")
@@ -31,6 +36,12 @@ dependencies {
      * kotlinx-coroutines-test, Turbine and the five on-device lines -- all arrive from
      * `smartphotos.android.feature`. What is left here is what only this feature needs.
      */
+
+    // ExploreViewModel itself, in this feature's multiplatform half. api, not implementation: it is
+    // ExploreScreen's `viewModel` parameter type and HiltExploreViewModel's supertype, and :app --
+    // which calls the screen and assembles the Hilt component that builds the subclass -- has to
+    // resolve both.
+    api(project(":feature:explore-viewmodel"))
 
     // `ErrorMessage.resolve`, which turns ExploreViewModel's failures into text. The first edge
     // here to anything beyond :core:domain and :core:ui, and it arrived when the ViewModel stopped

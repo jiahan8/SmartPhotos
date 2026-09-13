@@ -77,7 +77,7 @@ import com.jiahan.smartcamera.util.resolve
 fun ExploreScreen(
     onBack: () -> Unit,
     onNavigateToPhotoPreview: (url: String) -> Unit,
-    viewModel: ExploreViewModel = hiltViewModel(),
+    viewModel: ExploreViewModel = hiltViewModel<HiltExploreViewModel>(),
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val resources = LocalResources.current

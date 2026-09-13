@@ -99,12 +99,14 @@ jobs:
         if: ${{ !cancelled() }}
         run: ./gradlew compileDebugAndroidTestKotlin
 
-      # :core:domain is named explicitly because it is the one Kotlin Multiplatform module: its
-      # unit tests run under `jvmTest`, not the Android `testDebugUnitTest` variant task, so a bare
+      # :core:domain is named explicitly because it is the one Kotlin Multiplatform module with tests:
+      # they run under `jvmTest`, not the Android `testDebugUnitTest` variant task, so a bare
       # testDebugUnitTest would skip them silently rather than fail. It was `test` while the module
       # was plain Kotlin JVM -- the task no longer exists, and a stale name here fails loudly, which
       # is the one good thing about naming it. Not `allTests`: that would pull in the Apple targets,
-      # which cannot be built on this runner. Every other module is an Android library, so the
+      # which cannot be built on this runner. :feature:explore-viewmodel is multiplatform too but
+      # has no tests of its own -- its ViewModel's suite runs in :feature:explore, for the fixtures
+      # reason that module's build file gives. Every other module is an Android library, so the
       # unqualified testDebugUnitTest reaches it, as does lintDebug below and verifyRoborazziDebug
       # in the four modules that apply the roborazzi plugin.
       #
@@ -116,15 +118,20 @@ jobs:
         if: ${{ !cancelled() }}
         run: ./gradlew testDebugUnitTest :core:domain:jvmTest
 
-      # What stops :core:domain's commonMain quietly stopping being common. It compiles against the
-      # intersection of every target the module declares, so a `java.*` or JVM-only API added there
-      # fails here -- while `jvmTest` above would happily compile and pass it. Metadata compilation
-      # is a JVM task, so this works on this Linux runner with no Xcode and no Apple toolchain; what
-      # it cannot cover is a Kotlin/Native codegen difference, which only
-      # `:core:domain:iosSimulatorArm64Test` on a Mac would catch.
+      # What stops a multiplatform module's commonMain quietly stopping being common. It compiles
+      # against the intersection of every target the module declares, so a `java.*` or JVM-only API
+      # added there fails here -- while `jvmTest` above would happily compile and pass it. Metadata
+      # compilation is a JVM task, so this works on this Linux runner with no Xcode and no Apple
+      # toolchain; what it cannot cover is a Kotlin/Native codegen difference, which only an iOS
+      # compile on a Mac would catch.
+      #
+      # Unqualified, so it reaches every module that has the task -- :core:domain and
+      # :feature:explore-viewmodel today, and the next shared module with no edit here. That is the
+      # argument the artifact paths below make for globs; Android modules have no such task, and a
+      # name no project declares would fail loudly rather than skip.
       - name: Verify shared sources stay common
         if: ${{ !cancelled() }}
-        run: ./gradlew :core:domain:compileCommonMainKotlinMetadata
+        run: ./gradlew compileCommonMainKotlinMetadata
 
       # Uploaded here, before the screenshot step below re-runs the test task with a filter and
       # rewrites the screenshot modules' test-results/ down to just the screenshot classes.

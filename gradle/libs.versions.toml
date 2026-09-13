@@ -64,6 +64,10 @@ androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecyc
 # it compiled for a long time with nothing naming it -- and was versioned by the Compose BOM instead
 # of by the lifecycle pin the rest of this group shares.
 androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycleRuntimeKtx" }
+# `ViewModel` and `viewModelScope` for :feature:explore-viewmodel's commonMain. Multiplatform, and the
+# dependency that set the KMP convention's targets: 2.11.0 publishes no iosX64 variant, which is why
+# smartphotos.kmp.library no longer declares one.
+androidx-lifecycle-viewmodel = { group = "androidx.lifecycle", name = "lifecycle-viewmodel", version.ref = "lifecycleRuntimeKtx" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 # activity, not activity-compose: :core:data uses only ActivityResultLauncher and
 # IntentSenderRequest, so it has no reason to pull Compose in. Declared rather than required --

@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.core.net.toUri
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -32,6 +33,7 @@ import com.jiahan.smartcamera.data.repository.PhotoRepository
 import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
+import com.jiahan.smartcamera.explore.ExploreRoute
 import com.jiahan.smartcamera.fake.FakeAnalyticsRepository
 import com.jiahan.smartcamera.fake.FakeAuthRepository
 import com.jiahan.smartcamera.fake.FakeMediaFileRepository
@@ -41,6 +43,7 @@ import com.jiahan.smartcamera.fake.FakePhotoRepository
 import com.jiahan.smartcamera.fake.FakeRemoteConfigRepository
 import com.jiahan.smartcamera.fake.FakeUserPreferencesRepository
 import com.jiahan.smartcamera.fake.FakeUserRepository
+import com.jiahan.smartcamera.feature.explore.R as ExploreR
 import com.jiahan.smartcamera.feature.profile.R as ProfileR
 import com.jiahan.smartcamera.home.HomeRoute
 import com.jiahan.smartcamera.note.NoteRoute
@@ -419,5 +422,25 @@ class SmartPhotosNavigationTest {
         // Still on Auth, rather than merely "the Note tab is not showing" -- which was also true
         // of every other destination in the graph.
         assertOnRoute(AuthRoute::class)
+    }
+
+    /**
+     * Explore is the one screen whose ViewModel Hilt builds through a subclass.
+     *
+     * `ExploreViewModel` is in `commonMain` and cannot carry Hilt's annotations, so the screen asks
+     * `hiltViewModel` for `HiltExploreViewModel` instead. Nowhere else resolves that subclass
+     * against a real component -- `ExploreScreenTest` constructs the base class by hand -- so a
+     * subclass that stopped being a valid Hilt entry point would crash here, composing the screen,
+     * rather than first in production.
+     */
+    @Test
+    fun explore_composesWithItsHiltBuiltViewModel() {
+        launchApp()
+
+        composeTestRule.runOnIdle { navController.navigate(ExploreRoute) }
+        waitUntilOnRoute(ExploreRoute::class)
+
+        assertOnRoute(ExploreRoute::class)
+        composeTestRule.onNodeWithText(string(ExploreR.string.explore)).assertExists()
     }
 }

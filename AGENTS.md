@@ -1,7 +1,7 @@
 # SmartPhotos
 
 Android app (Kotlin) for organizing photos/notes with ML-based tagging. Firebase backend + a
-Node.js Cloud Functions project in `functions/`. Seventeen Gradle modules, plus `build-logic/` — an
+Node.js Cloud Functions project in `functions/`. Eighteen Gradle modules, plus `build-logic/` — an
 included build holding the six convention plugins.
 
 **This file is loaded into every agent conversation, so it states rules, not reasoning. When a rule
@@ -11,19 +11,20 @@ that story is in [ARCHITECTURE.md](ARCHITECTURE.md).**
 | Module | What lives there |
 | --- | --- |
 | `:app` | `MainActivity`, `MyApp`, `MainViewModel`, `SmartPhotosApp`, `navigation/`, the messaging service, `di/AppModule.kt`, `util/`. Hosts the NavHost, supplies each screen's navigation lambdas, installs the Hilt bindings — **no feature screen renders here**. |
-| `:core:domain` | Kotlin Multiplatform, `jvm` + three iOS targets (no AGP, no Hilt/KSP): domain models, repository *interfaces*, `safeCall`, the `ErrorHandler` interface, DI qualifiers, and the three field validators (`util/ValidationUtils.kt`) with `ValidationResult`/`ValidationError`. |
+| `:core:domain` | Kotlin Multiplatform, `jvm` + two iOS targets (no AGP, no Hilt/KSP): domain models, repository *interfaces*, `safeCall`, the `ErrorHandler` interface, DI qualifiers, and the three field validators (`util/ValidationUtils.kt`) with `ValidationResult`/`ValidationError`. |
 | `:core:common` | Android library, deliberately not Compose: the validation and failure strings + the mappers screens resolve them with (`validationErrorMessageResId`, `ErrorMessage.resolve`/`appErrorMessageResId`), the `MediaFileRepository` contract, `util/MediaUriExt.kt`, and the two `@ViewModelScoped` classes every feature shares (`NoteShareDelegate`, `NoteErrorReporter` — why it has Hilt/KSP). |
 | `:core:data` | Android library holding every implementation of a `:core:domain`/`:core:common` contract: the `Default*`/`Firebase*` repositories, Room, DataStore, `FirebaseModule`, `DataModule`. |
 | `:core:ui` | Android library, shared Compose vocabulary: `common/`, `ui/theme/`, `util/DateTimeUtils.kt`/`FlowUtils.kt`. |
 | `:feature:*` | One Android library per screen — `home`, `search`, `note`, `preview`, `favorite`, `profile`, `settings`, `auth`, `explore` — holding its Compose screen(s), ViewModel(s), route and tests. |
+| `:feature:explore-viewmodel` | Kotlin Multiplatform, same convention as `:core:domain`: `ExploreViewModel`, the one ViewModel in `commonMain`. `:feature:explore` keeps the screen, route, tests and `HiltExploreViewModel`, the subclass Hilt builds — the shape for the next ViewModel to move. |
 | `:core:testing` | Shared test fixtures: the `fake/` doubles + `MainDispatcherRule`. `testImplementation` only (plus `androidTestImplementation` wherever a `sharedTest/` runs in both). |
 | `:core:screenshot-testing` | `BaseScreenshotTest` + the four artifacts it names (Robolectric, Roborazzi ×2, compose `ui-test-junit4`). No build file declares it — `smartphotos.android.screenshot` pulls it in. |
 | `:core:ui-testing` | `BaseScreenTest`: the activity-backed Compose rule, `string(resId)` and the four `waitFor*` helpers the eleven screen suites share. `testImplementation` + `androidTestImplementation`, both added by `smartphotos.android.feature`. |
 
 Sources sit at `<module>/src/main/kotlin/com/jiahan/smartcamera/` (`:app` uses `java/`).
-**`:core:domain` is the exception** — being multiplatform it uses `src/commonMain/kotlin/`, with
-`src/jvmMain/kotlin/` holding the one file that cannot be common (`di/Qualifiers.kt`) and
-`src/commonTest/kotlin/` its tests.
+**The multiplatform modules are the exception** — `:core:domain` and `:feature:explore-viewmodel`
+use `src/commonMain/kotlin/`, with `:core:domain`'s `src/jvmMain/kotlin/` holding the one file that
+cannot be common (`di/Qualifiers.kt`) and `src/commonTest/kotlin/` its tests.
 
 ### Module rules
 
@@ -48,7 +49,8 @@ debugCompileClasspath`.
 
 **No feature depends on another feature or on `:core:data` — enforced at configuration time**, not
 just documented: `smartphotos.android.feature` fails with a named error, scanning every declaration
-bucket rather than only the compile ones. Three feature edges are worth knowing: `:feature:preview`
+bucket rather than only the compile ones. The one `:feature:` edge it allows is a feature's own
+shared half, recognised by name (`:feature:explore` → `:feature:explore-viewmodel`). Three feature edges are worth knowing: `:feature:preview`
 is the only module carrying ExoPlayer/Coil (the only screens that play video or load a full-screen
 image); `:feature:note` owns `IncomingShareHandler` and `:feature:search` owns
 `SEARCH_DEEP_LINK_URI_PATTERN`, both read *downward* by `:app`.
@@ -69,7 +71,7 @@ Run from the repo root (Gradle wrapper):
 | Debug APK | `./gradlew assembleDebug` |
 | Unit tests (648 across 14 modules) | `./gradlew testDebugUnitTest :core:domain:jvmTest` |
 | `:core:domain` on an iOS target (Mac only) | `./gradlew :core:domain:iosSimulatorArm64Test` |
-| Prove `commonMain` is still common | `./gradlew :core:domain:compileCommonMainKotlinMetadata` |
+| Prove every `commonMain` is still common | `./gradlew compileCommonMainKotlinMetadata` |
 | Hilt graph + androidTest sources | `./gradlew compileDebugAndroidTestKotlin` |
 | Release variant | `./gradlew assembleRelease` |
 | Screenshot diff / re-record | `./gradlew verifyRoborazziDebug` / `recordRoborazziDebug` |
@@ -299,7 +301,7 @@ same settings:
 | `smartphotos.android.compose` | `:app`, `:core:ui`, `:core:screenshot-testing` | Compose compiler | `buildFeatures.compose = true` |
 | `smartphotos.android.feature` | all nine `:feature:*` | the library + compose conventions, KSP, Hilt, kotlin-serialization | the `:core:domain`/`:core:ui` edges, the Compose set, icons, lifecycle, `ui-test-manifest`, the test baseline (`:core:testing`, junit, mockk, coroutines-test, Turbine) and the androidTest baseline; **enforces the feature layering** |
 | `smartphotos.android.screenshot` | `:core:ui`, `:feature:home`, `:feature:search`, `:feature:settings` | Roborazzi | `outputDir` → `src/test/screenshots`, `unitTests.isIncludeAndroidResources`, `testImplementation(:core:screenshot-testing)`; **refuses to apply to the harness module** |
-| `smartphotos.kmp.library` | `:core:domain` | Kotlin Multiplatform — **nothing Android** | `jvm()` + `iosArm64`/`iosSimulatorArm64`/`iosX64`, Java 11, JVM target 11, test-JVM pin |
+| `smartphotos.kmp.library` | `:core:domain`, `:feature:explore-viewmodel` | Kotlin Multiplatform — **nothing Android** | `jvm()` + `iosArm64`/`iosSimulatorArm64` (no `iosX64`: `lifecycle-viewmodel` publishes none), Java 11, JVM target 11, test-JVM pin |
 
 - **A feature's build file contains only what that feature alone needs beyond the convention** —
   explore keeps `coil-compose`/`activity-compose`; settings keeps `androidx-core-ktx`/Roborazzi.
@@ -482,10 +484,15 @@ to add tooling now, but between otherwise-equivalent approaches prefer the cheap
   reserved-name set that a `commonMain` source set could take today. **The same move one layer up
   retired `ResourceProvider`:** no feature ViewModel names an `R` now, so what still ties one to
   Android is `@HiltViewModel`, `SavedStateHandle.toRoute` and `android.net.Uri` — not its copy.
+- **A ViewModel moves to `commonMain` the way `ExploreViewModel` did** — into its feature's own
+  `<feature>-viewmodel` module on `smartphotos.kmp.library`, the class `open` and annotation-free,
+  with a `Hilt<Name>ViewModel` subclass left in the feature carrying `@HiltViewModel`/`@Inject`
+  and the screen defaulting to `hiltViewModel<Hilt<Name>ViewModel>()`. Its tests stay in the
+  feature until `:core:testing` has a half a JVM or Apple target can consume.
 
 **`:core:domain` is multiplatform as of this change, and that turns three of the rules above from
 advice into compiler errors** — `commonMain` compiles against the intersection of `jvm`,
-`iosArm64`, `iosSimulatorArm64` and `iosX64`, so `android.*`, `java.*` and a `kotlinx`-less
+`iosArm64` and `iosSimulatorArm64`, so `android.*`, `java.*` and a `kotlinx`-less
 equivalent are all rejected there rather than merely discouraged. Two consequences worth knowing
 before editing that module:
 

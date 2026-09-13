@@ -1,6 +1,6 @@
 /*
  * Kotlin Multiplatform module: domain models, repository contracts, and the few helpers every
- * layer shares. `commonMain` compiles for the JVM the Android app runs on and for the three Apple
+ * layer shares. `commonMain` compiles for the JVM the Android app runs on and for the two Apple
  * targets an iOS client would use.
  *
  * The absence of the Android plugin was always this module's point, and multiplatform sharpens

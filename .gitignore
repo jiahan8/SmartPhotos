@@ -19,6 +19,10 @@ local.properties
 hs_err_pid*.log
 replay_pid*.log
 
+# The Kotlin Gradle plugin's project-level working directory -- session and error-report files. It
+# first appeared once a multiplatform module compiled for the Apple targets.
+.kotlin/
+
 # Firebase CLI cache & logs (keep rules/config tracked, ignore generated artifacts)
 .firebase/
 firebase-debug.log

@@ -11,14 +11,12 @@ import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.ErrorMessage
 import com.jiahan.smartcamera.util.ErrorTag
 import com.jiahan.smartcamera.util.toErrorMessage
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 sealed interface ExploreContent {
     data object Loading : ExploreContent
@@ -80,8 +78,17 @@ private class FeedPagination {
     }
 }
 
-@HiltViewModel
-class ExploreViewModel @Inject constructor(
+/**
+ * The browse feed and photo search behind ExploreScreen.
+ *
+ * The first ViewModel in `commonMain`, and the two things that set it apart from its twelve
+ * siblings are both about getting it here. It carries no Hilt annotations -- `HiltViewModel` is an
+ * Android artifact and `javax.inject` a JVM one, so neither resolves in this source set. And it is
+ * `open`, because what Hilt instantiates is `HiltExploreViewModel` in :feature:explore, a subclass
+ * that adds those annotations and nothing else. Any other host -- a test, another DI library, an
+ * iOS client -- constructs this class directly.
+ */
+open class ExploreViewModel(
     private val photoRepository: PhotoRepository,
     private val analyticsRepository: AnalyticsRepository,
     private val errorHandler: ErrorHandler

@@ -10,8 +10,9 @@ are about to change something a rule protects.
 
 Two deployables share one Firebase project:
 
-- **Android app** — Kotlin + Jetpack Compose, MVVM, across seventeen Gradle modules: `:app`,
-  `:core:domain`, `:core:common`, `:core:data`, `:core:ui`, nine `:feature:*` libraries, and the
+- **Android app** — Kotlin + Jetpack Compose, MVVM, across eighteen Gradle modules: `:app`,
+  `:core:domain`, `:core:common`, `:core:data`, `:core:ui`, nine `:feature:*` libraries plus the
+  multiplatform `:feature:explore-viewmodel`, and the
   three test-only modules `:core:testing` / `:core:screenshot-testing` / `:core:ui-testing`. Plus
   `build-logic/`, an included build holding the six convention plugins. The per-module contents and
   the dependency rules are in [AGENTS.md](AGENTS.md).
@@ -130,7 +131,7 @@ unused-binding incident recorded below.)
 | UI | `<feature>/*Screen.kt` (`:feature:*`), `navigation/` (`:app`) | Render `UiState`, forward user intents. No Firebase/Room/DataStore calls, no business logic beyond UI-only state. |
 | ViewModel | `<feature>/*ViewModel.kt` (`:feature:*`) | `@HiltViewModel`, exposes a `*UiState` via `StateFlow` wrapping a nested sealed loading/loaded/error content type. Depends on repository *interfaces* only. |
 | Repository | interfaces in `:core:domain` (plus two in `:core:common`/`:core:data`), `Default*` implementations in `:core:data` | Coordinates remote (Firestore/Storage/Functions) and local (Room/DataStore). Exposes domain models only. Every fallible operation returns `Result<T>` via `safeCall`. |
-| Domain | `domain/` (`:core:domain`) | Plain data classes (`Note`, `MediaDetail`, `User`, …). A multiplatform module, so `commonMain` compiles against the intersection of `jvm` and three iOS targets and neither `import android.*` nor `import java.*` resolves. |
+| Domain | `domain/` (`:core:domain`) | Plain data classes (`Note`, `MediaDetail`, `User`, …). A multiplatform module, so `commonMain` compiles against the intersection of `jvm` and two iOS targets and neither `import android.*` nor `import java.*` resolves. |
 | Local | `database/`, `data/datastore/` (`:core:data`) | The Room mirror and preferences. Schemas exported to `core/data/schemas/`. |
 | Remote | Firebase SDKs + `functions/index.js` | Auth, Firestore, Storage, Remote Config, Analytics, Crashlytics, FCM; Cloud Functions for anything needing a trusted server. |
 
@@ -371,8 +372,8 @@ this is the state of play.
 
 ### What is done
 
-**`:core:domain` is a `kotlin.multiplatform` module** — `jvm()` plus `iosArm64`,
-`iosSimulatorArm64` and `iosX64`, via `smartphotos.kmp.library`. Its 33 unit tests run on the JVM
+**`:core:domain` is a `kotlin.multiplatform` module** — `jvm()` plus `iosArm64` and
+`iosSimulatorArm64`, via `smartphotos.kmp.library`. Its unit tests run on the JVM
 and on an iOS simulator from the same `commonTest` sources. The conversion was as small as the
 audit predicted, because the module's imports were already multiplatform (`kotlin.time.Instant`,
 `kotlinx.coroutines`, `kotlinx.datetime`, `kotlinx.serialization`); what it needed was Gradle
@@ -401,13 +402,41 @@ DI and Firebase are settled, a shared ViewModel cannot name `R`. What still bind
 Android is `@HiltViewModel` (the DI decision), `SavedStateHandle.toRoute` in four of them, and
 `android.net.Uri` in four.
 
+**`ExploreViewModel` is in `commonMain`**, in `:feature:explore-viewmodel` — the first ViewModel
+there, moved to find out with one real class what sharing the ViewModel layer costs while Hilt
+stays. Explore went first because Hilt's two annotations were the only thing in the way. Four
+things came out of it:
+
+- **Placement: a sibling `<feature>-viewmodel` module on `smartphotos.kmp.library`**, not a
+  `commonMain` inside the feature. Android consumes its `jvm` variant exactly as it consumes
+  `:core:domain`'s, so the feature keeps the plain library plugin, Hilt and KSP. The feature
+  convention's layering check allows a feature's own `<feature>-` module and still rejects every
+  other `:feature:` edge.
+- **Targets: `iosX64` is gone from both multiplatform modules.** `lifecycle-viewmodel` 2.11.0
+  publishes no `iosX64` variant, so no module holding a ViewModel can declare it, and the convention
+  keeps a single target set rather than letting the intersection drift.
+- **DI: Hilt at the edge works, for the price of `open` and a restated constructor.** The shared
+  class carries no annotations; `HiltExploreViewModel` in `:feature:explore` extends it with
+  `@HiltViewModel`/`@Inject` and nothing else, and the screen asks `hiltViewModel` for the
+  subclass. That keeps `ViewModelComponent`, which matters beyond Explore: four of the remaining
+  ViewModels inject the `@ViewModelScoped` `NoteErrorReporter`/`NoteShareDelegate` pair, which a
+  `viewModel { }` initializer fed from a Hilt entry point would have to share by hand.
+  `SmartPhotosNavigationTest.explore_composesWithItsHiltBuiltViewModel` resolves the subclass
+  against a real component.
+- **Tests: the suite cannot follow its subject yet.** `ExploreViewModelTest` stays in
+  `:feature:explore` because `MainDispatcherRule` and the fakes live in `:core:testing`, an Android
+  library no JVM or Apple target can consume. Moving a shared ViewModel's tests to `commonTest` needs
+  a multiplatform half of the fixtures first.
+
 ### What is left
 
 **The ceiling to know about before planning further: Hilt has no KMP support, and it is load-bearing
 below `:app`.** Every `Default*` is an `@Inject constructor` and `DataModule` is
 `@InstallIn(SingletonComponent::class)`. A genuinely shared data layer would need Koin or
 hand-written constructor wiring, with Hilt confined to the Android edge. **That decision, not module
-splitting, is what sets how far KMP can go here.**
+splitting, is what sets how far KMP can go here.** For ViewModels, the Explore move above answered
+it without leaving Hilt; a shared `Default*` would not even need the subclass, since a `@Provides`
+can construct a class that carries no annotations.
 
 **The second ceiling is Firebase**, and it is the larger of the two: seven Android-only SDKs
 (Firestore, Auth, Functions, Storage, Messaging, Remote Config, Analytics) sit behind the
@@ -442,7 +471,7 @@ This file is hand-written and enforced by no build check, unlike the layering ru
 rejects). **If something here disagrees with the code, trust the code** — and update this file.
 
 It has drifted before, three times. It described three Gradle modules long after the split that
-produced today's seventeen, and it documented the `*Handler` event bus as current for some time
+produced seventeen, and it documented the `*Handler` event bus as current for some time
 after the Room mirror replaced it — worse than saying nothing, since an agent reading it would have
 rebuilt a pattern AGENTS.md forbids. The third is the subtlest and the one to learn from: the upload
 step above named `uploadMediaToCache` and described `uploadMedia`'s cancellation behaviour, which
