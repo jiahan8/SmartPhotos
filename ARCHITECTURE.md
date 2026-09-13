@@ -262,7 +262,8 @@ preferences, not domain data.
 Room is written through by the repository after the Firestore write returns, never independently —
 see [Source of truth](AGENTS.md#source-of-truth).
 
-**Everything per-user on the device is erased in one place, `data/LocalUserDataCleaner.kt`**, called
+**Everything per-user on the device is erased in one place, `data/DefaultLocalUserDataCleaner.kt`**
+(`:core:data`, behind `:core:domain`'s `LocalUserDataCleaner` interface), called
 by `DefaultAuthRepository` on both sign-out and delete-account. It holds the whole list — the notes
 table, and the user-scoped DataStore keys via `clearUserScopedPreferences()` — so adding a store is
 a line here rather than a method on the auth repository somebody has to remember to edit. The auth
@@ -281,8 +282,8 @@ the component is assembled in `:app` — which is why `:core:data` can inject `@
 | --- | --- | --- |
 | `di/AppModule.kt` | `:app` | `CoroutineDispatcher`s via `@IoDispatcher`/`@ApplicationScope`, the `@DebugBuild` flag, app-wide bindings |
 | `util/di/UtilModule.kt` | `:app` | `ErrorHandler` (logging only; screens resolve their own text) |
-| `data/di/DataModule.kt` | `:core:data` | Binds each repository interface to its `Default*`, and constructs the shared ones (`DefaultUserPreferencesRepository`, `DefaultPhotoRepository`, `FirebaseRemoteConfigRepository`, `FirebaseAnalyticsRepository`), which have no injected constructor to bind |
-| `data/di/FirebaseModule.kt` | `:core:data` | The Firebase SDK singletons, plus GitLive's `FirebaseFunctions`, `FirebaseRemoteConfig` and `FirebaseAnalytics` for `:core:firebase` |
+| `data/di/DataModule.kt` | `:core:data` | Binds each repository interface to its `Default*`, and constructs the shared ones (`DefaultUserPreferencesRepository`, `DefaultPhotoRepository`, `FirebaseRemoteConfigRepository`, `FirebaseAnalyticsRepository`, `DefaultAuthRepository`), which have no injected constructor to bind |
+| `data/di/FirebaseModule.kt` | `:core:data` | The Firebase SDK singletons, plus GitLive's `FirebaseFunctions`, `FirebaseRemoteConfig`, `FirebaseAnalytics` and `FirebaseAuth` for `:core:firebase` |
 | `data/datastore/DataStoreModule.kt` | `:core:data` | DataStore, and the one deliberate place a `CoroutineScope` is built at module level rather than injected |
 | `database/di/DatabaseModule.kt` | `:core:data` | `AppDatabase` (declared in `:core:database`) and its DAOs |
 | `note/di/NoteDelegateModule.kt` | `:core:common` | `NoteErrorReporter` and `NoteShareDelegate`, `@ViewModelScoped` — the one module installed in `ViewModelComponent` |
@@ -593,6 +594,16 @@ SDK constants common code cannot name became their values, `search` and `search_
 had no tests; it has a suite now, over an `AnalyticsSink` seam, pinning the event and parameter
 names the Analytics console reports by.
 
+**`DefaultAuthRepository` followed, and brought the first cross-module seam.** GitLive's auth API
+covers every call it makes, so the work was the seams and one interface. `LocalUserDataCleaner` had
+been a plain class while its only caller sat in `:core:data`; once that caller moved it became a
+`:core:domain` interface, with the implementation, `DefaultLocalUserDataCleaner`, staying beside the
+stores it clears. Auth sits behind `AuthClient`/`AuthUser` and the two signup pre-check callables
+behind `AuthCallable`, whose reply reads a missing or malformed flag as `false` -- the fail-closed
+reading the old casts gave. The 24 tests ported one for one onto fakes, two of them tighter: the
+password change now pins reauthenticate-then-update order, and the verified check pins that the flag
+is read after the reload.
+
 ### What is left
 
 **The ceiling to know about before planning further: Hilt has no KMP support, and it is load-bearing
@@ -613,7 +624,7 @@ constructs a shared class as readily as a subclass does, so Hilt only has to be 
 second platform needs a container; Firebase is what actually gates the `Default*`s that remain.
 
 **Local persistence is shared now** — DataStore and Room both, above — so what is left of the data
-layer is the Firebase repositories still on the Android SDK — Auth, Note, User and MediaUpload — plus `DefaultMediaFileRepository`, which is Android file and bitmap
+layer is the Firebase repositories still on the Android SDK — Note, User and MediaUpload — plus `DefaultMediaFileRepository`, which is Android file and bitmap
 work, and `DefaultAppUpdateRepository`, which is Play Core; those two stay Android by nature. The wiring that
 opens each store (`DatabaseModule`, `DataStoreModule`) stays at the Android edge by nature, since
 both begin from a `Context`.

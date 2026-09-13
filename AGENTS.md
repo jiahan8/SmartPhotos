@@ -16,7 +16,7 @@ that story is in [ARCHITECTURE.md](ARCHITECTURE.md).**
 | `:core:data` | Android library holding every implementation of a `:core:domain`/`:core:common` contract that has not moved to a shared module below: the Android-SDK `Default*`/`Firebase*` repositories, the Room and DataStore wiring (`DatabaseModule`, `DataStoreModule`), `FirebaseModule`, `DataModule`. |
 | `:core:datastore` | Kotlin Multiplatform, on `smartphotos.kmp.library`: `DefaultUserPreferencesRepository` in `commonMain` and its suite in `commonTest`. `:core:data` builds the DataStore and constructs the repository from it in `DataModule`. |
 | `:core:database` | Kotlin Multiplatform with an Android target, on `smartphotos.kmp.android.library`: Room's `AppDatabase`, `NoteDao`, `DatabaseNote` and `DatabaseConverters` in `commonMain`, the exported `schemas/`, and `NoteDaoTest`/`DatabaseConvertersTest` in `commonTest`. `:core:data`'s `DatabaseModule` opens it. |
-| `:core:firebase` | Kotlin Multiplatform with an Android target, on `smartphotos.kmp.android.library` and GitLive's multiplatform Firebase SDK: the Firebase-backed repositories as they leave `:core:data` — `DefaultPhotoRepository`, `FirebaseRemoteConfigRepository` and `FirebaseAnalyticsRepository` so far — with their suites in `commonTest`. JVM 17, the build's one exception; iOS tests compile but do not link. `:core:data`'s `FirebaseModule`/`DataModule` wire it. |
+| `:core:firebase` | Kotlin Multiplatform with an Android target, on `smartphotos.kmp.android.library` and GitLive's multiplatform Firebase SDK: the Firebase-backed repositories as they leave `:core:data` — `DefaultPhotoRepository`, `FirebaseRemoteConfigRepository`, `FirebaseAnalyticsRepository` and `DefaultAuthRepository` so far — with their suites in `commonTest`. JVM 17, the build's one exception; iOS tests compile but do not link. `:core:data`'s `FirebaseModule`/`DataModule` wire it. |
 | `:core:ui` | Android library, shared Compose vocabulary: `common/`, `ui/theme/`, `util/DateTimeUtils.kt`/`FlowUtils.kt`. |
 | `:feature:*` | One Android library per screen — `home`, `search`, `note`, `preview`, `favorite`, `profile`, `settings`, `auth`, `explore` — holding its Compose screen(s), ViewModel(s), route and tests. |
 | `:feature:<name>-viewmodel` | Kotlin Multiplatform half of a feature, on `smartphotos.kmp.viewmodel`: its ViewModel in `commonMain` and that ViewModel's suite in `commonTest` — one per feature, all nine: `auth`, `explore`, `favorite`, `home`, `note`, `preview`, `profile`, `search` and `settings`. The feature module keeps the screen, route, screen tests and `Hilt<Name>ViewModel`, the subclass Hilt builds — and which decodes the route, if there is one, passing the shared class plain arguments. |
@@ -367,8 +367,9 @@ the Firestore collections, and the Cloud Functions' division of labour.
   repository's data type**; one interface + one `Default*` implementation each, bound in
   `data/di/DataModule.kt`. Interfaces live in `:core:domain`; implementations and `DataModule` in
   `:core:data` — except those already in `commonMain` (`DefaultUserPreferencesRepository` in
-  `:core:datastore`, `DefaultPhotoRepository`, `FirebaseRemoteConfigRepository` and
-  `FirebaseAnalyticsRepository` in `:core:firebase` on GitLive), which carry no annotations and so are constructed in `DataModule` providers rather than
+  `:core:datastore`, `DefaultPhotoRepository`, `FirebaseRemoteConfigRepository`,
+  `FirebaseAnalyticsRepository` and `DefaultAuthRepository` in `:core:firebase` on GitLive), which
+  carry no annotations and so are constructed in `DataModule` providers rather than
   bound. **A Firebase repository leaving `:core:data` goes to `:core:firebase` on GitLive**, with its
   Firebase calls behind a small internal seam so its suite runs in `commonTest` — `UnsplashCallable`
   and `RemoteConfigSource` are the shape. **Where GitLive lacks an API the Android SDK has, don't
@@ -385,7 +386,7 @@ the Firestore collections, and the Cloud Functions' division of labour.
   in `:core:data`). **A note's media
   list persists into `notes.media_list` as `kotlinx.serialization` JSON keyed by `MediaDetail`'s
   property names** — an on-disk format, so renaming one needs `@SerialName` to keep old rows
-  decodable. **A new per-user local store is registered with `data/LocalUserDataCleaner.kt` in the
+  decodable. **A new per-user local store is registered with `data/DefaultLocalUserDataCleaner.kt` (`:core:data`, behind `:core:domain`'s `LocalUserDataCleaner`) in the
   same commit** — it is the single list of what sign-out and delete-account erase, and a store
   missing from it reads exactly like one that is there: no compile error, and no failing test
   anywhere but its own. Device preferences (the theme) are deliberately not on that list.

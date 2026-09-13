@@ -24,6 +24,8 @@ import com.jiahan.smartcamera.data.repository.RemoteConfigRepository
 import com.jiahan.smartcamera.data.repository.UserRepository
 import com.jiahan.smartcamera.data.datastore.DefaultUserPreferencesRepository
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
+import com.jiahan.smartcamera.data.DefaultLocalUserDataCleaner
+import com.jiahan.smartcamera.data.LocalUserDataCleaner
 import com.jiahan.smartcamera.di.ApplicationScope
 import com.jiahan.smartcamera.di.DebugBuild
 import com.jiahan.smartcamera.util.ErrorHandler
@@ -33,6 +35,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dev.gitlive.firebase.analytics.FirebaseAnalytics
+import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.functions.FirebaseFunctions
 import dev.gitlive.firebase.remoteconfig.FirebaseRemoteConfig
 import kotlinx.coroutines.CoroutineScope
@@ -48,11 +51,11 @@ abstract class DataModule {
         defaultNoteRepository: DefaultNoteRepository
     ): NoteRepository
 
+    // Unscoped, as the Inject constructor it replaced was: the class holds no state.
     @Binds
-    @Singleton
-    abstract fun bindAuthRepository(
-        defaultAuthRepository: DefaultAuthRepository
-    ): AuthRepository
+    abstract fun bindLocalUserDataCleaner(
+        defaultLocalUserDataCleaner: DefaultLocalUserDataCleaner
+    ): LocalUserDataCleaner
 
     @Binds
     @Singleton
@@ -131,5 +134,23 @@ abstract class DataModule {
         fun provideAnalyticsRepository(
             analytics: FirebaseAnalytics
         ): AnalyticsRepository = FirebaseAnalyticsRepository(analytics)
+
+        // Also in :core:firebase, on GitLive's FirebaseAuth; it reaches the local stores only
+        // through the LocalUserDataCleaner interface bound above.
+        @Provides
+        @Singleton
+        fun provideAuthRepository(
+            auth: FirebaseAuth,
+            functions: FirebaseFunctions,
+            userRepository: UserRepository,
+            localUserDataCleaner: LocalUserDataCleaner,
+            errorHandler: ErrorHandler,
+        ): AuthRepository = DefaultAuthRepository(
+            auth = auth,
+            functions = functions,
+            userRepository = userRepository,
+            localUserDataCleaner = localUserDataCleaner,
+            errorHandler = errorHandler,
+        )
     }
 }

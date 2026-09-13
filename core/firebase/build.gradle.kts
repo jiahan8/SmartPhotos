@@ -46,11 +46,12 @@ kotlin {
         commonMain.dependencies {
             // api: DefaultPhotoRepository implements a :core:domain interface and returns its models.
             api(project(":core:domain"))
-            // api: the public constructors take GitLive's FirebaseFunctions, FirebaseRemoteConfig and
-            // FirebaseAnalytics.
+            // api: the public constructors take GitLive's FirebaseFunctions, FirebaseRemoteConfig,
+            // FirebaseAnalytics and FirebaseAuth.
             api(libs.gitlive.firebase.functions)
             api(libs.gitlive.firebase.config)
             api(libs.gitlive.firebase.analytics)
+            api(libs.gitlive.firebase.auth)
         }
 
         androidMain.dependencies {
@@ -64,6 +65,9 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
+            // The multiplatform fakes for :core:domain's contracts -- UserRepository and
+            // LocalUserDataCleaner, for DefaultAuthRepositoryTest.
+            implementation(project(":core:domain-testing"))
             // `decode`, the function HttpsCallableResult.data runs on the raw payload, so the suite
             // exercises GitLive's real decoder. Not exposed to consumers by firebase-functions.
             implementation(libs.gitlive.firebase.common.internal)

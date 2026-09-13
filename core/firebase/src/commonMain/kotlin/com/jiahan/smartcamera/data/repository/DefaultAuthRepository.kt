@@ -1,40 +1,50 @@
 package com.jiahan.smartcamera.data.repository
 
-import com.google.firebase.auth.EmailAuthProvider
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.userProfileChangeRequest
-import com.google.firebase.functions.FirebaseFunctions
 import com.jiahan.smartcamera.data.LocalUserDataCleaner
 import com.jiahan.smartcamera.domain.AppError
 import com.jiahan.smartcamera.util.ErrorHandler
 import com.jiahan.smartcamera.util.safeCall
-import kotlinx.coroutines.tasks.await
-import javax.inject.Inject
+import dev.gitlive.firebase.auth.FirebaseAuth
+import dev.gitlive.firebase.functions.FirebaseFunctions
 
-class DefaultAuthRepository @Inject constructor(
-    private val auth: FirebaseAuth,
-    private val functions: FirebaseFunctions,
+/**
+ * [AuthRepository] on GitLive's multiplatform Auth and Functions, behind [AuthClient] and
+ * [AuthCallable] so its suite runs in `commonTest`.
+ */
+class DefaultAuthRepository internal constructor(
+    private val auth: AuthClient,
+    private val callable: AuthCallable,
     private val userRepository: UserRepository,
     private val localUserDataCleaner: LocalUserDataCleaner,
     private val errorHandler: ErrorHandler,
 ) : AuthRepository {
 
-    companion object {
-        private const val FIELD_EMAIL = "email"
-        private const val FIELD_USERNAME = "username"
-        private const val FIELD_REGISTERED = "registered"
-        private const val FIELD_AVAILABLE = "available"
-        private const val FUNCTION_IS_EMAIL_REGISTERED = "isEmailRegistered"
-        private const val FUNCTION_IS_USERNAME_AVAILABLE = "isUsernameAvailable"
+    constructor(
+        auth: FirebaseAuth,
+        functions: FirebaseFunctions,
+        userRepository: UserRepository,
+        localUserDataCleaner: LocalUserDataCleaner,
+        errorHandler: ErrorHandler,
+    ) : this(
+        GitLiveAuthClient(auth),
+        GitLiveAuthCallable(functions),
+        userRepository,
+        localUserDataCleaner,
+        errorHandler,
+    )
+
+    private companion object {
+        const val FUNCTION_IS_EMAIL_REGISTERED = "isEmailRegistered"
+        const val FUNCTION_IS_USERNAME_AVAILABLE = "isUsernameAvailable"
     }
 
     override val currentUserId: String?
-        get() = auth.uid
+        get() = auth.currentUser?.uid
     override val isCurrentUserEmailVerified: Boolean
         get() = auth.currentUser?.isEmailVerified == true
 
     override suspend fun signIn(email: String, password: String): Result<Unit> = safeCall {
-        auth.signInWithEmailAndPassword(email, password).await()
+        auth.signIn(email, password)
     }
 
     override suspend fun signUp(
@@ -44,19 +54,16 @@ class DefaultAuthRepository @Inject constructor(
         username: String
     ): Result<Unit> = safeCall {
         // The `?.` calls below are not the same shape as the guarded operations above: they run
-        // immediately after `createUserWithEmailAndPassword` succeeded, so `currentUser` is the
-        // account this call just made, and the rollback's `?.delete()` must not mask the profile
-        // failure it is reacting to.
-        auth.createUserWithEmailAndPassword(email, password).await()
-        auth.currentUser?.updateProfile(
-            userProfileChangeRequest { this.displayName = displayName }
-        )?.await()
-        auth.currentUser?.sendEmailVerification()?.await()
+        // immediately after `createUser` succeeded, so `currentUser` is the account this call just
+        // made, and the rollback's `?.delete()` must not mask the profile failure it is reacting to.
+        auth.createUser(email, password)
+        auth.currentUser?.updateDisplayName(displayName)
+        auth.currentUser?.sendEmailVerification()
         userRepository.createUserProfile(metadata = password, username = username)
             .onFailure {
                 // Profile creation failed after the Auth account was created; delete it
                 // so the user isn't left with an orphaned account and can retry signup.
-                auth.currentUser?.delete()?.await()
+                auth.currentUser?.delete()
             }
             .getOrThrow()
     }
@@ -69,7 +76,7 @@ class DefaultAuthRepository @Inject constructor(
     }
 
     override suspend fun resetPassword(email: String): Result<Unit> = safeCall {
-        auth.sendPasswordResetEmail(email).await()
+        auth.sendPasswordResetEmail(email)
     }
 
     override suspend fun changePassword(
@@ -78,19 +85,18 @@ class DefaultAuthRepository @Inject constructor(
     ): Result<Unit> = safeCall {
         val user = auth.currentUser ?: throw AppError.NotAuthenticated()
         val email = user.email ?: throw AppError.NotAuthenticated()
-        val credential = EmailAuthProvider.getCredential(email, currentPassword)
-        user.reauthenticate(credential).await()
-        user.updatePassword(newPassword).await()
+        user.reauthenticate(email, currentPassword)
+        user.updatePassword(newPassword)
     }
 
     override suspend fun checkEmailVerified(): Result<Boolean> = safeCall {
-        auth.currentUser?.reload()?.await()
+        auth.currentUser?.reload()
         auth.currentUser?.isEmailVerified == true
     }
 
     override suspend fun sendEmailVerification(): Result<Unit> = safeCall {
         val user = auth.currentUser ?: throw AppError.NotAuthenticated()
-        user.sendEmailVerification().await()
+        user.sendEmailVerification()
     }
 
     /**
@@ -104,7 +110,7 @@ class DefaultAuthRepository @Inject constructor(
      */
     override suspend fun deleteAccount(): Result<Unit> = safeCall {
         val user = auth.currentUser ?: throw AppError.NotAuthenticated()
-        user.delete().await()
+        user.delete()
         localUserDataCleaner.clearLocalUserData()
     }
 
@@ -113,19 +119,15 @@ class DefaultAuthRepository @Inject constructor(
         // enforce uniqueness atomically via the same `username` collection.
         // Routed through a callable rather than a direct Firestore read
         // since that collection is fully locked down in firestore.rules.
-        val result = functions.getHttpsCallable(FUNCTION_IS_USERNAME_AVAILABLE)
-            .call(hashMapOf(FIELD_USERNAME to username))
-            .await()
-        (result.data as? Map<*, *>)?.get(FIELD_AVAILABLE) as? Boolean ?: false
+        callable.call(FUNCTION_IS_USERNAME_AVAILABLE, AuthCheckArgs(username = username))
+            ?.available ?: false
     }
 
     override suspend fun isEmailRegistered(email: String): Result<Boolean> = safeCall {
         // Firebase Auth is the source of truth for email registration, not
         // Firestore: a user document may not exist yet even though the Auth
         // account does (e.g. app killed right after account creation).
-        val result = functions.getHttpsCallable(FUNCTION_IS_EMAIL_REGISTERED)
-            .call(hashMapOf(FIELD_EMAIL to email))
-            .await()
-        (result.data as? Map<*, *>)?.get(FIELD_REGISTERED) as? Boolean ?: false
+        callable.call(FUNCTION_IS_EMAIL_REGISTERED, AuthCheckArgs(email = email))
+            ?.registered ?: false
     }
 }

@@ -15,6 +15,8 @@ import dagger.hilt.components.SingletonComponent
 import dev.gitlive.firebase.Firebase as GitLiveFirebase
 import dev.gitlive.firebase.analytics.FirebaseAnalytics
 import dev.gitlive.firebase.analytics.analytics
+import dev.gitlive.firebase.auth.FirebaseAuth as GitLiveFirebaseAuth
+import dev.gitlive.firebase.auth.auth as gitLiveAuth
 import dev.gitlive.firebase.functions.FirebaseFunctions as GitLiveFirebaseFunctions
 import dev.gitlive.firebase.functions.functions as gitLiveFunctions
 import dev.gitlive.firebase.remoteconfig.FirebaseRemoteConfig
@@ -72,6 +74,12 @@ object FirebaseModule {
     @Provides
     @Singleton
     fun provideFirebaseAuth(): FirebaseAuth = FirebaseAuth.getInstance()
+
+    // GitLive's, for DefaultAuthRepository in :core:firebase. The Android SDK's above stays while
+    // DefaultUserRepository still injects it.
+    @Provides
+    @Singleton
+    fun provideGitLiveFirebaseAuth(): GitLiveFirebaseAuth = GitLiveFirebase.gitLiveAuth
 
     @Provides
     @Singleton

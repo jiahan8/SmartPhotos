@@ -18,6 +18,8 @@ class FakeUserRepository : UserRepository {
     var uploadProfilePictureResult: Result<String?> =
         Result.success("https://example.com/profile.jpg")
     var updateUserProfileResult: Result<Unit> = Result.success(Unit)
+    var createUserProfileResult: Result<Unit> = Result.success(Unit)
+    var unregisterFromPushNotificationsResult: Result<Unit> = Result.success(Unit)
 
     var getUserCallCount = 0
     var updateUserProfileCallCount = 0
@@ -34,7 +36,7 @@ class FakeUserRepository : UserRepository {
     override suspend fun getUser(userId: String): Result<User?> = Result.success(user)
 
     override suspend fun createUserProfile(metadata: String, username: String): Result<Unit> =
-        Result.success(Unit)
+        createUserProfileResult
 
     override suspend fun updateUserProfile(
         displayName: String?,
@@ -57,7 +59,8 @@ class FakeUserRepository : UserRepository {
 
     override suspend fun registerForPushNotifications(): Result<Unit> = Result.success(Unit)
 
-    override suspend fun unregisterFromPushNotifications(): Result<Unit> = Result.success(Unit)
+    override suspend fun unregisterFromPushNotifications(): Result<Unit> =
+        unregisterFromPushNotificationsResult
 
     override suspend fun recordUserActivity(activeDay: LocalDate): Result<Unit> =
         Result.success(Unit)

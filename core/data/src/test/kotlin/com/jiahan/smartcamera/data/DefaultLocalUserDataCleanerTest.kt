@@ -15,12 +15,12 @@ import org.junit.Test
  * A store that is added and not cleared reads exactly like one that is — there is no compile error
  * and no failing assertion anywhere else — so the coverage has to be here, naming each store.
  */
-class LocalUserDataCleanerTest {
+class DefaultLocalUserDataCleanerTest {
 
     private val noteDao: NoteDao = mockk(relaxed = true)
     private val userPreferencesRepository: UserPreferencesRepository = mockk(relaxed = true)
 
-    private val cleaner = LocalUserDataCleaner(noteDao, userPreferencesRepository)
+    private val cleaner = DefaultLocalUserDataCleaner(noteDao, userPreferencesRepository)
 
     @Test
     fun `clearLocalUserData clears the notes mirror`() = runTest {

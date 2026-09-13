@@ -90,7 +90,7 @@ dependencies {
     implementation(project(":core:datastore"))
 
     // api: NoteDao is an Inject-constructor parameter of DefaultNoteRepository and
-    // LocalUserDataCleaner, and AppDatabase the return type of a DatabaseModule provider, so :app's
+    // DefaultLocalUserDataCleaner, and AppDatabase the return type of a DatabaseModule provider, so :app's
     // annotation processor resolves both -- the rule in the block below, for a project edge.
     api(project(":core:database"))
 
@@ -138,6 +138,7 @@ dependencies {
     api(libs.gitlive.firebase.functions)
     api(libs.gitlive.firebase.config)
     api(libs.gitlive.firebase.analytics)
+    api(libs.gitlive.firebase.auth)
     api(libs.play.app.update)
     api(libs.datastore.preferences)
     api(libs.datastore.preferences.core)

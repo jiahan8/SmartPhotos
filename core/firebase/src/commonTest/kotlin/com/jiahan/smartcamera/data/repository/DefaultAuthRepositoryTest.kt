@@ -1,27 +1,16 @@
 package com.jiahan.smartcamera.data.repository
 
-import android.app.Application
-import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.google.android.gms.tasks.Tasks
-import com.google.firebase.auth.AuthResult
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.functions.FirebaseFunctions
-import com.jiahan.smartcamera.data.LocalUserDataCleaner
 import com.jiahan.smartcamera.domain.AppError
+import com.jiahan.smartcamera.fake.FakeLocalUserDataCleaner
+import com.jiahan.smartcamera.fake.FakeUserRepository
 import com.jiahan.smartcamera.util.ErrorHandler
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.verify
+import dev.gitlive.firebase.internal.decode
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.annotation.Config
+import kotlinx.serialization.builtins.nullable
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
  * Covers the [DefaultAuthRepository] behaviour that is not a straight pass-through to Firebase.
@@ -33,54 +22,107 @@ import org.robolectric.annotation.Config
  *   document, so a failure of the second leaves an account with no profile -- an address the user
  *   can neither sign into usefully nor re-register with. The repository deletes it; nothing else in
  *   the app would notice if that stopped happening.
- * - **The callable payload readers.** `isUsernameAvailable`/`isEmailRegistered` reach into an
- *   untyped `Map` from a Cloud Function and fall back to `false`. That fallback is a decision, not
- *   a formality: it makes an unreachable or reshaped backend read as "taken"/"not registered",
- *   which blocks signup rather than letting it through.
- * - **The local wipe on the way out.** `signOut` and `deleteAccount` clear the Room mirror, so the
- *   next account does not open onto the previous one's notes.
- *
- * Robolectric for the same reason as [DefaultUserRepositoryTest]: the Firebase types these mocks
- * stand in for are Android-bound, and `Tasks` needs a Looper.
+ * - **The callable payload readers.** `isUsernameAvailable`/`isEmailRegistered` fall back to
+ *   `false`. That fallback is a decision, not a formality: it makes an unreachable or reshaped
+ *   backend read as "taken"/"not registered", which blocks signup rather than letting it through.
+ *   The fake runs each raw payload through GitLive's own `decode`, so the real decoder is under test.
+ * - **The local wipe on the way out.** `signOut` and `deleteAccount` clear the local user data, so
+ *   the next account does not open onto the previous one's notes.
  */
-@RunWith(AndroidJUnit4::class)
-@Config(application = Application::class)
 class DefaultAuthRepositoryTest {
 
-    private val auth: FirebaseAuth = mockk(relaxed = true)
-    private val functions: FirebaseFunctions = mockk(relaxed = true)
-    private val userRepository: UserRepository = mockk(relaxed = true)
-    private val localUserDataCleaner: LocalUserDataCleaner = mockk(relaxed = true)
-    private val errorHandler: ErrorHandler = mockk(relaxed = true)
+    private class FakeAuthUser(
+        override val uid: String = "uid-1",
+        override val email: String? = "user@example.com",
+    ) : AuthUser {
+        override var isEmailVerified: Boolean = false
+
+        /** What [reload] sets the verified flag to, as a reload fetches the server's value. */
+        var verifiedAfterReload: Boolean? = null
+        val calls = mutableListOf<String>()
+
+        override suspend fun updateDisplayName(displayName: String) {
+            calls += "updateDisplayName:$displayName"
+        }
+
+        override suspend fun sendEmailVerification() {
+            calls += "sendEmailVerification"
+        }
+
+        override suspend fun delete() {
+            calls += "delete"
+        }
+
+        override suspend fun reload() {
+            calls += "reload"
+            verifiedAfterReload?.let { isEmailVerified = it }
+        }
+
+        override suspend fun reauthenticate(email: String, password: String) {
+            calls += "reauthenticate:$email:$password"
+        }
+
+        override suspend fun updatePassword(password: String) {
+            calls += "updatePassword:$password"
+        }
+    }
+
+    private class FakeAuthClient : AuthClient {
+        override var currentUser: AuthUser? = null
+        val calls = mutableListOf<String>()
+
+        override suspend fun signIn(email: String, password: String) {
+            calls += "signIn"
+        }
+
+        override suspend fun createUser(email: String, password: String) {
+            calls += "createUser"
+        }
+
+        override suspend fun signOut() {
+            calls += "signOut"
+        }
+
+        override suspend fun sendPasswordResetEmail(email: String) {
+            calls += "sendPasswordResetEmail"
+        }
+    }
+
+    private class FakeAuthCallable : AuthCallable {
+        val names = mutableListOf<String>()
+        var payload: Any? = null
+        var failure: Throwable? = null
+
+        override suspend fun call(name: String, args: AuthCheckArgs): AuthCheckResult? {
+            names += name
+            failure?.let { throw it }
+            return decode(AuthCheckResult.serializer().nullable, payload)
+        }
+    }
+
+    private class RecordingErrorHandler : ErrorHandler {
+        val logged = mutableListOf<Throwable>()
+
+        override fun logError(throwable: Throwable, tag: String) {
+            logged += throwable
+        }
+    }
+
+    private val auth = FakeAuthClient()
+    private val callable = FakeAuthCallable()
+    private val userRepository = FakeUserRepository()
+    private val localUserDataCleaner = FakeLocalUserDataCleaner()
+    private val errorHandler = RecordingErrorHandler()
 
     private val repository = DefaultAuthRepository(
         auth = auth,
-        functions = functions,
+        callable = callable,
         userRepository = userRepository,
         localUserDataCleaner = localUserDataCleaner,
         errorHandler = errorHandler,
     )
 
-    /**
-     * Stubs the callable this repository invokes, returning [payload] as its `data`.
-     *
-     * The returned slot captures the function *name*, which the two tests below assert. Without
-     * that, every payload case here passes against any name -- swapping the two `FUNCTION_*`
-     * constants would leave this whole file green while both checks called the wrong backend.
-     */
-    private fun functionsReturn(payload: Any?) = stubCallable(functions, payload)
-
-    /** A signed-in user whose every Task-returning call succeeds. */
-    private fun signedInUser(): FirebaseUser {
-        val user: FirebaseUser = mockk(relaxed = true)
-        every { user.email } returns "user@example.com"
-        every { user.updateProfile(any()) } returns Tasks.forResult(null)
-        every { user.sendEmailVerification() } returns Tasks.forResult(null)
-        every { user.delete() } returns Tasks.forResult(null)
-        every { user.reload() } returns Tasks.forResult(null)
-        every { auth.currentUser } returns user
-        return user
-    }
+    private fun signedInUser(): FakeAuthUser = FakeAuthUser().also { auth.currentUser = it }
 
     // -------------------------------------------------------------------------
     // Signup rollback
@@ -89,42 +131,33 @@ class DefaultAuthRepositoryTest {
     @Test
     fun `signUp deletes the auth account when profile creation fails`() = runTest {
         val user = signedInUser()
-        every { auth.createUserWithEmailAndPassword(any(), any()) } returns
-                Tasks.forResult(mockk<AuthResult>())
-        coEvery { userRepository.createUserProfile(any(), any()) } returns
-                Result.failure(IllegalStateException("username taken"))
+        userRepository.createUserProfileResult = Result.failure(IllegalStateException("username taken"))
 
         val result = repository.signUp("a@b.com", "pw", "Display", "username")
 
         assertTrue(result.isFailure)
-        verify { user.delete() }
+        assertTrue("delete" in user.calls)
     }
 
     @Test
     fun `signUp keeps the auth account when profile creation succeeds`() = runTest {
         val user = signedInUser()
-        every { auth.createUserWithEmailAndPassword(any(), any()) } returns
-                Tasks.forResult(mockk<AuthResult>())
-        coEvery { userRepository.createUserProfile(any(), any()) } returns Result.success(Unit)
 
         val result = repository.signUp("a@b.com", "pw", "Display", "username")
 
         assertTrue(result.isSuccess)
-        verify(exactly = 0) { user.delete() }
+        assertFalse("delete" in user.calls)
     }
 
     /** The display name reaches Auth, not just the profile document the Cloud Function writes. */
     @Test
     fun `signUp sends a verification email and sets the display name`() = runTest {
         val user = signedInUser()
-        every { auth.createUserWithEmailAndPassword(any(), any()) } returns
-                Tasks.forResult(mockk<AuthResult>())
-        coEvery { userRepository.createUserProfile(any(), any()) } returns Result.success(Unit)
 
         repository.signUp("a@b.com", "pw", "Display", "username")
 
-        verify { user.updateProfile(any()) }
-        verify { user.sendEmailVerification() }
+        assertTrue("updateDisplayName:Display" in user.calls)
+        assertTrue("sendEmailVerification" in user.calls)
     }
 
     // -------------------------------------------------------------------------
@@ -133,14 +166,14 @@ class DefaultAuthRepositoryTest {
 
     @Test
     fun `isUsernameAvailable reports what the callable returned`() = runTest {
-        functionsReturn(mapOf("available" to true))
+        callable.payload = mapOf("available" to true)
 
         assertEquals(true, repository.isUsernameAvailable("free").getOrNull())
     }
 
     @Test
     fun `isUsernameAvailable reports a taken username`() = runTest {
-        functionsReturn(mapOf("available" to false))
+        callable.payload = mapOf("available" to false)
 
         assertEquals(false, repository.isUsernameAvailable("taken").getOrNull())
     }
@@ -153,60 +186,60 @@ class DefaultAuthRepositoryTest {
 
     @Test
     fun `isUsernameAvailable is false when the payload has no available key`() = runTest {
-        functionsReturn(mapOf("other" to true))
+        callable.payload = mapOf("other" to true)
 
         assertEquals(false, repository.isUsernameAvailable("who").getOrNull())
     }
 
     @Test
     fun `isUsernameAvailable is false when the payload is not a map`() = runTest {
-        functionsReturn("available")
+        callable.payload = "available"
 
         assertEquals(false, repository.isUsernameAvailable("who").getOrNull())
     }
 
     @Test
     fun `isUsernameAvailable is false when the payload is null`() = runTest {
-        functionsReturn(null)
+        callable.payload = null
 
         assertEquals(false, repository.isUsernameAvailable("who").getOrNull())
     }
 
     @Test
     fun `isUsernameAvailable fails when the callable fails`() = runTest {
-        stubCallableFailure(functions, IllegalStateException("offline"))
+        callable.failure = IllegalStateException("offline")
 
         assertTrue(repository.isUsernameAvailable("who").isFailure)
     }
 
     @Test
     fun `isUsernameAvailable calls the isUsernameAvailable function`() = runTest {
-        val name = functionsReturn(mapOf("available" to true))
+        callable.payload = mapOf("available" to true)
 
         repository.isUsernameAvailable("who")
 
-        assertEquals("isUsernameAvailable", name.captured)
+        assertEquals(listOf("isUsernameAvailable"), callable.names)
     }
 
     @Test
     fun `isEmailRegistered calls the isEmailRegistered function`() = runTest {
-        val name = functionsReturn(mapOf("registered" to true))
+        callable.payload = mapOf("registered" to true)
 
         repository.isEmailRegistered("a@b.com")
 
-        assertEquals("isEmailRegistered", name.captured)
+        assertEquals(listOf("isEmailRegistered"), callable.names)
     }
 
     @Test
     fun `isEmailRegistered reports what the callable returned`() = runTest {
-        functionsReturn(mapOf("registered" to true))
+        callable.payload = mapOf("registered" to true)
 
         assertEquals(true, repository.isEmailRegistered("a@b.com").getOrNull())
     }
 
     @Test
     fun `isEmailRegistered is false when the payload is malformed`() = runTest {
-        functionsReturn(mapOf("registered" to "yes"))
+        callable.payload = mapOf("registered" to "yes")
 
         assertEquals(false, repository.isEmailRegistered("a@b.com").getOrNull())
     }
@@ -217,13 +250,11 @@ class DefaultAuthRepositoryTest {
 
     @Test
     fun `signOut clears local user data`() = runTest {
-        coEvery { userRepository.unregisterFromPushNotifications() } returns Result.success(Unit)
-
         val result = repository.signOut()
 
         assertTrue(result.isSuccess)
-        verify { auth.signOut() }
-        coVerify { localUserDataCleaner.clearLocalUserData() }
+        assertTrue("signOut" in auth.calls)
+        assertEquals(1, localUserDataCleaner.clearCallCount)
     }
 
     /**
@@ -232,15 +263,15 @@ class DefaultAuthRepositoryTest {
      */
     @Test
     fun `signOut still signs out when unregistering push fails`() = runTest {
-        coEvery { userRepository.unregisterFromPushNotifications() } returns
-                Result.failure(IllegalStateException("offline"))
+        userRepository.unregisterFromPushNotificationsResult =
+            Result.failure(IllegalStateException("offline"))
 
         val result = repository.signOut()
 
         assertTrue(result.isSuccess)
-        verify { auth.signOut() }
-        coVerify { localUserDataCleaner.clearLocalUserData() }
-        verify { errorHandler.logError(any(), any()) }
+        assertTrue("signOut" in auth.calls)
+        assertEquals(1, localUserDataCleaner.clearCallCount)
+        assertTrue(errorHandler.logged.isNotEmpty())
     }
 
     /*
@@ -254,18 +285,14 @@ class DefaultAuthRepositoryTest {
 
     @Test
     fun `deleteAccount raises NotAuthenticated when nobody is signed in`() = runTest {
-        every { auth.currentUser } returns null
-
         val result = repository.deleteAccount()
 
         assertTrue(result.exceptionOrNull() is AppError.NotAuthenticated)
-        coVerify(exactly = 0) { localUserDataCleaner.clearLocalUserData() }
+        assertEquals(0, localUserDataCleaner.clearCallCount)
     }
 
     @Test
     fun `sendEmailVerification raises NotAuthenticated when nobody is signed in`() = runTest {
-        every { auth.currentUser } returns null
-
         assertTrue(repository.sendEmailVerification().exceptionOrNull() is AppError.NotAuthenticated)
     }
 
@@ -276,8 +303,8 @@ class DefaultAuthRepositoryTest {
         val result = repository.deleteAccount()
 
         assertTrue(result.isSuccess)
-        verify { user.delete() }
-        coVerify { localUserDataCleaner.clearLocalUserData() }
+        assertTrue("delete" in user.calls)
+        assertEquals(1, localUserDataCleaner.clearCallCount)
     }
 
     // -------------------------------------------------------------------------
@@ -288,14 +315,11 @@ class DefaultAuthRepositoryTest {
      * Both arms assert the identity rather than just `isFailure`, because the identity is the whole
      * point: `appErrorMessageResId` renders [AppError.NotAuthenticated] as "not signed in", while
      * anything else falls through `toErrorMessage`'s blank-message guard to a generic "an
-     * error occurred". A bare `isFailure` passes either way -- which is how these two lines spent
-     * their life throwing `IllegalArgumentException("")` from a `requireNotNull` instead.
+     * error occurred". A bare `isFailure` passes either way.
      */
 
     @Test
     fun `changePassword raises NotAuthenticated when nobody is signed in`() = runTest {
-        every { auth.currentUser } returns null
-
         val result = repository.changePassword("old", "new")
 
         assertTrue(result.exceptionOrNull() is AppError.NotAuthenticated)
@@ -303,50 +327,41 @@ class DefaultAuthRepositoryTest {
 
     @Test
     fun `changePassword raises NotAuthenticated when the account has no email`() = runTest {
-        val user: FirebaseUser = mockk(relaxed = true)
-        every { user.email } returns null
-        every { auth.currentUser } returns user
+        auth.currentUser = FakeAuthUser(email = null)
 
         val result = repository.changePassword("old", "new")
 
         assertTrue(result.exceptionOrNull() is AppError.NotAuthenticated)
     }
 
-    /** The reauthenticate/update pair only runs once both are present. */
+    /** Pinned in order: the update only runs on a reauthenticated session. */
     @Test
     fun `changePassword reauthenticates before updating the password`() = runTest {
         val user = signedInUser()
-        every { user.reauthenticate(any()) } returns Tasks.forResult(null)
-        every { user.updatePassword(any()) } returns Tasks.forResult(null)
 
         val result = repository.changePassword("old", "new")
 
         assertTrue(result.isSuccess)
-        verify { user.reauthenticate(any()) }
-        verify { user.updatePassword("new") }
+        assertEquals(listOf("reauthenticate:user@example.com:old", "updatePassword:new"), user.calls)
     }
 
+    /** The flag is read after the reload, which is what fetches the server's value. */
     @Test
     fun `checkEmailVerified reflects the reloaded flag`() = runTest {
-        val user = signedInUser()
-        every { user.isEmailVerified } returns true
+        val user = signedInUser().apply { verifiedAfterReload = true }
 
         assertEquals(true, repository.checkEmailVerified().getOrNull())
-        verify { user.reload() }
+        assertTrue("reload" in user.calls)
     }
 
     @Test
     fun `checkEmailVerified is false when nobody is signed in`() = runTest {
-        every { auth.currentUser } returns null
-
         assertEquals(false, repository.checkEmailVerified().getOrNull())
     }
 
     @Test
     fun `currentUserId and email-verified read through to auth`() {
-        every { auth.uid } returns "uid-1"
-        val user = signedInUser()
-        every { user.isEmailVerified } returns false
+        auth.currentUser = FakeAuthUser(uid = "uid-1").apply { isEmailVerified = false }
 
         assertEquals("uid-1", repository.currentUserId)
         assertFalse(repository.isCurrentUserEmailVerified)
