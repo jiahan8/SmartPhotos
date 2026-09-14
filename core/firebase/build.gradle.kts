@@ -46,12 +46,17 @@ kotlin {
         commonMain.dependencies {
             // api: DefaultPhotoRepository implements a :core:domain interface and returns its models.
             api(project(":core:domain"))
+            // api: DefaultNoteRepository's public constructor takes the NoteDao it writes the Room
+            // mirror through. The DAO only: opening the database needs a Context, and stays in
+            // :core:data's DatabaseModule.
+            api(project(":core:database"))
             // api: the public constructors take GitLive's FirebaseFunctions, FirebaseRemoteConfig,
-            // FirebaseAnalytics and FirebaseAuth.
+            // FirebaseAnalytics, FirebaseAuth and FirebaseFirestore.
             api(libs.gitlive.firebase.functions)
             api(libs.gitlive.firebase.config)
             api(libs.gitlive.firebase.analytics)
             api(libs.gitlive.firebase.auth)
+            api(libs.gitlive.firebase.firestore)
         }
 
         androidMain.dependencies {
@@ -66,10 +71,12 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
             // The multiplatform fakes for :core:domain's contracts -- UserRepository and
-            // LocalUserDataCleaner, for DefaultAuthRepositoryTest.
+            // LocalUserDataCleaner for DefaultAuthRepositoryTest, AuthRepository and ErrorHandler for
+            // DefaultNoteRepositoryTest.
             implementation(project(":core:domain-testing"))
-            // `decode`, the function HttpsCallableResult.data runs on the raw payload, so the suite
-            // exercises GitLive's real decoder. Not exposed to consumers by firebase-functions.
+            // `decode`, the function HttpsCallableResult.data and DocumentSnapshot.data run on the raw
+            // value, and `encode`, which a callable's arguments go through, so the suites exercise
+            // GitLive's real serialization. Not exposed to consumers by the GitLive SDKs.
             implementation(libs.gitlive.firebase.common.internal)
         }
     }

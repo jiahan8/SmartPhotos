@@ -89,13 +89,14 @@ dependencies {
     // that module reaches a signature :app's annotation processor has to resolve.
     implementation(project(":core:datastore"))
 
-    // api: NoteDao is an Inject-constructor parameter of DefaultNoteRepository and
-    // DefaultLocalUserDataCleaner, and AppDatabase the return type of a DatabaseModule provider, so :app's
-    // annotation processor resolves both -- the rule in the block below, for a project edge.
+    // api: NoteDao is an Inject-constructor parameter of DefaultLocalUserDataCleaner and a parameter
+    // of DataModule's NoteRepository provider, and AppDatabase the return type of a DatabaseModule
+    // provider, so :app's annotation processor resolves both -- the rule in the block below, for a
+    // project edge.
     api(project(":core:database"))
 
-    // implementation: DataModule constructs DefaultPhotoRepository in a provider whose signature
-    // names only PhotoRepository and GitLive's FirebaseFunctions (declared api below).
+    // implementation: DataModule constructs :core:firebase's repositories in providers whose
+    // signatures name only :core:domain interfaces, NoteDao and GitLive's types (all declared api).
     implementation(project(":core:firebase"))
 
     implementation(libs.androidx.core.ktx)
@@ -132,20 +133,21 @@ dependencies {
     api(libs.firebase.firestore)
     api(libs.firebase.functions)
     api(libs.firebase.messaging)
-    // GitLive's FirebaseFunctions, FirebaseRemoteConfig and FirebaseAnalytics are providers' return
-    // types and parameters. firebase-config and firebase-analytics themselves are gone from this
-    // list: no source here names those Android SDKs since their repositories moved to :core:firebase.
+    // GitLive's Firebase types are providers' return types and parameters. firebase-config and
+    // firebase-analytics themselves are gone from this list: no source here names those Android SDKs
+    // since their repositories moved to :core:firebase.
     api(libs.gitlive.firebase.functions)
     api(libs.gitlive.firebase.config)
     api(libs.gitlive.firebase.analytics)
     api(libs.gitlive.firebase.auth)
+    api(libs.gitlive.firebase.firestore)
     api(libs.play.app.update)
     api(libs.datastore.preferences)
     api(libs.datastore.preferences.core)
 
-    // implementation, deliberately: no constructor takes these. DefaultNoteRepository builds its
-    // FirebaseStorage itself from a Remote Config URL, and the Play Core ktx wrappers are used
-    // only inside DefaultAppUpdateRepository's own function bodies.
+    // implementation, deliberately: no constructor takes these. DefaultUserRepository and
+    // DefaultMediaUploadRepository build their FirebaseStorage from a Remote Config URL, and the
+    // Play Core ktx wrappers are used only inside DefaultAppUpdateRepository's own function bodies.
     implementation(libs.firebase.storage)
     implementation(libs.play.app.update.ktx)
     // `Room.databaseBuilder`, in DatabaseModule's body only -- the database it builds, and the
@@ -157,10 +159,9 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
 
     /*
-     * The three repository suites that came down from :app run under Robolectric, and both reasons
-     * are this module's own: DefaultNoteRepository takes a Context, and every Firebase call here is
-     * stubbed with `Tasks.forResult`/`forException`, which needs a real Android runtime rather than
-     * the JVM stub jar.
+     * The repository suites here run under Robolectric, for a reason of this module's own: every
+     * Firebase call here is stubbed with `Tasks.forResult`/`forException`, which needs a real
+     * Android runtime rather than the JVM stub jar.
      *
      * Declared directly rather than taken from :core:testing, which is where the rest of the build
      * gets Robolectric. That used to be forced: :core:testing carried an `api` edge on this module,

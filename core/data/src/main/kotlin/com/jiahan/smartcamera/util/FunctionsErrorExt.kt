@@ -7,9 +7,13 @@ import com.google.firebase.functions.FirebaseFunctionsException
  *
  * `functions/index.js` tags every `invalid-argument` it raises with one, because a single code
  * covers several rules and the client cannot tell them apart from the code alone. Both repositories
- * that read those rejections fold them into an `AppError` here in :core:data, and each had its own
+ * that read those rejections fold them into an `AppError` in the data layer, and each had its own
  * copy of this cast and its own `"reason"` constant -- a wire contract with the server that has to
  * change on both sides at once, so it belongs in one place.
+ *
+ * It is two places for now. `DefaultNoteRepository` moved to :core:firebase, where GitLive's
+ * exception type is the one in reach, so `util/FunctionsRejection.kt` there is this function's twin.
+ * `DefaultUserRepository` is the last caller of this one; when it follows, delete this file.
  *
  * `internal`: nothing above :core:data may see a `FirebaseFunctionsException`, which is the whole
  * reason these rejections are folded down here (see AGENTS.md, Error handling).

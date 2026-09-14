@@ -17,6 +17,8 @@ import dev.gitlive.firebase.analytics.FirebaseAnalytics
 import dev.gitlive.firebase.analytics.analytics
 import dev.gitlive.firebase.auth.FirebaseAuth as GitLiveFirebaseAuth
 import dev.gitlive.firebase.auth.auth as gitLiveAuth
+import dev.gitlive.firebase.firestore.FirebaseFirestore as GitLiveFirebaseFirestore
+import dev.gitlive.firebase.firestore.firestore as gitLiveFirestore
 import dev.gitlive.firebase.functions.FirebaseFunctions as GitLiveFirebaseFunctions
 import dev.gitlive.firebase.functions.functions as gitLiveFunctions
 import dev.gitlive.firebase.remoteconfig.FirebaseRemoteConfig
@@ -64,6 +66,12 @@ object FirebaseModule {
     @Provides
     @Singleton
     fun provideFirebaseFirestore(): FirebaseFirestore = Firebase.firestore
+
+    // GitLive's, wrapping the same default instance, for DefaultNoteRepository in :core:firebase. The
+    // Android SDK's above stays while DefaultUserRepository still injects it.
+    @Provides
+    @Singleton
+    fun provideGitLiveFirebaseFirestore(): GitLiveFirebaseFirestore = GitLiveFirebase.gitLiveFirestore
 
     // GitLive's, for FirebaseAnalyticsRepository in :core:firebase; the Android SDK's provider went
     // with that class, as nothing else injects the type.

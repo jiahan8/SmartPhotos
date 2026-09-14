@@ -151,6 +151,7 @@ gitlive-firebase-functions = { group = "dev.gitlive", name = "firebase-functions
 gitlive-firebase-config = { group = "dev.gitlive", name = "firebase-config", version.ref = "gitlive" }
 gitlive-firebase-analytics = { group = "dev.gitlive", name = "firebase-analytics", version.ref = "gitlive" }
 gitlive-firebase-auth = { group = "dev.gitlive", name = "firebase-auth", version.ref = "gitlive" }
+gitlive-firebase-firestore = { group = "dev.gitlive", name = "firebase-firestore", version.ref = "gitlive" }
 gitlive-firebase-common-internal = { group = "dev.gitlive", name = "firebase-common-internal", version.ref = "gitlive" }
 androidx-test-orchestrator = { group = "androidx.test", name = "orchestrator", version.ref = "androidxTestOrchestrator" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }

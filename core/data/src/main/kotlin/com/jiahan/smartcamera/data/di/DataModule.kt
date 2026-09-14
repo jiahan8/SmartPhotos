@@ -26,6 +26,7 @@ import com.jiahan.smartcamera.data.datastore.DefaultUserPreferencesRepository
 import com.jiahan.smartcamera.data.datastore.UserPreferencesRepository
 import com.jiahan.smartcamera.data.DefaultLocalUserDataCleaner
 import com.jiahan.smartcamera.data.LocalUserDataCleaner
+import com.jiahan.smartcamera.database.dao.NoteDao
 import com.jiahan.smartcamera.di.ApplicationScope
 import com.jiahan.smartcamera.di.DebugBuild
 import com.jiahan.smartcamera.util.ErrorHandler
@@ -36,6 +37,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dev.gitlive.firebase.analytics.FirebaseAnalytics
 import dev.gitlive.firebase.auth.FirebaseAuth
+import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.functions.FirebaseFunctions
 import dev.gitlive.firebase.remoteconfig.FirebaseRemoteConfig
 import kotlinx.coroutines.CoroutineScope
@@ -44,12 +46,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class DataModule {
-
-    @Binds
-    @Singleton
-    abstract fun bindNoteRepository(
-        defaultNoteRepository: DefaultNoteRepository
-    ): NoteRepository
 
     // Unscoped, as the Inject constructor it replaced was: the class holds no state.
     @Binds
@@ -150,6 +146,24 @@ abstract class DataModule {
             functions = functions,
             userRepository = userRepository,
             localUserDataCleaner = localUserDataCleaner,
+            errorHandler = errorHandler,
+        )
+
+        // Also in :core:firebase, on GitLive's Firestore and Functions. It writes every fetch into
+        // the Room mirror through NoteDao, which DatabaseModule provides from :core:database.
+        @Provides
+        @Singleton
+        fun provideNoteRepository(
+            authRepository: AuthRepository,
+            firestore: FirebaseFirestore,
+            functions: FirebaseFunctions,
+            noteDao: NoteDao,
+            errorHandler: ErrorHandler,
+        ): NoteRepository = DefaultNoteRepository(
+            authRepository = authRepository,
+            firestore = firestore,
+            functions = functions,
+            noteDao = noteDao,
             errorHandler = errorHandler,
         )
     }
