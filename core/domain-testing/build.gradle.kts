@@ -7,8 +7,9 @@
  * target can depend on. Nine of those fakes and NoteMirror were already plain Kotlin over
  * :core:domain interfaces, so they moved here unchanged and in the same package.
  *
- * What stayed in :core:testing is what a platform binds: FakeMediaFileRepository (Android's Uri and
- * Bitmap) and MainDispatcherRule (a JUnit rule). :core:testing takes this module as `api`, so every
+ * What stayed in :core:testing is what a platform binds: MainDispatcherRule, a JUnit rule.
+ * FakeMediaFileRepository stayed with it while its contract carried Android's Uri and Bitmap, and
+ * came here once the contract took MediaUris. :core:testing takes this module as `api`, so every
  * Android test that took the fakes from there still does, with no import changed.
  *
  * Consumed by tests only -- `commonTest` directly, `testImplementation` and

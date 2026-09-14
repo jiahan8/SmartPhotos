@@ -32,6 +32,10 @@
  * implementation stays in :core:data.** `AppUpdateRepository` is the one that has not moved,
  * deliberately -- only :app's MainViewModel injects it.
  *
+ * `MediaFileRepository` has since gone on down to :core:domain: once its caller moved to shared code
+ * it took `MediaUri`s, and a contract with no Android type in it has no reason to be here. Of that
+ * pair, `MediaUriExt` is the tenant that stays.
+ *
  * Deliberately NOT Compose, and it should stay that way: `smartphotos.android.compose` is not
  * applied, so anything Compose-shaped that lands here fails to compile rather than quietly making
  * this a second :core:ui.

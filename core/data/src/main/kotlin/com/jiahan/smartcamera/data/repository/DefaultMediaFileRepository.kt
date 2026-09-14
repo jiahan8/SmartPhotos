@@ -14,8 +14,10 @@ import com.jiahan.smartcamera.util.FileConstants.MIME_TYPE_VIDEO_PREFIX
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_PHOTO
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_THUMBNAIL
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_VIDEO
+import com.jiahan.smartcamera.util.createVideoThumbnail
 import com.jiahan.smartcamera.util.safeCall
 import com.jiahan.smartcamera.util.toMediaUri
+import com.jiahan.smartcamera.util.toPlatformUri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -50,7 +52,18 @@ class DefaultMediaFileRepository @Inject constructor(
         null
     }
 
-    override fun saveBitmapAsTempFile(bitmap: Bitmap): Uri? = try {
+    override fun createVideoThumbnail(video: MediaUri): MediaUri? =
+        createVideoThumbnail(context, video.toPlatformUri())
+            ?.let(::saveBitmapAsTempFile)
+            ?.toMediaUri()
+
+    /**
+     * Writes [bitmap] as a temporary JPEG in the app cache and returns its file URI, recycling the
+     * bitmap either way; null if the file cannot be written. Off the contract since that stopped
+     * carrying a `Bitmap` -- [createVideoThumbnail] is its caller -- and `internal` so its suite can
+     * still reach it.
+     */
+    internal fun saveBitmapAsTempFile(bitmap: Bitmap): Uri? = try {
         val file = File.createTempFile(PREFIX_THUMBNAIL, EXTENSION_JPG, context.cacheDir)
         FileOutputStream(file).use { out ->
             bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
@@ -82,20 +95,21 @@ class DefaultMediaFileRepository @Inject constructor(
             }.onFailure(errorHandler::logError).getOrNull()
         }
 
-    override fun isVideoUri(uri: Uri): Boolean =
-        context.contentResolver.getType(uri)?.startsWith(MIME_TYPE_VIDEO_PREFIX) == true
+    override fun isVideoUri(uri: MediaUri): Boolean =
+        context.contentResolver.getType(uri.toPlatformUri())
+            ?.startsWith(MIME_TYPE_VIDEO_PREFIX) == true
 
-    override fun hasContent(uri: Uri): Boolean = try {
-        context.contentResolver.openAssetFileDescriptor(uri, "r")
+    override fun hasContent(uri: MediaUri): Boolean = try {
+        context.contentResolver.openAssetFileDescriptor(uri.toPlatformUri(), "r")
             ?.use { descriptor -> descriptor.length != 0L } == true
     } catch (e: Exception) {
         errorHandler.logError(e)
         false
     }
 
-    override fun deleteFile(uri: Uri) {
+    override fun deleteFile(uri: MediaUri) {
         try {
-            context.contentResolver.delete(uri, null, null)
+            context.contentResolver.delete(uri.toPlatformUri(), null, null)
         } catch (e: Exception) {
             errorHandler.logError(e)
         }

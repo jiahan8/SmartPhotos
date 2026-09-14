@@ -1,6 +1,6 @@
 /*
- * Test fixtures shared across the Android modules: MainDispatcherRule, FakeMediaFileRepository and --
- * re-exported from :core:domain-testing -- the repository and handler fakes.
+ * Test fixtures shared across the Android modules: MainDispatcherRule and -- re-exported from
+ * :core:domain-testing -- the repository and handler fakes.
  *
  * This is the module the plan deliberately kept until last, on the rule that every `:core:` module
  * needs a forcing function -- something that will not compile without it. Three arrived on their
@@ -24,15 +24,16 @@
  *
  * The fakes for :core:domain's contracts, and NoteMirror, have since moved again, to
  * :core:domain-testing: a multiplatform module, so a shared ViewModel's commonTest can use them.
- * What stayed is what a platform binds -- FakeMediaFileRepository (Android's Uri and Bitmap) and
- * MainDispatcherRule (a JUnit rule) -- and the moved fakes come back through an `api` edge, so no
- * consumer of this module changed an import.
+ * What stayed is what a platform binds: MainDispatcherRule, a JUnit rule. FakeMediaFileRepository
+ * stayed with it while its contract carried Android's Uri and Bitmap, and followed the other fakes
+ * once the contract took MediaUris. The moved fakes come back through an `api` edge, so no consumer
+ * of this module changed an import.
  */
 plugins {
     id("smartphotos.android.library")
     // No smartphotos.android.compose: BaseScreenshotTest was the only source here that declared a
-    // @Composable, and it now lives in :core:screenshot-testing. The fakes and MainDispatcherRule
-    // are plain Kotlin over :core:domain / :core:common interfaces.
+    // @Composable, and it now lives in :core:screenshot-testing. MainDispatcherRule is plain
+    // Kotlin.
 }
 
 android {
@@ -51,16 +52,12 @@ dependencies {
     // module. This replaced a direct :core:domain edge: nothing left in this module names a
     // :core:domain type itself, and that module still reaches every consumer through this one.
     api(project(":core:domain-testing"))
-    // FakeMediaFileRepository implements MediaFileRepository, which is Android-bound (Uri, Bitmap)
-    // and so lives in :core:common rather than :core:domain. Its own API surface: the fake *is*
-    // that interface.
-    api(project(":core:common"))
 
     /*
      * No :core:data edge, and its absence is load-bearing rather than an omission.
      *
      * Nothing here names a type from that module: every fake implements an interface, and those
-     * interfaces are all in :core:domain (or :core:common, above) precisely so that a test never
+     * interfaces are all in :core:domain precisely so that a test never
      * has to resolve a `Default*` to stand in for one. The edge existed anyway, and `api` meant it
      * put firebase-firestore, room-ktx, datastore-preferences and play:app-update on the unit-test
      * compile classpath of every module that takes this one -- which is all nine features. "No

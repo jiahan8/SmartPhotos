@@ -18,13 +18,16 @@ class FakeRemoteConfigRepository(
     /** What [getStorageFolderName] returns, for a test asserting the path an upload lands at. */
     var storageFolder: String = ""
 
+    /** What [getStorageCacheFolderName] returns, for the same reason. */
+    var storageCacheFolder: String = ""
+
     override suspend fun fetchAndActivateConfig(): Result<Unit> = Result.success(Unit)
 
     override fun getStorageUrl(): String = ""
 
     override fun getStorageFolderName(): String = storageFolder
 
-    override fun getStorageCacheFolderName(): String = ""
+    override fun getStorageCacheFolderName(): String = storageCacheFolder
 
     override fun observeExploreIconVisible(): Flow<Boolean> = exploreIconVisibleFlow
 

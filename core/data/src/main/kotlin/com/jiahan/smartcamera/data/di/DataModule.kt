@@ -29,6 +29,7 @@ import com.jiahan.smartcamera.data.LocalUserDataCleaner
 import com.jiahan.smartcamera.database.dao.NoteDao
 import com.jiahan.smartcamera.di.ApplicationScope
 import com.jiahan.smartcamera.di.DebugBuild
+import com.jiahan.smartcamera.di.IoDispatcher
 import com.jiahan.smartcamera.util.ErrorHandler
 import dagger.Binds
 import dagger.Module
@@ -41,6 +42,7 @@ import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.functions.FirebaseFunctions
 import dev.gitlive.firebase.messaging.FirebaseMessaging
 import dev.gitlive.firebase.remoteconfig.FirebaseRemoteConfig
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import javax.inject.Singleton
 
@@ -61,8 +63,8 @@ abstract class DataModule {
     ): MediaFileRepository
 
     // The same class again, twice. DefaultMediaFileRepository implements MediaCacheRepository and
-    // MediaCaptureRepository too: the parts of its contract that return a MediaUri, and so the parts
-    // that could move to :core:domain.
+    // MediaCaptureRepository too: the contracts split off MediaFileRepository before the rest of it
+    // gave up its Android types and followed them to :core:domain.
     @Binds
     @Singleton
     abstract fun bindMediaCacheRepository(
@@ -74,12 +76,6 @@ abstract class DataModule {
     abstract fun bindMediaCaptureRepository(
         defaultMediaFileRepository: DefaultMediaFileRepository
     ): MediaCaptureRepository
-
-    @Binds
-    @Singleton
-    abstract fun bindMediaUploadRepository(
-        defaultMediaUploadRepository: DefaultMediaUploadRepository
-    ): MediaUploadRepository
 
     @Binds
     @Singleton
@@ -142,6 +138,26 @@ abstract class DataModule {
             userRepository = userRepository,
             localUserDataCleaner = localUserDataCleaner,
             errorHandler = errorHandler,
+        )
+
+        // Also in :core:firebase, on GitLive's Storage, which it builds itself from the bucket Remote
+        // Config names. Its local file work is MediaFileRepository's, bound above.
+        @Provides
+        @Singleton
+        fun provideMediaUploadRepository(
+            remoteConfigRepository: RemoteConfigRepository,
+            authRepository: AuthRepository,
+            mediaFileRepository: MediaFileRepository,
+            errorHandler: ErrorHandler,
+            @ApplicationScope applicationScope: CoroutineScope,
+            @IoDispatcher ioDispatcher: CoroutineDispatcher,
+        ): MediaUploadRepository = DefaultMediaUploadRepository(
+            remoteConfigRepository = remoteConfigRepository,
+            authRepository = authRepository,
+            mediaFileRepository = mediaFileRepository,
+            errorHandler = errorHandler,
+            applicationScope = applicationScope,
+            ioDispatcher = ioDispatcher,
         )
 
         // Also in :core:firebase, on GitLive's Auth, Firestore, Functions and Messaging; it builds its

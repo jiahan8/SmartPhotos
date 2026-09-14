@@ -15,6 +15,7 @@ import com.jiahan.smartcamera.util.FileConstants.EXTENSION_MP4
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_PHOTO
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_THUMBNAIL
 import com.jiahan.smartcamera.util.FileConstants.PREFIX_VIDEO
+import com.jiahan.smartcamera.util.toMediaUri
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -243,18 +244,21 @@ class DefaultMediaFileRepositoryTest {
 
     private val someUri = "content://media/external/1".toUri()
 
+    /** [someUri] as the contract carries it; the repository converts back at the ContentResolver. */
+    private val someMediaUri = someUri.toMediaUri()
+
     @Test
     fun `isVideoUri is true for a video mime type`() {
         every { contentResolver.getType(someUri) } returns "video/mp4"
 
-        assertTrue(repository.isVideoUri(someUri))
+        assertTrue(repository.isVideoUri(someMediaUri))
     }
 
     @Test
     fun `isVideoUri is false for an image mime type`() {
         every { contentResolver.getType(someUri) } returns "image/jpeg"
 
-        assertFalse(repository.isVideoUri(someUri))
+        assertFalse(repository.isVideoUri(someMediaUri))
     }
 
     /** A provider that reports no type is treated as a photo, per the contract's KDoc. */
@@ -262,7 +266,7 @@ class DefaultMediaFileRepositoryTest {
     fun `isVideoUri is false when the provider reports no type`() {
         every { contentResolver.getType(someUri) } returns null
 
-        assertFalse(repository.isVideoUri(someUri))
+        assertFalse(repository.isVideoUri(someMediaUri))
     }
 
     // -------------------------------------------------------------------------
@@ -279,7 +283,7 @@ class DefaultMediaFileRepositoryTest {
     fun `hasContent is true for a non-empty file`() {
         descriptorOfLength(1_024)
 
-        assertTrue(repository.hasContent(someUri))
+        assertTrue(repository.hasContent(someMediaUri))
     }
 
     /** A canceled capture leaves the empty temp file that was handed to the camera. */
@@ -287,7 +291,7 @@ class DefaultMediaFileRepositoryTest {
     fun `hasContent is false for an empty file`() {
         descriptorOfLength(0)
 
-        assertFalse(repository.hasContent(someUri))
+        assertFalse(repository.hasContent(someMediaUri))
     }
 
     /**
@@ -298,14 +302,14 @@ class DefaultMediaFileRepositoryTest {
     fun `hasContent is true when the length is unknown`() {
         descriptorOfLength(AssetFileDescriptor.UNKNOWN_LENGTH)
 
-        assertTrue(repository.hasContent(someUri))
+        assertTrue(repository.hasContent(someMediaUri))
     }
 
     @Test
     fun `hasContent is false when the provider returns no descriptor`() {
         every { contentResolver.openAssetFileDescriptor(someUri, "r") } returns null
 
-        assertFalse(repository.hasContent(someUri))
+        assertFalse(repository.hasContent(someMediaUri))
     }
 
     @Test
@@ -313,7 +317,7 @@ class DefaultMediaFileRepositoryTest {
         every { contentResolver.openAssetFileDescriptor(someUri, "r") } throws
                 SecurityException("no permission")
 
-        assertFalse(repository.hasContent(someUri))
+        assertFalse(repository.hasContent(someMediaUri))
         verify { errorHandler.logError(any(), any()) }
     }
 
@@ -325,7 +329,7 @@ class DefaultMediaFileRepositoryTest {
     fun `deleteFile goes through the content resolver`() {
         every { contentResolver.delete(someUri, null, null) } returns 1
 
-        repository.deleteFile(someUri)
+        repository.deleteFile(someMediaUri)
 
         verify { contentResolver.delete(someUri, null, null) }
     }
@@ -336,7 +340,7 @@ class DefaultMediaFileRepositoryTest {
         every { contentResolver.delete(someUri, null, null) } throws
                 SecurityException("no permission")
 
-        repository.deleteFile(someUri)
+        repository.deleteFile(someMediaUri)
 
         verify { errorHandler.logError(any(), any()) }
     }

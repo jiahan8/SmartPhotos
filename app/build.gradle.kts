@@ -99,11 +99,11 @@ dependencies {
     implementation(project(":core:domain"))
 
     // The Android-bound half of the shared vocabulary: the strings and mappers the feature screens
-    // resolve, plus the media seam and the note delegates the features use. No :app main source
-    // names it any more -- `CommonR` in ErrorMessageMappers was the last, and that mapper came down
-    // here once screens resolved their own text. The androidTest suites still name
-    // MediaFileRepository; whether this edge can narrow to androidTestImplementation, with the Hilt
-    // component assembled here still resolving the note delegates, has not been tried.
+    // resolve, plus MediaUriExt and the note delegates the features use. No :app main source names
+    // it any more -- `CommonR` in ErrorMessageMappers was the last, and that mapper came down here
+    // once screens resolved their own text. The androidTest suites used to name MediaFileRepository
+    // from here; it has moved to :core:domain. Whether this edge can narrow, with the Hilt component
+    // assembled here still resolving the note delegates, has not been tried.
     implementation(project(":core:common"))
 
     // Every Default* repository, the Room database, the DataStore wiring and -- since the

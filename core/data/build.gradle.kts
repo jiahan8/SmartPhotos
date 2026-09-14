@@ -78,11 +78,11 @@ dependencies {
     // signatures, so :app compiles against them through this dependency as well as its own.
     api(project(":core:domain"))
 
-    // Same reason, one module along: `MediaFileRepository` is the interface
-    // DefaultMediaFileRepository implements and a constructor parameter of DefaultNoteRepository,
-    // and `toPlatformUri()` is called in three files here. Both came down to :core:common when
-    // :feature:profile was extracted, because a feature module must not depend on this one.
-    api(project(":core:common"))
+    // implementation, not api: `toMediaUri()`/`toPlatformUri()` are called inside
+    // DefaultMediaFileRepository's function bodies, and nothing from :core:common reaches a signature.
+    // It was api while `MediaFileRepository` lived there, before that contract took `MediaUri`s and
+    // moved to :core:domain.
+    implementation(project(":core:common"))
 
     // implementation, not api: DataModule constructs DefaultUserPreferencesRepository in a provider
     // that returns the :core:domain interface and takes a DataStore<Preferences>, so no type from
@@ -106,8 +106,6 @@ dependencies {
     ksp(libs.hilt.android.compiler)
 
     implementation(libs.kotlinx.coroutines.android)
-    // `kotlinx.coroutines.tasks.await`, called on every Firebase Task in this module.
-    implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.kotlinx.datetime)
 
     /*
@@ -128,7 +126,6 @@ dependencies {
      * injection walks the graph furthest.) This is the same Hilt-shaped constraint the KMP
      * readiness section of AGENTS.md calls the ceiling on sharing this layer.
      */
-    api(platform(libs.firebase.bom))
     // GitLive's Firebase types are providers' return types and parameters. The Android SDKs they wrap
     // are gone from this list: no source here names Auth, Firestore, Functions, Messaging, Remote
     // Config or Analytics since their repositories moved to :core:firebase, which brings them in.
@@ -142,10 +139,8 @@ dependencies {
     api(libs.datastore.preferences)
     api(libs.datastore.preferences.core)
 
-    // implementation, deliberately: no constructor takes these. DefaultMediaUploadRepository builds
-    // its FirebaseStorage from a Remote Config URL, and the Play Core ktx wrappers are used only
-    // inside DefaultAppUpdateRepository's own function bodies.
-    implementation(libs.firebase.storage)
+    // implementation, deliberately: no constructor takes these. The Play Core ktx wrappers are used
+    // only inside DefaultAppUpdateRepository's own function bodies.
     implementation(libs.play.app.update.ktx)
     // `Room.databaseBuilder`, in DatabaseModule's body only -- the database it builds, and the
     // Room compiler that generates it, are :core:database's.
@@ -156,17 +151,17 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
 
     /*
-     * The repository suites here run under Robolectric, for a reason of this module's own: every
-     * Firebase call here is stubbed with `Tasks.forResult`/`forException`, which needs a real
+     * The suites here run under Robolectric, for reasons of this module's own:
+     * DefaultMediaFileRepository is ContentResolver, FileProvider and Bitmap work, and
+     * AppDatabaseMigrationTest migrates through Android's framework SQLite -- both need a real
      * Android runtime rather than the JVM stub jar.
      *
      * Declared directly rather than taken from :core:testing, which is where the rest of the build
      * gets Robolectric. That used to be forced: :core:testing carried an `api` edge on this module,
      * so the reverse direction was a cycle. The edge turned out to be unused -- no fake names a
      * type from here -- and removing it leaves this module free to take :core:testing on
-     * `testImplementation` whenever a suite here wants the fakes. It has not been done yet only
-     * because these four suites stub Firebase directly rather than through a fake; do it when one
-     * of them would rather have a FakeNoteRepository than a mockk.
+     * `testImplementation` whenever a suite here wants the fakes. None does yet: what is left here is
+     * Android framework work, which no fake stands in for.
      *
      * The rule the removal restored: a fixtures module is a supplier to this layer or a consumer
      * of it, never both.

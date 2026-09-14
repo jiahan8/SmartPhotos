@@ -128,13 +128,14 @@ class DefaultUserRepositoryTest {
         }
     }
 
-    private class FakeProfilePictureStorage : ProfilePictureStorage {
+    private class FakeMediaStorage : MediaStorage {
         val uploads = mutableListOf<Pair<String, MediaUri>>()
 
-        override suspend fun upload(path: String, file: MediaUri): String {
+        override suspend fun putFile(path: String, file: MediaUri) {
             uploads += path to file
-            return "https://storage.example/$path"
         }
+
+        override suspend fun getDownloadUrl(path: String): String = "https://storage.example/$path"
     }
 
     private val authUser = FakeAuthUser()
@@ -142,7 +143,7 @@ class DefaultUserRepositoryTest {
     private val store = FakeUserStore()
     private val callable = FakeUserCallable()
     private val push = FakePushClient()
-    private val storage = FakeProfilePictureStorage()
+    private val storage = FakeMediaStorage()
     private val remoteConfigRepository = FakeRemoteConfigRepository().apply {
         storageFolder = "profile"
     }

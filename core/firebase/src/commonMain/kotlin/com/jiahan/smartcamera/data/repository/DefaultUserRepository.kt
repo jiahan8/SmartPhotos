@@ -17,7 +17,7 @@ import kotlin.uuid.Uuid
 
 /**
  * [UserRepository] on GitLive's multiplatform Auth, Firestore, Functions, Messaging and Storage,
- * behind [AuthClient], [UserStore], [UserCallable], [PushClient] and [ProfilePictureStorage] so its
+ * behind [AuthClient], [UserStore], [UserCallable], [PushClient] and [MediaStorage] so its
  * suite runs in `commonTest`.
  */
 class DefaultUserRepository internal constructor(
@@ -25,7 +25,7 @@ class DefaultUserRepository internal constructor(
     private val store: UserStore,
     private val callable: UserCallable,
     private val push: PushClient,
-    private val storage: ProfilePictureStorage,
+    private val storage: MediaStorage,
     private val remoteConfigRepository: RemoteConfigRepository,
 ) : UserRepository {
 
@@ -40,7 +40,7 @@ class DefaultUserRepository internal constructor(
         GitLiveUserStore(firestore),
         GitLiveUserCallable(functions),
         GitLivePushClient(messaging),
-        GitLiveProfilePictureStorage(remoteConfigRepository),
+        GitLiveMediaStorage(remoteConfigRepository),
         remoteConfigRepository,
     )
 
@@ -101,7 +101,9 @@ class DefaultUserRepository internal constructor(
     override suspend fun uploadProfilePicture(uri: MediaUri): Result<String?> = safeCall {
         val userId = currentUserId ?: throw AppError.NotAuthenticated()
         val mediaId = Uuid.random().toString()
-        storage.upload("$storageFolder/$userId/$mediaId$EXTENSION_JPG", uri)
+        val path = "$storageFolder/$userId/$mediaId$EXTENSION_JPG"
+        storage.putFile(path, uri)
+        storage.getDownloadUrl(path)
     }
 
     // Delegates to the updateUsername Cloud Function, which atomically
