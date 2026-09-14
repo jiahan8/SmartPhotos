@@ -13,10 +13,10 @@ that story is in [ARCHITECTURE.md](ARCHITECTURE.md).**
 | `:app` | `MainActivity`, `MyApp`, `MainViewModel`, `SmartPhotosApp`, `navigation/`, the messaging service, `di/AppModule.kt`, `util/`. Hosts the NavHost, supplies each screen's navigation lambdas, installs the Hilt bindings — **no feature screen renders here**. |
 | `:core:domain` | Kotlin Multiplatform, `jvm` + two iOS targets (no AGP, no Hilt/KSP): domain models, repository *interfaces*, `safeCall`, the `ErrorHandler` interface, DI qualifiers, and the three field validators (`util/ValidationUtils.kt`) with `ValidationResult`/`ValidationError`. Also `note/`: `NoteErrorReporter` and `NoteShareDelegate`, the two delegates four note screens' ViewModels share — plain classes, scoped per ViewModel by `:core:common`'s Hilt module. |
 | `:core:common` | Android library, deliberately not Compose: the validation and failure strings + the mappers screens resolve them with (`validationErrorMessageResId`, `ErrorMessage.resolve`/`appErrorMessageResId`), the `MediaFileRepository` contract, `util/MediaUriExt.kt`, `NoteActionError.resolve`, and `note/di/NoteDelegateModule.kt`, which provides `:core:domain`'s two note delegates once per ViewModel (why it has Hilt/KSP). |
-| `:core:data` | Android library holding every implementation of a `:core:domain`/`:core:common` contract that has not moved to a shared module below: the Android-SDK `Default*`/`Firebase*` repositories, the Room and DataStore wiring (`DatabaseModule`, `DataStoreModule`), `FirebaseModule`, `DataModule`. |
+| `:core:data` | Android library holding every implementation of a `:core:domain`/`:core:common` contract that has not moved to a shared module below: the Android-bound repositories (`DefaultMediaUploadRepository`, `DefaultMediaFileRepository`, `DefaultAppUpdateRepository`), the Room and DataStore wiring (`DatabaseModule`, `DataStoreModule`), `FirebaseModule`, `DataModule`. |
 | `:core:datastore` | Kotlin Multiplatform, on `smartphotos.kmp.library`: `DefaultUserPreferencesRepository` in `commonMain` and its suite in `commonTest`. `:core:data` builds the DataStore and constructs the repository from it in `DataModule`. |
 | `:core:database` | Kotlin Multiplatform with an Android target, on `smartphotos.kmp.android.library`: Room's `AppDatabase`, `NoteDao`, `DatabaseNote` and `DatabaseConverters` in `commonMain`, the exported `schemas/`, and `NoteDaoTest`/`DatabaseConvertersTest` in `commonTest`. `:core:data`'s `DatabaseModule` opens it. |
-| `:core:firebase` | Kotlin Multiplatform with an Android target, on `smartphotos.kmp.android.library` and GitLive's multiplatform Firebase SDK: the Firebase-backed repositories as they leave `:core:data` — `DefaultPhotoRepository`, `FirebaseRemoteConfigRepository`, `FirebaseAnalyticsRepository`, `DefaultAuthRepository` and `DefaultNoteRepository` so far — with their suites in `commonTest`. JVM 17, the build's one exception; iOS tests compile but do not link. `:core:data`'s `FirebaseModule`/`DataModule` wire it. |
+| `:core:firebase` | Kotlin Multiplatform with an Android target, on `smartphotos.kmp.android.library` and GitLive's multiplatform Firebase SDK: the Firebase-backed repositories as they leave `:core:data` — `DefaultPhotoRepository`, `FirebaseRemoteConfigRepository`, `FirebaseAnalyticsRepository`, `DefaultAuthRepository`, `DefaultNoteRepository` and `DefaultUserRepository` so far — with their suites in `commonTest`. JVM 17, the build's one exception; iOS tests compile but do not link. `:core:data`'s `FirebaseModule`/`DataModule` wire it. |
 | `:core:ui` | Android library, shared Compose vocabulary: `common/`, `ui/theme/`, `util/DateTimeUtils.kt`/`FlowUtils.kt`. |
 | `:feature:*` | One Android library per screen — `home`, `search`, `note`, `preview`, `favorite`, `profile`, `settings`, `auth`, `explore` — holding its Compose screen(s), ViewModel(s), route and tests. |
 | `:feature:<name>-viewmodel` | Kotlin Multiplatform half of a feature, on `smartphotos.kmp.viewmodel`: its ViewModel in `commonMain` and that ViewModel's suite in `commonTest` — one per feature, all nine: `auth`, `explore`, `favorite`, `home`, `note`, `preview`, `profile`, `search` and `settings`. The feature module keeps the screen, route, screen tests and `Hilt<Name>ViewModel`, the subclass Hilt builds — and which decodes the route, if there is one, passing the shared class plain arguments. |
@@ -77,7 +77,7 @@ Run from the repo root (Gradle wrapper):
 | Task | Command |
 | --- | --- |
 | Debug APK | `./gradlew assembleDebug` |
-| Unit tests (684 across 25 modules) | `./gradlew testDebugUnitTest jvmTest` |
+| Unit tests (694 across 25 modules) | `./gradlew testDebugUnitTest jvmTest` |
 | Multiplatform tests on an iOS simulator (Mac only; `:core:firebase` compiles but skips) | `./gradlew iosSimulatorArm64Test` |
 | Prove every `commonMain` is still common | `./gradlew compileCommonMainKotlinMetadata` |
 | Hilt graph + androidTest sources | `./gradlew compileDebugAndroidTestKotlin` |
@@ -369,8 +369,8 @@ the Firestore collections, and the Cloud Functions' division of labour.
   `data/di/DataModule.kt`. Interfaces live in `:core:domain`; implementations and `DataModule` in
   `:core:data` — except those already in `commonMain` (`DefaultUserPreferencesRepository` in
   `:core:datastore`, `DefaultPhotoRepository`, `FirebaseRemoteConfigRepository`,
-  `FirebaseAnalyticsRepository`, `DefaultAuthRepository` and `DefaultNoteRepository` in
-  `:core:firebase` on GitLive), which
+  `FirebaseAnalyticsRepository`, `DefaultAuthRepository`, `DefaultNoteRepository` and
+  `DefaultUserRepository` in `:core:firebase` on GitLive), which
   carry no annotations and so are constructed in `DataModule` providers rather than
   bound. **A Firebase repository leaving `:core:data` goes to `:core:firebase` on GitLive**, with its
   Firebase calls behind a small internal seam so its suite runs in `commonTest` — `UnsplashCallable`

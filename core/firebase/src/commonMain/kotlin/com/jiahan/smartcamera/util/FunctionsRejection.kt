@@ -6,10 +6,14 @@ import dev.gitlive.firebase.functions.details
 /**
  * The machine-readable `reason` a Cloud Function attached to a rejection, or null if it sent none.
  *
- * The GitLive twin of :core:data's `util/FunctionsErrorExt.kt`, for the repositories that have moved
- * here: two copies of one wire contract until `DefaultUserRepository`, the last caller of that one,
- * follows. `internal` for the same reason -- nothing above the data layer may see a
- * `FirebaseFunctionsException` (see AGENTS.md, Error handling).
+ * `functions/index.js` tags every `invalid-argument` it raises with one, because a single code
+ * covers several rules and the client cannot tell them apart from the code alone. Both repositories
+ * that read those rejections fold them into an `AppError` below the repository boundary --
+ * `DefaultNoteRepository` directly, `DefaultUserRepository` through `GitLiveUserCallable` -- and this
+ * is their one copy of that wire contract, which has to change on both sides at once.
+ *
+ * `internal`: nothing above the data layer may see a `FirebaseFunctionsException` (see AGENTS.md,
+ * Error handling).
  */
 internal fun FirebaseFunctionsException.reason(): String? =
     (details as? Map<*, *>)?.get(ARG_REASON) as? String

@@ -129,25 +129,22 @@ dependencies {
      * readiness section of AGENTS.md calls the ceiling on sharing this layer.
      */
     api(platform(libs.firebase.bom))
-    api(libs.firebase.auth)
-    api(libs.firebase.firestore)
-    api(libs.firebase.functions)
-    api(libs.firebase.messaging)
-    // GitLive's Firebase types are providers' return types and parameters. firebase-config and
-    // firebase-analytics themselves are gone from this list: no source here names those Android SDKs
-    // since their repositories moved to :core:firebase.
+    // GitLive's Firebase types are providers' return types and parameters. The Android SDKs they wrap
+    // are gone from this list: no source here names Auth, Firestore, Functions, Messaging, Remote
+    // Config or Analytics since their repositories moved to :core:firebase, which brings them in.
     api(libs.gitlive.firebase.functions)
     api(libs.gitlive.firebase.config)
     api(libs.gitlive.firebase.analytics)
     api(libs.gitlive.firebase.auth)
     api(libs.gitlive.firebase.firestore)
+    api(libs.gitlive.firebase.messaging)
     api(libs.play.app.update)
     api(libs.datastore.preferences)
     api(libs.datastore.preferences.core)
 
-    // implementation, deliberately: no constructor takes these. DefaultUserRepository and
-    // DefaultMediaUploadRepository build their FirebaseStorage from a Remote Config URL, and the
-    // Play Core ktx wrappers are used only inside DefaultAppUpdateRepository's own function bodies.
+    // implementation, deliberately: no constructor takes these. DefaultMediaUploadRepository builds
+    // its FirebaseStorage from a Remote Config URL, and the Play Core ktx wrappers are used only
+    // inside DefaultAppUpdateRepository's own function bodies.
     implementation(libs.firebase.storage)
     implementation(libs.play.app.update.ktx)
     // `Room.databaseBuilder`, in DatabaseModule's body only -- the database it builds, and the

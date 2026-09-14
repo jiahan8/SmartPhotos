@@ -1,74 +1,73 @@
 package com.jiahan.smartcamera.data.repository
 
-import com.google.firebase.Firebase
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.userProfileChangeRequest
-import com.google.firebase.firestore.DocumentReference
-import com.google.firebase.firestore.DocumentSnapshot
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.functions.FirebaseFunctions
-import com.google.firebase.functions.FirebaseFunctionsException
-import com.google.firebase.messaging.FirebaseMessaging
-import com.google.firebase.storage.FirebaseStorage
-import com.google.firebase.storage.storage
 import com.jiahan.smartcamera.domain.AppError
 import com.jiahan.smartcamera.domain.MediaUri
 import com.jiahan.smartcamera.domain.ProfilePictureUpdate
 import com.jiahan.smartcamera.domain.User
 import com.jiahan.smartcamera.util.FileConstants.EXTENSION_JPG
-import com.jiahan.smartcamera.util.reason
 import com.jiahan.smartcamera.util.safeCall
-import com.jiahan.smartcamera.util.toPlatformUri
-import kotlinx.coroutines.tasks.await
+import dev.gitlive.firebase.auth.FirebaseAuth
+import dev.gitlive.firebase.firestore.FirebaseFirestore
+import dev.gitlive.firebase.functions.FirebaseFunctions
+import dev.gitlive.firebase.functions.FunctionsExceptionCode
+import dev.gitlive.firebase.messaging.FirebaseMessaging
 import kotlinx.datetime.LocalDate
-import javax.inject.Inject
 import kotlin.time.Clock
-import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
-class DefaultUserRepository @Inject constructor(
-    private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore,
-    private val functions: FirebaseFunctions,
-    private val messaging: FirebaseMessaging,
+/**
+ * [UserRepository] on GitLive's multiplatform Auth, Firestore, Functions, Messaging and Storage,
+ * behind [AuthClient], [UserStore], [UserCallable], [PushClient] and [ProfilePictureStorage] so its
+ * suite runs in `commonTest`.
+ */
+class DefaultUserRepository internal constructor(
+    private val auth: AuthClient,
+    private val store: UserStore,
+    private val callable: UserCallable,
+    private val push: PushClient,
+    private val storage: ProfilePictureStorage,
     private val remoteConfigRepository: RemoteConfigRepository,
 ) : UserRepository {
 
-    companion object {
-        private const val COLLECTION_USER = "user"
-        private const val FIELD_EMAIL = "email"
-        private const val FIELD_METADATA = "metadata"
-        private const val FIELD_DISPLAY_NAME = "display_name"
-        private const val FIELD_USERNAME = "username"
-        private const val FIELD_PROFILE_PICTURE = "profile_picture"
-        private const val FIELD_CREATED = "created"
-        private const val FIELD_FCM_TOKEN = "fcm_token"
-        private const val FUNCTION_CREATE_USER_PROFILE = "createUserProfile"
-        private const val FUNCTION_UPDATE_USERNAME = "updateUsername"
-        private const val REASON_USERNAME_RESERVED = "USERNAME_RESERVED"
-        private const val FUNCTION_RECORD_USER_ACTIVITY = "recordUserActivity"
-        private const val FIELD_ACTIVE_DAY = "activeDay"
-        private const val ANNOUNCEMENTS_TOPIC = "announcements"
+    constructor(
+        auth: FirebaseAuth,
+        firestore: FirebaseFirestore,
+        functions: FirebaseFunctions,
+        messaging: FirebaseMessaging,
+        remoteConfigRepository: RemoteConfigRepository,
+    ) : this(
+        GitLiveAuthClient(auth),
+        GitLiveUserStore(firestore),
+        GitLiveUserCallable(functions),
+        GitLivePushClient(messaging),
+        GitLiveProfilePictureStorage(remoteConfigRepository),
+        remoteConfigRepository,
+    )
+
+    private companion object {
+        const val FIELD_DISPLAY_NAME = "display_name"
+        const val FIELD_PROFILE_PICTURE = "profile_picture"
+        const val FIELD_FCM_TOKEN = "fcm_token"
+        const val FUNCTION_CREATE_USER_PROFILE = "createUserProfile"
+        const val FUNCTION_UPDATE_USERNAME = "updateUsername"
+        const val REASON_USERNAME_RESERVED = "USERNAME_RESERVED"
+        const val FUNCTION_RECORD_USER_ACTIVITY = "recordUserActivity"
+        const val ANNOUNCEMENTS_TOPIC = "announcements"
     }
 
-    private val storage: FirebaseStorage by lazy {
-        Firebase.storage(remoteConfigRepository.getStorageUrl())
-    }
     private val storageFolder: String by lazy {
         remoteConfigRepository.getStorageFolderName()
     }
 
-    private val userDocumentReference: DocumentReference?
-        get() = auth.uid?.let { id -> firestore.collection(COLLECTION_USER).document(id) }
+    private val currentUserId: String?
+        get() = auth.currentUser?.uid
 
     override suspend fun getUser(): Result<User?> = safeCall {
-        val snapshot = userDocumentReference?.get()?.await()
-        snapshot?.let { getUserProfile(it) }
+        currentUserId?.let { getUserProfile(it) }
     }
 
     override suspend fun getUser(userId: String): Result<User?> = safeCall {
-        val snapshot = firestore.collection(COLLECTION_USER).document(userId).get().await()
-        snapshot?.let { getUserProfile(it) }
+        getUserProfile(userId)
     }
 
     // Delegates to the createUserProfile Cloud Function, which reserves the
@@ -79,7 +78,7 @@ class DefaultUserRepository @Inject constructor(
     ): Result<Unit> = safeCall {
         callReservingUsername(
             FUNCTION_CREATE_USER_PROFILE,
-            hashMapOf(FIELD_METADATA to metadata, FIELD_USERNAME to username)
+            UserCallArgs(metadata = metadata, username = username)
         )
     }
 
@@ -100,18 +99,15 @@ class DefaultUserRepository @Inject constructor(
     }
 
     override suspend fun uploadProfilePicture(uri: MediaUri): Result<String?> = safeCall {
-        val userId = auth.uid ?: throw AppError.NotAuthenticated()
+        val userId = currentUserId ?: throw AppError.NotAuthenticated()
         val mediaId = Uuid.random().toString()
-        val storageRef =
-            storage.reference.child("$storageFolder/$userId/$mediaId$EXTENSION_JPG")
-        storageRef.putFile(uri.toPlatformUri()).await()
-        storageRef.downloadUrl.await().toString()
+        storage.upload("$storageFolder/$userId/$mediaId$EXTENSION_JPG", uri)
     }
 
     // Delegates to the updateUsername Cloud Function, which atomically
     // reserves the new username and releases the previous one.
     private suspend fun updateUsername(username: String) {
-        callReservingUsername(FUNCTION_UPDATE_USERNAME, hashMapOf(FIELD_USERNAME to username))
+        callReservingUsername(FUNCTION_UPDATE_USERNAME, UserCallArgs(username = username))
     }
 
     /**
@@ -146,15 +142,15 @@ class DefaultUserRepository @Inject constructor(
      * user as the server's English text, which is the price of not minting an AppError case per
      * client bug -- the note validation path makes the same trade.
      */
-    private suspend fun callReservingUsername(name: String, data: HashMap<String, String>) {
+    private suspend fun callReservingUsername(name: String, args: UserCallArgs) {
         try {
-            functions.getHttpsCallable(name).call(data).await()
-        } catch (e: FirebaseFunctionsException) {
-            val reason = e.reason()
+            callable.call(name, args)
+        } catch (e: Exception) {
+            val rejection = callable.rejectionOf(e) ?: throw e
             throw when {
-                e.code == FirebaseFunctionsException.Code.ALREADY_EXISTS -> AppError.UsernameTaken()
-                e.code == FirebaseFunctionsException.Code.INVALID_ARGUMENT &&
-                        (reason == REASON_USERNAME_RESERVED || reason == null) ->
+                rejection.code == FunctionsExceptionCode.ALREADY_EXISTS -> AppError.UsernameTaken()
+                rejection.code == FunctionsExceptionCode.INVALID_ARGUMENT &&
+                        (rejection.reason == REASON_USERNAME_RESERVED || rejection.reason == null) ->
                     AppError.UsernameReserved()
 
                 else -> e
@@ -163,47 +159,51 @@ class DefaultUserRepository @Inject constructor(
     }
 
     override suspend fun updateFcmToken(token: String): Result<Unit> = safeCall {
-        userDocumentReference?.update(FIELD_FCM_TOKEN, token)?.await()
+        currentUserId?.let { store.updateUser(it, mapOf(FIELD_FCM_TOKEN to token)) }
     }
 
     // FirebaseMessaging.getToken() is deprecated in favor of register(), but register()
     // doesn't return a token at all -- it switches to an opt-in Firebase Installation ID
     // model that admin.messaging().send() (used server-side in sendPushToUser) cannot
     // target. Registration tokens remain the only mechanism our Cloud Function can send to.
-    @Suppress("DEPRECATION")
+    // GitLive's getToken() is the Android SDK's deprecated call underneath.
     override suspend fun registerForPushNotifications(): Result<Unit> = safeCall {
-        val token = messaging.token.await()
-        userDocumentReference?.update(FIELD_FCM_TOKEN, token)?.await()
-        messaging.subscribeToTopic(ANNOUNCEMENTS_TOPIC).await()
+        val token = push.getToken()
+        currentUserId?.let { store.updateUser(it, mapOf(FIELD_FCM_TOKEN to token)) }
+        push.subscribeToTopic(ANNOUNCEMENTS_TOPIC)
     }
 
     override suspend fun unregisterFromPushNotifications(): Result<Unit> = safeCall {
-        messaging.unsubscribeFromTopic(ANNOUNCEMENTS_TOPIC).await()
-        userDocumentReference?.update(FIELD_FCM_TOKEN, null)?.await()
+        push.unsubscribeFromTopic(ANNOUNCEMENTS_TOPIC)
+        currentUserId?.let { store.updateUser(it, mapOf(FIELD_FCM_TOKEN to null)) }
     }
 
     // Delegates to the recordUserActivity Cloud Function, which computes streak
     // continuation atomically in a Firestore transaction.
     override suspend fun recordUserActivity(activeDay: LocalDate): Result<Unit> = safeCall {
-        functions.getHttpsCallable(FUNCTION_RECORD_USER_ACTIVITY)
-            .call(hashMapOf(FIELD_ACTIVE_DAY to activeDay.toString()))
-            .await()
+        callable.call(FUNCTION_RECORD_USER_ACTIVITY, UserCallArgs(activeDay = activeDay.toString()))
     }
 
+    /**
+     * GitLive's `updateProfile` writes both fields, where the Android SDK's change request set only
+     * the ones given -- so a field being kept is passed its current value.
+     *
+     * A new picture sets the Auth photo to its device-local location, not to the uploaded URL the
+     * profile document gets. That is what the Android SDK repository did, and the port keeps it.
+     */
     private suspend fun updateFirebaseUserProfile(
         displayName: String?,
         profilePicture: ProfilePictureUpdate
     ) {
-        auth.currentUser?.updateProfile(
-            userProfileChangeRequest {
-                displayName?.let { this.displayName = it }
-                when (profilePicture) {
-                    is ProfilePictureUpdate.Set -> photoUri = profilePicture.uri.toPlatformUri()
-                    ProfilePictureUpdate.Delete -> photoUri = null
-                    ProfilePictureUpdate.Keep -> Unit
-                }
-            }
-        )?.await()
+        val user = auth.currentUser ?: return
+        user.updateProfile(
+            displayName = displayName ?: user.displayName,
+            photoUrl = when (profilePicture) {
+                is ProfilePictureUpdate.Set -> profilePicture.uri.value
+                ProfilePictureUpdate.Delete -> null
+                ProfilePictureUpdate.Keep -> user.photoUrl
+            },
+        )
     }
 
     private suspend fun updateDatabaseUserProfile(
@@ -219,19 +219,20 @@ class DefaultUserRepository @Inject constructor(
             }
         }
         if (updates.isNotEmpty()) {
-            userDocumentReference?.update(updates)?.await()
+            currentUserId?.let { store.updateUser(it, updates) }
         }
     }
 
-    private fun getUserProfile(snapshot: DocumentSnapshot): User = User(
-        userId = snapshot.id,
-        email = snapshot.getString(FIELD_EMAIL) ?: "",
-        metadata = snapshot.getString(FIELD_METADATA) ?: "",
-        displayName = snapshot.getString(FIELD_DISPLAY_NAME) ?: "",
-        username = snapshot.getString(FIELD_USERNAME) ?: "",
-        profilePictureUrl = snapshot.getString(FIELD_PROFILE_PICTURE),
-        createdDate = snapshot.getDate(FIELD_CREATED)
-            ?.let { Instant.fromEpochMilliseconds(it.time) }
-            ?: Clock.System.now(),
-    )
+    private suspend fun getUserProfile(userId: String): User {
+        val fields = store.getUser(userId)
+        return User(
+            userId = userId,
+            email = fields.email ?: "",
+            metadata = fields.metadata ?: "",
+            displayName = fields.displayName ?: "",
+            username = fields.username ?: "",
+            profilePictureUrl = fields.profilePicture,
+            createdDate = fields.created?.toInstant() ?: Clock.System.now(),
+        )
+    }
 }

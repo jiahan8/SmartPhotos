@@ -39,6 +39,7 @@ import dev.gitlive.firebase.analytics.FirebaseAnalytics
 import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.functions.FirebaseFunctions
+import dev.gitlive.firebase.messaging.FirebaseMessaging
 import dev.gitlive.firebase.remoteconfig.FirebaseRemoteConfig
 import kotlinx.coroutines.CoroutineScope
 import javax.inject.Singleton
@@ -52,12 +53,6 @@ abstract class DataModule {
     abstract fun bindLocalUserDataCleaner(
         defaultLocalUserDataCleaner: DefaultLocalUserDataCleaner
     ): LocalUserDataCleaner
-
-    @Binds
-    @Singleton
-    abstract fun bindUserRepository(
-        defaultUserRepository: DefaultUserRepository
-    ): UserRepository
 
     @Binds
     @Singleton
@@ -147,6 +142,24 @@ abstract class DataModule {
             userRepository = userRepository,
             localUserDataCleaner = localUserDataCleaner,
             errorHandler = errorHandler,
+        )
+
+        // Also in :core:firebase, on GitLive's Auth, Firestore, Functions and Messaging; it builds its
+        // Storage instance itself, from the bucket Remote Config names.
+        @Provides
+        @Singleton
+        fun provideUserRepository(
+            auth: FirebaseAuth,
+            firestore: FirebaseFirestore,
+            functions: FirebaseFunctions,
+            messaging: FirebaseMessaging,
+            remoteConfigRepository: RemoteConfigRepository,
+        ): UserRepository = DefaultUserRepository(
+            auth = auth,
+            firestore = firestore,
+            functions = functions,
+            messaging = messaging,
+            remoteConfigRepository = remoteConfigRepository,
         )
 
         // Also in :core:firebase, on GitLive's Firestore and Functions. It writes every fetch into

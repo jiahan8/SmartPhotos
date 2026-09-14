@@ -262,9 +262,10 @@ dependencies {
      *
      * analytics, config, firestore, auth and functions used to be here too, for one reason --
      * FirebaseModule's providers. That module now lives in :core:data beside the repositories that
-     * are the only consumers of every binding in it, so those five lines went with it. They still
-     * reach this compile classpath through :core:data's `api` block, which is what Hilt needs; the
-     * point of not declaring them is that this file stops claiming :app compiles against Firestore.
+     * are the only consumers of every binding in it, so those five lines went with it. What Hilt
+     * needs now is GitLive's wrappers over them, which reach this compile classpath through
+     * :core:data's `api` block; the point of not declaring either is that this file stops claiming
+     * :app compiles against Firestore.
      *
      * firebase-storage is deliberately absent for the older version of the same reason: nothing in
      * :app has referenced it since DefaultNoteRepository/DefaultUserRepository moved to :core:data.
@@ -273,8 +274,9 @@ dependencies {
     // DefaultErrorHandler, which reports to Crashlytics in release builds.
     implementation(libs.firebase.crashlytics)
     // SmartPhotosMessagingService extends FirebaseMessagingService and reads RemoteMessage.
-    // :core:data declares this artifact too, for the FirebaseMessaging instance DefaultUserRepository
-    // injects -- two modules naming one artifact for two unrelated types is not duplication.
+    // :core:firebase's Android target declares this artifact too, for the topic calls
+    // DefaultUserRepository awaits -- two modules naming one artifact for two unrelated types is not
+    // duplication.
     implementation(libs.firebase.messaging)
     // MyApp installs one of these two App Check provider factories on startup.
     implementation(libs.firebase.appcheck.playintegrity)

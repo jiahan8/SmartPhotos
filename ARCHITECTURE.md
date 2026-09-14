@@ -282,8 +282,8 @@ the component is assembled in `:app` — which is why `:core:data` can inject `@
 | --- | --- | --- |
 | `di/AppModule.kt` | `:app` | `CoroutineDispatcher`s via `@IoDispatcher`/`@ApplicationScope`, the `@DebugBuild` flag, app-wide bindings |
 | `util/di/UtilModule.kt` | `:app` | `ErrorHandler` (logging only; screens resolve their own text) |
-| `data/di/DataModule.kt` | `:core:data` | Binds each repository interface to its `Default*`, and constructs the shared ones (`DefaultUserPreferencesRepository`, `DefaultPhotoRepository`, `FirebaseRemoteConfigRepository`, `FirebaseAnalyticsRepository`, `DefaultAuthRepository`, `DefaultNoteRepository`), which have no injected constructor to bind |
-| `data/di/FirebaseModule.kt` | `:core:data` | The Firebase SDK singletons, plus GitLive's `FirebaseFunctions`, `FirebaseRemoteConfig`, `FirebaseAnalytics`, `FirebaseAuth` and `FirebaseFirestore` for `:core:firebase` |
+| `data/di/DataModule.kt` | `:core:data` | Binds each repository interface to its `Default*`, and constructs the shared ones (`DefaultUserPreferencesRepository`, `DefaultPhotoRepository`, `FirebaseRemoteConfigRepository`, `FirebaseAnalyticsRepository`, `DefaultAuthRepository`, `DefaultNoteRepository`, `DefaultUserRepository`), which have no injected constructor to bind |
+| `data/di/FirebaseModule.kt` | `:core:data` | The Firebase singletons, all GitLive's -- `FirebaseAuth`, `FirebaseFirestore`, `FirebaseFunctions`, `FirebaseMessaging`, `FirebaseRemoteConfig`, `FirebaseAnalytics` -- for `:core:firebase` |
 | `data/datastore/DataStoreModule.kt` | `:core:data` | DataStore, and the one deliberate place a `CoroutineScope` is built at module level rather than injected |
 | `database/di/DatabaseModule.kt` | `:core:data` | `AppDatabase` (declared in `:core:database`) and its DAOs |
 | `note/di/NoteDelegateModule.kt` | `:core:common` | `NoteErrorReporter` and `NoteShareDelegate`, `@ViewModelScoped` — the one module installed in `ViewModelComponent` |
@@ -625,6 +625,25 @@ updateNote wire shapes through GitLive's `encode`, the favorites-only sync, and 
 constructor a test can call, and the `reason()` it reads has a GitLive twin in `:core:firebase`
 until `DefaultUserRepository`, the other caller, follows.
 
+**`DefaultUserRepository` followed, and took the last Android-SDK type out of `FirebaseModule`.** It
+uses five of GitLive's SDKs: Auth through the existing `AuthClient`, which gained a profile update,
+and Firestore, Functions, Messaging and Storage behind `UserStore`, `UserCallable`, `PushClient` and
+`ProfilePictureStorage`. Two pieces needed per-platform code. One is a gap, and got the
+`configUpdates` treatment: GitLive's `subscribeToTopic` and `unsubscribeFromTopic` start the call and
+return, where the old repository awaited both, so a failed subscription would have read as a
+successful registration; the topic calls are `expect`/`actual` now, and the Android actuals await
+the SDK's own task through GitLive's `android` accessor. The other is only a type: Storage's
+`putFile` takes a platform `File`, so a `MediaUri` becomes one per target.
+GitLive's `updateProfile` writes both fields where the Android request set only the ones given, so a
+field being kept is passed its current value. The suite's whole subject was the username rejection
+fold, which read a `FirebaseFunctionsException` no common test can build, so `UserCallable` reads
+the code and reason itself and a fake supplies them. The 6 tests ported, and 10 more pin the upload
+path, `getUser`, the profile update, the push token and topics, and each callable's wire shape. With
+no repository left on them, `:core:data` drops its `api` edges on the Android Auth, Firestore,
+Functions and Messaging SDKs, the Android `reason()` goes, and so does `HttpsCallableTestSupport`,
+which nothing called any more. One thing the port kept rather than fixed: a new profile picture's
+Auth photo is still set to the device-local URI, not to the uploaded URL the profile document gets.
+
 ### What is left
 
 **The ceiling to know about before planning further: Hilt has no KMP support, and it is load-bearing
@@ -645,7 +664,7 @@ constructs a shared class as readily as a subclass does, so Hilt only has to be 
 second platform needs a container; Firebase is what actually gates the `Default*`s that remain.
 
 **Local persistence is shared now** — DataStore and Room both, above — so what is left of the data
-layer is the Firebase repositories still on the Android SDK — User and MediaUpload — plus `DefaultMediaFileRepository`, which is Android file and bitmap
+layer is the one Firebase repository still on the Android SDK — MediaUpload — plus `DefaultMediaFileRepository`, which is Android file and bitmap
 work, and `DefaultAppUpdateRepository`, which is Play Core; those two stay Android by nature. The wiring that
 opens each store (`DatabaseModule`, `DataStoreModule`) stays at the Android edge by nature, since
 both begin from a `Context`.

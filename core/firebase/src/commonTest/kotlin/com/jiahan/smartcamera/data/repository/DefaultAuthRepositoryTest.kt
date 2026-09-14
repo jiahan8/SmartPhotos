@@ -36,6 +36,8 @@ class DefaultAuthRepositoryTest {
         override val email: String? = "user@example.com",
     ) : AuthUser {
         override var isEmailVerified: Boolean = false
+        override val displayName: String? = null
+        override val photoUrl: String? = null
 
         /** What [reload] sets the verified flag to, as a reload fetches the server's value. */
         var verifiedAfterReload: Boolean? = null
@@ -43,6 +45,10 @@ class DefaultAuthRepositoryTest {
 
         override suspend fun updateDisplayName(displayName: String) {
             calls += "updateDisplayName:$displayName"
+        }
+
+        override suspend fun updateProfile(displayName: String?, photoUrl: String?) {
+            calls += "updateProfile:$displayName:$photoUrl"
         }
 
         override suspend fun sendEmailVerification() {

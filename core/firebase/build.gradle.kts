@@ -51,12 +51,16 @@ kotlin {
             // :core:data's DatabaseModule.
             api(project(":core:database"))
             // api: the public constructors take GitLive's FirebaseFunctions, FirebaseRemoteConfig,
-            // FirebaseAnalytics, FirebaseAuth and FirebaseFirestore.
+            // FirebaseAnalytics, FirebaseAuth, FirebaseFirestore and FirebaseMessaging.
             api(libs.gitlive.firebase.functions)
             api(libs.gitlive.firebase.config)
             api(libs.gitlive.firebase.analytics)
             api(libs.gitlive.firebase.auth)
             api(libs.gitlive.firebase.firestore)
+            api(libs.gitlive.firebase.messaging)
+            // implementation: DefaultUserRepository builds its Storage instance itself, from the
+            // bucket Remote Config names, so no public signature carries the type.
+            implementation(libs.gitlive.firebase.storage)
         }
 
         androidMain.dependencies {
@@ -65,6 +69,11 @@ kotlin {
             // `android` accessor, so it names the SDK's listener types itself.
             implementation(project.dependencies.platform(libs.firebase.bom))
             implementation(libs.firebase.config)
+            // Topic subscriptions that finish before they return, which GitLive 2.7.0's common calls
+            // do not: the Android actuals await the SDK's own Task through GitLive's `android`
+            // accessor.
+            implementation(libs.firebase.messaging)
+            implementation(libs.kotlinx.coroutines.play.services)
         }
 
         commonTest.dependencies {
@@ -72,7 +81,7 @@ kotlin {
             implementation(libs.kotlinx.coroutines.test)
             // The multiplatform fakes for :core:domain's contracts -- UserRepository and
             // LocalUserDataCleaner for DefaultAuthRepositoryTest, AuthRepository and ErrorHandler for
-            // DefaultNoteRepositoryTest.
+            // DefaultNoteRepositoryTest, RemoteConfigRepository for DefaultUserRepositoryTest.
             implementation(project(":core:domain-testing"))
             // `decode`, the function HttpsCallableResult.data and DocumentSnapshot.data run on the raw
             // value, and `encode`, which a callable's arguments go through, so the suites exercise

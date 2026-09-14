@@ -5,8 +5,9 @@ import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.auth.FirebaseUser
 
 /**
- * The Firebase Auth operations [DefaultAuthRepository] uses: the seam between it and Firebase, since
- * GitLive's `FirebaseAuth` and `FirebaseUser` are final platform classes no `commonTest` can fake.
+ * The Firebase Auth operations [DefaultAuthRepository] and [DefaultUserRepository] use: the seam
+ * between them and Firebase, since GitLive's `FirebaseAuth` and `FirebaseUser` are final platform
+ * classes no `commonTest` can fake.
  */
 internal interface AuthClient {
     /** The signed-in user, read fresh on every access -- as `FirebaseAuth.currentUser` is. */
@@ -25,8 +26,13 @@ internal interface AuthUser {
     val uid: String
     val email: String?
     val isEmailVerified: Boolean
+    val displayName: String?
+    val photoUrl: String?
 
     suspend fun updateDisplayName(displayName: String)
+
+    /** Writes both profile fields, a null clearing its field: pass the current value to keep one. */
+    suspend fun updateProfile(displayName: String?, photoUrl: String?)
 
     suspend fun sendEmailVerification()
 
@@ -73,10 +79,20 @@ private class GitLiveAuthUser(private val user: FirebaseUser) : AuthUser {
     override val isEmailVerified: Boolean
         get() = user.isEmailVerified
 
+    override val displayName: String?
+        get() = user.displayName
+
+    override val photoUrl: String?
+        get() = user.photoURL
+
     // Display name only: the photo URL defaults to the current one, as the Android SDK's
     // displayName-only profile change request left it.
     override suspend fun updateDisplayName(displayName: String) {
         user.updateProfile(displayName = displayName)
+    }
+
+    override suspend fun updateProfile(displayName: String?, photoUrl: String?) {
+        user.updateProfile(displayName = displayName, photoUrl = photoUrl)
     }
 
     override suspend fun sendEmailVerification() {

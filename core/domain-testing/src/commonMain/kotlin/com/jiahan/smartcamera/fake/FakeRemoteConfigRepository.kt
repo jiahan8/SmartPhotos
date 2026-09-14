@@ -15,11 +15,14 @@ class FakeRemoteConfigRepository(
 
     private val exploreIconVisibleFlow = MutableStateFlow(exploreIconVisible)
 
+    /** What [getStorageFolderName] returns, for a test asserting the path an upload lands at. */
+    var storageFolder: String = ""
+
     override suspend fun fetchAndActivateConfig(): Result<Unit> = Result.success(Unit)
 
     override fun getStorageUrl(): String = ""
 
-    override fun getStorageFolderName(): String = ""
+    override fun getStorageFolderName(): String = storageFolder
 
     override fun getStorageCacheFolderName(): String = ""
 

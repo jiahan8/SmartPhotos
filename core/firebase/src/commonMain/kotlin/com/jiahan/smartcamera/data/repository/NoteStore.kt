@@ -92,7 +92,7 @@ internal class GitLiveNoteStore(private val firestore: FirebaseFirestore) : Note
     }
 
     override suspend fun setFavorite(userId: String, noteId: String, isFavorite: Boolean) {
-        noteCollection(userId).document(noteId).update(FIELD_FAVORITE to isFavorite)
+        noteCollection(userId).document(noteId).updateFields { FIELD_FAVORITE to isFavorite }
     }
 
     private fun DocumentSnapshot.toNoteDocument() = NoteDocument(
