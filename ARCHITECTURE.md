@@ -642,8 +642,10 @@ the code and reason itself and a fake supplies them. The 6 tests ported, and 10 
 path, `getUser`, the profile update, the push token and topics, and each callable's wire shape. With
 no repository left on them, `:core:data` drops its `api` edges on the Android Auth, Firestore,
 Functions and Messaging SDKs, the Android `reason()` goes, and so does `HttpsCallableTestSupport`,
-which nothing called any more. One thing the port kept rather than fixed: a new profile picture's
-Auth photo is still set to the device-local URI, not to the uploaded URL the profile document gets.
+which nothing called any more. The port kept one bug rather than fix it in the same change -- a new
+profile picture's Auth photo was set to the device-local URI, not the uploaded URL the profile
+document gets -- and it was fixed right after, `ProfilePictureUpdate.Set` losing the local location
+it had carried only for that.
 
 **`DefaultMediaUploadRepository` went last, and needed a split before it could move.** Its Storage
 calls were GitLive's to take, but the other half of it is Android by nature: telling a video from a

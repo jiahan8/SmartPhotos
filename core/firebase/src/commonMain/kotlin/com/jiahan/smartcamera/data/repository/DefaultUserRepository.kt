@@ -190,8 +190,8 @@ class DefaultUserRepository internal constructor(
      * GitLive's `updateProfile` writes both fields, where the Android SDK's change request set only
      * the ones given -- so a field being kept is passed its current value.
      *
-     * A new picture sets the Auth photo to its device-local location, not to the uploaded URL the
-     * profile document gets. That is what the Android SDK repository did, and the port keeps it.
+     * A new picture gives Auth the uploaded URL, the same one the profile document gets. It used to
+     * get the picture's device-local location instead, which no other device could load.
      */
     private suspend fun updateFirebaseUserProfile(
         displayName: String?,
@@ -201,7 +201,7 @@ class DefaultUserRepository internal constructor(
         user.updateProfile(
             displayName = displayName ?: user.displayName,
             photoUrl = when (profilePicture) {
-                is ProfilePictureUpdate.Set -> profilePicture.uri.value
+                is ProfilePictureUpdate.Set -> profilePicture.url
                 ProfilePictureUpdate.Delete -> null
                 ProfilePictureUpdate.Keep -> user.photoUrl
             },

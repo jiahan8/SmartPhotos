@@ -77,7 +77,7 @@ Run from the repo root (Gradle wrapper):
 | Task | Command |
 | --- | --- |
 | Debug APK | `./gradlew assembleDebug` |
-| Unit tests (699 across 25 modules) | `./gradlew testDebugUnitTest jvmTest` |
+| Unit tests (700 across 25 modules) | `./gradlew testDebugUnitTest jvmTest` |
 | Multiplatform tests on an iOS simulator (Mac only; `:core:firebase` compiles but skips) | `./gradlew iosSimulatorArm64Test` |
 | Prove every `commonMain` is still common | `./gradlew compileCommonMainKotlinMetadata` |
 | Hilt graph + androidTest sources | `./gradlew compileDebugAndroidTestKotlin` |

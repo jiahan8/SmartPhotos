@@ -11,6 +11,6 @@ sealed interface ProfilePictureUpdate {
     /** Remove the current profile picture. */
     data object Delete : ProfilePictureUpdate
 
-    /** Set a new profile picture, already uploaded at [url] and locally available at [uri]. */
-    data class Set(val uri: MediaUri, val url: String) : ProfilePictureUpdate
+    /** Set a new profile picture, already uploaded at [url]. */
+    data class Set(val url: String) : ProfilePictureUpdate
 }

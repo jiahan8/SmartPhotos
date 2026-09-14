@@ -263,10 +263,7 @@ open class ProfileViewModel(
                     userRepository.updateUserProfile(
                         displayName = null,
                         username = null,
-                        profilePicture = ProfilePictureUpdate.Set(
-                            uri = profilePictureUri,
-                            url = profilePictureUrl
-                        )
+                        profilePicture = ProfilePictureUpdate.Set(url = profilePictureUrl)
                     ).onSuccess {
                         loadUserProfile()
                         _profileEvent.tryEmit(ProfileEvent.PictureChanged)

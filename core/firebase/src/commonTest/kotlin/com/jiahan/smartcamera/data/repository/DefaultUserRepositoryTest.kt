@@ -336,6 +336,26 @@ class DefaultUserRepositoryTest {
             )
         }
 
+    @Test
+    fun `updateUserProfile Set gives Auth the uploaded URL`() = runTest {
+        repository.updateUserProfile(
+            displayName = null,
+            username = null,
+            profilePicture = ProfilePictureUpdate.Set(url = "https://storage.example/pic.jpg"),
+        ).getOrThrow()
+
+        // The URL the profile document gets too -- not the device-local location the picture was
+        // picked from, which Auth used to be handed and which no other device could load.
+        assertEquals(
+            listOf<Pair<String?, String?>>("Alice" to "https://storage.example/pic.jpg"),
+            authUser.profileUpdates,
+        )
+        assertEquals<List<Pair<String, Map<String, Any?>>>>(
+            listOf(USER_ID to mapOf("profile_picture" to "https://storage.example/pic.jpg")),
+            store.updates,
+        )
+    }
+
     // -------------------------------------------------------------------------
     // Push notifications
     // -------------------------------------------------------------------------

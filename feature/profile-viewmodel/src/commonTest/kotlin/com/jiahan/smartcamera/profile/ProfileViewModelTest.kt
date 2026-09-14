@@ -34,8 +34,8 @@ import kotlin.time.Clock
  * with [Dispatchers.setMain] called directly -- `ExploreViewModelTest` records why each of those.
  *
  * The strict mocks it used to build on said two things these fakes have to say out loud. A stub
- * written for exact arguments -- `uploadProfilePicture(mediaUri)`, `updateUserProfile(...Set(uri,
- * url))` -- failed the test if the ViewModel passed anything else, so those cases now assert
+ * written for exact arguments -- `uploadProfilePicture(mediaUri)`, `updateUserProfile(...Set(url))`
+ * -- failed the test if the ViewModel passed anything else, so those cases now assert
  * [FakeUserRepository]'s `lastUploadedProfilePictureUri` and `lastUpdatedProfilePicture`. And a call
  * left unstubbed failed it if made at all, so where a case depends on `updateUserProfile` never
  * running, its call count is asserted.
@@ -330,7 +330,7 @@ class ProfileViewModelTest {
         }
         assertEquals(uri, userRepository.lastUploadedProfilePictureUri)
         assertEquals(
-            ProfilePictureUpdate.Set(uri = uri, url = "https://example.com/pic.jpg"),
+            ProfilePictureUpdate.Set(url = "https://example.com/pic.jpg"),
             userRepository.lastUpdatedProfilePicture
         )
         assertEquals(2, userRepository.getUserCallCount) // init load + reload after success
