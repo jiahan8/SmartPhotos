@@ -10,6 +10,7 @@ import com.jiahan.smartcamera.domain.MediaDetail
 import com.jiahan.smartcamera.domain.Note
 import com.jiahan.smartcamera.fake.FakeAuthRepository
 import com.jiahan.smartcamera.fake.FakeErrorHandler
+import dev.gitlive.firebase.functions.FunctionsExceptionCode
 import dev.gitlive.firebase.internal.decode
 import dev.gitlive.firebase.internal.encode
 import kotlinx.coroutines.flow.Flow
@@ -25,6 +26,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -112,6 +114,9 @@ class DefaultNoteRepositoryTest {
         )
     }
 
+    /** A callable rejection carrying the `details.reason` a Cloud Function attached. */
+    private class FakeRejection(val reason: String?) : Exception("rejected")
+
     private class FakeNoteCallable : NoteCallable {
         val names = mutableListOf<String>()
         val createArgs = mutableListOf<CreateNoteArgs>()
@@ -120,16 +125,28 @@ class DefaultNoteRepositoryTest {
         /** createNote's raw reply. */
         var createPayload: Any? = null
 
+        /** What both callables throw, when set. */
+        var failure: Throwable? = null
+
         override suspend fun createNote(name: String, args: CreateNoteArgs): CreateNoteResult? {
             names += name
             createArgs += args
+            failure?.let { throw it }
             return decode(CreateNoteResult.serializer().nullable, createPayload)
         }
 
         override suspend fun updateNote(name: String, args: UpdateNoteArgs) {
             names += name
             updateArgs += args
+            failure?.let { throw it }
         }
+
+        // Both functions raise every validation failure under invalid-argument, so a rejection here
+        // always carries that code; the reason is what tells them apart.
+        override fun rejectionOf(error: Throwable): CallableRejection? =
+            (error as? FakeRejection)?.let {
+                CallableRejection(FunctionsExceptionCode.INVALID_ARGUMENT, it.reason)
+            }
     }
 
     /** The mirror as a plain list, recording what the repository writes and asks for. */
@@ -427,6 +444,77 @@ class DefaultNoteRepositoryTest {
 
         assertTrue(result.isSuccess)
         assertEquals(NOTE_ID, noteDao.upserts.single().single().noteId)
+    }
+
+    // -------------------------------------------------------------------------
+    // Validation rejections
+    //
+    // createNote and updateNote raise every validation failure under one invalid-argument code and
+    // tell them apart by `details.reason`, so the fold reads the reason. These pin each reason to its
+    // AppError, and that anything else surfaces untouched.
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `addNote TEXT_TOO_LONG fails as NoteTextTooLong`() = runTest {
+        callable.failure = FakeRejection("TEXT_TOO_LONG")
+
+        val result = repository.addNote(makeNote(isFavorite = false).copy(noteId = ""))
+
+        assertIs<AppError.NoteTextTooLong>(result.exceptionOrNull())
+    }
+
+    @Test
+    fun `addNote TOO_MANY_MEDIA_ITEMS fails as NoteMediaLimitExceeded`() = runTest {
+        callable.failure = FakeRejection("TOO_MANY_MEDIA_ITEMS")
+
+        val result = repository.addNote(makeNote(isFavorite = false).copy(noteId = ""))
+
+        assertIs<AppError.NoteMediaLimitExceeded>(result.exceptionOrNull())
+    }
+
+    @Test
+    fun `addNote EMPTY_NOTE fails as NoteEmpty`() = runTest {
+        callable.failure = FakeRejection("EMPTY_NOTE")
+
+        val result = repository.addNote(makeNote(isFavorite = false).copy(noteId = ""))
+
+        assertIs<AppError.NoteEmpty>(result.exceptionOrNull())
+    }
+
+    @Test
+    fun `updateNote TEXT_TOO_LONG fails as NoteTextTooLong and leaves the mirror alone`() =
+        runTest {
+            callable.failure = FakeRejection("TEXT_TOO_LONG")
+
+            val result = repository.updateNote(makeNote(isFavorite = false).copy(text = "too long"))
+
+            assertIs<AppError.NoteTextTooLong>(result.exceptionOrNull())
+            // The edit was refused, so the mirror keeps the text the server still has.
+            assertTrue(noteDao.upserts.isEmpty())
+        }
+
+    /**
+     * A reason no legitimate client can produce surfaces as the generic failure rather than as a
+     * specific message that happens to be wrong.
+     */
+    @Test
+    fun `addNote with an unrecognised reason surfaces the rejection unchanged`() = runTest {
+        val rejection = FakeRejection("SOMETHING_ELSE")
+        callable.failure = rejection
+
+        val result = repository.addNote(makeNote(isFavorite = false).copy(noteId = ""))
+
+        assertSame(rejection, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `addNote with a failure that is not a rejection surfaces it unchanged`() = runTest {
+        val failure = IllegalStateException("network is down")
+        callable.failure = failure
+
+        val result = repository.addNote(makeNote(isFavorite = false).copy(noteId = ""))
+
+        assertSame(failure, result.exceptionOrNull())
     }
 
     // -------------------------------------------------------------------------

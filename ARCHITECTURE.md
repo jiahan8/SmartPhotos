@@ -622,9 +622,10 @@ integral JavaScript number as an integer, the old `as? Double` cast rejected it,
 exactly 1 is kept now where its detection used to vanish. The 20 tests ported onto fakes, the DAO
 included, and 9 more pin what the mocks never reached -- the page cursor, the createNote and
 updateNote wire shapes through GitLive's `encode`, the favorites-only sync, and the media reader.
-`foldNoteValidationError` is still untested, since GitLive's `FirebaseFunctionsException` has no
-constructor a test can call, and the `reason()` it reads has a GitLive twin in `:core:firebase`
-until `DefaultUserRepository`, the other caller, follows.
+`foldNoteValidationError` was left untested at first, since GitLive's `FirebaseFunctionsException`
+has no constructor a test can call; once `UserCallable` had shown the way round that, `NoteCallable`
+gained the same `rejectionOf` and the fold got six tests of its own. The `reason()` it reads had a
+GitLive twin in `:core:firebase` until `DefaultUserRepository`, the other caller, followed.
 
 **`DefaultUserRepository` followed, and took the last Android-SDK type out of `FirebaseModule`.** It
 uses five of GitLive's SDKs: Auth through the existing `AuthClient`, which gained a profile update,

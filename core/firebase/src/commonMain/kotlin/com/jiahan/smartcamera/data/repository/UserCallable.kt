@@ -1,10 +1,6 @@
 package com.jiahan.smartcamera.data.repository
 
-import com.jiahan.smartcamera.util.reason
 import dev.gitlive.firebase.functions.FirebaseFunctions
-import dev.gitlive.firebase.functions.FirebaseFunctionsException
-import dev.gitlive.firebase.functions.FunctionsExceptionCode
-import dev.gitlive.firebase.functions.code
 import kotlinx.serialization.Serializable
 
 /**
@@ -22,11 +18,6 @@ internal interface UserCallable {
     fun rejectionOf(error: Throwable): CallableRejection?
 }
 
-internal class CallableRejection(
-    val code: FunctionsExceptionCode,
-    val reason: String?,
-)
-
 internal class GitLiveUserCallable(
     private val functions: FirebaseFunctions,
 ) : UserCallable {
@@ -37,8 +28,7 @@ internal class GitLiveUserCallable(
             .invoke(UserCallArgs.serializer(), args) { encodeDefaults = false }
     }
 
-    override fun rejectionOf(error: Throwable): CallableRejection? =
-        (error as? FirebaseFunctionsException)?.let { CallableRejection(it.code, it.reason()) }
+    override fun rejectionOf(error: Throwable): CallableRejection? = error.toCallableRejection()
 }
 
 @Serializable

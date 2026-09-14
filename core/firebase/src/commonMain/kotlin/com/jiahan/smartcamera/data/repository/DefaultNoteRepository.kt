@@ -9,11 +9,9 @@ import com.jiahan.smartcamera.domain.Note
 import com.jiahan.smartcamera.domain.NoteCursor
 import com.jiahan.smartcamera.domain.NotePage
 import com.jiahan.smartcamera.util.ErrorHandler
-import com.jiahan.smartcamera.util.reason
 import com.jiahan.smartcamera.util.safeCall
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.functions.FirebaseFunctions
-import dev.gitlive.firebase.functions.FirebaseFunctionsException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -186,14 +184,15 @@ class DefaultNoteRepository internal constructor(
      * apart in a structured `details.reason` payload, so this reads the payload rather than the
      * code -- the one way it differs from how [AppError.UsernameTaken] is folded. Doing it here
      * rather than in a ViewModel-layer mapper is what keeps `FirebaseFunctionsException` below the
-     * repository boundary, and off a feature module's classpath.
+     * repository boundary, and off a feature module's classpath. The rejection is read through
+     * [NoteCallable.rejectionOf], which is what lets the suite hand it one.
      *
      * An unrecognised reason is left alone: it means a malformed request no legitimate client can
      * produce, and it should surface as the generic failure rather than as a specific message that
      * happens to be wrong.
      */
     private fun <T> Result<T>.foldNoteValidationError(): Result<T> {
-        val reason = (exceptionOrNull() as? FirebaseFunctionsException)?.reason()
+        val reason = exceptionOrNull()?.let(callable::rejectionOf)?.reason
         return when (reason) {
             REASON_TEXT_TOO_LONG -> Result.failure(AppError.NoteTextTooLong())
             REASON_TOO_MANY_MEDIA -> Result.failure(AppError.NoteMediaLimitExceeded())

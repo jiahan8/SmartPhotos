@@ -4,11 +4,20 @@ import dev.gitlive.firebase.functions.FirebaseFunctions
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.nullable
 
-/** The createNote and updateNote callables, by name: the other seam for [DefaultNoteRepository]. */
+/**
+ * The createNote and updateNote callables, by name, and how to read their rejections: the other seam
+ * for [DefaultNoteRepository].
+ *
+ * [rejectionOf] is here for the reason [UserCallable] gives: the validation fold reads a rejection
+ * no `commonTest` could otherwise construct.
+ */
 internal interface NoteCallable {
     suspend fun createNote(name: String, args: CreateNoteArgs): CreateNoteResult?
 
     suspend fun updateNote(name: String, args: UpdateNoteArgs)
+
+    /** The code and `details.reason` [error] carries if it is a callable rejection, or null. */
+    fun rejectionOf(error: Throwable): CallableRejection?
 }
 
 internal class GitLiveNoteCallable(
@@ -22,6 +31,8 @@ internal class GitLiveNoteCallable(
     override suspend fun updateNote(name: String, args: UpdateNoteArgs) {
         functions.httpsCallable(name).invoke(UpdateNoteArgs.serializer(), args)
     }
+
+    override fun rejectionOf(error: Throwable): CallableRejection? = error.toCallableRejection()
 }
 
 /*
